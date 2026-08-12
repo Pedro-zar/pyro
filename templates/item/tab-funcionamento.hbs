@@ -1,0 +1,354 @@
+<section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+
+{{#if isArma}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Dano"}}
+      <button type="button" class="icone" data-action="adicionarDano"
+              title="{{localize 'PYRO.Item.AdicionarDano'}}"><i class="fa-solid fa-plus"></i></button>
+    </h4>
+    {{#each system.danos as |d idx|}}
+    <div class="linha-dano">
+      <input type="text" name="system.danos.{{idx}}.formula" value="{{d.formula}}" placeholder="2d8 + @des" />
+      <select name="system.danos.{{idx}}.tipo">{{selectOptions @root.tiposDano selected=d.tipo localize=true}}</select>
+      <button type="button" class="icone perigo" data-action="removerDano" data-index="{{idx}}"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {{/each}}
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Uso"}}</h4>
+    <div class="grade-campos">
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Acoes"}}</span>
+        <input type="number" name="system.acoes" value="{{system.acoes}}" min="1" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Maos"}}</span>
+        <input type="number" name="system.maos" value="{{system.maos}}" min="1" max="2" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.AlcanceMenor"}}</span>
+        <input type="number" name="system.alcanceMenor" value="{{system.alcanceMenor}}" min="0" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.AlcanceMaximo"}}</span>
+        <input type="number" name="system.alcanceMaximo" value="{{system.alcanceMaximo}}" min="0" /></label>
+    </div>
+  </div>
+{{/if}}
+
+{{#if isEquipamento}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Uso"}}</h4>
+    <div class="grade-campos">
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Parte"}}</span>
+        <select name="system.parte">{{selectOptions config.partesCorpo selected=system.parte localize=true}}</select></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Bloquear"}} +</span>
+        <input type="text" name="system.bloqueio" value="{{system.bloqueio}}" placeholder="1d4" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Esquivar"}} +</span>
+        <input type="text" name="system.esquiva" value="{{system.esquiva}}" placeholder="1d12" /></label>
+    </div>
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Item.DefesasCategorias"}}</h4>
+    <div class="grade-def-equip">
+      <label><span class="rotulo">{{localize "PYRO.Dano.fisico"}}</span>
+        <input type="number" name="system.defesas.categorias.fisico" value="{{system.defesas.categorias.fisico}}" /></label>
+      <label><span class="rotulo">{{localize "PYRO.Dano.energetico"}}</span>
+        <input type="number" name="system.defesas.categorias.energetico" value="{{system.defesas.categorias.energetico}}" /></label>
+      <label><span class="rotulo">{{localize "PYRO.Dano.mental"}}</span>
+        <input type="number" name="system.defesas.categorias.mental" value="{{system.defesas.categorias.mental}}" /></label>
+    </div>
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Item.DefesasTipos"}}</h4>
+    <div class="grade-def-equip">
+      {{#each system.defesas.tipos as |val tipo|}}
+      <label><span class="rotulo">{{localize (lookup (lookup @root.config.tiposDano tipo) "label")}}</span>
+        <input type="number" name="system.defesas.tipos.{{tipo}}" value="{{val}}" /></label>
+      {{/each}}
+    </div>
+  </div>
+{{/if}}
+
+{{#if isConsumivel}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Uso"}}</h4>
+    <div class="grade-campos">
+      {{#unless system.municao}}
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Acoes"}}</span>
+        <input type="number" name="system.acoes" value="{{system.acoes}}" min="0" /></label>
+      {{/unless}}
+      <label class="campo largo">
+        <span class="rotulo">{{#if system.municao}}{{localize "PYRO.Item.Dano"}}{{else}}{{localize "PYRO.Item.Formula"}}{{/if}}</span>
+        <input type="text" name="system.formula" value="{{system.formula}}" placeholder="2d8" /></label>
+      {{#if system.municao}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.TipoDano"}}</span>
+        <select name="system.tipoDano">{{selectOptions tiposDano selected=system.tipoDano localize=true}}</select></label>
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Parte"}}</span>
+        <select name="system.parte">{{selectOptions parteMunicaoOpts selected=system.parte localize=true}}</select></label>
+      {{/if}}
+    </div>
+  </div>
+{{/if}}
+
+{{#if isHabilidade}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Identificacao"}}</h4>
+    <div class="grade-campos">
+      {{#if caminhoOpts}}
+      <label class="campo largo"><span class="rotulo">{{localize "TYPES.Item.caminho"}}</span>
+        <select name="system.caminho">{{selectOptions caminhoOpts selected=system.caminho}}</select></label>
+      {{else}}
+      <label class="campo largo"><span class="rotulo">{{localize "TYPES.Item.caminho"}}</span>
+        <input type="text" name="system.caminho" value="{{system.caminho}}" /></label>
+      {{/if}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Categoria"}}</span>
+        <select name="system.categoria">{{selectOptions config.categoriasHabilidade selected=system.categoria localize=true}}</select></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Tier"}}</span>
+        <input type="number" name="system.tier" value="{{system.tier}}" min="1" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.CustoXp"}}</span>
+        <input type="number" name="system.custoXp" value="{{system.custoXp}}" min="0" /></label>
+    </div>
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Custos"}}</h4>
+    <div class="grade-campos">
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.TipoCusto"}}</span>
+        <select name="system.tipoCusto">{{selectOptions tipoCustoOpts selected=system.tipoCusto localize=true}}</select></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Quantas"}}</span>
+        <input type="number" name="system.custoAcoes" value="{{system.custoAcoes}}" min="0" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Recursos.estamina"}}</span>
+        <input type="number" name="system.custoEstamina" value="{{system.custoEstamina}}" min="0" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Recursos.mana"}}</span>
+        <input type="number" name="system.custoMana" value="{{system.custoMana}}" min="0" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Recursos.energia"}}</span>
+        <input type="number" name="system.custoEnergia" value="{{system.custoEnergia}}" min="0" /></label>
+    </div>
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Rolagem"}}</h4>
+    <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Item.Formula"}}</span>
+      <input type="text" name="system.formula" value="{{system.formula}}" placeholder="4d6 + @for" /></label>
+  </div>
+{{/if}}
+
+{{#if isFeitico}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Uso"}}</h4>
+    <div class="grade-campos">
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Acoes"}}</span>
+        <input type="number" name="system.custoAcoes" value="{{system.custoAcoes}}" min="0" /></label>
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Formula"}}</span>
+        <input type="text" name="system.formula" value="{{system.formula}}" placeholder="3d6" /></label>
+    </div>
+  </div>
+{{/if}}
+
+{{#if isRuna}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Identificacao"}}</h4>
+    <div class="grade-campos">
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.TipoRuna"}}</span>
+        <select name="system.tipoRuna">{{selectOptions config.tiposRuna selected=system.tipoRuna localize=true}}</select></label>
+      {{#if ehElemento}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Subtipo"}}</span>
+        <select name="system.subtipo">{{selectOptions subtipos selected=system.subtipo localize=true}}</select></label>
+      {{/if}}
+      <label class="campo largo"><span class="rotulo">{{localize rotuloPalavra}}</span>
+        <input type="text" name="system.palavra" value="{{system.palavra}}"
+               placeholder="{{localize 'PYRO.Item.PalavraPlaceholder'}}" /></label>
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Lingua"}}</span>
+        <select name="system.lingua">{{selectOptions linguaOpts selected=system.lingua localize=true}}</select></label>
+    </div>
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Escalonamentos"}}
+      <button type="button" class="icone" data-action="adicionarScaling"
+              title="{{localize 'PYRO.Item.AdicionarScaling'}}"><i class="fa-solid fa-plus"></i></button>
+      <button type="button" class="icone" data-action="restaurarScalings"
+              title="{{localize 'PYRO.Item.RestaurarScalings'}}"><i class="fa-solid fa-rotate-left"></i></button>
+    </h4>
+
+    {{#if system.scalings.length}}
+    <div class="scaling-cabecalho">
+      <span class="rotulo">{{localize "PYRO.Item.ScalingNome"}}</span>
+      <span class="rotulo">{{localize "PYRO.Item.Base"}}</span>
+      <span class="rotulo">{{localize "PYRO.Item.PorIntencao"}}</span>
+      <span class="rotulo">{{localize "PYRO.Item.Faces"}}</span>
+      <span></span>
+    </div>
+    {{#each system.scalings as |sc si|}}
+    <div class="scaling-linha">
+      <input type="text" name="system.scalings.{{si}}.nome" value="{{sc.nome}}"
+             placeholder="{{localize 'PYRO.Item.ScalingPlaceholder'}}" />
+      <input type="number" step="any" name="system.scalings.{{si}}.base" value="{{sc.base}}" />
+      <input type="number" step="any" name="system.scalings.{{si}}.porIntencao" value="{{sc.porIntencao}}" />
+      <input type="number" name="system.scalings.{{si}}.faces" value="{{sc.faces}}" min="0" />
+      <button type="button" class="icone perigo" data-action="removerScaling" data-index="{{si}}"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {{/each}}
+
+    {{#if previaScalings.length}}
+    <div class="previa-scalings">
+      <span class="rotulo">{{localize "PYRO.Item.PreviaIntencoes"}}</span>
+      <table>
+        <thead><tr><th></th>{{#each previaIntencoes as |n|}}<th class="numero">{{n}}</th>{{/each}}</tr></thead>
+        <tbody>
+          {{#each previaScalings as |p|}}
+          <tr><td>{{p.nome}}</td>{{#each p.valores as |v|}}<td class="numero">{{v}}</td>{{/each}}</tr>
+          {{/each}}
+        </tbody>
+      </table>
+    </div>
+    {{/if}}
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Item.SemScalings"}}</p>
+    {{/if}}
+  </div>
+{{/if}}
+
+{{#if isCaminho}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Identificacao"}}</h4>
+    <div class="grade-campos">
+      {{#if ehRacial}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Raca"}}</span>
+        <select name="system.raca">{{selectOptions racaOpts selected=system.raca}}</select></label>
+      {{#if pedeDetalhe}}
+      <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Item.RacaDetalhe"}}</span>
+        <input type="text" name="system.racaDetalhe" value="{{system.racaDetalhe}}"
+               placeholder="{{localize 'PYRO.Item.RacaDetalhePlaceholder'}}" /></label>
+      {{/if}}
+      {{#if ehPrimeiroRacial}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tamanho"}}</span>
+        <select name="system.tamanho">{{selectOptions tamanhoOpts selected=system.tamanho localize=true}}</select></label>
+      {{/if}}
+      {{else}}
+      <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Item.NomeCaminho"}}</span>
+        <input type="text" name="system.nomeCaminho" value="{{system.nomeCaminho}}"
+               placeholder="{{localize 'PYRO.Item.NomeCaminhoPlaceholder'}}" /></label>
+      {{/if}}
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Xp"}}</span>
+        <input type="number" name="system.xp" value="{{system.xp}}" min="0" /></label>
+    </div>
+  </div>
+
+  {{#if system.usaMagia}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Magia"}}</h4>
+    <div class="grade-campos">
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Potencial"}}</span>
+        <select name="system.potencial">{{selectOptions potencialOpts selected=system.potencial localize=true}}</select></label>
+    </div>
+    <div class="afinidades-lista">
+      <span class="rotulo">{{localize "PYRO.Item.Afinidades"}}
+        <button type="button" class="icone" data-action="adicionarAfinidade"
+                title="{{localize 'PYRO.Item.AdicionarAfinidade'}}"><i class="fa-solid fa-plus"></i></button>
+      </span>
+      {{#each system.afinidades as |af ai|}}
+      <div class="linha-afinidade">
+        <select name="system.afinidades.{{ai}}.tipo">{{selectOptions @root.afinidadeOpts selected=af.tipo}}</select>
+        <input type="text" name="system.afinidades.{{ai}}.outro" value="{{af.outro}}"
+               placeholder="{{localize 'PYRO.AfinidadesPlaceholder'}}" {{#unless (pyroEhOutro af.tipo)}}hidden{{/unless}} />
+        <button type="button" class="icone perigo" data-action="removerAfinidade" data-index="{{ai}}"
+                title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      {{else}}
+      <p class="pyro-aviso">{{localize "PYRO.Item.PrecisaAfinidade"}}</p>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+{{/if}}
+
+{{#if isMagia}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Item.RunasDaMagia"}}</h4>
+    <ol class="lista-itens">
+      {{#each system.runas as |r ri|}}
+      <li class="linha-item">
+        <div class="linha-1 grade-linha">
+          <span></span>
+          <span class="nome-item">{{r.nome}}</span>
+          <span class="detalhes"></span>
+          <span class="cauda">
+            <button type="button" class="icone perigo" data-action="removerRunaMagia" data-index="{{ri}}"
+                    title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+          </span>
+        </div>
+      </li>
+      {{/each}}
+    </ol>
+  </div>
+{{/if}}
+
+{{#unless isMagia}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Propriedades"}}</h4>
+    <div class="grade-campos">
+      {{#if temPropriedadesFisicas}}
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Peso"}}</span>
+        <input type="number" name="system.peso" value="{{system.peso}}" min="0" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Custo"}}</span>
+        <input type="number" name="system.custo" value="{{system.custo}}" min="0" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Quantidade"}}</span>
+        <input type="number" name="system.quantidade" value="{{system.quantidade}}" min="0" /></label>
+      {{/if}}
+    </div>
+
+    <div class="campos-check">
+      {{#if isArma}}
+      <label class="check-linha"><input type="checkbox" name="system.usaMunicao" {{checked system.usaMunicao}} />
+        <span>{{localize "PYRO.Item.UsaMunicao"}}</span></label>
+      {{/if}}
+      {{#if isEquipamento}}
+      <label class="check-linha"><input type="checkbox" name="system.equipado" {{checked system.equipado}} />
+        <span>{{localize "PYRO.Item.Equipado"}}</span></label>
+      {{/if}}
+      {{#if isConsumivel}}
+      <label class="check-linha"><input type="checkbox" name="system.municao" {{checked system.municao}} />
+        <span>{{localize "PYRO.Item.Municao"}}</span></label>
+      {{#if system.municao}}
+      <label class="check-linha"><input type="checkbox" name="system.equipado" {{checked system.equipado}} />
+        <span>{{localize "PYRO.Item.Equipado"}}</span></label>
+      {{/if}}
+      {{/if}}
+      {{#if isHabilidade}}
+      <label class="check-linha"><input type="checkbox" name="system.ehTecnica" {{checked system.ehTecnica}} />
+        <span>{{localize "PYRO.Item.EhTecnica"}}</span></label>
+      <label class="check-linha"><input type="checkbox" name="system.ehBase" {{checked system.ehBase}} />
+        <span>{{localize "PYRO.Item.EhBase"}}</span></label>
+      {{#if rotuloAbaCaminho}}
+      <label class="check-linha"><input type="checkbox" name="system.abaCaminho" {{checked system.abaCaminho}} />
+        <span>{{rotuloAbaCaminho}}</span></label>
+      {{/if}}
+      {{/if}}
+      {{#if isCaminho}}
+      <label class="check-linha"><input type="checkbox" name="system.ehRacial" {{checked system.ehRacial}} />
+        <span>{{localize "PYRO.Item.EhRacial"}}</span></label>
+      {{#if mostrarChecksMagia}}
+      <label class="check-linha"><input type="checkbox" name="system.usaMagia" {{checked system.usaMagia}} />
+        <span>{{localize "PYRO.Item.UsaMagia"}}</span></label>
+      <label class="check-linha"><input type="checkbox" name="system.usaFeiticaria" {{checked system.usaFeiticaria}} />
+        <span>{{localize "PYRO.Item.UsaFeiticaria"}}</span></label>
+      {{/if}}
+      {{/if}}
+    </div>
+
+    {{#if mostrarChecksRecursos}}
+    {{#if recursosOpts.length}}
+    <div class="campos-check">
+      <span class="rotulo-check">{{localize "PYRO.Item.Concede"}}</span>
+      {{#each recursosOpts as |rc|}}
+      <label class="check-linha">
+        <input type="checkbox" name="system.recursos.{{rc.chave}}" {{checked rc.marcado}} />
+        <span>{{rc.label}}</span>
+      </label>
+      {{/each}}
+    </div>
+    {{/if}}
+    {{/if}}
+  </div>
+{{/unless}}
+</section>

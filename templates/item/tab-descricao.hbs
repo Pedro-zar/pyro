@@ -1,0 +1,19 @@
+<section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+  <div class="descricao-layout">
+    {{#if valoresRapidos.length}}
+    <aside class="valores-rapidos">
+      {{#each valoresRapidos as |v|}}
+      <div class="valor-linha">
+        <span class="rotulo">{{v.label}}</span>
+        <span class="numero">{{v.valor}}</span>
+      </div>
+      {{/each}}
+    </aside>
+    {{/if}}
+
+    <div class="descricao-corpo">
+      {{formInput systemFields.descricao value=system.descricao enriched=descricaoHTML
+                  name="system.descricao" toggled=true height=320}}
+    </div>
+  </div>
+</section>

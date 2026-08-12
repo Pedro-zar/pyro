@@ -1,0 +1,60 @@
+{
+  "id": "pyro",
+  "title": "PYRO",
+  "description": "Sistema PYRO — pools de dados por atributo, Determinação e magia rúnica por Intenção.",
+  "version": "0.2.0",
+  "compatibility": {
+    "minimum": "13",
+    "verified": "13"
+  },
+  "authors": [
+    {
+      "name": "Seu Nome"
+    }
+  ],
+  "esmodules": [
+    "module/pyro.mjs"
+  ],
+  "styles": [
+    "styles/tokens.css",
+    "styles/pyro.css"
+  ],
+  "languages": [
+    {
+      "lang": "pt-BR",
+      "name": "Português (Brasil)",
+      "path": "lang/pt-BR.json"
+    },
+    {
+      "lang": "en",
+      "name": "English (usa os textos em pt-BR)",
+      "path": "lang/pt-BR.json"
+    }
+  ],
+  "documentTypes": {
+    "Actor": {
+      "personagem": {},
+      "npc": {}
+    },
+    "Item": {
+      "arma": {},
+      "equipamento": {},
+      "consumivel": {},
+      "habilidade": {},
+      "runa": {},
+      "magia": {},
+      "caminho": {},
+      "feitico": {}
+    }
+  },
+  "grid": {
+    "distance": 1,
+    "units": "m"
+  },
+  "primaryTokenAttribute": "recursos.pv",
+  "secondaryTokenAttribute": "recursos.mana",
+  "socket": false,
+  "url": "",
+  "manifest": "",
+  "download": ""
+}

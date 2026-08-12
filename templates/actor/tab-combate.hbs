@@ -1,0 +1,54 @@
+<section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+
+  <div class="colunas">
+    <div class="painel defesas">
+      <h3 class="titulo-secao">{{localize "PYRO.Defesas"}}</h3>
+      <div class="defesas-colunas">
+        {{#each defesaColunas as |col|}}
+        <div class="def-col">
+          <div class="def categoria">
+            <span>{{col.label}}</span>
+            <span class="total numero">{{col.total}}</span>
+          </div>
+          {{#each col.tipos as |t|}}
+          <div class="def">
+            <span>{{t.label}}</span>
+            <span class="total numero">{{t.total}}</span>
+          </div>
+          {{/each}}
+        </div>
+        {{/each}}
+      </div>
+    </div>
+
+    <div class="painel lateral">
+      <h3 class="titulo-secao">{{localize "PYRO.Combate"}}</h3>
+      <div class="botoes-reacao">
+        <button type="button" data-action="rolarEsquiva"
+                title="{{localize 'PYRO.EsquivaTooltip'}}">{{localize "PYRO.Esquivar"}} ({{system.esquiva}})</button>
+        <button type="button" data-action="rolarBloqueio"
+                title="{{localize 'PYRO.BloqueioTooltip'}}">{{localize "PYRO.Bloquear"}} ({{system.bloqueio}})</button>
+        <button type="button" data-action="tomarAr"
+                title="{{localize 'PYRO.TomarArTooltip'}}">{{localize "PYRO.TomarAr"}}</button>
+        <button type="button" data-action="abrirGuiaAcoes"
+                title="{{localize 'PYRO.GuiaAcoes.Tooltip'}}">
+          <i class="fa-solid fa-list"></i> {{localize "PYRO.GuiaAcoes.Abrir"}}
+        </button>
+      </div>
+
+      <h3 class="titulo-secao">{{localize "PYRO.Vontade.Nome"}}</h3>
+      <div class="botoes-reacao vontade">
+        <button type="button" data-action="gastarVontade" data-pontos="1"
+                title="{{localize 'PYRO.Vontade.Uso1'}}">1</button>
+        <button type="button" data-action="gastarVontade" data-pontos="2"
+                title="{{localize 'PYRO.Vontade.Uso2'}}">2</button>
+        <button type="button" data-action="gastarVontade" data-pontos="3"
+                title="{{localize 'PYRO.Vontade.Uso3'}}">3</button>
+      </div>
+    </div>
+  </div>
+
+  {{#if system.temTecnicas}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.tecnicas}}
+  {{/if}}
+</section>

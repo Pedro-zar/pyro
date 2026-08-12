@@ -1,0 +1,1103 @@
+/* ========================================================================== */
+/*  PYRO — fichas (ApplicationV2) e cards de chat                             */
+/* ========================================================================== */
+
+/* O acento antigo vira apelido do token, para regras ainda não migradas. */
+.pyro { --pyro-accent: var(--pyro-brasa); }
+
+/*
+ * Consultas de container em vez de media queries: o que importa é a largura
+ * da janela da ficha, não a da tela — o jogador pode encostá-la no mapa.
+ */
+.pyro .window-content { container: pyro-ficha / inline-size; }
+
+/*
+ * A ficha rola por inteiro: com cabeçalho, atributos e abas fixos, sobrava
+ * pouca área útil para a lista da aba mesmo em tela grande.
+ */
+.pyro .window-content {
+  display: flex; flex-direction: column; gap: var(--pyro-e-3);
+  padding: var(--pyro-e-3);
+  font-family: var(--pyro-fonte-texto);
+  font-size: var(--pyro-t-base);
+  color: var(--pyro-texto);
+  background: var(--pyro-fundo);
+  overflow-y: auto;
+}
+
+/* Nada de rolagem interna nas abas: quem rola é a ficha. */
+.pyro .window-content > .tab { overflow: visible; flex: 0 0 auto; }
+
+/*
+ * Palavras muito longas (URLs, texto colado) quebram com hífen em vez de
+ * transbordar o painel.
+ */
+.pyro .resumo-desc, .pyro .descricao-corpo,
+.pyro .secao-vazia, .pyro .valor-linha {
+  overflow-wrap: anywhere; hyphens: auto;
+}
+
+/* Foco visível para navegação por teclado. */
+.pyro :is(button, input, select, textarea):focus-visible {
+  outline: 2px solid var(--pyro-brasa);
+  outline-offset: 1px;
+}
+
+/* ---------- Cabeçalho ------------------------------------------------------ */
+
+.pyro .ficha-topo {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: var(--pyro-e-4);
+  padding: var(--pyro-e-3);
+  background: linear-gradient(180deg, var(--pyro-painel-alto), var(--pyro-painel));
+  border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-lg);
+}
+
+.pyro .retrato {
+  width: 104px; height: 104px; object-fit: cover;
+  border: 1px solid var(--pyro-borda-forte); border-radius: var(--pyro-r-md);
+  cursor: pointer; background: var(--pyro-fundo);
+}
+
+.pyro .topo-corpo {
+  display: flex; flex-direction: column; gap: var(--pyro-e-2); min-width: 0;
+}
+
+/*
+ * Identidade em duas zonas: nome e subtítulo crescem à esquerda, DET e a
+ * recuperação ficam ancorados à direita, ambos alinhados pelo topo.
+ */
+.pyro .topo-identidade {
+  display: flex; align-items: flex-start; gap: var(--pyro-e-3);
+}
+.pyro .topo-acoes {
+  flex: none; display: flex; align-items: center; gap: var(--pyro-e-2);
+}
+
+.pyro input.nome {
+  flex: 1; min-width: 0;
+  font-size: var(--pyro-t-xl); line-height: 1.3;
+  height: 2.1rem; padding: 0 0 2px;
+  color: var(--pyro-texto);
+  border: none; border-bottom: 1px solid transparent;
+  background: transparent;
+}
+.pyro input.nome:hover { border-bottom-color: var(--pyro-borda); }
+.pyro input.nome:focus {
+  border-bottom-color: var(--pyro-brasa); box-shadow: none; outline: none;
+}
+
+/* DET é o eixo do sistema: ganha selo próprio. */
+.pyro .selo-det {
+  flex: none; display: flex; flex-direction: column; align-items: center;
+  height: 2.1rem; justify-content: center;
+  padding: 0 var(--pyro-e-2);
+  border: 1px solid var(--pyro-brasa); border-radius: var(--pyro-r-md);
+  background: var(--pyro-brasa-suave);
+}
+.pyro .selo-det .selo-rotulo {
+  font-family: var(--pyro-fonte-display);
+  font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; line-height: 1;
+  color: var(--pyro-brasa-alta);
+}
+.pyro .selo-det input {
+  width: 2.2rem; height: 1.1rem; padding: 0; text-align: center;
+  font-size: var(--pyro-t-md); font-weight: 700; line-height: 1;
+  color: var(--pyro-texto); border: none; background: transparent;
+}
+
+.pyro .botao-menu {
+  flex: none; width: 2.1rem; height: 2.1rem; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: var(--pyro-texto-2);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
+  background: var(--pyro-realce); cursor: pointer;
+}
+.pyro .botao-menu:hover { color: var(--pyro-brasa-alta); border-color: var(--pyro-brasa); }
+
+/* Linha de identidade: derivada dos caminhos, não digitada. */
+.pyro .topo-subtitulo {
+  margin: 0; display: flex; flex-wrap: wrap; align-items: center;
+  gap: var(--pyro-e-1) var(--pyro-e-3);
+  font-size: var(--pyro-t-sm); color: var(--pyro-texto-2);
+}
+.pyro .topo-subtitulo span + span::before {
+  content: "·"; margin-right: var(--pyro-e-3); color: var(--pyro-texto-3);
+}
+.pyro .topo-subtitulo .id-raca { color: var(--pyro-texto); font-weight: 600; }
+.pyro .topo-subtitulo .id-afinidade { color: var(--pyro-brasa-alta); }
+.pyro .mini-select {
+  height: 1.4rem; padding: 0 var(--pyro-e-1); font-size: var(--pyro-t-xs);
+  background: var(--pyro-realce); border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-sm); color: var(--pyro-texto-2);
+}
+
+/* ---------- Recursos em barra ---------------------------------------------- */
+
+/*
+ * Recursos em flex com grow: as barras esticam para ocupar a largura da
+ * ficha, em vez de parar num tamanho fixo quando sobra espaço.
+ */
+.pyro .recursos {
+  display: flex; flex-wrap: wrap;
+  gap: var(--pyro-e-2) var(--pyro-e-3);
+  margin-top: var(--pyro-e-1);
+}
+
+.pyro .recurso {
+  flex: 1 1 9rem; min-width: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.pyro .recurso-topo {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--pyro-e-2);
+}
+.pyro .recurso-topo .rotulo { color: var(--cor); font-weight: 600; }
+.pyro .recurso-nota {
+  font-size: var(--pyro-t-xs); color: var(--pyro-texto-3); white-space: nowrap;
+}
+
+.pyro .barra {
+  position: relative; height: 1.45rem;
+  background: var(--pyro-fundo);
+  border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-sm); overflow: hidden;
+}
+.pyro .barra-preenchida {
+  position: absolute; inset: 0 auto 0 0;
+  background: linear-gradient(180deg,
+    color-mix(in srgb, var(--cor) 85%, white 8%),
+    color-mix(in srgb, var(--cor) 70%, black 20%));
+  transition: width 0.2s ease;
+}
+.pyro .barra-texto {
+  position: relative; height: 100%;
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+  font-size: var(--pyro-t-sm); color: var(--pyro-texto);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.75);
+}
+/*
+ * Valor e máximo com a mesma largura e alinhados um contra o outro: a barra
+ * do "/" cai no centro exato, independente do número de dígitos.
+ */
+.pyro .barra-texto input {
+  width: 2.8rem; height: 1.2rem; padding: 0; text-align: right;
+  font-size: var(--pyro-t-sm); font-weight: 700; color: var(--pyro-texto);
+  background: transparent; border: none;
+}
+.pyro .barra-texto input:focus {
+  background: rgba(0, 0, 0, 0.45); border-radius: var(--pyro-r-sm); outline: none;
+}
+.pyro .barra-max { width: 2.8rem; text-align: left; color: var(--pyro-texto-2); }
+
+/* ---------- Alertas de estado ---------------------------------------------- */
+
+.pyro .alertas { display: flex; flex-wrap: wrap; gap: var(--pyro-e-2); }
+.pyro .alerta {
+  display: inline-flex; align-items: center; gap: var(--pyro-e-1);
+  padding: 1px var(--pyro-e-2);
+  font-size: var(--pyro-t-xs); border-radius: var(--pyro-r-pill);
+  border: 1px solid currentColor;
+}
+.pyro .alerta.perigo { color: var(--pyro-perigo); background: color-mix(in srgb, var(--pyro-perigo) 12%, transparent); }
+.pyro .alerta.aviso { color: var(--pyro-aviso); background: color-mix(in srgb, var(--pyro-aviso) 12%, transparent); }
+
+/* ---------- Rodapé fixo ----------------------------------------------------- */
+
+.pyro .ficha-rodape {
+  display: flex; align-items: center; gap: var(--pyro-e-4);
+  padding: var(--pyro-e-2) var(--pyro-e-3);
+  margin-top: auto;
+  font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
+  background: var(--pyro-painel); border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-md);
+}
+.pyro .ficha-rodape .valor { color: var(--pyro-texto); font-weight: 600; }
+.pyro .ficha-rodape .perigo { color: var(--pyro-perigo); }
+.pyro .ficha-rodape .rodape-dir { margin-left: auto; }
+
+/* ---------- Atributos (faixa fixa, fora das abas) -------------------------- */
+
+.pyro .painel-atributos {
+  padding: var(--pyro-e-2);
+  background: var(--pyro-painel);
+  border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-md);
+}
+
+.pyro .grade-atributos {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--pyro-e-2);
+}
+
+.pyro .atributo {
+  display: flex; flex-direction: column;
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
+  background: var(--pyro-painel-alto); overflow: hidden;
+}
+.pyro .atributo.acima-limite { border-color: var(--pyro-brasa); }
+
+.pyro .atributo .rolagem {
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 0.5rem 0.2rem 0.45rem; border: none; border-radius: 0;
+  background: transparent; cursor: pointer; line-height: 1.3;
+  height: auto; min-height: 0;
+}
+.pyro .atributo .rolagem:hover {
+  background: color-mix(in srgb, var(--pyro-brasa) 15%, transparent);
+}
+.pyro .atributo .rotulo {
+  font-size: var(--pyro-t-xs); letter-spacing: 0.08em; font-weight: 700;
+  line-height: 1.4; color: var(--pyro-texto-2); overflow: visible;
+}
+.pyro .atributo.acima-limite .rotulo { color: var(--pyro-brasa-alta); }
+.pyro .atributo .pool {
+  font-size: var(--pyro-t-md); font-weight: 700; line-height: 1.25;
+}
+/* Base e, quando passa do limite de DET, o valor efetivo ao lado. */
+.pyro .atributo-base {
+  display: flex; align-items: center; justify-content: center; gap: var(--pyro-e-1);
+  border-top: 1px solid var(--pyro-borda);
+}
+.pyro .atributo-base input {
+  width: 100%; border: none; border-radius: 0; background: transparent;
+  text-align: center; font-size: var(--pyro-t-sm); color: var(--pyro-texto-2);
+}
+.pyro .atributo-base .efetivo {
+  flex: none; padding-right: var(--pyro-e-1);
+  font-size: var(--pyro-t-xs); font-weight: 700; color: var(--pyro-brasa-alta);
+}
+
+/* ---------- Painéis (defesas / lateral) ------------------------------------ */
+
+.pyro .colunas { display: flex; gap: 0.75rem; align-items: flex-start; }
+.pyro .painel {
+  border: 1px solid var(--pyro-borda); border-radius: 6px; padding: 0.5rem;
+  display: flex; flex-direction: column; gap: 0.5rem;
+}
+.pyro .colunas .defesas { flex: 3; }
+.pyro .colunas .lateral { flex: 2; }
+.pyro .painel h3 { margin: 0; border: none; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
+
+
+.pyro .botoes-reacao { display: flex; flex-wrap: wrap; gap: 4px; }
+.pyro .botoes-reacao button { font-size: 0.75rem; padding: 3px 8px; line-height: 1.4; }
+.pyro .botoes-reacao.vontade button { width: 2.2rem; font-weight: 700; }
+
+.pyro .stats-passivos { font-size: 0.8rem; }
+.pyro .stats-passivos p { margin: 0.15rem 0; }
+
+.pyro .perigo { color: var(--pyro-perigo); font-weight: 600; }
+
+/* ---------- Abas ----------------------------------------------------------- */
+
+.pyro nav.tabs {
+  display: flex; gap: var(--pyro-e-1); flex-wrap: wrap;
+  border-bottom: 1px solid var(--pyro-borda);
+  padding: 0 0 var(--pyro-e-1);
+}
+.pyro nav.tabs > * {
+  display: inline-flex; align-items: center; gap: var(--pyro-e-2);
+  padding: var(--pyro-e-2) var(--pyro-e-3);
+  font-family: var(--pyro-fonte-display);
+  font-size: var(--pyro-t-sm); font-weight: 600; letter-spacing: 0.03em;
+  color: var(--pyro-texto-2); text-decoration: none;
+  border: 1px solid transparent; border-bottom: none;
+  border-radius: var(--pyro-r-md) var(--pyro-r-md) 0 0;
+  cursor: pointer;
+}
+.pyro nav.tabs > *:hover { color: var(--pyro-texto); background: var(--pyro-painel); }
+.pyro nav.tabs > .active {
+  color: var(--pyro-brasa-alta);
+  background: var(--pyro-painel-alto);
+  border-color: var(--pyro-borda);
+  box-shadow: inset 0 2px 0 var(--pyro-brasa);
+}
+.pyro nav.tabs i { font-size: 0.9em; }
+
+/* ---------- Seções de lista ------------------------------------------------ */
+
+.pyro .secao { display: flex; flex-direction: column; gap: var(--pyro-e-1); }
+.pyro .secao + .secao { margin-top: var(--pyro-e-4); }
+
+.pyro .secao-topo {
+  display: flex; align-items: center; gap: var(--pyro-e-2);
+  padding-bottom: var(--pyro-e-1);
+  border-bottom: 1px solid var(--pyro-borda);
+}
+.pyro .secao-contagem {
+  padding: 0 var(--pyro-e-2);
+  font-size: var(--pyro-t-xs); color: var(--pyro-texto-3);
+  background: var(--pyro-realce); border-radius: var(--pyro-r-pill);
+}
+.pyro .botao-secao {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: var(--pyro-e-1);
+  height: var(--pyro-toque); padding: 0 var(--pyro-e-3);
+  font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
+  background: var(--pyro-realce);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
+  cursor: pointer;
+}
+.pyro .botao-secao:hover {
+  color: var(--pyro-brasa-alta); border-color: var(--pyro-brasa);
+}
+
+/* Legenda de coluna: mesma grade da linha, para os títulos baterem. */
+.pyro .secao-legenda {
+  padding: 0 var(--pyro-e-2);
+  font-size: var(--pyro-t-xs); color: var(--pyro-texto-3);
+}
+.pyro .secao-legenda .detalhe { opacity: 1; color: var(--pyro-texto-3); }
+
+.pyro .secao-vazia {
+  margin: 0; padding: var(--pyro-e-3);
+  font-size: var(--pyro-t-sm); color: var(--pyro-texto-3); font-style: italic;
+  border: 1px dashed var(--pyro-borda); border-radius: var(--pyro-r-md);
+}
+
+/* ---------- Listas de itens ------------------------------------------------ */
+
+.pyro .lista-itens {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.pyro .lista-itens img {
+  width: 26px; height: 26px; border: none;
+  border-radius: var(--pyro-r-sm); flex: none;
+}
+
+/* Nome à esquerda: sem o display:block o botão do Foundry centraliza o texto */
+.pyro .nome-item {
+  display: block; text-align: left; min-width: 0;
+  border: none; background: transparent; padding: 0;
+  cursor: pointer; font-weight: 500;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+
+/*
+ * Linha de item em grade: ícone | nome | detalhes | cauda [| equipar].
+ * As trilhas com minmax(0, ...) podem encolher abaixo do conteúdo, então a
+ * linha nunca fica mais larga que a lista — era o que empurrava a última
+ * coluna da cauda (tier, "Próx.") pra fora da ficha.
+ */
+.pyro .lista-itens li.linha-item {
+  display: flex; flex-direction: column; align-items: stretch; gap: 2px;
+  cursor: default; position: relative;
+  padding: var(--pyro-e-1) var(--pyro-e-2);
+  border: 1px solid transparent; border-radius: var(--pyro-r-md);
+  background: var(--pyro-painel);
+}
+.pyro .lista-itens li.linha-item:hover {
+  background: var(--pyro-painel-alto); border-color: var(--pyro-borda);
+}
+.pyro .lista-itens li.equipado {
+  background: color-mix(in srgb, var(--pyro-brasa) 10%, var(--pyro-painel));
+}
+/* Marcador do elemento da runa. */
+.pyro .linha-item.com-cor { border-left: 3px solid var(--cor-item); }
+
+/* Grade compartilhada pela legenda e pela linha, para as colunas baterem. */
+.pyro .grade-linha {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 34%) minmax(0, 1fr) auto;
+  align-items: center; gap: var(--pyro-e-3); min-width: 0;
+}
+
+.pyro .detalhes {
+  min-width: 0; display: flex; align-items: center; gap: 0.5rem;
+}
+.pyro .acoes-item { flex: none; display: flex; align-items: center; }
+
+.pyro .detalhe {
+  font-size: 0.72rem; opacity: 0.75;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
+}
+/* Caminho mostra o nome inteiro e empurra o resto; corta só no aperto */
+.pyro .detalhe.col-caminho { flex: 0 1 auto; }
+.pyro .detalhe.col-parte { flex: 0 1 auto; }
+.pyro .detalhe.col-dano { flex: 0 1 auto; }
+.pyro .detalhe.col-custo { flex: 0 1 auto; }
+
+/* Cauda: colunas de largura fixa, iguais em toda linha */
+.pyro .cauda {
+  display: grid; grid-auto-flow: column; align-items: center; gap: 0.5rem;
+}
+.pyro .cauda .detalhe { text-align: right; }
+.pyro .cauda .col-categoria { width: 4.6rem; }
+.pyro .cauda .col-tier { width: 1.8rem; }
+.pyro .cauda .col-curto { width: 4.5rem; }
+.pyro .cauda .col-xp { width: 4.6rem; }
+
+.pyro .linha-item .linha-2 {
+  display: flex; gap: 0.9rem; padding-left: 2rem; opacity: 0.85;
+}
+.pyro .linha-item .resumo-item { display: none; }
+.pyro .linha-item.aberto .resumo-item {
+  display: block; margin: 0.3rem 0 0.4rem 2rem;
+  padding: 0.4rem 0.6rem; border-left: 2px solid var(--pyro-brasa);
+  background: color-mix(in srgb, currentColor 4%, transparent);
+  border-radius: 0 4px 4px 0;
+}
+.pyro .resumo-valores {
+  display: flex; flex-wrap: wrap; gap: 0.25rem 1rem;
+  font-size: 0.75rem; margin-bottom: 0.3rem;
+}
+.pyro .resumo-desc { font-size: 0.82rem; }
+.pyro .resumo-desc p:first-child { margin-top: 0; }
+.pyro .resumo-desc p:last-child { margin-bottom: 0; }
+
+/* Arraste para reordenar */
+.pyro .linha-item.arrastando { opacity: 0.4; }
+.pyro .linha-item.alvo-antes { box-shadow: inset 0 2px 0 var(--pyro-brasa); }
+.pyro .linha-item.alvo-depois { box-shadow: inset 0 -2px 0 var(--pyro-brasa); }
+.pyro .linha-item .nome-item { cursor: pointer; }
+.pyro button.nome-item:hover { color: var(--pyro-brasa-alta); }
+/* Efeito desligado continua legível, só recua visualmente. */
+.pyro .nome-item.inativo { color: var(--pyro-texto-3); text-decoration: line-through; }
+
+.pyro button.icone {
+  flex: none; width: 1.6rem; height: 1.6rem; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: none; background: transparent; opacity: 0.55; cursor: pointer;
+}
+.pyro button.icone:hover { opacity: 1; }
+.pyro button.icone.perigo:hover { color: var(--pyro-perigo); }
+.pyro button.icone.equipar.ativo { opacity: 1; color: var(--pyro-brasa); }
+
+/* ---------- Painel de magia (aba Poderes) ---------------------------------- */
+
+.pyro .painel-magia {
+  flex-direction: row; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: var(--pyro-e-3);
+}
+.pyro .magia-numeros {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  gap: var(--pyro-e-1) var(--pyro-e-5);
+  font-size: var(--pyro-t-sm);
+}
+.pyro .magia-numeros .rotulo { margin-right: var(--pyro-e-1); }
+.pyro .magia-numeros .afinidade { color: var(--pyro-brasa-alta); }
+
+.pyro button.destaque {
+  background: var(--pyro-brasa); color: #fff; border: none;
+  padding: 4px 12px; font-weight: 600;
+}
+.pyro button.destaque:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.pyro .campos-item { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end; }
+.pyro .runas-magia { margin: 0.2rem 0 0; padding-left: 1rem; font-size: 0.8rem; text-transform: none; }
+
+/* ---------- Conjurador ------------------------------------------------------ */
+
+.pyro.conjurador .window-content { gap: var(--pyro-e-3); }
+.pyro .conjurador-corpo {
+  display: flex; flex-direction: column; gap: var(--pyro-e-3);
+}
+
+/* A frase montada: fichas encadeadas com "+" entre elas. */
+.pyro .frase {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--pyro-e-3);
+}
+.pyro .ficha-runa {
+  position: relative;
+  display: flex; flex-direction: column; gap: var(--pyro-e-1);
+  min-width: 9.5rem; max-width: 14rem; padding: var(--pyro-e-2);
+  background: var(--pyro-painel-alto);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
+}
+.pyro .ficha-runa.com-cor { border-left: 3px solid var(--cor-item); }
+.pyro .ficha-runa.excedida { border-color: var(--pyro-perigo); }
+/* Sinal de soma entre as fichas, como numa frase falada. */
+.pyro .ficha-runa + .ficha-runa::before {
+  content: "+"; position: absolute; left: calc(var(--pyro-e-3) * -1);
+  top: 50%; transform: translate(-50%, -50%);
+  color: var(--pyro-texto-3); font-size: var(--pyro-t-md);
+}
+
+.pyro .ficha-topo { display: flex; align-items: baseline; gap: var(--pyro-e-2); }
+.pyro .ficha-nome {
+  flex: 1; min-width: 0; font-family: var(--pyro-fonte-display);
+  font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pyro .ficha-meta {
+  display: flex; gap: var(--pyro-e-2);
+  font-size: var(--pyro-t-xs); color: var(--pyro-texto-3);
+}
+
+.pyro .intencao-ctrl {
+  display: flex; align-items: center; justify-content: center; gap: var(--pyro-e-2);
+  padding: 2px 0;
+  background: var(--pyro-fundo); border-radius: var(--pyro-r-sm);
+}
+.pyro .intencao-valor {
+  min-width: 1.5rem; text-align: center;
+  font-size: var(--pyro-t-md); font-weight: 700;
+}
+
+.pyro .ficha-previa {
+  margin: 0; font-size: var(--pyro-t-xs); color: var(--pyro-texto);
+}
+.pyro .ficha-custo {
+  margin: 0; display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--pyro-e-2); font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
+}
+.pyro .ficha-limite { color: var(--pyro-texto-3); }
+
+/* Medidores de mana e sobrecarga. */
+.pyro .medidores {
+  display: grid; grid-template-columns: 2fr 1fr; gap: var(--pyro-e-3);
+}
+.pyro .medidor {
+  display: flex; flex-direction: column; gap: var(--pyro-e-1);
+  padding: var(--pyro-e-2) var(--pyro-e-3);
+  background: var(--pyro-painel);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
+}
+.pyro .medidor.alerta { border-color: var(--pyro-perigo); }
+.pyro .medidor-topo {
+  display: flex; align-items: baseline; justify-content: space-between; gap: var(--pyro-e-2);
+}
+.pyro .medidor-valor { font-size: var(--pyro-t-md); font-weight: 700; }
+.pyro .medidor-nota { margin: 0; font-size: var(--pyro-t-xs); color: var(--pyro-texto-2); }
+
+/*
+ * Barra de mana em duas camadas: a mana atual ao fundo e, por cima, o quanto
+ * esta magia vai consumir — dá pra ver o gasto antes de confirmar.
+ */
+.pyro .barra-mana { height: 0.9rem; }
+.pyro .barra-mana .barra-preenchida {
+  background: color-mix(in srgb, var(--pyro-mana) 55%, black 25%);
+}
+.pyro .barra-custo {
+  position: absolute; inset: 0 auto 0 0;
+  background: repeating-linear-gradient(45deg,
+    var(--pyro-brasa) 0 6px, var(--pyro-brasa-alta) 6px 12px);
+  opacity: 0.9; transition: width 0.2s ease;
+}
+.pyro .barra-custo.perigo {
+  background: repeating-linear-gradient(45deg,
+    var(--pyro-perigo) 0 6px, color-mix(in srgb, var(--pyro-perigo) 70%, black) 6px 12px);
+}
+
+/* Runas conhecidas viram fichas clicáveis. */
+.pyro .runas-disponiveis { display: flex; flex-direction: column; gap: var(--pyro-e-2); }
+.pyro .grupo-runas { display: flex; flex-direction: column; gap: var(--pyro-e-1); }
+.pyro .chips { display: flex; flex-wrap: wrap; gap: var(--pyro-e-2); }
+.pyro .chip {
+  display: inline-flex; align-items: center; gap: var(--pyro-e-1);
+  height: var(--pyro-toque); padding: 0 var(--pyro-e-3);
+  font-size: var(--pyro-t-sm); color: var(--pyro-texto);
+  background: var(--pyro-painel);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-pill);
+  cursor: pointer;
+}
+.pyro .chip:hover { border-color: var(--pyro-brasa); background: var(--pyro-painel-alto); }
+.pyro .chip.com-cor { border-left: 3px solid var(--cor-item); }
+.pyro .chip-lingua { font-size: var(--pyro-t-xs); color: var(--pyro-brasa-alta); }
+
+.pyro .conjurador-rodape {
+  display: flex; align-items: center; gap: var(--pyro-e-3); flex-wrap: wrap;
+  padding-top: var(--pyro-e-2);
+  border-top: 1px solid var(--pyro-borda);
+}
+.pyro .conjurador-rodape input[type=text] { flex: 1; min-width: 8rem; }
+.pyro .conjurador-rodape .botao-principal { margin-left: auto; }
+
+/* ---------- Ficha de item --------------------------------------------------- */
+
+.pyro.item .window-content { gap: var(--pyro-e-2); }
+
+.pyro .item-topo {
+  display: grid; grid-template-columns: 64px minmax(0, 1fr);
+  gap: var(--pyro-e-3); align-items: center;
+  padding: var(--pyro-e-3);
+  background: linear-gradient(180deg, var(--pyro-painel-alto), var(--pyro-painel));
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-lg);
+}
+.pyro.item .retrato { width: 64px; height: 64px; }
+.pyro .item-topo-corpo { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pyro .item-topo-linha { display: flex; align-items: baseline; gap: var(--pyro-e-3); }
+.pyro .item-topo-linha .nome { font-size: var(--pyro-t-lg); }
+.pyro .item-tipo {
+  flex: none; font-size: var(--pyro-t-xs); color: var(--pyro-texto-3);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+/* Resumo mecânico: o que o item faz, sem precisar abrir Funcionamento. */
+.pyro .item-subtitulo {
+  margin: 0; font-size: var(--pyro-t-sm); color: var(--pyro-texto-2);
+}
+
+/*
+ * Sem valores rápidos, a descrição ocupa a largura toda — senão ela herdava
+ * a coluna estreita e o texto saía cortado.
+ */
+.pyro .descricao-layout {
+  display: grid; grid-template-columns: minmax(0, 1fr);
+  gap: var(--pyro-e-3); align-items: start;
+}
+.pyro .descricao-layout:has(.valores-rapidos) {
+  grid-template-columns: 11rem minmax(0, 1fr);
+}
+.pyro .valores-rapidos {
+  display: flex; flex-direction: column; gap: 2px;
+  padding: var(--pyro-e-2);
+  background: var(--pyro-painel); border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-md);
+}
+.pyro .valor-linha {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: var(--pyro-e-2); font-size: var(--pyro-t-sm);
+}
+.pyro .valor-linha .numero { font-weight: 600; }
+.pyro .descricao-corpo { min-width: 0; }
+
+/* Blocos agrupados da aba Funcionamento. */
+.pyro .bloco {
+  display: flex; flex-direction: column; gap: var(--pyro-e-2);
+  padding: var(--pyro-e-3);
+  background: var(--pyro-painel); border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-md);
+}
+.pyro .bloco + .bloco { margin-top: var(--pyro-e-3); }
+.pyro .bloco > .titulo-secao {
+  display: flex; align-items: center; gap: var(--pyro-e-2);
+  padding-bottom: var(--pyro-e-1);
+  border-bottom: 1px solid var(--pyro-borda);
+}
+.pyro .grade-campos {
+  display: flex; flex-wrap: wrap; gap: var(--pyro-e-3); align-items: flex-end;
+}
+.pyro .grade-campos .campo { display: flex; flex-direction: column; gap: 2px; }
+
+/*
+ * Blocos de nota redimensionáveis: o jogador puxa a borda de baixo para ler
+ * um texto longo sem depender da rolagem da ficha.
+ */
+.pyro .notas-grade {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: var(--pyro-e-3); align-items: start;
+}
+.pyro .notas-grade .bloco { margin-top: 0; }
+.pyro .notas-grade :is(.editor, prose-mirror, .prosemirror) {
+  resize: vertical; overflow: auto;
+  min-height: 7rem; max-height: 40rem;
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-sm);
+  background: var(--pyro-fundo);
+}
+.pyro .notas-grade .editor-content { padding: var(--pyro-e-2); }
+.pyro .titulo-livre {
+  width: 100%; height: 1.8rem; padding: 0 0 2px;
+  font-family: var(--pyro-fonte-display);
+  font-size: var(--pyro-t-md); font-weight: 600; color: var(--pyro-texto);
+  background: transparent;
+  border: none; border-bottom: 1px solid var(--pyro-borda);
+}
+.pyro .titulo-livre:focus { border-bottom-color: var(--pyro-brasa); box-shadow: none; }
+
+/* ---------- Notas e chat ----------------------------------------------------- */
+
+/* Barra de ação no topo da aba: um botão de criar por aba, não por seção. */
+.pyro .barra-acoes {
+  display: flex; justify-content: flex-end; gap: var(--pyro-e-2);
+  margin-bottom: var(--pyro-e-2);
+}
+.pyro .barra-acoes .botao-secao {
+  width: var(--pyro-toque); padding: 0; justify-content: center;
+}
+
+/*
+ * O retrato do item vira o botão de usar: ao passar o mouse, a arte dá lugar
+ * a um d20, sem acrescentar mais um ícone à linha.
+ */
+.pyro .retrato-item {
+  position: relative; width: 26px; height: 26px; padding: 0; flex: none;
+  border: none; background: none; cursor: pointer; border-radius: var(--pyro-r-sm);
+  overflow: hidden;
+}
+.pyro .retrato-item img { display: block; width: 100%; height: 100%; }
+.pyro .retrato-item i {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem; color: var(--pyro-brasa-alta);
+  background: rgba(0, 0, 0, 0.72);
+  opacity: 0; transition: opacity 0.12s ease;
+}
+.pyro .retrato-item:hover i, .pyro .retrato-item:focus-visible i { opacity: 1; }
+
+/* Escalonamentos da runa e prévia por Intenção. */
+.pyro .scaling-cabecalho, .pyro .scaling-linha {
+  display: grid; grid-template-columns: minmax(0, 1fr) 4rem 4.5rem 3.5rem 1.6rem;
+  gap: var(--pyro-e-1); align-items: center;
+}
+.pyro .scaling-linha input { width: 100%; min-width: 0; text-align: center; }
+.pyro .scaling-linha input[type=text] { text-align: left; }
+
+.pyro .previa-scalings { margin-top: var(--pyro-e-2); }
+.pyro .previa-scalings table {
+  width: 100%; border-collapse: collapse; font-size: var(--pyro-t-xs);
+}
+.pyro .previa-scalings th, .pyro .previa-scalings td {
+  padding: 2px var(--pyro-e-1); text-align: center;
+  border-bottom: 1px solid var(--pyro-borda);
+}
+.pyro .previa-scalings td:first-child, .pyro .previa-scalings th:first-child {
+  text-align: left; color: var(--pyro-texto-2);
+}
+
+/* Botões de efeito de uso nos cards do chat. */
+.pyro-chat .pyro-efeitos-uso {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem;
+  margin-top: 0.4rem; padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.pyro-chat .pyro-efeitos-rotulo {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;
+}
+.pyro-chat .pyro-aplicar-efeito {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  width: auto; height: auto; padding: 2px 8px;
+  font-size: 0.78rem; line-height: 1.4;
+  border: 1px solid var(--pyro-borda); border-radius: 999px;
+  background: var(--pyro-painel-alto); color: var(--pyro-texto); cursor: pointer;
+}
+.pyro-chat .pyro-aplicar-efeito:hover {
+  border-color: var(--pyro-brasa); color: var(--pyro-brasa-alta);
+}
+.pyro-chat .pyro-aplicar-efeito img {
+  width: 16px; height: 16px; border: none; border-radius: 3px;
+}
+
+/* Card de item no chat. */
+.pyro-chat .pyro-item-topo {
+  display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;
+}
+.pyro-chat .pyro-item-topo img {
+  width: 36px; height: 36px; border: none; border-radius: 4px; flex: none;
+}
+.pyro-chat .pyro-item-topo h3 { margin: 0; border: none; }
+.pyro-chat .pyro-item-tipo {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;
+}
+
+.pyro-nota, .pyro .pyro-nota { font-size: 0.75rem; opacity: 0.7; font-style: italic; margin: 0.3rem 0 0; }
+
+.pyro-chat { display: flex; flex-direction: column; gap: 0.4rem; }
+.pyro-chat .pyro-magia-titulo h3 { margin: 0; border: none; }
+.pyro-chat .pyro-magia-meta { font-size: 0.75rem; opacity: 0.75; }
+.pyro-chat .pyro-runas-usadas { list-style: none; margin: 0; padding: 0; font-size: 0.85rem; }
+.pyro-chat .pyro-runa-meta { font-size: 0.72rem; opacity: 0.7; margin-left: 0.3rem; }
+.pyro-chat .pyro-forma { margin: 0; font-size: 0.85rem; }
+.pyro-chat .pyro-efeito { margin: 0.15rem 0 0; font-size: 0.78rem; opacity: 0.85; }
+.pyro-chat .pyro-dano p { margin: 0.15rem 0; }
+.pyro-chat .pyro-sobrecarga {
+  border-left: 3px solid var(--pyro-perigo); padding: 0.2rem 0.5rem;
+  background: color-mix(in srgb, var(--pyro-perigo) 8%, transparent);
+  font-size: 0.85rem;
+}
+.pyro-chat .pyro-sobrecarga.sucesso { border-left-color: var(--pyro-sucesso); background: color-mix(in srgb, var(--pyro-sucesso) 8%, transparent); }
+.pyro-chat .pyro-sobrecarga ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
+
+.pyro-resultado.sucesso { color: var(--pyro-sucesso); font-weight: 700; }
+.pyro-resultado.falha, .pyro-falha-auto { color: var(--pyro-perigo); font-weight: 700; }
+.pyro-aviso { color: var(--pyro-aviso); font-size: 0.85rem; }
+
+/* ---------- Ajustes: raça, defesas em colunas, guia de ações --------------- */
+
+.pyro .raca-tag {
+  font-size: 0.75rem; opacity: 0.75; white-space: nowrap;
+  padding: 2px 8px; border: 1px solid var(--pyro-borda); border-radius: 999px;
+  align-self: center;
+}
+
+.pyro .defesas-colunas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
+.pyro .def-col { display: flex; flex-direction: column; gap: 0.3rem; }
+.pyro .def {
+  display: grid; grid-template-columns: 1fr 2.6rem 1.6rem;
+  align-items: center; gap: 4px; font-size: 0.72rem;
+}
+.pyro .def input { text-align: center; }
+.pyro .def .total { font-weight: 700; text-align: center; color: var(--pyro-brasa); }
+.pyro .def.categoria {
+  border-bottom: 1px solid var(--pyro-borda); padding-bottom: 0.25rem;
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+}
+
+.pyro .destaque-lingua { color: var(--pyro-brasa); font-weight: 600; opacity: 1; }
+
+.pyro.guia-acoes .window-content { gap: 0.5rem; }
+.pyro .guia-lista { display: flex; flex-direction: column; gap: 0.5rem; }
+.pyro .guia-acao {
+  border: 1px solid var(--pyro-borda); border-radius: 6px; padding: 0.35rem 0.55rem;
+}
+.pyro .guia-acao p { margin: 0.2rem 0 0; font-size: 0.78rem; opacity: 0.9; }
+.pyro .guia-cab { display: flex; justify-content: space-between; align-items: baseline; gap: 0.5rem; }
+.pyro .guia-custo { font-size: 0.72rem; opacity: 0.75; white-space: nowrap; }
+
+/* ---------- Ajustes: tipos de dano, scalings, tamanho fixo ------------------ */
+
+.pyro .valor-texto { font-size: 0.95rem; font-weight: 600; padding: 2px 0; }
+
+.pyro .tipos-dano .lista-tipos { display: flex; flex-direction: column; gap: 2px; }
+.pyro .tipos-dano .linha-tipo { display: flex; align-items: center; gap: 2px; }
+.pyro .tipos-dano select { width: 8rem; }
+.pyro .tipos-dano > span { display: flex; align-items: center; gap: 4px; }
+
+.pyro .bloco-defesas { flex-basis: 100%; }
+.pyro .grade-def-equip {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem 0.6rem;
+}
+.pyro .grade-def-equip label {
+  display: grid; grid-template-columns: 1fr 2.6rem; align-items: center; gap: 4px;
+  font-size: 0.7rem; text-transform: uppercase;
+}
+.pyro .grade-def-equip input { text-align: center; }
+
+.pyro .magia-runas { display: flex; flex-direction: column; gap: 0.5rem; }
+.pyro .runa-bloco { border: 1px solid var(--pyro-borda); border-radius: 6px; padding: 0.35rem 0.5rem; }
+.pyro .runa-cab { display: flex; justify-content: space-between; align-items: center; }
+.pyro .scaling-cabecalho, .pyro .scaling-linha {
+  display: grid; grid-template-columns: 1fr 3.2rem 3.6rem 3rem 1.6rem;
+  gap: 4px; align-items: center; margin-top: 0.25rem;
+}
+.pyro .scaling-cabecalho span {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7;
+}
+.pyro .scaling-linha input { text-align: center; font-size: 0.8rem; }
+.pyro .scaling-linha input[type=text] { text-align: left; }
+
+/* ---------- Ajustes: afinidades e efeitos ----------------------------------- */
+
+.pyro .afinidades-lista { flex-basis: 100%; }
+.pyro .afinidades-lista > span { display: flex; align-items: center; gap: 4px; }
+.pyro .linha-afinidade {
+  display: grid; grid-template-columns: 10rem 1fr 1.6rem;
+  gap: 4px; align-items: center; margin-top: 2px;
+}
+.pyro .linha-afinidade input[hidden] { display: none; }
+
+.pyro .efeitos-grupo + .efeitos-grupo, .pyro .efeitos-item { margin-top: 0.5rem; }
+.pyro li.efeito-inativo { opacity: 0.55; }
+.pyro .efeitos-item .nome-item { cursor: default; }
+
+/* ---------- Ajustes: danos múltiplos, checkboxes, configurações ------------- */
+
+.pyro .campos-item > .campo { min-width: 0; }
+.pyro .nome-auto {
+  flex: 1; font-size: 1.3rem; font-weight: 600;
+  border-bottom: 2px solid var(--pyro-borda); padding-bottom: 2px;
+}
+
+.pyro .lista-danos { flex-basis: 100%; }
+.pyro .lista-danos > span { display: flex; align-items: center; gap: 4px; }
+.pyro .linha-dano {
+  display: grid; grid-template-columns: 1fr 9rem 1.6rem;
+  gap: 4px; align-items: center; margin-top: 2px;
+}
+.pyro .linha-dano input, .pyro .linha-dano select { width: 100%; min-width: 0; }
+
+/* Defesas do equipamento: colunas fluidas, sem input estourando o rótulo */
+.pyro .grade-def-equip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(6rem, 1fr));
+  gap: 0.4rem 0.6rem;
+}
+/* Rótulo em cima do campo: sem ambiguidade sobre a qual defesa o número pertence */
+.pyro .grade-def-equip label {
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: 0.66rem; text-transform: uppercase;
+}
+.pyro .grade-def-equip label span {
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pyro .grade-def-equip input { width: 100%; min-width: 0; text-align: center; }
+
+.pyro .campos-check {
+  display: flex; flex-wrap: wrap; gap: 0.75rem;
+  border-top: 1px solid var(--pyro-borda); padding-top: 0.4rem;
+}
+.pyro .check-linha {
+  display: flex; align-items: center; gap: 0.35rem;
+  font-size: 0.75rem; cursor: pointer;
+}
+.pyro .check-linha input { margin: 0; }
+
+.pyro.config-magia .window-content { gap: 0.6rem; }
+.pyro .config-corpo { display: flex; flex-direction: column; gap: 0.8rem; }
+.pyro .config-cab, .pyro .config-linha {
+  display: grid; grid-template-columns: 6rem 1fr 1fr 4.5rem 4.5rem 1.6rem;
+  gap: 4px; align-items: center;
+}
+.pyro .config-cab span {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7;
+}
+.pyro .config-linha input { width: 100%; min-width: 0; text-align: center; }
+.pyro .config-linha input[type=text] { text-align: left; }
+.pyro .config-linha code { font-size: 0.72rem; opacity: 0.7; }
+
+.pyro .config-elemento {
+  border: 1px solid var(--pyro-borda); border-radius: 6px;
+  padding: 0.35rem 0.5rem; margin-top: 0.35rem;
+}
+.pyro .config-el-cab { display: flex; align-items: center; gap: 0.5rem; }
+.pyro .config-el-cab input { flex: 1; }
+.pyro .config-el-campos {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(8rem, 1fr));
+  gap: 0.3rem 0.6rem; margin: 0.3rem 0;
+}
+.pyro .config-el-campos label {
+  display: grid; grid-template-columns: minmax(0, 1fr) 4rem;
+  align-items: center; gap: 4px; font-size: 0.65rem; text-transform: uppercase;
+}
+.pyro .config-el-campos input, .pyro .config-el-campos select { width: 100%; min-width: 0; }
+.pyro .config-elemento textarea { width: 100%; font-size: 0.78rem; }
+.pyro .config-rodape { display: flex; justify-content: flex-end; gap: 0.5rem; }
+
+.pyro .pyro-linha-dano {
+  margin: 0.3rem 0 0; font-size: 0.75rem; text-transform: uppercase;
+  letter-spacing: 0.04em; opacity: 0.8;
+}
+
+/* ---------- Ajustes: linhas do caminho e campos largos ---------------------- */
+
+.pyro .linha-campos {
+  flex-basis: 100%;
+  display: flex; flex-wrap: wrap; gap: 0.6rem; align-items: flex-end;
+}
+.pyro .campo.largo select, .pyro .campo.largo input { width: 11rem; }
+.pyro .campo select { min-width: 6.5rem; }
+.pyro .campo.cresce { flex: 1; min-width: 10rem; }
+.pyro .campo.cresce input { width: 100%; }
+.pyro .config-el-campos label.largo { grid-column: span 2; }
+.pyro .config-el-campos label.largo input { width: 100%; }
+
+/* ---------- Ajustes: construtor de efeitos e mira -------------------------- */
+
+.pyro.construtor-efeito .window-content { gap: 0.5rem; }
+.pyro .construtor-corpo { display: flex; flex-direction: column; gap: 0.4rem; }
+.pyro .mudancas { display: flex; flex-direction: column; gap: 2px; }
+.pyro .mudanca-cab, .pyro .mudanca-linha {
+  display: grid; grid-template-columns: 1fr 1.4fr 1fr 4.5rem 1.6rem;
+  gap: 4px; align-items: center;
+}
+.pyro .mudanca-cab span {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7;
+}
+.pyro .mudanca-linha select, .pyro .mudanca-linha input { width: 100%; min-width: 0; }
+.pyro .construtor-rodape { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.3rem; }
+
+.pyro-chat .pyro-mira {
+  border-left: 3px solid var(--pyro-sucesso); padding: 0.2rem 0.5rem;
+  background: color-mix(in srgb, var(--pyro-sucesso) 8%, transparent); font-size: 0.85rem;
+}
+.pyro-chat .pyro-mira.falha {
+  border-left-color: var(--pyro-perigo); background: color-mix(in srgb, var(--pyro-perigo) 8%, transparent);
+}
+.pyro-chat .pyro-mira p { margin: 0.15rem 0; }
+
+/* ---------- Ajustes: rótulo de bloco de checkboxes ------------------------- */
+
+.pyro .rotulo-check {
+  font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.04em;
+  opacity: 0.75; align-self: center;
+}
+
+/* ---------- Defesas em modo leitura ---------------------------------------- */
+
+.pyro .def {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 0.5rem; font-size: 0.72rem;
+}
+.pyro .def .total {
+  font-weight: 700; color: var(--pyro-brasa); font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Tabela de Subjulgar no chat ------------------------------------ */
+
+.pyro-chat .pyro-subjulgar {
+  border-left: 3px solid var(--pyro-el-morte);
+  background: color-mix(in srgb, var(--pyro-el-morte) 8%, transparent);
+  padding: 0.35rem 0.5rem;
+}
+.pyro-chat .pyro-subjulgar-titulo {
+  margin: 0 0 0.3rem; font-weight: 600; font-size: 0.85rem;
+}
+.pyro-chat .sub-linhas {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: 0.3rem;
+}
+.pyro-chat .sub-linhas li {
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid color-mix(in srgb, currentColor 12%, transparent);
+}
+.pyro-chat .sub-linhas li:last-child { border-bottom: none; padding-bottom: 0; }
+.pyro-chat .sub-topo {
+  display: flex; align-items: baseline; gap: 0.4rem;
+  font-variant-numeric: tabular-nums;
+}
+.pyro-chat .sub-det { font-size: 0.78rem; font-weight: 600; }
+.pyro-chat .sub-mult { font-size: 0.72rem; opacity: 0.7; }
+.pyro-chat .sub-valor { margin-left: auto; font-size: 1rem; color: var(--pyro-el-mente); }
+.pyro-chat .sub-limiares {
+  font-size: 0.7rem; opacity: 0.8; font-variant-numeric: tabular-nums;
+}
+.pyro-chat .sub-nulo { font-size: 0.72rem; opacity: 0.55; }
+.pyro-chat .sub-legenda { margin: 0.35rem 0 0; font-size: 0.68rem; opacity: 0.7; }
+
+
+/* ==========================================================================
+   Ponto de quebra: a ficha abre em 740px, mas precisa continuar utilizável
+   encostada ao lado do mapa. Abaixo de 580px o layout se reorganiza.
+   ========================================================================== */
+
+@container pyro-ficha (max-width: 580px) {
+  .pyro .descricao-layout { grid-template-columns: 1fr; }
+  .pyro .ficha-topo { grid-template-columns: 68px minmax(0, 1fr); }
+  .pyro .retrato { width: 68px; height: 68px; }
+  .pyro input.nome { font-size: var(--pyro-t-lg); }
+
+  .pyro .recursos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  /* Sete atributos não cabem numa fileira só. */
+  .pyro .grade-atributos { grid-template-columns: repeat(4, 1fr); }
+
+  /* Defesas empilham em vez de disputar três colunas. */
+  .pyro .defesas-colunas { grid-template-columns: 1fr; }
+  .pyro .colunas { flex-direction: column; }
+
+  /* Listas ficam com nome e cauda; o resto vai para o resumo do clique. */
+  .pyro .grade-linha { grid-template-columns: 26px minmax(0, 1fr) auto; }
+  .pyro .grade-linha .detalhes { display: none; }
+  .pyro .cauda .col-curto:not(:last-child) { display: none; }
+
+  /* Abas viram só ícone quando o rótulo não cabe. */
+  .pyro nav.tabs > * { padding: var(--pyro-e-2); }
+  .pyro nav.tabs > *:not(.active) span { display: none; }
+
+  .pyro .ficha-rodape { flex-wrap: wrap; gap: var(--pyro-e-2); }
+}
+
+.pyro .rodape-dinheiro {
+  width: 4rem; height: 1.3rem; padding: 0 var(--pyro-e-1);
+  background: var(--pyro-realce); border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-sm); color: var(--pyro-texto);
+  font-size: var(--pyro-t-xs); text-align: right;
+}
+
+/* ---------- Botão principal de seção --------------------------------------- */
+
+.pyro .acao-secao { display: flex; }
+.pyro .botao-principal {
+  display: inline-flex; align-items: center; gap: var(--pyro-e-2);
+  padding: var(--pyro-e-2) var(--pyro-e-4);
+  font-family: var(--pyro-fonte-display); font-size: var(--pyro-t-sm);
+  font-weight: 700; letter-spacing: 0.04em;
+  color: #fff; background: var(--pyro-brasa);
+  border: none; border-radius: var(--pyro-r-md); cursor: pointer;
+  box-shadow: var(--pyro-sombra-1);
+}
+.pyro .botao-principal:hover { background: var(--pyro-brasa-alta); }
+.pyro .botao-principal:disabled { opacity: 0.45; cursor: not-allowed; }

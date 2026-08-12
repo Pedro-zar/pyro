@@ -1,0 +1,16 @@
+<header class="item-topo">
+  <img class="retrato" src="{{item.img}}" data-edit="img" data-action="editImage"
+       alt="{{item.name}}" title="{{localize 'PYRO.TrocarRetrato'}}" />
+
+  <div class="item-topo-corpo">
+    <div class="item-topo-linha">
+      {{#if nomeAutomatico}}
+      <span class="nome display nome-auto" title="{{localize 'PYRO.Item.NomeAutomatico'}}">{{item.name}}</span>
+      {{else}}
+      <input class="nome display" type="text" name="name" value="{{item.name}}" />
+      {{/if}}
+      <span class="item-tipo">{{tipoLabel}}</span>
+    </div>
+    {{#if subtitulo}}<p class="item-subtitulo numero">{{subtitulo}}</p>{{/if}}
+  </div>
+</header>

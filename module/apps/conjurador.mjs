@@ -1,0 +1,227 @@
+import { PYRO } from "../config.mjs";
+import { calcular, conjurar, previaRuna } from "../magia.mjs";
+
+const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
+
+/**
+ * Montagem de frases rúnicas. A frase é uma sequência de fichas, cada uma com
+ * sua Intenção, e os medidores de mana e sobrecarga respondem a cada mudança —
+ * a ideia é que o custo e o risco apareçam antes de conjurar, não depois.
+ */
+export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
+  constructor({ actor, frase = [], nomeMagia = "", ...options } = {}) {
+    super(options);
+    this.actor = actor;
+    /** Runas escolhidas, na ordem da frase: [{ id, intencao }] */
+    this.frase = frase;
+    this.nomeMagia = nomeMagia;
+  }
+
+  static DEFAULT_OPTIONS = {
+    id: "pyro-conjurador-{id}",
+    classes: ["pyro", "conjurador"],
+    tag: "form",
+    position: { width: 640, height: "auto" },
+    window: { title: "PYRO.Conjurador.Titulo", resizable: true },
+    form: { handler: ConjuradorApp.#aoConjurar, closeOnSubmit: true },
+    actions: {
+      adicionarRuna: ConjuradorApp.#adicionarRuna,
+      removerRuna: ConjuradorApp.#removerRuna,
+      subirIntencao: ConjuradorApp.#subirIntencao,
+      descerIntencao: ConjuradorApp.#descerIntencao,
+      limparFrase: ConjuradorApp.#limparFrase
+    }
+  };
+
+  static PARTS = {
+    form: { template: "systems/pyro/templates/apps/conjurador.hbs" }
+  };
+
+  /* ---------------------------------------------------------------------- */
+
+  /** Limite seguro de Intenção desta runa: escala quando a raça supera a língua. */
+  #limiteDaRuna(item) {
+    const fatorRaca = this.actor.system.fatorLinguistico ?? 1;
+    const lingua = PYRO.linguas[item.system.lingua];
+    return Math.floor(this.actor.system.sobrecargaLimite * Math.max(1, fatorRaca / lingua.fator));
+  }
+
+  #escolhas() {
+    return this.frase
+      .map(f => ({ item: this.actor.items.get(f.id), intencao: f.intencao }))
+      .filter(e => e.item);
+  }
+
+  async _prepareContext(options) {
+    const context = await super._prepareContext(options);
+    const actor = this.actor;
+    const nativa = actor.system.linguaNativa;
+    const mana = actor.system.recursos.mana;
+    const loc = k => game.i18n.localize(k);
+
+    const escolhas = this.#escolhas();
+    const calc = calcular(actor, escolhas);
+
+    /* --- Fichas da frase montada ----------------------------------------- */
+    const fichas = calc.porRuna.map((pr, indice) => {
+      const s = pr.item.system;
+      return {
+        indice,
+        nome: s.palavra || pr.item.name,
+        tipo: loc(PYRO.tiposRuna[s.tipoRuna] ?? ""),
+        cor: s.tipoRuna === "elemento" && PYRO.elementos[s.subtipo] ? s.subtipo : null,
+        intencao: pr.intencao,
+        custo: pr.custo,
+        limite: pr.limite,
+        excesso: pr.excesso,
+        limiteTexto: game.i18n.format("PYRO.Conjurador.LimiteRuna", { n: pr.limite }),
+        // O que esta runa produz na Intenção escolhida.
+        previa: previaRuna(pr.item, pr.intencao, pr.efeitoMult),
+        lingua: s.lingua !== nativa ? loc(PYRO.linguas[s.lingua]?.label ?? "") : null
+      };
+    });
+
+    /* --- Runas disponíveis, por grupo ------------------------------------ */
+    const naFrase = new Set(this.frase.map(f => f.id));
+    const grupo = tipo => actor.items
+      .filter(i => i.type === "runa" && i.system.tipoRuna === tipo)
+      .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
+      .map(r => ({
+        id: r.id,
+        nome: r.system.palavra || r.name,
+        cor: tipo === "elemento" && PYRO.elementos[r.system.subtipo] ? r.system.subtipo : null,
+        lingua: r.system.lingua !== nativa
+          ? loc(PYRO.linguas[r.system.lingua]?.label ?? "") : null,
+        // Cada runa entra uma vez só na frase.
+        usada: naFrase.has(r.id),
+        limite: this.#limiteDaRuna(r),
+        limiteTexto: game.i18n.format("PYRO.Conjurador.LimiteRuna", { n: this.#limiteDaRuna(r) })
+      }));
+
+    /* --- Medidores -------------------------------------------------------- */
+    const faltaMana = calc.custoTotal > mana.value;
+    const podeConjurar = escolhas.length > 0 && calc.temElemento && calc.temForma && !faltaMana;
+
+    Object.assign(context, {
+      actor,
+      fichas,
+      temFrase: fichas.length > 0,
+      elementos: grupo("elemento"),
+      formas: grupo("forma"),
+      modificadores: grupo("modificador"),
+      semRunas: !actor.items.some(i => i.type === "runa"),
+
+      custoTotal: calc.custoTotal,
+      manaAtual: mana.value,
+      manaMax: mana.max,
+      manaRestante: mana.value - calc.custoTotal,
+      // Barra de mana: parte já gasta e parte que esta magia vai consumir.
+      pctUsada: mana.max > 0 ? Math.clamp((mana.value / mana.max) * 100, 0, 100) : 0,
+      pctCusto: mana.max > 0 ? Math.clamp((calc.custoTotal / mana.max) * 100, 0, 100) : 0,
+      faltaMana,
+
+      acoes: calc.acoes,
+      acoesTexto: game.i18n.format("PYRO.Conjurador.Acoes", { n: calc.acoes }),
+      restanteTexto: game.i18n.format("PYRO.Conjurador.Restante", { n: mana.value - calc.custoTotal }),
+      sobrecarga: calc.sobrecarga,
+      sobrecargaTexto: calc.sobrecarga > 0
+        ? game.i18n.format("PYRO.Conjurador.SobrecargaN", { nivel: calc.sobrecarga, nd: calc.nd })
+        : "",
+      nd: calc.nd,
+      limiteBase: actor.system.sobrecargaLimite,
+
+      faltaElemento: escolhas.length > 0 && !calc.temElemento,
+      faltaForma: escolhas.length > 0 && !calc.temForma,
+      podeConjurar
+    });
+    return context;
+  }
+
+  /* ---------------------------------------------------------------------- */
+  /*  Montagem da frase                                                     */
+  /* ---------------------------------------------------------------------- */
+
+  /** Guarda nome e checkbox de salvar antes de re-renderizar. */
+  #capturarCampos() {
+    const form = this.element;
+    if (!form) return;
+    this.nomeMagia = form.querySelector("[name=nomeMagia]")?.value ?? this.nomeMagia;
+    this.salvar = form.querySelector("[name=salvar]")?.checked ?? this.salvar;
+    this.rolarDano = form.querySelector("[name=rolarDano]")?.checked ?? this.rolarDano;
+  }
+
+  static #adicionarRuna(event, target) {
+    this.#capturarCampos();
+    const id = target.dataset.runaId;
+    // Uma runa por frase: repetir a palavra não soma efeito, aumenta a Intenção.
+    if (this.frase.some(f => f.id === id)) {
+      return ui.notifications.warn(game.i18n.localize("PYRO.Conjurador.RunaRepetida"));
+    }
+    this.frase.push({ id, intencao: 1 });
+    this.render();
+  }
+
+  static #removerRuna(event, target) {
+    this.#capturarCampos();
+    this.frase.splice(Number(target.dataset.indice), 1);
+    this.render();
+  }
+
+  static #subirIntencao(event, target) {
+    this.#capturarCampos();
+    const f = this.frase[Number(target.dataset.indice)];
+    if (f) f.intencao += 1;
+    this.render();
+  }
+
+  static #descerIntencao(event, target) {
+    this.#capturarCampos();
+    const f = this.frase[Number(target.dataset.indice)];
+    if (f && f.intencao > 1) f.intencao -= 1;
+    this.render();
+  }
+
+  static #limparFrase() {
+    this.#capturarCampos();
+    this.frase = [];
+    this.render();
+  }
+
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    // Restaura o que o jogador já tinha digitado antes da re-renderização.
+    const form = this.element;
+    const nome = form.querySelector("[name=nomeMagia]");
+    if (nome && this.nomeMagia) nome.value = this.nomeMagia;
+    const salvar = form.querySelector("[name=salvar]");
+    if (salvar && this.salvar !== undefined) salvar.checked = this.salvar;
+    const dano = form.querySelector("[name=rolarDano]");
+    if (dano && this.rolarDano !== undefined) dano.checked = this.rolarDano;
+  }
+
+  /* ---------------------------------------------------------------------- */
+
+  static async #aoConjurar(event, form, formData) {
+    const escolhas = this.#escolhas();
+    if (!escolhas.length) return;
+
+    const dados = formData.object;
+    if (dados.salvar && dados.nomeMagia?.trim()) {
+      // Salva só o conjunto de palavras: Intenções são escolhidas ao conjurar e
+      // os escalonamentos vivem em cada runa.
+      await Item.implementation.create({
+        name: dados.nomeMagia.trim(),
+        type: "magia",
+        system: {
+          runas: escolhas.map(e => ({ itemId: e.item.id, nome: e.item.name }))
+        }
+      }, { parent: this.actor });
+      ui.notifications.info(game.i18n.format("PYRO.Conjurador.Salva", { nome: dados.nomeMagia.trim() }));
+    }
+
+    return conjurar(this.actor, escolhas, {
+      nomeMagia: dados.nomeMagia?.trim() || null,
+      rolarDano: !!dados.rolarDano
+    });
+  }
+}

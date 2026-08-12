@@ -1,0 +1,27 @@
+<section class="secao">
+  <header class="secao-topo">
+    <h3 class="titulo-secao">{{secao.titulo}}</h3>
+    <span class="secao-contagem numero">{{secao.itens.length}}</span>
+  </header>
+
+  {{#if secao.itens.length}}
+  <div class="secao-legenda grade-linha">
+    <span></span>
+    <span class="leg-nome">{{secao.colNome}}</span>
+    <span class="detalhes">
+      {{#each secao.colunas as |c|}}<span class="detalhe {{c.classe}}">{{c.texto}}</span>{{/each}}
+    </span>
+    <span class="cauda">
+      {{#each secao.cauda as |c|}}<span class="detalhe {{c.classe}}">{{c.texto}}</span>{{/each}}
+    </span>
+  </div>
+
+  <ol class="lista-itens">
+    {{#each secao.itens as |item|}}
+    {{> "systems/pyro/templates/actor/partials/item-linha.hbs" linha=item}}
+    {{/each}}
+  </ol>
+  {{else}}
+  <p class="secao-vazia">{{secao.vazio}}</p>
+  {{/if}}
+</section>

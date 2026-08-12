@@ -1,0 +1,24 @@
+{{!--
+  Atributos ficam fora das abas: são consultados em qualquer contexto de jogo,
+  então acompanham o cabeçalho em vez de morar dentro de Combate.
+--}}
+<div class="painel painel-atributos">
+  <div class="grade-atributos">
+    {{#each system.atributos as |attr chave|}}
+    <div class="atributo {{#if attr.acimaDoLimite}}acima-limite{{/if}}">
+      <button type="button" class="rolagem" data-action="rolarAtributo" data-atributo="{{chave}}"
+              title="{{localize 'PYRO.RolarTooltip'}}">
+        <span class="rotulo">{{localize (concat "PYRO.Atributos." chave)}}</span>
+        <span class="pool numero">{{attr.pool}}</span>
+      </button>
+      <div class="atributo-base">
+        <input class="numero" type="number" name="system.atributos.{{chave}}.valor"
+               value="{{attr.valor}}" min="1" />
+        {{#if attr.acimaDoLimite}}
+        <span class="efetivo numero" title="{{localize 'PYRO.EfetivoTooltip'}}">{{attr.efetivo}}</span>
+        {{/if}}
+      </div>
+    </div>
+    {{/each}}
+  </div>
+</div>

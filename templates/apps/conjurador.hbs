@@ -1,0 +1,166 @@
+<div class="conjurador-corpo">
+
+  {{#if semRunas}}
+  <p class="secao-vazia">{{localize "PYRO.Conjurador.SemRunas"}}</p>
+  {{else}}
+
+  {{!-- A frase montada: fichas encadeadas, cada uma com sua Intenção --}}
+  <section class="frase-area">
+    <header class="secao-topo">
+      <h3 class="titulo-secao">{{localize "PYRO.Conjurador.Frase"}}</h3>
+      {{#if temFrase}}
+      <button type="button" class="botao-secao" data-action="limparFrase">
+        <i class="fa-solid fa-eraser"></i> {{localize "PYRO.Conjurador.Limpar"}}
+      </button>
+      {{/if}}
+    </header>
+
+    {{#if temFrase}}
+    <ol class="frase">
+      {{#each fichas as |f|}}
+      <li class="ficha-runa{{#if f.cor}} com-cor{{/if}}{{#if f.excesso}} excedida{{/if}}"
+          {{#if f.cor}}style="--cor-item: var(--pyro-el-{{f.cor}})"{{/if}}>
+        <div class="ficha-topo">
+          <span class="ficha-nome">{{f.nome}}</span>
+          <button type="button" class="icone perigo" data-action="removerRuna" data-indice="{{f.indice}}"
+                  title="{{localize 'PYRO.Conjurador.RemoverRuna'}}"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+
+        <div class="ficha-meta">
+          <span>{{f.tipo}}</span>
+          {{#if f.lingua}}<span class="destaque-lingua">{{f.lingua}}</span>{{/if}}
+        </div>
+
+        <div class="intencao-ctrl">
+          <button type="button" class="icone" data-action="descerIntencao" data-indice="{{f.indice}}"
+                  title="{{localize 'PYRO.Conjurador.MenosIntencao'}}"><i class="fa-solid fa-minus"></i></button>
+          <span class="intencao-valor numero" title="{{localize 'PYRO.Magia.Intencao'}}">{{f.intencao}}</span>
+          <button type="button" class="icone" data-action="subirIntencao" data-indice="{{f.indice}}"
+                  title="{{localize 'PYRO.Conjurador.MaisIntencao'}}"><i class="fa-solid fa-plus"></i></button>
+        </div>
+
+        {{#if f.previa}}<p class="ficha-previa">{{f.previa}}</p>{{/if}}
+
+        <p class="ficha-custo numero">
+          {{f.custo}} {{localize "PYRO.Recursos.mana"}}
+          {{#if f.excesso}}
+          <span class="perigo" title="{{localize 'PYRO.Conjurador.AcimaDoLimite'}}">
+            <i class="fa-solid fa-triangle-exclamation"></i> +{{f.excesso}}
+          </span>
+          {{else}}
+          <span class="ficha-limite">{{f.limiteTexto}}</span>
+          {{/if}}
+        </p>
+      </li>
+      {{/each}}
+    </ol>
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Conjurador.FraseVazia"}}</p>
+    {{/if}}
+  </section>
+
+  {{!-- Medidores: custo e risco antes de conjurar --}}
+  <section class="medidores">
+    <div class="medidor">
+      <div class="medidor-topo">
+        <span class="rotulo">{{localize "PYRO.Conjurador.GastoTotal"}}</span>
+        <span class="medidor-valor numero {{#if faltaMana}}perigo{{/if}}">
+          {{custoTotal}} / {{manaAtual}}
+        </span>
+      </div>
+      <div class="barra barra-mana">
+        <div class="barra-preenchida" style="width: {{pctUsada}}%"></div>
+        <div class="barra-custo {{#if faltaMana}}perigo{{/if}}" style="width: {{pctCusto}}%"></div>
+      </div>
+      <p class="medidor-nota">
+        {{#if faltaMana}}
+        <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
+          {{localize "PYRO.Conjurador.ManaInsuficiente"}}</span>
+        {{else}}
+        {{restanteTexto}} · {{acoesTexto}}
+        {{/if}}
+      </p>
+    </div>
+
+    <div class="medidor {{#if sobrecarga}}alerta{{/if}}">
+      <div class="medidor-topo">
+        <span class="rotulo">{{localize "PYRO.IntencaoSegura"}}</span>
+        <span class="medidor-valor numero">{{limiteBase}}</span>
+      </div>
+      <p class="medidor-nota">
+        {{#if sobrecarga}}
+        <span class="perigo"><i class="fa-solid fa-fire"></i> {{sobrecargaTexto}}</span>
+        {{else}}
+        <i class="fa-solid fa-check"></i> {{localize "PYRO.Conjurador.SemSobrecarga"}}
+        {{/if}}
+      </p>
+    </div>
+  </section>
+
+  {{#if faltaElemento}}
+  <p class="pyro-aviso"><i class="fa-solid fa-triangle-exclamation"></i>
+    {{localize "PYRO.Conjurador.FaltaElemento"}}</p>
+  {{/if}}
+  {{#if faltaForma}}
+  <p class="pyro-aviso"><i class="fa-solid fa-triangle-exclamation"></i>
+    {{localize "PYRO.Conjurador.FaltaForma"}}</p>
+  {{/if}}
+
+  {{!-- Runas conhecidas, por grupo --}}
+  <section class="runas-disponiveis">
+    {{#if elementos.length}}
+    <div class="grupo-runas">
+      <h4 class="titulo-secao">{{localize "PYRO.Runas.elemento"}}</h4>
+      <div class="chips">
+        {{#each elementos as |r|}}
+        <button type="button" class="chip{{#if r.cor}} com-cor{{/if}}" data-action="adicionarRuna"
+                data-runa-id="{{r.id}}" {{#if r.cor}}style="--cor-item: var(--pyro-el-{{r.cor}})"{{/if}}
+                title="{{r.limiteTexto}}" {{#if r.usada}}disabled{{/if}}>
+          {{r.nome}}{{#if r.lingua}} <span class="chip-lingua">{{r.lingua}}</span>{{/if}}
+        </button>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+
+    {{#if formas.length}}
+    <div class="grupo-runas">
+      <h4 class="titulo-secao">{{localize "PYRO.Runas.forma"}}</h4>
+      <div class="chips">
+        {{#each formas as |r|}}
+        <button type="button" class="chip" data-action="adicionarRuna" data-runa-id="{{r.id}}"
+                title="{{r.limiteTexto}}" {{#if r.usada}}disabled{{/if}}>
+          {{r.nome}}{{#if r.lingua}} <span class="chip-lingua">{{r.lingua}}</span>{{/if}}
+        </button>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+
+    {{#if modificadores.length}}
+    <div class="grupo-runas">
+      <h4 class="titulo-secao">{{localize "PYRO.Runas.modificador"}}</h4>
+      <div class="chips">
+        {{#each modificadores as |r|}}
+        <button type="button" class="chip" data-action="adicionarRuna" data-runa-id="{{r.id}}"
+                title="{{r.limiteTexto}}" {{#if r.usada}}disabled{{/if}}>
+          {{r.nome}}{{#if r.lingua}} <span class="chip-lingua">{{r.lingua}}</span>{{/if}}
+        </button>
+        {{/each}}
+      </div>
+    </div>
+    {{/if}}
+  </section>
+
+  <footer class="conjurador-rodape">
+    <input type="text" name="nomeMagia" placeholder="{{localize 'PYRO.Conjurador.NomePlaceholder'}}" />
+    <label class="check-linha"><input type="checkbox" name="rolarDano" checked />
+      <span>{{localize "PYRO.Conjurador.RolarDano"}}</span></label>
+    <label class="check-linha"><input type="checkbox" name="salvar" />
+      <span>{{localize "PYRO.Conjurador.Salvar"}}</span></label>
+    <button type="submit" class="botao-principal" {{#unless podeConjurar}}disabled{{/unless}}>
+      <i class="fa-solid fa-wand-sparkles"></i> {{localize "PYRO.Conjurador.Conjurar"}}
+    </button>
+  </footer>
+  {{/if}}
+</div>

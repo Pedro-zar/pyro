@@ -1,0 +1,42 @@
+<section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+
+  {{#if system.temMagia}}
+  <div class="painel painel-magia">
+    <div class="magia-numeros">
+      {{#if system.afinidadesTexto}}
+      <span><span class="rotulo">{{localize "PYRO.Item.Afinidades"}}</span>
+        <strong class="afinidade">{{system.afinidadesTexto}}</strong></span>
+      {{/if}}
+      <span><span class="rotulo">{{localize "PYRO.RecuperacaoCena"}}</span>
+        <strong class="numero">{{system.recursos.mana.recuperacao}}</strong></span>
+    </div>
+    <button type="button" class="botao-principal" data-action="abrirConjurador">
+      <i class="fa-solid fa-wand-sparkles"></i> {{localize "PYRO.Conjurador.Abrir"}}
+    </button>
+  </div>
+
+  <div class="barra-acoes">
+    <button type="button" class="botao-secao" data-action="criarItem" data-type="runa"
+            title="{{localize 'PYRO.CriarRuna'}}">
+      <i class="fa-solid fa-plus"></i>
+    </button>
+  </div>
+
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.magias}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.runas}}
+  {{/if}}
+
+  {{#if system.temFeiticos}}
+  <div class="barra-acoes">
+    <button type="button" class="botao-secao" data-action="criarItem" data-type="feitico"
+            title="{{localize 'PYRO.Criar'}}">
+      <i class="fa-solid fa-plus"></i>
+    </button>
+  </div>
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.feiticos}}
+  {{/if}}
+
+  {{#if system.temAbaCaminho}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.caminhoProprio}}
+  {{/if}}
+</section>

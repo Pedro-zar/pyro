@@ -1,0 +1,60 @@
+<div class="construtor-corpo">
+  <div class="linha-campos">
+    <label class="campo cresce"><span>{{localize "PYRO.Efeitos.NomeEfeito"}}</span>
+      <input type="text" name="nome" value="{{localize 'PYRO.Efeitos.Novo'}}" /></label>
+    <label class="campo"><span>{{localize "PYRO.Efeitos.Rodadas"}}</span>
+      <input type="number" name="rodadas" value="{{#if temporario}}1{{else}}0{{/if}}" min="0" /></label>
+  </div>
+  <p class="pyro-nota">{{localize "PYRO.Efeitos.RodadasDica"}}</p>
+
+  {{#if podeSerDeUso}}
+  <div class="campos-check">
+    <label class="check-linha"><input type="checkbox" name="deUso" {{checked deUso}} />
+      <span>{{localize "PYRO.Efeitos.DeUso"}}</span></label>
+  </div>
+  <p class="pyro-nota">{{localize "PYRO.Efeitos.DeUsoDica"}}</p>
+  {{/if}}
+
+  <div class="mudancas">
+    <div class="lista-cabecalho">
+      <h3>{{localize "PYRO.Efeitos.OQueMuda"}}</h3>
+      <button type="button" class="icone" data-action="adicionarMudanca"
+              title="{{localize 'PYRO.Criar'}}"><i class="fa-solid fa-plus"></i></button>
+    </div>
+    <div class="mudanca-cab">
+      <span>{{localize "PYRO.Efeitos.Categoria"}}</span>
+      <span>{{localize "PYRO.Efeitos.AlvoLabel"}}</span>
+      <span>{{localize "PYRO.Efeitos.ModoLabel"}}</span>
+      <span>{{localize "PYRO.Efeitos.Valor"}}</span>
+      <span></span>
+    </div>
+    {{#each mudancas as |m|}}
+    <div class="mudanca-linha" data-index="{{m.index}}">
+      <select name="mudanca.{{m.index}}.categoria" data-campo="categoria">
+        {{selectOptions @root.categorias selected=m.categoria localize=true}}
+      </select>
+      <select name="mudanca.{{m.index}}.alvo">
+        {{selectOptions m.alvos selected=m.alvo localize=true}}
+      </select>
+      <select name="mudanca.{{m.index}}.modo">
+        {{selectOptions @root.modos selected=m.modo localize=true}}
+      </select>
+      <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="2" />
+      <button type="button" class="icone perigo" data-action="removerMudanca" data-index="{{m.index}}"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {{/each}}
+  </div>
+
+  <p class="pyro-nota">{{localize "PYRO.Efeitos.ValorDica"}}</p>
+  <p class="pyro-nota">{{localize "PYRO.Efeitos.TamanhoDica"}}</p>
+
+  <footer class="construtor-rodape">
+    <button type="button" data-action="avancado">
+      <i class="fa-solid fa-sliders"></i> {{localize "PYRO.Efeitos.Avancado"}}
+    </button>
+    <button type="submit" class="destaque">
+      <i class="fa-solid fa-check"></i> {{localize "PYRO.Efeitos.CriarEfeito"}}
+    </button>
+  </footer>
+</div>

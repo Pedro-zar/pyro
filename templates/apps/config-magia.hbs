@@ -1,0 +1,153 @@
+<div class="config-corpo">
+  <section>
+    <header class="lista-cabecalho">
+      <h3>{{localize "PYRO.Config.Linguas"}}</h3>
+      <button type="button" class="icone" data-action="adicionarLingua"
+              title="{{localize 'PYRO.Criar'}}"><i class="fa-solid fa-plus"></i></button>
+    </header>
+    <p class="pyro-nota">{{localize "PYRO.Config.LinguasDica"}}</p>
+    <div class="config-cab linguas">
+      <span>{{localize "PYRO.Config.Chave"}}</span>
+      <span>{{localize "PYRO.Config.NomeLingua"}}</span>
+      <span>{{localize "PYRO.Config.NomePovo"}}</span>
+      <span>{{localize "PYRO.Config.Fator"}}</span>
+      <span>{{localize "PYRO.Config.Efeito"}}</span>
+      <span></span>
+    </div>
+    {{#each linguas as |l|}}
+    <div class="config-linha linguas">
+      <code>{{l.chave}}</code>
+      <input type="text" name="lingua.{{l.chave}}.label" value="{{l.label}}" />
+      <input type="text" name="lingua.{{l.chave}}.povo" value="{{l.povo}}" />
+      <input type="number" step="any" name="lingua.{{l.chave}}.fator" value="{{l.fator}}" min="0.1" />
+      <input type="number" step="any" name="lingua.{{l.chave}}.efeito" value="{{l.efeito}}" min="0.1" />
+      <button type="button" class="icone perigo" data-action="removerLingua" data-chave="{{l.chave}}"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {{/each}}
+  </section>
+
+  <section>
+    <header class="lista-cabecalho">
+      <h3>{{localize "PYRO.Config.Elementos"}}</h3>
+      <button type="button" class="icone" data-action="adicionarElemento"
+              title="{{localize 'PYRO.Criar'}}"><i class="fa-solid fa-plus"></i></button>
+    </header>
+    <p class="pyro-nota">{{localize "PYRO.Config.ElementosDica"}}</p>
+    {{#each elementos as |e|}}
+    <div class="config-elemento">
+      <div class="config-el-cab">
+        <code>{{e.chave}}</code>
+        <input type="text" name="elemento.{{e.chave}}.label" value="{{e.label}}" />
+        <button type="button" class="icone perigo" data-action="removerElemento" data-chave="{{e.chave}}"
+                title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="config-el-campos">
+        <label><span>{{localize "PYRO.Config.Grupo"}}</span>
+          <input type="text" name="elemento.{{e.chave}}.grupo" value="{{e.grupo}}" /></label>
+        <label><span>{{localize "PYRO.Item.TipoDano"}}</span>
+          <select name="elemento.{{e.chave}}.tipoDano">{{selectOptions @root.tiposDano selected=e.tipoDano}}</select></label>
+        <label><span>{{localize "PYRO.Item.Base"}}</span>
+          <input type="number" step="any" name="elemento.{{e.chave}}.base" value="{{e.base}}" /></label>
+        <label><span>{{localize "PYRO.Item.PorIntencao"}}</span>
+          <input type="number" step="any" name="elemento.{{e.chave}}.porIntencao" value="{{e.porIntencao}}" /></label>
+        <label><span>{{localize "PYRO.Item.Faces"}}</span>
+          <input type="number" name="elemento.{{e.chave}}.faces" value="{{e.faces}}" min="0" /></label>
+      </div>
+      <textarea name="elemento.{{e.chave}}.efeito" rows="2"
+                placeholder="{{localize 'PYRO.Config.EfeitoTexto'}}">{{e.efeito}}</textarea>
+      <div class="campos-check">
+        <label class="check-linha"><input type="checkbox" name="elemento.{{e.chave}}.subjulgar" {{checked e.subjulgar}} />
+          <span>{{localize "PYRO.Config.Subjulgar"}}</span></label>
+      </div>
+    </div>
+    {{/each}}
+  </section>
+
+  <section>
+    <header class="lista-cabecalho">
+      <h3>{{localize "PYRO.Config.Recursos"}}</h3>
+      <button type="button" class="icone" data-action="adicionarRecurso"
+              title="{{localize 'PYRO.Criar'}}"><i class="fa-solid fa-plus"></i></button>
+    </header>
+    <p class="pyro-nota">{{localize "PYRO.Config.RecursosDica"}}</p>
+    {{#each recursos as |rc|}}
+    <div class="config-elemento">
+      <div class="config-el-cab">
+        <code>{{rc.chave}}</code>
+        <input type="text" name="recurso.{{rc.chave}}.label" value="{{rc.label}}" />
+        <button type="button" class="icone perigo" data-action="removerRecurso" data-chave="{{rc.chave}}"
+                title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="config-el-campos">
+        <label><span>{{localize "PYRO.Config.Atributo"}}</span>
+          <select name="recurso.{{rc.chave}}.atributo">{{selectOptions @root.atributos selected=rc.atributo}}</select></label>
+        <label><span>{{localize "PYRO.Config.PorPonto"}}</span>
+          <input type="number" step="any" name="recurso.{{rc.chave}}.porPonto" value="{{rc.porPonto}}" /></label>
+        <label><span>{{localize "PYRO.Item.Base"}}</span>
+          <input type="number" step="any" name="recurso.{{rc.chave}}.base" value="{{rc.base}}" /></label>
+        <label><span>{{localize "PYRO.Config.AtributoRec"}}</span>
+          <select name="recurso.{{rc.chave}}.recAtributo">{{selectOptions @root.atributosOpcionais selected=rc.recAtributo}}</select></label>
+        <label><span>{{localize "PYRO.Config.RecPorPonto"}}</span>
+          <input type="number" step="any" name="recurso.{{rc.chave}}.recPorPonto" value="{{rc.recPorPonto}}" /></label>
+      </div>
+    </div>
+    {{/each}}
+  </section>
+
+  <section>
+    <header class="lista-cabecalho">
+      <h3>{{localize "PYRO.Config.Racas"}}</h3>
+      <button type="button" class="icone" data-action="adicionarRaca"
+              title="{{localize 'PYRO.Criar'}}"><i class="fa-solid fa-plus"></i></button>
+    </header>
+    <p class="pyro-nota">{{localize "PYRO.Config.RacasDica"}}</p>
+    {{#each racas as |r|}}
+    <div class="config-elemento">
+      <div class="config-el-cab">
+        <code>{{r.chave}}</code>
+        <input type="text" name="raca.{{r.chave}}.label" value="{{r.label}}" />
+        <button type="button" class="icone perigo" data-action="removerRaca" data-chave="{{r.chave}}"
+                title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="config-el-campos">
+        <label class="largo"><span>{{localize "PYRO.Config.PadraoNome"}}</span>
+          <input type="text" name="raca.{{r.chave}}.nome" value="{{r.nome}}" /></label>
+        <label><span>{{localize "PYRO.Item.Potencial"}}</span>
+          <select name="raca.{{r.chave}}.potencial">{{selectOptions @root.potenciais selected=r.potencial}}</select></label>
+      </div>
+      <div class="campos-check">
+        <label class="check-linha"><input type="checkbox" name="raca.{{r.chave}}.magia" {{checked r.magia}} />
+          <span>{{localize "PYRO.Item.UsaMagia"}}</span></label>
+        <label class="check-linha"><input type="checkbox" name="raca.{{r.chave}}.feiticos" {{checked r.feiticos}} />
+          <span>{{localize "PYRO.Item.UsaFeiticaria"}}</span></label>
+        <label class="check-linha"><input type="checkbox" name="raca.{{r.chave}}.detalhe" {{checked r.detalhe}} />
+          <span>{{localize "PYRO.Config.PedeDetalhe"}}</span></label>
+        <label class="check-linha"><input type="checkbox" name="raca.{{r.chave}}.custom" {{checked r.custom}} />
+          <span>{{localize "PYRO.Config.RacaAberta"}}</span></label>
+      </div>
+      {{#if @root.recursos.length}}
+      <div class="campos-check">
+        <span class="rotulo-check">{{localize "PYRO.Config.Concede"}}</span>
+        {{#each @root.recursos as |rc|}}
+        <label class="check-linha">
+          <input type="checkbox" name="raca.{{../r.chave}}.recursos.{{rc.chave}}"
+                 {{checked (pyroInclui ../r.recursos rc.chave)}} />
+          <span>{{rc.label}}</span>
+        </label>
+        {{/each}}
+      </div>
+      {{/if}}
+    </div>
+    {{/each}}
+  </section>
+
+  <footer class="config-rodape">
+    <button type="button" data-action="restaurar">
+      <i class="fa-solid fa-rotate-left"></i> {{localize "PYRO.Config.Restaurar"}}
+    </button>
+    <button type="submit" class="destaque">
+      <i class="fa-solid fa-floppy-disk"></i> {{localize "PYRO.Config.Salvar"}}
+    </button>
+  </footer>
+</div>

@@ -1,0 +1,129 @@
+/* ==========================================================================
+   PYRO — tokens de design
+   Fonte única de verdade para cor, tipografia, espaçamento e forma.
+   Nenhum valor cru deve aparecer em pyro.css: tudo sai daqui.
+   ========================================================================== */
+
+@font-face {
+  font-family: "PyroDisplay";
+  src: url("../fonts/Cinzel.woff2") format("woff2-variations");
+  font-weight: 400 900;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "PyroTexto";
+  src: url("../fonts/Inter.woff2") format("woff2-variations");
+  font-weight: 100 900;
+  font-display: swap;
+}
+
+.pyro, .pyro-chat {
+  /* --- Superfícies (do fundo para o topo da pilha) ---------------------- */
+  --pyro-fundo:        #14100f;
+  --pyro-painel:       #1c1715;
+  --pyro-painel-alto:  #241d1a;
+  --pyro-realce:       #2e2521;
+  --pyro-borda:        #3a2f2a;
+  --pyro-borda-forte:  #55443c;
+
+  /* --- Texto ------------------------------------------------------------ */
+  --pyro-texto:        #ede6e0;
+  --pyro-texto-2:      #b6a79d;
+  --pyro-texto-3:      #7d6e66;
+
+  /* --- Papéis ----------------------------------------------------------- */
+  --pyro-brasa:        #e2622c;  /* acento principal */
+  --pyro-brasa-alta:   #ff8a4c;
+  --pyro-brasa-suave:  rgba(226, 98, 44, 0.16);
+  --pyro-perigo:       #d64545;
+  --pyro-sucesso:      #4a9d5f;
+  --pyro-aviso:        #d99a2b;
+  --pyro-info:         #4a90b8;
+
+  /* --- Recursos --------------------------------------------------------- */
+  --pyro-pv:           #c8404a;
+  --pyro-estamina:     #d9922b;
+  --pyro-mana:         #3f7fc4;
+  --pyro-energia:      #8a4fc4;
+  --pyro-vontade:      #c9a227;
+  --pyro-recurso-custom: #3fa39b;
+
+  /* --- Elementos (marcadores de runa, magia e dano) --------------------- */
+  --pyro-el-fogo:      #e2622c;
+  --pyro-el-agua:      #3f8fc4;
+  --pyro-el-gelo:      #6fc4d6;
+  --pyro-el-vento:     #9fb8a8;
+  --pyro-el-terra:     #a07850;
+  --pyro-el-raio:      #d9c02b;
+  --pyro-el-vida:      #5ba85f;
+  --pyro-el-mente:     #b06fc4;
+  --pyro-el-morte:     #7a5c8a;
+  --pyro-el-espaco:    #4f6fa8;
+
+  /* --- Tipografia ------------------------------------------------------- */
+  --pyro-fonte-display: "PyroDisplay", "Cinzel", serif;
+  --pyro-fonte-texto:   "PyroTexto", "Inter", system-ui, sans-serif;
+
+  --pyro-t-xs:   0.70rem;
+  --pyro-t-sm:   0.78rem;
+  --pyro-t-base: 0.88rem;
+  --pyro-t-md:   1.05rem;
+  --pyro-t-lg:   1.35rem;
+  --pyro-t-xl:   1.85rem;
+
+  /* --- Espaçamento ------------------------------------------------------ */
+  --pyro-e-1: 0.25rem;
+  --pyro-e-2: 0.4rem;
+  --pyro-e-3: 0.6rem;
+  --pyro-e-4: 0.85rem;
+  --pyro-e-5: 1.25rem;
+  --pyro-e-6: 1.75rem;
+
+  /* --- Forma ------------------------------------------------------------ */
+  --pyro-r-sm: 3px;
+  --pyro-r-md: 6px;
+  --pyro-r-lg: 10px;
+  --pyro-r-pill: 999px;
+
+  --pyro-sombra-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --pyro-sombra-2: 0 4px 12px rgba(0, 0, 0, 0.45);
+
+  /* --- Alvos de clique -------------------------------------------------- */
+  --pyro-toque: 1.9rem;
+}
+
+/* --------------------------------------------------------------------------
+   Papéis tipográficos. Display é reservado a nomes e títulos; o resto do
+   sistema usa a face de texto, que tem números tabulares para as fichas.
+   -------------------------------------------------------------------------- */
+
+.pyro .display {
+  font-family: var(--pyro-fonte-display);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+/* Título de seção: único lugar com caixa alta. */
+.pyro .titulo-secao {
+  font-family: var(--pyro-fonte-display);
+  font-size: var(--pyro-t-sm);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--pyro-texto-2);
+  margin: 0;
+}
+
+/* Rótulo de campo: caixa normal, diferenciado por cor e peso. */
+.pyro .rotulo {
+  font-size: var(--pyro-t-xs);
+  font-weight: 500;
+  color: var(--pyro-texto-3);
+  letter-spacing: 0.01em;
+}
+
+.pyro .numero {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}

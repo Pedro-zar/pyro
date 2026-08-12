@@ -1,0 +1,51 @@
+<li class="linha-item{{#if linha.cor}} com-cor{{/if}}" data-item-id="{{linha.id}}" draggable="true"
+    {{#if linha.cor}}style="--cor-item: var(--pyro-el-{{linha.cor}})"{{/if}}>
+  <div class="linha-1 grade-linha">
+    {{#if linha.usavel}}
+    <button type="button" class="retrato-item" data-action="usarItem"
+            title="{{localize 'PYRO.Menu.Usar'}}">
+      <img src="{{linha.img}}" alt="" />
+      <i class="fa-solid fa-dice-d20"></i>
+    </button>
+    {{else}}
+    <img src="{{linha.img}}" alt="" />
+    {{/if}}
+    <button type="button" class="nome-item" data-action="alternarResumo"
+            title="{{localize 'PYRO.ResumoTooltip'}}">{{linha.name}}</button>
+    <span class="detalhes">
+      {{#each linha.detalhes as |d|}}
+      <span class="detalhe {{d.classe}}" title="{{d.dica}}">{{d.texto}}</span>
+      {{/each}}
+    </span>
+    <span class="cauda">
+      {{#each linha.cauda as |d|}}
+      <span class="detalhe {{d.classe}}" title="{{d.dica}}">{{d.texto}}</span>
+      {{/each}}
+      {{#if linha.equipavel}}
+      <button type="button" class="icone equipar {{#if linha.equipado}}ativo{{/if}}"
+              data-action="alternarEquipado" title="{{localize 'PYRO.Equipar'}}">
+        <i class="fa-solid fa-shield-halved"></i>
+      </button>
+      {{/if}}
+    </span>
+  </div>
+
+  {{#if linha.linha2}}
+  <div class="linha-2">
+    {{#each linha.linha2 as |d|}}<span class="detalhe">{{d.texto}}</span>{{/each}}
+  </div>
+  {{/if}}
+
+  <div class="resumo-item">
+    {{#if linha.resumo.length}}
+    <div class="resumo-valores">
+      {{#each linha.resumo as |v|}}<span><strong>{{v.label}}:</strong> {{v.valor}}</span>{{/each}}
+    </div>
+    {{/if}}
+    {{#if linha.descricaoHTML}}
+    <div class="resumo-desc">{{{linha.descricaoHTML}}}</div>
+    {{else}}
+    <p class="pyro-nota">{{localize "PYRO.SemDescricao"}}</p>
+    {{/if}}
+  </div>
+</li>

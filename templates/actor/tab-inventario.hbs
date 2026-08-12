@@ -1,0 +1,12 @@
+<section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+  <div class="barra-acoes">
+    <button type="button" class="botao-secao" data-action="criarItem"
+            data-tipos="arma,equipamento,consumivel" title="{{localize 'PYRO.Criar'}}">
+      <i class="fa-solid fa-plus"></i>
+    </button>
+  </div>
+
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.armas}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.equipamentos}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.consumiveis}}
+</section>

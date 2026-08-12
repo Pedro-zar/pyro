@@ -1,0 +1,12 @@
+<div class="guia-lista">
+  <p class="pyro-nota">{{localize "PYRO.GuiaAcoes.Economia"}}</p>
+  {{#each acoes as |a|}}
+  <div class="guia-acao">
+    <div class="guia-cab">
+      <strong>{{a.nome}}</strong>
+      <span class="guia-custo">{{a.custo}}</span>
+    </div>
+    <p>{{a.desc}}</p>
+  </div>
+  {{/each}}
+</div>

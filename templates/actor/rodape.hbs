@@ -1,0 +1,16 @@
+<footer class="ficha-rodape">
+  <span><i class="fa-solid fa-person-running"></i>
+    {{localize "PYRO.Velocidade"}} <span class="valor numero">{{system.velocidade}}m</span></span>
+
+  <span class="{{#if system.sobrepeso}}perigo{{/if}}">
+    <i class="fa-solid fa-weight-hanging"></i>
+    {{localize "PYRO.Carga"}}
+    <span class="valor numero">{{system.carga.atual}} / {{system.carga.max}}</span></span>
+
+  <span><i class="fa-solid fa-coins"></i>
+    {{localize "PYRO.Dinheiro"}}
+    <input class="numero rodape-dinheiro" type="number" name="system.dinheiro" value="{{system.dinheiro}}" /></span>
+
+  <span class="rodape-dir">{{localize "PYRO.IntencaoSegura"}}
+    <span class="valor numero">{{system.sobrecargaLimite}}</span></span>
+</footer>

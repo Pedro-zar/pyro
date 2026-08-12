@@ -1,0 +1,42 @@
+<section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+  {{#each efeitos as |lista categoria|}}
+  <section class="secao">
+    <header class="secao-topo">
+      <h3 class="titulo-secao">{{localize (concat "PYRO.Efeitos." categoria)}}</h3>
+      <span class="secao-contagem numero">{{lista.length}}</span>
+      <button type="button" class="botao-secao" data-action="criarEfeito" data-categoria="{{categoria}}">
+        <i class="fa-solid fa-plus"></i> {{localize "PYRO.Criar"}}
+      </button>
+    </header>
+
+    {{#if lista.length}}
+    <ol class="lista-itens">
+      {{#each lista as |ef|}}
+      <li class="linha-item" data-effect-uuid="{{ef.uuid}}">
+        <div class="linha-1 grade-linha">
+          <img src="{{ef.img}}" alt="" />
+          <span class="nome-item {{#if ef.disabled}}inativo{{/if}}">{{ef.name}}</span>
+          <span class="detalhes">
+            <span class="detalhe col-parte" title="{{localize 'PYRO.Efeitos.Origem'}}">{{ef.origem}}</span>
+          </span>
+          <span class="cauda">
+            <span class="detalhe col-curto">{{ef.duracao}}</span>
+            <button type="button" class="icone" data-action="alternarEfeito"
+                    title="{{localize 'PYRO.Efeitos.Alternar'}}">
+              <i class="fa-solid {{#if ef.disabled}}fa-toggle-off{{else}}fa-toggle-on{{/if}}"></i>
+            </button>
+            <button type="button" class="icone" data-action="editarEfeito"
+                    title="{{localize 'PYRO.Editar'}}"><i class="fa-solid fa-pen"></i></button>
+            <button type="button" class="icone perigo" data-action="excluirEfeito"
+                    title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-trash"></i></button>
+          </span>
+        </div>
+      </li>
+      {{/each}}
+    </ol>
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Vazio.efeitos"}}</p>
+    {{/if}}
+  </section>
+  {{/each}}
+</section>

@@ -1,0 +1,60 @@
+<header class="ficha-topo">
+  <img class="retrato" src="{{actor.img}}" data-edit="img" data-action="editImage"
+       alt="{{actor.name}}" title="{{localize 'PYRO.TrocarRetrato'}}" />
+
+  <div class="topo-corpo">
+    <div class="topo-identidade">
+      <input class="nome display" type="text" name="name" value="{{actor.name}}"
+             placeholder="{{localize 'PYRO.Nome'}}" />
+
+      <div class="topo-acoes">
+        <div class="selo-det" title="{{localize 'PYRO.DetTooltip'}}">
+          <span class="selo-rotulo">{{localize "PYRO.DET"}}</span>
+          <input class="numero" type="number" name="system.det" value="{{system.det}}" min="1" />
+        </div>
+
+        <button type="button" class="botao-menu" data-action="abrirRecuperacao"
+                title="{{localize 'PYRO.Recuperar.Titulo'}}">
+          <i class="fa-solid fa-hourglass-half"></i>
+        </button>
+      </div>
+    </div>
+
+    <p class="topo-subtitulo">
+      {{#each identidade as |parte|}}
+      <span class="{{parte.classe}}">{{parte.texto}}</span>
+      {{/each}}
+      {{#if podeEditarTamanho}}
+      <select class="mini-select" name="system.tamanho">
+        {{selectOptions tamanhoOpts selected=system.tamanho localize=true}}
+      </select>
+      {{/if}}
+    </p>
+
+    <div class="recursos">
+      {{#each recursosVisiveis as |rec|}}
+      <div class="recurso" style="--cor: var(--pyro-{{rec.chave}}, var(--pyro-recurso-custom))">
+        <div class="recurso-topo">
+          <span class="rotulo">{{rec.label}}</span>
+          {{#if rec.nota}}<span class="recurso-nota">{{rec.nota}}</span>{{/if}}
+        </div>
+        <div class="barra" role="img" aria-label="{{rec.label}} {{rec.value}}/{{rec.max}}">
+          <div class="barra-preenchida" style="width: {{rec.pct}}%"></div>
+          <div class="barra-texto numero">
+            <input type="number" name="system.recursos.{{rec.chave}}.value" value="{{rec.value}}" />
+            <span class="barra-max">/ {{rec.max}}</span>
+          </div>
+        </div>
+      </div>
+      {{/each}}
+    </div>
+
+    {{#if alertas.length}}
+    <div class="alertas">
+      {{#each alertas as |a|}}
+      <span class="alerta {{a.tom}}"><i class="fa-solid {{a.icone}}"></i> {{a.texto}}</span>
+      {{/each}}
+    </div>
+    {{/if}}
+  </div>
+</header>
