@@ -1,4 +1,10 @@
 <section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+  <div class="barra-acoes">
+    <button type="button" class="botao-secao" data-action="criarEfeito"
+            title="{{localize 'PYRO.Criar'}}">
+      <i class="fa-solid fa-plus"></i>
+    </button>
+  </div>
 
   {{!-- Efeitos de uso: vão para o alvo pelo card do chat --}}
   <section class="secao">
@@ -38,10 +44,6 @@
     <header class="secao-topo">
       <h3 class="titulo-secao">{{localize "PYRO.Efeitos.SecaoPassivo"}}</h3>
       <span class="secao-contagem numero">{{efeitos.length}}</span>
-      <button type="button" class="botao-secao" data-action="criarEfeito"
-              title="{{localize 'PYRO.Criar'}}">
-        <i class="fa-solid fa-plus"></i>
-      </button>
     </header>
     {{#if efeitos.length}}
     <ol class="lista-itens">

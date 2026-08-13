@@ -518,7 +518,11 @@
   color: var(--pyro-texto-3); font-size: var(--pyro-t-md);
 }
 
-.pyro .ficha-topo { display: flex; align-items: baseline; gap: var(--pyro-e-2); }
+/*
+ * Topo do card de runa. Nada de ".ficha-topo" aqui: essa classe é o
+ * cabeçalho em grid da ficha de ator, e a colisão o impedia de esticar.
+ */
+.pyro .runa-topo { display: flex; align-items: baseline; gap: var(--pyro-e-2); }
 .pyro .ficha-nome {
   flex: 1; min-width: 0; font-family: var(--pyro-fonte-display);
   font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -678,8 +682,15 @@
  * um texto longo sem depender da rolagem da ficha.
  */
 .pyro .notas-grade {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--pyro-e-3); align-items: start;
+}
+/*
+ * Cada coluna empilha os próprios blocos: redimensionar um deles não
+ * altera a altura das linhas da coluna vizinha (o "descolar" de antes).
+ */
+.pyro .notas-col {
+  display: flex; flex-direction: column; gap: var(--pyro-e-3); min-width: 0;
 }
 .pyro .notas-grade .bloco { margin-top: 0; }
 .pyro .notas-grade :is(.editor, prose-mirror, .prosemirror) {
@@ -1078,6 +1089,9 @@
   .pyro nav.tabs > *:not(.active) span { display: none; }
 
   .pyro .ficha-rodape { flex-wrap: wrap; gap: var(--pyro-e-2); }
+
+  /* Notas em coluna única. */
+  .pyro .notas-grade { grid-template-columns: 1fr; }
 }
 
 .pyro .rodape-dinheiro {

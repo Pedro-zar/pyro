@@ -20,7 +20,7 @@
       {{#each fichas as |f|}}
       <li class="ficha-runa{{#if f.cor}} com-cor{{/if}}{{#if f.excesso}} excedida{{/if}}"
           {{#if f.cor}}style="--cor-item: var(--pyro-el-{{f.cor}})"{{/if}}>
-        <div class="ficha-topo">
+        <div class="runa-topo">
           <span class="ficha-nome">{{f.nome}}</span>
           <button type="button" class="icone perigo" data-action="removerRuna" data-indice="{{f.indice}}"
                   title="{{localize 'PYRO.Conjurador.RemoverRuna'}}"><i class="fa-solid fa-xmark"></i></button>

@@ -1,47 +1,55 @@
 <section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+  {{!--
+    Duas colunas independentes: redimensionar um bloco só empurra os blocos
+    da própria coluna, sem descolar os da coluna vizinha.
+  --}}
   <div class="notas-grade">
 
-    <div class="bloco">
-      <h4 class="titulo-secao">{{localize "PYRO.Notas.Biografia"}}</h4>
-      {{formInput systemFields.biografia value=system.biografia enriched=notas.biografia
-                  name="system.biografia" toggled=true height=220}}
+    <div class="notas-col">
+      <div class="bloco">
+        <h4 class="titulo-secao">{{localize "PYRO.Notas.Biografia"}}</h4>
+        {{formInput systemFields.biografia value=system.biografia enriched=notas.biografia
+                    name="system.biografia" toggled=true height=220}}
+      </div>
+
+      <div class="bloco">
+        <h4 class="titulo-secao">{{localize "PYRO.Notas.Anotacoes"}}</h4>
+        {{formInput systemFields.anotacoes value=system.anotacoes enriched=notas.anotacoes
+                    name="system.anotacoes" toggled=true height=180}}
+      </div>
+
+      {{!-- Bloco de título livre, para o que a mesa quiser --}}
+      <div class="bloco">
+        <input class="titulo-livre" type="text" name="system.livre1.titulo"
+               value="{{system.livre1.titulo}}"
+               placeholder="{{localize 'PYRO.Notas.TituloLivre'}}" />
+        {{formInput systemFields.livre1.fields.texto value=system.livre1.texto
+                    enriched=notas.livre1 name="system.livre1.texto" toggled=true height=180}}
+      </div>
     </div>
 
-    <div class="bloco">
-      <h4 class="titulo-secao">{{localize "PYRO.Notas.Pessoas"}}</h4>
-      {{formInput systemFields.pessoas value=system.pessoas enriched=notas.pessoas
-                  name="system.pessoas" toggled=true height=180}}
-    </div>
+    <div class="notas-col">
+      <div class="bloco">
+        <h4 class="titulo-secao">{{localize "PYRO.Notas.Pessoas"}}</h4>
+        {{formInput systemFields.pessoas value=system.pessoas enriched=notas.pessoas
+                    name="system.pessoas" toggled=true height=180}}
+      </div>
 
-    <div class="bloco">
-      <h4 class="titulo-secao">{{localize "PYRO.Notas.Anotacoes"}}</h4>
-      {{formInput systemFields.anotacoes value=system.anotacoes enriched=notas.anotacoes
-                  name="system.anotacoes" toggled=true height=180}}
-    </div>
+      {{#if isNpc}}
+      <div class="bloco">
+        <h4 class="titulo-secao">{{localize "PYRO.NotasMestre"}}</h4>
+        {{formInput systemFields.notas value=system.notas enriched=notas.mestre
+                    name="system.notas" toggled=true height=180}}
+      </div>
+      {{/if}}
 
-    {{#if isNpc}}
-    <div class="bloco">
-      <h4 class="titulo-secao">{{localize "PYRO.NotasMestre"}}</h4>
-      {{formInput systemFields.notas value=system.notas enriched=notas.mestre
-                  name="system.notas" toggled=true height=180}}
-    </div>
-    {{/if}}
-
-    {{!-- Dois blocos de título livre, para o que a mesa quiser --}}
-    <div class="bloco">
-      <input class="titulo-livre" type="text" name="system.livre1.titulo"
-             value="{{system.livre1.titulo}}"
-             placeholder="{{localize 'PYRO.Notas.TituloLivre'}}" />
-      {{formInput systemFields.livre1.fields.texto value=system.livre1.texto
-                  enriched=notas.livre1 name="system.livre1.texto" toggled=true height=180}}
-    </div>
-
-    <div class="bloco">
-      <input class="titulo-livre" type="text" name="system.livre2.titulo"
-             value="{{system.livre2.titulo}}"
-             placeholder="{{localize 'PYRO.Notas.TituloLivre'}}" />
-      {{formInput systemFields.livre2.fields.texto value=system.livre2.texto
-                  enriched=notas.livre2 name="system.livre2.texto" toggled=true height=180}}
+      <div class="bloco">
+        <input class="titulo-livre" type="text" name="system.livre2.titulo"
+               value="{{system.livre2.titulo}}"
+               placeholder="{{localize 'PYRO.Notas.TituloLivre'}}" />
+        {{formInput systemFields.livre2.fields.texto value=system.livre2.texto
+                    enriched=notas.livre2 name="system.livre2.texto" toggled=true height=180}}
+      </div>
     </div>
   </div>
 </section>

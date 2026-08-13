@@ -52,6 +52,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     context.mudancas = this.mudancas.map((m, i) => ({
       ...m,
       index: i,
+      // Condição não tem modo nem valor: só marca o alvo com o status.
+      ehCondicao: m.categoria === "condicao",
       alvos: PYRO.alvosEfeito[m.categoria]?.alvos ?? {}
     }));
     return context;
@@ -116,21 +118,32 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
 
   async #gravar() {
     const dados = this.#capturar();
-    const nome = (dados.nome ?? "").trim() || game.i18n.localize("PYRO.Efeitos.Novo");
     const rodadas = Number(dados.rodadas) || 0;
     // Efeito de uso vai para o alvo ao usar o item, então não transfere
     // automaticamente para quem carrega.
     const deUso = !!dados.deUso;
 
+    // Condições viram statuses (marcadores no token); o resto vira changes.
+    const condicoes = this.mudancas.filter(m => m.categoria === "condicao" && m.alvo);
+    const mudancas = this.mudancas.filter(m => m.categoria !== "condicao" && m.alvo);
+
+    // Sem nome digitado, a primeira condição batiza o efeito e dá o ícone.
+    let nome = (dados.nome ?? "").trim();
+    const primeira = condicoes.length ? PYRO.condicoes[condicoes[0].alvo] : null;
+    if (primeira && (!nome || nome === game.i18n.localize("PYRO.Efeitos.Novo"))) {
+      nome = game.i18n.localize(primeira.label);
+    }
+    if (!nome) nome = game.i18n.localize("PYRO.Efeitos.Novo");
+
     const efeito = {
       name: nome,
-      img: dados.img || "icons/svg/aura.svg",
+      img: dados.img || primeira?.img || "icons/svg/aura.svg",
       origin: this.documento.uuid,
       disabled: this.categoria === "inativos",
       transfer: !deUso,
       flags: { pyro: { deUso } },
-      changes: this.mudancas
-        .filter(m => m.alvo)
+      statuses: [...new Set(condicoes.map(m => m.alvo))],
+      changes: mudancas
         .map(m => ({ key: m.alvo, mode: Number(m.modo), value: String(m.valor ?? ""), priority: 20 }))
     };
     if (rodadas > 0) efeito.duration = { rounds: rodadas };

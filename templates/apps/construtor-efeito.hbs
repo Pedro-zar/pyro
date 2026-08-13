@@ -36,10 +36,15 @@
       <select name="mudanca.{{m.index}}.alvo">
         {{selectOptions m.alvos selected=m.alvo localize=true}}
       </select>
+      {{#if m.ehCondicao}}
+      <span class="pyro-nota">{{localize "PYRO.Efeitos.CondicaoDica"}}</span>
+      <span></span>
+      {{else}}
       <select name="mudanca.{{m.index}}.modo">
         {{selectOptions @root.modos selected=m.modo localize=true}}
       </select>
       <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="2" />
+      {{/if}}
       <button type="button" class="icone perigo" data-action="removerMudanca" data-index="{{m.index}}"
               title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
     </div>

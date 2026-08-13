@@ -257,6 +257,23 @@ PYRO.faixasSubjulgar = [
 ];
 
 /**
+ * Condições do sistema (SRD §11; Desmaiado vem de Subjulgar). Registradas em
+ * CONFIG.statusEffects no init: aparecem no HUD do token e o construtor de
+ * efeitos as aplica via statuses. O comportamento mecânico de cada uma ainda
+ * não existe — por ora são marcadores visíveis no token e na ficha.
+ */
+PYRO.condicoes = {
+  queimando: { label: "PYRO.Condicoes.queimando", img: "icons/svg/fire.svg" },
+  friagem:   { label: "PYRO.Condicoes.friagem",   img: "icons/svg/frozen.svg" },
+  irritado:  { label: "PYRO.Condicoes.irritado",  img: "icons/svg/combat.svg" },
+  inseguro:  { label: "PYRO.Condicoes.inseguro",  img: "icons/svg/downgrade.svg" },
+  apavorado: { label: "PYRO.Condicoes.apavorado", img: "icons/svg/terror.svg" },
+  culpado:   { label: "PYRO.Condicoes.culpado",   img: "icons/svg/degen.svg" },
+  insensato: { label: "PYRO.Condicoes.insensato", img: "icons/svg/daze.svg" },
+  desmaiado: { label: "PYRO.Condicoes.desmaiado", img: "icons/svg/unconscious.svg" }
+};
+
+/**
  * Alvos disponíveis no construtor de efeitos, por categoria.
  * Só campos base: Active Effects são aplicados antes de prepareDerivedData,
  * então mexer em derivados (PV máximo, velocidade, pool) não gruda — o jeito
@@ -287,6 +304,11 @@ PYRO.alvosEfeito = {
     label: "PYRO.Efeitos.Cat.defesasTipo",
     alvos: Object.fromEntries(Object.entries(PYRO.tiposDano)
       .map(([k, cfg]) => [`system.defesas.tipos.${k}`, cfg.label]))
+  },
+  condicao: {
+    label: "PYRO.Efeitos.Cat.condicao",
+    alvos: Object.fromEntries(Object.entries(PYRO.condicoes)
+      .map(([k, cfg]) => [k, cfg.label]))
   },
   outros: {
     label: "PYRO.Efeitos.Cat.outros",

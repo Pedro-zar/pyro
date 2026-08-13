@@ -26,6 +26,13 @@ Hooks.once("init", () => {
   Handlebars.registerHelper("pyroInclui", (lista, valor) => Array.isArray(lista) && lista.includes(valor));
 
   CONFIG.PYRO = PYRO;
+
+  // Condições do sistema no HUD do token, somadas às padrão do Foundry.
+  for (const [id, cfg] of Object.entries(PYRO.condicoes)) {
+    if (!CONFIG.statusEffects.some(s => s.id === id)) {
+      CONFIG.statusEffects.push({ id, name: cfg.label, img: cfg.img });
+    }
+  }
   CONFIG.Actor.documentClass = PyroActor;
   CONFIG.Item.documentClass = PyroItem;
 
