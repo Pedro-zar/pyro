@@ -8,6 +8,14 @@
              placeholder="{{localize 'PYRO.Nome'}}" />
 
       <div class="topo-acoes">
+        {{#if selosPoder.length}}
+        <div class="poderes-selos">
+          {{#each selosPoder as |selo|}}
+          <span class="selo-poder selo-{{selo.chave}}" style="--cor-selo: {{selo.cor}}"
+                title="{{selo.label}}"></span>
+          {{/each}}
+        </div>
+        {{/if}}
         <div class="selo-det" title="{{localize 'PYRO.DetTooltip'}}">
           <span class="selo-rotulo">{{localize "PYRO.DET"}}</span>
           <input class="numero" type="number" name="system.det" value="{{system.det}}" min="1" />

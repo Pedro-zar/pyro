@@ -1249,3 +1249,107 @@
 }
 .pyro .botao-principal:hover { background: var(--pyro-brasa-alta); }
 .pyro .botao-principal:disabled { opacity: 0.45; cursor: not-allowed; }
+
+
+/* ==========================================================================
+   Detalhes rúnicos — a camada de identidade da ficha.
+   Três vocações, três marcas: o círculo rúnico do mago, o sigilo de sangue
+   do feiticeiro e a explosão de impacto do físico. Tudo em baixa opacidade:
+   presença, não decoração gritando.
+   ========================================================================== */
+
+/* Vinheta suave no fundo: profundidade sem mudar a paleta. */
+.pyro .window-content {
+  background: radial-gradient(120% 70% at 50% 0%, #201814 0%, var(--pyro-fundo) 60%);
+}
+
+/* --- Acento do personagem -------------------------------------------------
+   Definido na raiz da ficha pelo primeiro selo de poder: a cor da afinidade
+   do mago, o carmesim do feiticeiro, o verde da energia natural ou o dourado
+   das técnicas. Os ornamentos da ficha inteira bebem daqui. */
+.pyro { --pyro-acento-ficha: var(--pyro-brasa); }
+
+/* --- Marca d'água do cabeçalho: a marca do poder principal, na cor dele --- */
+.pyro .ficha-topo { position: relative; overflow: hidden; }
+.pyro .ficha-topo > * { position: relative; z-index: 1; }
+.pyro:is(.marca-mago, .marca-feiticeiro, .marca-natural, .marca-fisico) .ficha-topo::before {
+  content: ""; position: absolute; z-index: 0; pointer-events: none;
+  right: -44px; top: 50%; transform: translateY(-50%);
+  width: 250px; height: 250px;
+  background: var(--pyro-acento-ficha);
+  opacity: 0.10;
+}
+.pyro.marca-mago .ficha-topo::before {
+  -webkit-mask: url("marca-mago.svg") center / contain no-repeat;
+  mask: url("marca-mago.svg") center / contain no-repeat;
+}
+.pyro.marca-feiticeiro .ficha-topo::before {
+  -webkit-mask: url("marca-feiticeiro.svg") center / contain no-repeat;
+  mask: url("marca-feiticeiro.svg") center / contain no-repeat;
+}
+.pyro.marca-natural .ficha-topo::before {
+  -webkit-mask: url("marca-natural.svg") center / contain no-repeat;
+  mask: url("marca-natural.svg") center / contain no-repeat;
+}
+.pyro.marca-fisico .ficha-topo::before {
+  -webkit-mask: url("marca-fisico.svg") center / contain no-repeat;
+  mask: url("marca-fisico.svg") center / contain no-repeat;
+}
+
+/* --- Selos de poder: legíveis, um por sistema que o personagem tem -------- */
+.pyro .poderes-selos { display: flex; gap: var(--pyro-e-1); align-items: center; }
+.pyro .selo-poder {
+  width: 2.1rem; height: 2.1rem; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  border: 1px solid color-mix(in srgb, var(--cor-selo) 55%, transparent);
+  border-radius: var(--pyro-r-md);
+  background: color-mix(in srgb, var(--cor-selo) 12%, transparent);
+}
+.pyro .selo-poder::before {
+  content: ""; width: 1.45rem; height: 1.45rem;
+  background: var(--cor-selo);
+}
+.pyro .selo-mago::before {
+  -webkit-mask: url("marca-mago.svg") center / contain no-repeat;
+  mask: url("marca-mago.svg") center / contain no-repeat;
+}
+.pyro .selo-feiticeiro::before {
+  -webkit-mask: url("marca-feiticeiro.svg") center / contain no-repeat;
+  mask: url("marca-feiticeiro.svg") center / contain no-repeat;
+}
+.pyro .selo-natural::before {
+  -webkit-mask: url("marca-natural.svg") center / contain no-repeat;
+  mask: url("marca-natural.svg") center / contain no-repeat;
+}
+.pyro .selo-fisico::before {
+  -webkit-mask: url("marca-fisico.svg") center / contain no-repeat;
+  mask: url("marca-fisico.svg") center / contain no-repeat;
+}
+
+/* --- Círculo rúnico atrás da frase, no conjurador ------------------------- */
+.pyro .frase-area { position: relative; }
+.pyro .frase-area::before {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  background: url("marca-mago.svg") right -24px center / 160px no-repeat;
+  opacity: 0.05;
+}
+
+/* --- Losango rúnico antes dos títulos, no acento do personagem ------------ */
+.pyro .titulo-secao::before {
+  content: ""; display: inline-block; flex: none;
+  width: 6px; height: 6px; margin-right: var(--pyro-e-2);
+  vertical-align: 1px; transform: rotate(45deg);
+  background: var(--pyro-acento-ficha); opacity: 0.8;
+}
+
+/* --- Cabeçalho de seção com a linha esvaecendo à direita ------------------ */
+.pyro .secao-topo {
+  border-bottom: none;
+  background: linear-gradient(90deg, var(--pyro-borda-forte), var(--pyro-borda) 35%, transparent 92%)
+    bottom / 100% 1px no-repeat;
+}
+
+/* --- Selo de DET com um brilho de brasa contido --------------------------- */
+.pyro .selo-det {
+  box-shadow: 0 0 10px color-mix(in srgb, var(--pyro-brasa) 30%, transparent);
+}

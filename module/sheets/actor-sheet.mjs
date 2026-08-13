@@ -423,6 +423,32 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     };
 
     /*
+     * Selos de poder: um por sistema que o personagem empunha — magia rúnica
+     * (na cor da primeira afinidade), feitiçaria, energia natural e técnicas.
+     * O primeiro selo define o acento e a marca d'água da ficha.
+     */
+    const sys = actor.system;
+    const selosPoder = [];
+    if (sys.temMagia) {
+      selosPoder.push({
+        chave: "mago",
+        cor: sys.afinidadesLista?.[0]?.cor
+          ? `var(--pyro-el-${sys.afinidadesLista[0].cor})` : "var(--pyro-brasa)",
+        label: loc("PYRO.Vocacao.mago")
+      });
+    }
+    if (sys.temFeiticos) {
+      selosPoder.push({ chave: "feiticeiro", cor: "var(--pyro-sangue)", label: loc("PYRO.Vocacao.feiticeiro") });
+    }
+    for (const chave of sys.recursosConcedidos ?? []) {
+      const cfg = PYRO.recursosCustom?.[chave];
+      if (cfg) selosPoder.push({ chave: "natural", cor: "var(--pyro-recurso-custom)", label: loc(cfg.label) });
+    }
+    if (sys.temTecnicas) {
+      selosPoder.push({ chave: "fisico", cor: "var(--pyro-vontade)", label: loc("PYRO.Vocacao.fisico") });
+    }
+
+    /*
      * Barras de recurso em linhas equilibradas: até 4 por linha e as linhas
      * com quase o mesmo tamanho — 4 recursos numa linha só, 5 viram 3 + 2.
      */
@@ -446,6 +472,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       efeitos: this.#categoriasEfeitos(),
       recursosVisiveis,
       recursosCols,
+      selosPoder,
       identidade: this.#identidade(),
       alertas: this.#alertas(),
       tamanhoLabel: loc(PYRO.tamanhos[actor.system.tamanho]?.label ?? ""),
@@ -771,6 +798,19 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     super._onFirstRender?.(context, options);
     this.#criarMenuContexto();
     this.#ativarArraste();
+  }
+
+  /**
+   * O primeiro selo de poder tinge a ficha: acento dos ornamentos e marca
+   * d'água do cabeçalho. Sem selos, a ficha fica no acento padrão, sem marca.
+   */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    const principal = context.selosPoder?.[0] ?? null;
+    this.element.style.setProperty("--pyro-acento-ficha", principal?.cor ?? "var(--pyro-brasa)");
+    for (const chave of ["mago", "feiticeiro", "natural", "fisico"]) {
+      this.element.classList.toggle(`marca-${chave}`, principal?.chave === chave);
+    }
   }
 
   #criarMenuContexto() {
