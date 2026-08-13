@@ -25,6 +25,10 @@
   overflow-y: auto;
 }
 
+/* Cabeçalho, atributos e nav mantêm o tamanho natural mesmo com abas
+   cheias: quem cede é a rolagem da ficha, nunca o topo. */
+.pyro .window-content > * { flex: 0 0 auto; }
+
 /*
  * Nada de rolagem interna nas abas: quem rola é a ficha. O núcleo do v13
  * dá às .tab um espaço lateral próprio (padding/gutter de rolagem) que
@@ -1002,7 +1006,8 @@
 
 .pyro .magia-runas { display: flex; flex-direction: column; gap: 0.5rem; }
 .pyro .runa-bloco { border: 1px solid var(--pyro-borda); border-radius: 6px; padding: 0.35rem 0.5rem; }
-.pyro .runa-cab { display: flex; justify-content: space-between; align-items: center; }
+.pyro .runa-cab { display: flex; align-items: center; gap: var(--pyro-e-2); }
+.pyro .runa-cab strong { margin-right: auto; }
 .pyro .scaling-cabecalho, .pyro .scaling-linha {
   display: grid; grid-template-columns: minmax(0, 1fr) 4rem 5.5rem 3.5rem 1.9rem;
   gap: 4px; align-items: center; margin-top: 0.25rem;

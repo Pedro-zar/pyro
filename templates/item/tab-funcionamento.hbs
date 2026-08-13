@@ -158,7 +158,17 @@
                placeholder="{{localize 'PYRO.Item.PalavraPlaceholder'}}" /></label>
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Lingua"}}</span>
         <select name="system.lingua">{{selectOptions linguaOpts selected=system.lingua localize=true}}</select></label>
+      {{#unless ehElemento}}
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Maos"}}</span>
+        <input type="number" name="system.maos" value="{{system.maos}}" min="0" /></label>
+      {{/unless}}
     </div>
+    {{#if mostrarSubjulgar}}
+    <div class="campos-check">
+      <label class="check-linha"><input type="checkbox" name="system.subjulgar" {{checked system.subjulgar}} />
+        <span>{{localize "PYRO.Item.Subjulgar"}}</span></label>
+    </div>
+    {{/if}}
   </div>
 
   <div class="bloco">
@@ -268,9 +278,13 @@
     <h4 class="titulo-secao">{{localize "PYRO.Item.RunasDaMagia"}}</h4>
     <p class="pyro-nota">{{localize "PYRO.Item.MagiaScalingsDica"}}</p>
     <div class="magia-runas">
-      {{#each system.runas as |r ri|}}
+      {{#each runasMagia as |r ri|}}
       <div class="runa-bloco">
         <div class="runa-cab"><strong>{{r.nome}}</strong>
+          {{#if r.mostrarSubjulgar}}
+          <label class="check-linha"><input type="checkbox" name="system.runas.{{ri}}.subjulgar" {{checked r.subjulgar}} />
+            <span>{{localize "PYRO.Item.SubjulgarCurto"}}</span></label>
+          {{/if}}
           <button type="button" class="icone" data-action="adicionarScalingMagia" data-runa="{{ri}}"
                   title="{{localize 'PYRO.Item.AdicionarScaling'}}"><i class="fa-solid fa-plus"></i></button>
         </div>

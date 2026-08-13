@@ -59,7 +59,10 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // scalings vem preenchido quando a frase nasce de uma magia salva: são a
     // cópia editada na magia, que sobrepõe os da runa na conjuração.
     return this.frase
-      .map(f => ({ item: this.actor.items.get(f.id), intencao: f.intencao, scalings: f.scalings }))
+      .map(f => ({
+        item: this.actor.items.get(f.id), intencao: f.intencao,
+        scalings: f.scalings, subjulgar: f.subjulgar
+      }))
       .filter(e => e.item);
   }
 
@@ -78,6 +81,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const s = pr.item.system;
       return {
         indice,
+        // Em magia salva, só o que foi adicionado agora pode ser tirado.
+        removivel: !this.fixa || !this.frase[indice]?.original,
         nome: s.palavra || pr.item.name,
         tipo: loc(PYRO.tiposRuna[s.tipoRuna] ?? ""),
         cor: s.tipoRuna === "elemento" && PYRO.elementos[s.subtipo] ? s.subtipo : null,
@@ -94,6 +99,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     /* --- Runas disponíveis, por grupo ------------------------------------ */
     const naFrase = new Set(this.frase.map(f => f.id));
+    const maosDisponiveis = actor.system.maos ?? 2;
     const grupo = tipo => actor.items
       .filter(i => i.type === "runa" && i.system.tipoRuna === tipo)
       .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
@@ -105,13 +111,18 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
           ? loc(PYRO.linguas[r.system.lingua]?.label ?? "") : null,
         // Cada runa entra uma vez só na frase.
         usada: naFrase.has(r.id),
+        // Gesto sem mão livre não entra: o botão explica o porquê.
+        bloqueada: tipo !== "elemento" && !naFrase.has(r.id)
+          && calc.maos + (r.system.maos ?? 1) > maosDisponiveis,
         limite: this.#limiteDaRuna(r),
         limiteTexto: game.i18n.format("PYRO.Conjurador.LimiteRuna", { n: this.#limiteDaRuna(r) })
       }));
 
     /* --- Medidores -------------------------------------------------------- */
     const faltaMana = calc.custoTotal > mana.value;
-    const podeConjurar = escolhas.length > 0 && calc.temElemento && calc.temForma && !faltaMana;
+    const excedeMaos = calc.maos > maosDisponiveis;
+    const podeConjurar = escolhas.length > 0 && calc.temElemento && calc.temForma
+      && !faltaMana && !excedeMaos;
 
     Object.assign(context, {
       actor,
@@ -143,6 +154,10 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
       faltaElemento: escolhas.length > 0 && !calc.temElemento,
       faltaForma: escolhas.length > 0 && !calc.temForma,
+      excedeMaos,
+      maosTexto: calc.maos > 0
+        ? game.i18n.format("PYRO.Conjurador.Maos", { usadas: calc.maos, total: maosDisponiveis })
+        : "",
       podeConjurar,
       fixa: this.fixa,
       nomeMagia: this.nomeMagia
@@ -169,6 +184,14 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // Uma runa por frase: repetir a palavra não soma efeito, aumenta a Intenção.
     if (this.frase.some(f => f.id === id)) {
       return ui.notifications.warn(game.i18n.localize("PYRO.Conjurador.RunaRepetida"));
+    }
+    // Gesto sem mão livre não entra na frase.
+    const runa = this.actor.items.get(id);
+    if (runa && runa.system.tipoRuna !== "elemento") {
+      const calc = calcular(this.actor, this.#escolhas());
+      if (calc.maos + (runa.system.maos ?? 1) > (this.actor.system.maos ?? 2)) {
+        return ui.notifications.warn(game.i18n.localize("PYRO.Conjurador.SemMaosLivres"));
+      }
     }
     this.frase.push({ id, intencao: 1 });
     this.render();
@@ -233,6 +256,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
           runas: escolhas.map(e => ({
             itemId: e.item.id,
             nome: e.item.name,
+            subjulgar: e.subjulgar ?? e.item.system.subjulgar ?? false,
             scalings: foundry.utils.deepClone(e.scalings ?? e.item.system.scalings ?? [])
           }))
         }

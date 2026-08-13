@@ -108,6 +108,11 @@ export class PyroItem extends Item {
       if (!data.system?.scalings?.length) {
         this.updateSource({ "system.scalings": scalingsPadrao(this) });
       }
+      // Elementos de Subjulgar (Morte) nascem com o modo ligado.
+      if (data.system?.subjulgar === undefined && this.system.tipoRuna === "elemento"
+        && PYRO.elementos[this.system.subtipo]?.subjulgar) {
+        this.updateSource({ "system.subjulgar": true });
+      }
     }
     if (this.type === "caminho" && !data.name?.trim()) {
       this.updateSource({ name: nomeDoCaminho(this.system) });
@@ -144,13 +149,19 @@ export class PyroItem extends Item {
       const projecao = foundry.utils.mergeObject(this.system.toObject(), s, { inplace: false });
       changed.name = nomeDaRuna(projecao);
       /*
-       * Trocar o elemento ou o tipo troca o que a runa produz, então os
-       * escalonamentos são refeitos — a menos que a edição já traga os seus,
-       * que é o caso quando o jogador ajusta os números na mão.
+       * Trocar o elemento ou o tipo troca o que a runa produz: os
+       * escalonamentos voltam ao padrão do novo elemento/gesto. A comparação
+       * é com o valor salvo porque o formulário reenvia os escalonamentos
+       * antigos junto da troca — e eles pertencem ao elemento anterior.
+       * O modo Subjulgar também segue o padrão do elemento novo.
        */
-      if (("tipoRuna" in s || "subtipo" in s) && !("scalings" in s)) {
+      const mudouNatureza = ("tipoRuna" in s && s.tipoRuna !== this.system.tipoRuna)
+        || ("subtipo" in s && s.subtipo !== this.system.subtipo);
+      if (mudouNatureza) {
         const projetado = { type: "runa", system: projecao };
         s.scalings = scalingsPadrao(projetado);
+        s.subjulgar = !!(projecao.tipoRuna === "elemento"
+          && PYRO.elementos[projecao.subtipo]?.subjulgar);
         changed.system = s;
       }
     }

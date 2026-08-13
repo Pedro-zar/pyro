@@ -187,6 +187,11 @@ export class RunaData extends BaseItemData {
       // A palavra/gesto em si ("Chamas", "Brasa").
       palavra: str(""),
       lingua: str("humana"), // línguas são configuráveis pelo mestre
+      // Subjulgar: a rolagem compara com a vida do alvo, sem dano direto.
+      // Nasce ligado no elemento Morte; magias de morte utilitárias desligam.
+      subjulgar: new fields.BooleanField({ initial: false }),
+      // Gestos ocupam mãos; a frase inteira não pode passar das mãos livres.
+      maos: num(1, { min: 0 }),
       /*
        * O que esta runa produz por Intenção:
        *   valor = floor(base + porIntencao x (Intenção - 1))
@@ -201,6 +206,15 @@ export class RunaData extends BaseItemData {
         faces: num(0, { min: 0 })
       }), { initial: [] })
     };
+  }
+
+  /** Runas de Morte antigas subjulgavam por definição do elemento. */
+  static migrateData(source) {
+    if (source.subjulgar === undefined && source.tipoRuna === "elemento"
+      && (PYRO.elementos?.[source.subtipo]?.subjulgar ?? source.subtipo === "morte")) {
+      source.subjulgar = true;
+    }
+    return super.migrateData(source);
   }
 
   /** Elementos são verbais; formas e modificadores são gestos (somáticos). */
@@ -224,6 +238,7 @@ export class MagiaData extends BaseItemData {
       runas: new fields.ArrayField(new fields.SchemaField({
         itemId: new fields.StringField({ required: true }),
         nome: new fields.StringField({ required: true }),
+        subjulgar: new fields.BooleanField({ initial: false }),
         scalings: new fields.ArrayField(new fields.SchemaField({
           nome: new fields.StringField({ required: true, initial: "" }),
           base: dec(0),

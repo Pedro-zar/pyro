@@ -130,6 +130,19 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       ehRacial,
       ehPrimeiroRacial,
       ehElemento,
+      // O modo Subjulgar é coisa do elemento Morte (ou de runa já marcada).
+      mostrarSubjulgar: ehElemento
+        && !!(PYRO.elementos[s.subtipo]?.subjulgar || s.subjulgar),
+      // Runas da magia com a informação de quem pode subjulgar.
+      runasMagia: item.type === "magia"
+        ? (s.runas ?? []).map(r => {
+            const runa = actor?.items.get(r.itemId)
+              ?? actor?.items.find(i => i.type === "runa" && i.name === r.nome);
+            const cfg = runa?.system.tipoRuna === "elemento"
+              ? PYRO.elementos[runa.system.subtipo] : null;
+            return { ...r, mostrarSubjulgar: !!(cfg?.subjulgar || r.subjulgar) };
+          })
+        : null,
       rotuloPalavra: ehElemento || item.type !== "runa" ? "PYRO.Item.Palavra" : "PYRO.Item.Gesto",
       afinidadeOpts: Object.fromEntries(Object.entries(PYRO.afinidades).map(([k, v]) => [k, v.label])),
       potencialOpts: Object.fromEntries(Object.entries(PYRO.linguas).map(([k, v]) => [k, v.povo ?? v.label])),
@@ -245,6 +258,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         partes.push(loc(PYRO.tiposRuna[s.tipoRuna] ?? ""));
         if (s.tipoRuna === "elemento") {
           partes.push(loc(PYRO.elementos[s.subtipo]?.label ?? ""));
+          if (s.subjulgar) partes.push(loc("PYRO.Item.SubjulgarCurto"));
         }
         partes.push(loc(PYRO.linguas[s.lingua]?.label ?? ""));
         break;

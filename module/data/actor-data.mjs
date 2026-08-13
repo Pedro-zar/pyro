@@ -74,6 +74,9 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       // Passos de tamanho na tabela de categorias: +1 sobe uma categoria,
       // -1 desce. É por aqui que efeitos de aumentar/reduzir devem agir.
       tamanhoMod: num(0),
+      // Quantas mãos a criatura tem para gestos e armas. Efeitos somam ou
+      // tiram (membro extra, braço imobilizado).
+      maos: num(2, { min: 0 }),
 
       atributos: new fields.SchemaField(atributos),
 

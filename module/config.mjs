@@ -316,7 +316,8 @@ PYRO.alvosEfeito = {
       "system.det": "PYRO.DET",
       "system.dinheiro": "PYRO.Dinheiro",
       "system.tamanhoMod": "PYRO.Efeitos.Alvos.tamanhoMod",
-      "system.tamanho": "PYRO.Efeitos.Alvos.tamanho"
+      "system.tamanho": "PYRO.Efeitos.Alvos.tamanho",
+      "system.maos": "PYRO.Efeitos.Alvos.maos"
     }
   }
 };

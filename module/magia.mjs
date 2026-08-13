@@ -214,9 +214,10 @@ export function calcular(actor, escolhas) {
   let custoTotal = 0;
   let sobrecarga = 0;
   let somaIntencoes = 0;
+  let maosUsadas = 0;
   const porRuna = [];
 
-  for (const { item, intencao, scalings } of escolhas) {
+  for (const { item, intencao, scalings, subjulgar } of escolhas) {
     const s = item.system;
     const lingua = PYRO.linguas[s.lingua];
     const custoBase = PYRO.custoIntencao(intencao);
@@ -229,10 +230,14 @@ export function calcular(actor, escolhas) {
     custoTotal += custo;
     sobrecarga += excesso;
     somaIntencoes += intencao;
+    // Gestos (formas e modificadores) ocupam mãos; elementos são verbais.
+    if (s.tipoRuna !== "elemento") maosUsadas += s.maos ?? 1;
     porRuna.push({
       item, intencao, custo, limite, excesso,
-      // Os escalonamentos vivem na runa; o parâmetro serve de sobreposição.
+      // Escalonamentos e modo Subjulgar vivem na runa; os parâmetros servem
+      // de sobreposição (a cópia editada de uma magia salva).
       scalings: scalings ?? s.scalings,
+      subjulgar: subjulgar ?? s.subjulgar ?? false,
       efeitoMult: lingua.efeito
     });
   }
@@ -242,6 +247,7 @@ export function calcular(actor, escolhas) {
     custoTotal,
     sobrecarga,
     somaIntencoes,
+    maos: maosUsadas,
     acoes: escolhas.length, // 1 ação por runa verbal ou somática (SRD §5)
     nd: 10 + somaIntencoes,
     temElemento: escolhas.some(e => e.item.system.tipoRuna === "elemento"),
@@ -265,6 +271,10 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
   }
   if (calc.custoTotal > r.mana.value) {
     return ui.notifications.warn(loc("PYRO.Avisos.SemMana", { custo: calc.custoTotal, mana: r.mana.value }));
+  }
+  const maosDisponiveis = actor.system.maos ?? 2;
+  if (calc.maos > maosDisponiveis) {
+    return ui.notifications.warn(loc("PYRO.Avisos.SemMaos", { usadas: calc.maos, maos: maosDisponiveis }));
   }
 
   /* --- Teste de sobrecarga (SAB ou INT, o maior) vs 10 + soma Intenções --- */
@@ -357,7 +367,7 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
               rolls.push(roll);
               const elCfg = PYRO.elementos[s.subtipo];
               // Subjulgar não causa dano direto: fica fora dos totais do chat.
-              if (elCfg?.subjulgar) subjulgares.push(roll.total);
+              if (pr.subjulgar) subjulgares.push(roll.total);
               else if (elCfg?.tipoDano === "cura") totalCura += roll.total;
               else danos.push({ tipo: elCfg?.tipoDano ?? "", total: roll.total });
               partes.push(`<div class="pyro-dano">
@@ -411,7 +421,7 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
         if (rolarDano) {
           const roll = await new Roll(`${n}d${faces}`).evaluate();
           rolls.push(roll);
-          if (cfg.subjulgar) subjulgares.push(roll.total);
+          if (pr.subjulgar) subjulgares.push(roll.total);
           else if (cfg.tipoDano === "cura") totalCura += roll.total;
           else danos.push({ tipo: cfg.tipoDano ?? "", total: roll.total });
           partes.push(`<div class="pyro-dano">
@@ -462,8 +472,10 @@ export async function conjurarMagiaSalva(actor, magia) {
     // Cópia vazia (magia salva antes da cópia existir) cai nos scalings da runa.
     if (item) {
       frase.push({
-        id: item.id, intencao: 1,
-        scalings: ref.scalings?.length ? foundry.utils.deepClone(ref.scalings) : undefined
+        id: item.id, intencao: 1, original: true,
+        // Sem cópia própria, ambos caem no que a runa define hoje.
+        scalings: ref.scalings?.length ? foundry.utils.deepClone(ref.scalings) : undefined,
+        subjulgar: ref.scalings?.length ? !!ref.subjulgar : undefined
       });
     }
     else faltando.push(ref.nome);

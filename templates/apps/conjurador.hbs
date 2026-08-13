@@ -24,10 +24,10 @@
           {{#if f.cor}}style="--cor-item: var(--pyro-el-{{f.cor}})"{{/if}}>
         <div class="runa-topo">
           <span class="ficha-nome">{{f.nome}}</span>
-          {{#unless @root.fixa}}
+          {{#if f.removivel}}
           <button type="button" class="icone perigo" data-action="removerRuna" data-indice="{{f.indice}}"
                   title="{{localize 'PYRO.Conjurador.RemoverRuna'}}"><i class="fa-solid fa-xmark"></i></button>
-          {{/unless}}
+          {{/if}}
         </div>
 
         <div class="ficha-meta">
@@ -81,7 +81,7 @@
         <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
           {{localize "PYRO.Conjurador.ManaInsuficiente"}}</span>
         {{else}}
-        {{restanteTexto}} · {{acoesTexto}}
+        {{restanteTexto}} · {{acoesTexto}}{{#if maosTexto}} · <span class="{{#if excedeMaos}}perigo{{/if}}">{{maosTexto}}</span>{{/if}}
         {{/if}}
       </p>
     </div>
@@ -109,10 +109,15 @@
   <p class="pyro-aviso"><i class="fa-solid fa-triangle-exclamation"></i>
     {{localize "PYRO.Conjurador.FaltaForma"}}</p>
   {{/if}}
+  {{#if excedeMaos}}
+  <p class="pyro-aviso"><i class="fa-solid fa-hand"></i>
+    {{localize "PYRO.Conjurador.MaosExcedidas"}}</p>
+  {{/if}}
 
-  {{!-- Runas conhecidas, por grupo (a frase de uma magia salva é fixa) --}}
-  {{#unless fixa}}
+  {{!-- Runas conhecidas, por grupo. Em magia salva, só os modificadores
+       seguem disponíveis: temperam a conjuração sem alterar a magia. --}}
   <section class="runas-disponiveis">
+    {{#unless fixa}}
     {{#if elementos.length}}
     <div class="grupo-runas">
       <h4 class="titulo-secao">{{localize "PYRO.Runas.elemento"}}</h4>
@@ -134,13 +139,15 @@
       <div class="chips">
         {{#each formas as |r|}}
         <button type="button" class="chip" data-action="adicionarRuna" data-runa-id="{{r.id}}"
-                title="{{r.limiteTexto}}" {{#if r.usada}}disabled{{/if}}>
+                title="{{#if r.bloqueada}}{{localize 'PYRO.Conjurador.SemMaosLivres'}}{{else}}{{r.limiteTexto}}{{/if}}"
+                {{#if r.usada}}disabled{{/if}}{{#if r.bloqueada}}disabled{{/if}}>
           {{r.nome}}{{#if r.lingua}} <span class="chip-lingua">{{r.lingua}}</span>{{/if}}
         </button>
         {{/each}}
       </div>
     </div>
     {{/if}}
+    {{/unless}}
 
     {{#if modificadores.length}}
     <div class="grupo-runas">
@@ -148,7 +155,8 @@
       <div class="chips">
         {{#each modificadores as |r|}}
         <button type="button" class="chip" data-action="adicionarRuna" data-runa-id="{{r.id}}"
-                title="{{r.limiteTexto}}" {{#if r.usada}}disabled{{/if}}>
+                title="{{#if r.bloqueada}}{{localize 'PYRO.Conjurador.SemMaosLivres'}}{{else}}{{r.limiteTexto}}{{/if}}"
+                {{#if r.usada}}disabled{{/if}}{{#if r.bloqueada}}disabled{{/if}}>
           {{r.nome}}{{#if r.lingua}} <span class="chip-lingua">{{r.lingua}}</span>{{/if}}
         </button>
         {{/each}}
@@ -156,7 +164,6 @@
     </div>
     {{/if}}
   </section>
-  {{/unless}}
 
   <footer class="conjurador-rodape">
     {{#if fixa}}
