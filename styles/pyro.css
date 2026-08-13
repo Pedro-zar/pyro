@@ -25,8 +25,20 @@
   overflow-y: auto;
 }
 
-/* Nada de rolagem interna nas abas: quem rola é a ficha. */
-.pyro .window-content > .tab { overflow: visible; flex: 0 0 auto; }
+/*
+ * Nada de rolagem interna nas abas: quem rola é a ficha. O núcleo do v13
+ * dá às .tab um espaço lateral próprio (padding/gutter de rolagem) que
+ * desalinhava a borda direita em relação ao cabeçalho — os !important
+ * vencem qualquer especificidade que o core use.
+ */
+.pyro .window-content .tab {
+  overflow: visible !important;
+  flex: 0 0 auto;
+  padding: 0 !important;
+  margin: 0 !important;
+  max-width: none !important;
+  scrollbar-gutter: auto !important;
+}
 
 /*
  * Palavras muito longas (URLs, texto colado) quebram com hífen em vez de
@@ -420,6 +432,8 @@
 .pyro .detalhe.col-parte { flex: 0 1 auto; }
 .pyro .detalhe.col-dano { flex: 0 1 auto; }
 .pyro .detalhe.col-custo { flex: 0 1 auto; }
+/* Coluna curta do miolo com largura fixa: "Tipo" da legenda alinha com a linha. */
+.pyro .detalhes .col-curto { flex: none; width: 4.5rem; }
 
 /* Cauda: colunas de largura fixa, iguais em toda linha */
 .pyro .cauda {
@@ -430,6 +444,12 @@
 .pyro .cauda .col-tier { width: 1.8rem; }
 .pyro .cauda .col-curto { width: 4.5rem; }
 .pyro .cauda .col-xp { width: 4.6rem; }
+/* Espaçador da legenda: reserva a largura dos ícones (estrela, equipar). */
+.pyro .cauda .leg-icones-1 { width: 1.6rem; }
+.pyro .cauda .leg-icones-2 { width: 3.7rem; }
+/* Linha sem botão de equipar numa lista que tem: o espaço fica reservado. */
+.pyro .cauda .icone-vazio { width: 1.6rem; }
+.pyro .cauda .col-qtd { width: 5.5rem; }
 
 .pyro .linha-item .linha-2 {
   display: flex; gap: 0.9rem; padding-left: 2rem; opacity: 0.85;
@@ -466,6 +486,13 @@
 .pyro button.icone:hover { opacity: 1; }
 .pyro button.icone.perigo:hover { color: var(--pyro-perigo); }
 .pyro button.icone.equipar.ativo { opacity: 1; color: var(--pyro-brasa); }
+
+/* Estrela de favorito: some até o hover da linha; dourada quando ativa. */
+.pyro button.icone.favorito:not(.ativo) { opacity: 0; }
+.pyro .linha-item:hover .icone.favorito:not(.ativo),
+.pyro button.icone.favorito:not(.ativo):focus-visible { opacity: 0.55; }
+.pyro button.icone.favorito:not(.ativo):hover { opacity: 1; }
+.pyro button.icone.favorito.ativo { opacity: 1; color: var(--pyro-vontade); }
 
 /* ---------- Painel de magia (aba Poderes) ---------------------------------- */
 
@@ -510,6 +537,8 @@
   border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
 }
 .pyro .ficha-runa.com-cor { border-left: 3px solid var(--cor-item); }
+/* Gestos e modificadores ganham um friso neutro, no lugar da cor do elemento. */
+.pyro .ficha-runa:not(.com-cor) { border-left: 3px solid var(--pyro-borda-forte); }
 .pyro .ficha-runa.excedida { border-color: var(--pyro-perigo); }
 /* Sinal de soma entre as fichas, como numa frase falada. */
 .pyro .ficha-runa + .ficha-runa::before {
@@ -601,6 +630,7 @@
 }
 .pyro .chip:hover { border-color: var(--pyro-brasa); background: var(--pyro-painel-alto); }
 .pyro .chip.com-cor { border-left: 3px solid var(--cor-item); }
+.pyro .chip:not(.com-cor) { border-left: 3px solid var(--pyro-borda-forte); }
 .pyro .chip-lingua { font-size: var(--pyro-t-xs); color: var(--pyro-brasa-alta); }
 
 .pyro .conjurador-rodape {
@@ -716,6 +746,20 @@
   display: flex; justify-content: flex-end; gap: var(--pyro-e-2);
   margin-bottom: var(--pyro-e-2);
 }
+/* Quando vem depois de um painel (Poderes), não cola nele. */
+.pyro .painel + .barra-acoes { margin-top: var(--pyro-e-3); }
+/* Barra com informações à esquerda (carga, dinheiro) e o criar à direita. */
+.pyro .barra-acoes.com-info {
+  justify-content: flex-start; align-items: center; gap: var(--pyro-e-4);
+  font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
+}
+.pyro .info-inline { display: inline-flex; align-items: center; gap: var(--pyro-e-1); }
+.pyro .info-inline .valor, .pyro .stat-inline .valor {
+  color: var(--pyro-texto); font-weight: 600;
+}
+.pyro .stat-inline {
+  margin: 0; font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
+}
 .pyro .barra-acoes .botao-secao {
   width: var(--pyro-toque); padding: 0; justify-content: center;
 }
@@ -739,14 +783,7 @@
 }
 .pyro .retrato-item:hover i, .pyro .retrato-item:focus-visible i { opacity: 1; }
 
-/* Escalonamentos da runa e prévia por Intenção. */
-.pyro .scaling-cabecalho, .pyro .scaling-linha {
-  display: grid; grid-template-columns: minmax(0, 1fr) 4rem 4.5rem 3.5rem 1.6rem;
-  gap: var(--pyro-e-1); align-items: center;
-}
-.pyro .scaling-linha input { width: 100%; min-width: 0; text-align: center; }
-.pyro .scaling-linha input[type=text] { text-align: left; }
-
+/* Prévia da runa por Intenção. */
 .pyro .previa-scalings { margin-top: var(--pyro-e-2); }
 .pyro .previa-scalings table {
   width: 100%; border-collapse: collapse; font-size: var(--pyro-t-xs);
@@ -871,13 +908,14 @@
 .pyro .runa-bloco { border: 1px solid var(--pyro-borda); border-radius: 6px; padding: 0.35rem 0.5rem; }
 .pyro .runa-cab { display: flex; justify-content: space-between; align-items: center; }
 .pyro .scaling-cabecalho, .pyro .scaling-linha {
-  display: grid; grid-template-columns: 1fr 3.2rem 3.6rem 3rem 1.6rem;
+  display: grid; grid-template-columns: minmax(0, 1fr) 4rem 5.5rem 3.5rem 1.6rem;
   gap: 4px; align-items: center; margin-top: 0.25rem;
 }
 .pyro .scaling-cabecalho span {
   font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.pyro .scaling-linha input { text-align: center; font-size: 0.8rem; }
+.pyro .scaling-linha input { width: 100%; min-width: 0; text-align: center; font-size: 0.8rem; }
 .pyro .scaling-linha input[type=text] { text-align: left; }
 
 /* ---------- Ajustes: afinidades e efeitos ----------------------------------- */

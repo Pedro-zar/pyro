@@ -21,11 +21,19 @@
       {{#each linha.cauda as |d|}}
       <span class="detalhe {{d.classe}}" title="{{d.dica}}">{{d.texto}}</span>
       {{/each}}
+      {{#if linha.favoritavel}}
+      <button type="button" class="icone favorito {{#if linha.favorito}}ativo{{/if}}"
+              data-action="alternarFavorito" title="{{localize 'PYRO.Favoritar'}}">
+        <i class="fa-{{#if linha.favorito}}solid{{else}}regular{{/if}} fa-star"></i>
+      </button>
+      {{/if}}
       {{#if linha.equipavel}}
       <button type="button" class="icone equipar {{#if linha.equipado}}ativo{{/if}}"
               data-action="alternarEquipado" title="{{localize 'PYRO.Equipar'}}">
         <i class="fa-solid fa-shield-halved"></i>
       </button>
+      {{else if linha.espacoEquipar}}
+      <span class="icone-vazio"></span>
       {{/if}}
     </span>
   </div>

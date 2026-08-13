@@ -212,9 +212,10 @@ export class RunaData extends BaseItemData {
 /* ---------------------------- Magia (grimório) ------------------------------- */
 
 /**
- * Uma frase rúnica salva: apenas o conjunto de palavras. As Intenções são
- * escolhidas a cada conjuração e os escalonamentos vivem em cada runa, então
- * ajustar uma runa vale para todas as magias que a usam.
+ * Uma frase rúnica salva. As Intenções são escolhidas a cada conjuração; os
+ * escalonamentos entram como uma CÓPIA dos da runa no momento de salvar, e
+ * ficam editáveis aqui — esta magia pode se comportar diferente da runa solta.
+ * Magia salva sem cópia (antiga) continua lendo direto da runa.
  */
 export class MagiaData extends BaseItemData {
   static defineSchema() {
@@ -222,17 +223,15 @@ export class MagiaData extends BaseItemData {
       ...super.defineSchema(),
       runas: new fields.ArrayField(new fields.SchemaField({
         itemId: new fields.StringField({ required: true }),
-        nome: new fields.StringField({ required: true })
+        nome: new fields.StringField({ required: true }),
+        scalings: new fields.ArrayField(new fields.SchemaField({
+          nome: new fields.StringField({ required: true, initial: "" }),
+          base: dec(0),
+          porIntencao: dec(0),
+          faces: num(0, { min: 0 })
+        }), { initial: [] })
       }))
     };
-  }
-
-  /** Magias antigas guardavam os escalonamentos; agora eles moram na runa. */
-  static migrateData(source) {
-    if (Array.isArray(source.runas)) {
-      source.runas = source.runas.map(r => ({ itemId: r.itemId, nome: r.nome }));
-    }
-    return super.migrateData(source);
   }
 }
 

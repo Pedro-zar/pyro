@@ -9,12 +9,21 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
  * a ideia é que o custo e o risco apareçam antes de conjurar, não depois.
  */
 export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor({ actor, frase = [], nomeMagia = "", ...options } = {}) {
+  constructor({ actor, frase = [], nomeMagia = "", fixa = false, ...options } = {}) {
     super(options);
     this.actor = actor;
-    /** Runas escolhidas, na ordem da frase: [{ id, intencao }] */
+    /** Runas escolhidas, na ordem da frase: [{ id, intencao, scalings? }] */
     this.frase = frase;
     this.nomeMagia = nomeMagia;
+    /** Magia salva: a frase é fixa, só as Intenções mudam. */
+    this.fixa = fixa;
+  }
+
+  /** Conjurando uma magia salva, o título é o nome dela. */
+  get title() {
+    return this.fixa && this.nomeMagia
+      ? game.i18n.format("PYRO.Conjurador.TituloMagia", { nome: this.nomeMagia })
+      : super.title;
   }
 
   static DEFAULT_OPTIONS = {
@@ -47,8 +56,10 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   #escolhas() {
+    // scalings vem preenchido quando a frase nasce de uma magia salva: são a
+    // cópia editada na magia, que sobrepõe os da runa na conjuração.
     return this.frase
-      .map(f => ({ item: this.actor.items.get(f.id), intencao: f.intencao }))
+      .map(f => ({ item: this.actor.items.get(f.id), intencao: f.intencao, scalings: f.scalings }))
       .filter(e => e.item);
   }
 
@@ -75,8 +86,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         limite: pr.limite,
         excesso: pr.excesso,
         limiteTexto: game.i18n.format("PYRO.Conjurador.LimiteRuna", { n: pr.limite }),
-        // O que esta runa produz na Intenção escolhida.
-        previa: previaRuna(pr.item, pr.intencao, pr.efeitoMult),
+        // O que esta runa produz na Intenção escolhida (cópia da magia, se houver).
+        previa: previaRuna(pr.item, pr.intencao, pr.efeitoMult, pr.scalings),
         lingua: s.lingua !== nativa ? loc(PYRO.linguas[s.lingua]?.label ?? "") : null
       };
     });
@@ -132,7 +143,9 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
       faltaElemento: escolhas.length > 0 && !calc.temElemento,
       faltaForma: escolhas.length > 0 && !calc.temForma,
-      podeConjurar
+      podeConjurar,
+      fixa: this.fixa,
+      nomeMagia: this.nomeMagia
     });
     return context;
   }
@@ -206,14 +219,22 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (!escolhas.length) return;
 
     const dados = formData.object;
+    // Magia salva: sem re-salvar e o dano rola sempre.
+    if (this.fixa) {
+      return conjurar(this.actor, escolhas, { nomeMagia: this.nomeMagia, rolarDano: true });
+    }
     if (dados.salvar && dados.nomeMagia?.trim()) {
-      // Salva só o conjunto de palavras: Intenções são escolhidas ao conjurar e
-      // os escalonamentos vivem em cada runa.
+      // As Intenções são escolhidas a cada conjuração; os escalonamentos
+      // entram como cópia editável — ajustar a magia não mexe na runa.
       await Item.implementation.create({
         name: dados.nomeMagia.trim(),
         type: "magia",
         system: {
-          runas: escolhas.map(e => ({ itemId: e.item.id, nome: e.item.name }))
+          runas: escolhas.map(e => ({
+            itemId: e.item.id,
+            nome: e.item.name,
+            scalings: foundry.utils.deepClone(e.scalings ?? e.item.system.scalings ?? [])
+          }))
         }
       }, { parent: this.actor });
       ui.notifications.info(game.i18n.format("PYRO.Conjurador.Salva", { nome: dados.nomeMagia.trim() }));

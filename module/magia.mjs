@@ -91,8 +91,27 @@ export function scalingsPadrao(item) {
  * de gastar mana, e não só depois no card do chat.
  * @param {number} [efeitoMult] multiplicador da língua, quando houver.
  */
-export function previaRuna(item, intencao, efeitoMult = 1) {
+export function previaRuna(item, intencao, efeitoMult = 1, scalingsOverride = null) {
   const s = item.system;
+
+  /*
+   * Com escalonamentos definidos, a prévia vem deles — é exatamente o que a
+   * conjuração vai usar (inclusive a cópia editada de uma magia salva). As
+   * tabelas fixas abaixo ficam só de reserva para runas sem escalonamento.
+   */
+  const scalings = scalingsOverride?.length ? scalingsOverride : s.scalings;
+  if (scalings?.length) {
+    const cfg = s.tipoRuna === "elemento" ? PYRO.elementos[s.subtipo] : null;
+    const tipo = cfg?.tipoDano
+      ? loc(PYRO.tiposDano[cfg.tipoDano]?.label ?? `PYRO.Dano.${cfg.tipoDano}`) : "";
+    return scalings.map(sc => {
+      let v = valorScaling(sc, intencao);
+      if (efeitoMult !== 1) v = Math.max(sc.faces > 0 ? 1 : 0, Math.floor(v * efeitoMult));
+      if (sc.faces > 0) return `${Math.max(1, v)}d${sc.faces}${tipo ? ` ${tipo}` : ""}`;
+      const nome = sc.nome?.trim();
+      return nome ? `${nome} ${v}` : String(v);
+    }).join(" · ");
+  }
 
   if (s.tipoRuna === "elemento") {
     const cfg = PYRO.elementos[s.subtipo];
@@ -440,7 +459,13 @@ export async function conjurarMagiaSalva(actor, magia) {
   for (const ref of magia.system.runas) {
     const item = actor.items.get(ref.itemId)
       ?? actor.items.find(i => i.type === "runa" && i.name === ref.nome);
-    if (item) frase.push({ id: item.id, intencao: 1 });
+    // Cópia vazia (magia salva antes da cópia existir) cai nos scalings da runa.
+    if (item) {
+      frase.push({
+        id: item.id, intencao: 1,
+        scalings: ref.scalings?.length ? foundry.utils.deepClone(ref.scalings) : undefined
+      });
+    }
     else faltando.push(ref.nome);
   }
 
@@ -451,5 +476,5 @@ export async function conjurarMagiaSalva(actor, magia) {
 
   // Importa aqui para evitar dependência circular entre magia.mjs e o app.
   const { ConjuradorApp } = await import("./apps/conjurador.mjs");
-  return new ConjuradorApp({ actor, frase, nomeMagia: magia.name }).render(true);
+  return new ConjuradorApp({ actor, frase, nomeMagia: magia.name, fixa: true }).render(true);
 }

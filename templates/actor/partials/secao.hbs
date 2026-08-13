@@ -5,6 +5,7 @@
   </header>
 
   {{#if secao.itens.length}}
+  {{#unless secao.semLegenda}}
   <div class="secao-legenda grade-linha">
     <span></span>
     <span class="leg-nome">{{secao.colNome}}</span>
@@ -13,8 +14,10 @@
     </span>
     <span class="cauda">
       {{#each secao.cauda as |c|}}<span class="detalhe {{c.classe}}">{{c.texto}}</span>{{/each}}
+      {{#if secao.legIcones}}<span class="{{secao.legIcones}}"></span>{{/if}}
     </span>
   </div>
+  {{/unless}}
 
   <ol class="lista-itens">
     {{#each secao.itens as |item|}}

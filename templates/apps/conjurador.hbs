@@ -9,9 +9,11 @@
     <header class="secao-topo">
       <h3 class="titulo-secao">{{localize "PYRO.Conjurador.Frase"}}</h3>
       {{#if temFrase}}
+      {{#unless fixa}}
       <button type="button" class="botao-secao" data-action="limparFrase">
         <i class="fa-solid fa-eraser"></i> {{localize "PYRO.Conjurador.Limpar"}}
       </button>
+      {{/unless}}
       {{/if}}
     </header>
 
@@ -22,8 +24,10 @@
           {{#if f.cor}}style="--cor-item: var(--pyro-el-{{f.cor}})"{{/if}}>
         <div class="runa-topo">
           <span class="ficha-nome">{{f.nome}}</span>
+          {{#unless @root.fixa}}
           <button type="button" class="icone perigo" data-action="removerRuna" data-indice="{{f.indice}}"
                   title="{{localize 'PYRO.Conjurador.RemoverRuna'}}"><i class="fa-solid fa-xmark"></i></button>
+          {{/unless}}
         </div>
 
         <div class="ficha-meta">
@@ -106,7 +110,8 @@
     {{localize "PYRO.Conjurador.FaltaForma"}}</p>
   {{/if}}
 
-  {{!-- Runas conhecidas, por grupo --}}
+  {{!-- Runas conhecidas, por grupo (a frase de uma magia salva é fixa) --}}
+  {{#unless fixa}}
   <section class="runas-disponiveis">
     {{#if elementos.length}}
     <div class="grupo-runas">
@@ -151,13 +156,18 @@
     </div>
     {{/if}}
   </section>
+  {{/unless}}
 
   <footer class="conjurador-rodape">
+    {{#if fixa}}
+    <span class="display ficha-nome">{{nomeMagia}}</span>
+    {{else}}
     <input type="text" name="nomeMagia" placeholder="{{localize 'PYRO.Conjurador.NomePlaceholder'}}" />
     <label class="check-linha"><input type="checkbox" name="rolarDano" checked />
       <span>{{localize "PYRO.Conjurador.RolarDano"}}</span></label>
     <label class="check-linha"><input type="checkbox" name="salvar" />
       <span>{{localize "PYRO.Conjurador.Salvar"}}</span></label>
+    {{/if}}
     <button type="submit" class="botao-principal" {{#unless podeConjurar}}disabled{{/unless}}>
       <i class="fa-solid fa-wand-sparkles"></i> {{localize "PYRO.Conjurador.Conjurar"}}
     </button>

@@ -28,6 +28,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       usarItem: PyroActorSheet.#usarItem,
       alternarResumo: PyroActorSheet.#alternarResumo,
       alternarEquipado: PyroActorSheet.#alternarEquipado,
+      alternarFavorito: PyroActorSheet.#alternarFavorito,
       criarEfeito: PyroActorSheet.#criarEfeito,
       editarEfeito: PyroActorSheet.#editarEfeito,
       excluirEfeito: PyroActorSheet.#excluirEfeito,
@@ -49,8 +50,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     inventario: { template: "systems/pyro/templates/actor/tab-inventario.hbs" },
     progressao: { template: "systems/pyro/templates/actor/tab-progressao.hbs" },
     notas: { template: "systems/pyro/templates/actor/tab-notas.hbs" },
-    efeitos: { template: "systems/pyro/templates/actor/tab-efeitos.hbs" },
-    rodape: { template: "systems/pyro/templates/actor/rodape.hbs" }
+    efeitos: { template: "systems/pyro/templates/actor/tab-efeitos.hbs" }
   };
 
   static TABS = {
@@ -116,7 +116,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       return {
         detalhes: [{ texto: resumoDano, classe: "col-dano" }],
         cauda: [
-          { texto: `${s.acoes} ${loc("PYRO.AcoesAbrev")}`, classe: "col-curto" },
+          { texto: s.acoes, classe: "col-curto" },
           { texto: alcance, classe: "col-curto" }
         ],
         resumo: [
@@ -145,7 +145,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         equipavel: true,
         equipado: s.equipado,
         detalhes: [{ texto: loc(PYRO.partesCorpo[s.parte] ?? ""), classe: "col-parte" }],
-        cauda: [{ texto: `${s.peso} ${loc("PYRO.PesoAbrev")}`, classe: "col-curto" }],
+        cauda: [{ texto: s.peso, classe: "col-curto" }],
         resumo: [
           { label: loc("PYRO.Item.Parte"), valor: loc(PYRO.partesCorpo[s.parte] ?? "") },
           { label: loc("PYRO.Defesas"), valor: defesas.join(" · ") || "—" },
@@ -167,19 +167,22 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         detalhes.push({ texto: tipoDano, classe: "col-curto" });
       }
       if (s.formula) detalhes.push({ texto: s.formula, classe: "" });
-      const linha2 = [
-        { texto: `${loc("PYRO.Quantidade")} ${s.quantidade}` },
-        { texto: `${loc("PYRO.Peso")} ${s.peso}` },
-        { texto: `${loc("PYRO.Item.Custo")} ${s.custo}` },
-        s.municao
-          ? { texto: loc(PYRO.partesCorpo[s.parte] ?? "") }
-          : { texto: `${s.acoes} ${loc("PYRO.AcoesAbrev")}` }
-      ];
+      // Onde a munição prende, ou o custo em ações de usar, fica no miolo.
+      detalhes.push(s.municao
+        ? { texto: loc(PYRO.partesCorpo[s.parte] ?? "") }
+        : { texto: `${s.acoes} ${loc("PYRO.AcoesAbrev")}` });
       return {
         equipavel: s.municao,
+        // Sem botão de equipar, reserva o espaço dele: a cauda alinha igual
+        // nas linhas com e sem munição.
+        espacoEquipar: !s.municao,
         equipado: s.equipado,
         detalhes,
-        linha2,
+        cauda: [
+          { texto: s.quantidade, classe: "col-qtd" },
+          { texto: s.peso, classe: "col-curto" },
+          { texto: s.custo, classe: "col-curto" }
+        ],
         resumo: [
           { label: loc("PYRO.Item.Formula"), valor: s.formula || "—" },
           ...(s.municao ? [{ label: loc("PYRO.Item.TipoDano"), valor: tipoDano }] : []),
@@ -235,7 +238,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       return {
         detalhes: [{ texto: s.formula, classe: "" }],
         cauda: [{
-          texto: s.custoAcoes ? `${s.custoAcoes} ${loc("PYRO.AcoesAbrev")}` : "",
+          texto: s.custoAcoes || "",
           classe: "col-curto"
         }],
         resumo: [
@@ -258,8 +261,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           { texto: subtipo, classe: "" }
         ],
         cauda: [{
-          texto: s.lingua !== nativa ? loc(PYRO.linguas[s.lingua]?.label ?? "") : "",
-          classe: "col-curto destaque-lingua"
+          texto: loc(PYRO.linguas[s.lingua]?.label ?? ""),
+          classe: s.lingua !== nativa ? "col-curto destaque-lingua" : "col-curto"
         }],
         resumo: [
           { label: loc("PYRO.Item.TipoRuna"), valor: loc(PYRO.tiposRuna[s.tipoRuna] ?? "") },
@@ -324,6 +327,19 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     });
 
     /*
+     * Favoritos: reaproveita as linhas já montadas — o mesmo item aparece na
+     * lista de origem e na seção Favoritos da aba Combate.
+     */
+    const favoritaveis = ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia"];
+    const favIds = new Set(actor.items
+      .filter(i => favoritaveis.includes(i.type) && i.getFlag("pyro", "favorito"))
+      .map(i => i.id));
+    const favoritos = [
+      ...tecnicas, ...habilidades, ...habilidadesCaminho, ...feiticos, ...magias,
+      ...armas, ...equipamentos, ...consumiveis
+    ].filter(l => favIds.has(l.id));
+
+    /*
      * Seções: cada lista carrega o próprio título, a legenda das colunas, o
      * botão de criar do tipo certo e o texto de lista vazia. Os templates só
      * repassam isso ao partial, então mudar o formato de uma linha ou de um
@@ -341,10 +357,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const colsHabilidade = {
       colNome: loc("PYRO.Col.habilidade"),
       colunas: [col("caminho", "col-caminho"), col("custo", "col-custo")],
-      cauda: [col("tipo", "col-categoria"), col("tier", "col-tier")]
+      cauda: [col("tipo", "col-categoria"), col("tier", "col-tier")],
+      legIcones: "leg-icones-1"
     };
 
     const secoes = {
+      favoritos: secao("favoritos", favoritos, { semLegenda: true }),
       tecnicas: secao("tecnicas", tecnicas, colsHabilidade),
       habilidades: secao("habilidades", habilidades, colsHabilidade),
       caminhoProprio: secao("caminhoProprio", habilidadesCaminho, {
@@ -354,20 +372,25 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       armas: secao("armas", armas, {
         colNome: loc("PYRO.Col.arma"),
         colunas: [col("dano", "col-dano")],
-        cauda: [col("acoes", "col-curto"), col("alcance", "col-curto")]
+        cauda: [col("acoes", "col-curto"), col("alcance", "col-curto")],
+        legIcones: "leg-icones-1"
       }),
       equipamentos: secao("equipamentos", equipamentos, {
         colNome: loc("PYRO.Col.equipamento"),
         colunas: [col("parte", "col-parte")],
-        cauda: [col("peso", "col-curto")]
+        cauda: [col("peso", "col-curto")],
+        legIcones: "leg-icones-2"
       }),
       consumiveis: secao("consumiveis", consumiveis, {
-        colNome: loc("PYRO.Col.consumivel")
+        colNome: loc("PYRO.Col.consumivel"),
+        cauda: [col("quantidade", "col-qtd"), col("peso", "col-curto"), col("custo", "col-curto")],
+        legIcones: "leg-icones-2"
       }),
       feiticos: secao("feiticos", feiticos, {
         colNome: loc("PYRO.Col.feitico"),
         colunas: [col("formula", "")],
-        cauda: [col("acoes", "col-curto")]
+        cauda: [col("acoes", "col-curto")],
+        legIcones: "leg-icones-1"
       }),
       magias: secao("magias", magias, {
         colNome: loc("PYRO.Col.magia"),
@@ -379,8 +402,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         cauda: [col("lingua", "col-curto")]
       }),
       caminhos: secao("caminhos", caminhos, {
-        colNome: loc("PYRO.Col.caminho"),
-        cauda: [col("xp", "col-xp"), col("gasta", "col-xp"), col("prox", "col-xp")]
+        colNome: loc("PYRO.Col.caminho")
       })
     };
 
@@ -392,6 +414,11 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       tamanhoOpts: Object.fromEntries(Object.entries(PYRO.tamanhos).map(([k, v]) => [k, v.label])),
       secoes,
       isNpc: actor.type === "npc",
+      // Botão único de criar na aba Poderes: oferece só o que o personagem usa.
+      tiposPoderes: [
+        actor.system.temMagia ? "runa" : null,
+        actor.system.temFeiticos ? "feitico" : null
+      ].filter(Boolean).join(","),
       efeitos: this.#categoriasEfeitos(),
       recursosVisiveis: this.#recursosVisiveis(),
       identidade: this.#identidade(),
@@ -518,6 +545,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static async #alternarEquipado(event, target) {
     const item = this.#getItem(target);
     if (item) await item.update({ "system.equipado": !item.system.equipado });
+  }
+
+  /** Favorito: o item passa a aparecer também na seção Favoritos, em Combate. */
+  static async #alternarFavorito(event, target) {
+    const item = this.#getItem(target);
+    if (item) await item.setFlag("pyro", "favorito", !item.getFlag("pyro", "favorito"));
   }
 
   /** Enriquece os campos de texto da aba Notas. */
@@ -689,6 +722,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       cauda: [],
       // Ícone de d20 que aparece no hover e dispara o mesmo "usar" do menu.
       usavel: usaveis.includes(item.type),
+      // Favoritável = o que se usa ou equipa em combate (runa e caminho não).
+      favoritavel: ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia"]
+        .includes(item.type),
+      favorito: !!item.getFlag("pyro", "favorito"),
       descricaoHTML: await enrich(item.system.descricao ?? "", {
         relativeTo: item, secrets: item.isOwner
       }),

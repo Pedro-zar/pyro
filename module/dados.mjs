@@ -32,6 +32,15 @@ export function formulaTeste(valor, { vantagem = 0, desvantagem = 0, bonus = 0 }
   return formula;
 }
 
+/**
+ * Atalho de escrita nas fórmulas: [VIG], [FOR]... viram @vig, @for — o MOD
+ * (valor efetivo) do atributo entra na conta via getRollData.
+ */
+export function expandirAtributos(formula) {
+  return String(formula ?? "").replace(/\[(FOR|VIG|DES|AGI|INT|SAB|PRE)\]/gi,
+    (m, sigla) => `@${sigla.toLowerCase()}`);
+}
+
 /** Fórmula "crua" da pool (sem ajustes) — usada em @dados.* e na iniciativa. */
 export function formulaPool(valor) {
   const pool = poolDoAtributo(valor);

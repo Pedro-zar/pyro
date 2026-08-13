@@ -23,6 +23,8 @@
 
     <div class="painel lateral">
       <h3 class="titulo-secao">{{localize "PYRO.Combate"}}</h3>
+      <p class="stat-inline"><i class="fa-solid fa-person-running"></i>
+        {{localize "PYRO.Velocidade"}} <span class="valor numero">{{system.velocidade}}m</span></p>
       <div class="botoes-reacao">
         <button type="button" data-action="rolarEsquiva"
                 title="{{localize 'PYRO.EsquivaTooltip'}}">{{localize "PYRO.Esquivar"}} ({{system.esquiva}})</button>
@@ -47,6 +49,8 @@
       </div>
     </div>
   </div>
+
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.favoritos}}
 
   {{#if system.temTecnicas}}
   {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.tecnicas}}

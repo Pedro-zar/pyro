@@ -8,7 +8,7 @@
     </h4>
     {{#each system.danos as |d idx|}}
     <div class="linha-dano">
-      <input type="text" name="system.danos.{{idx}}.formula" value="{{d.formula}}" placeholder="2d8 + @des" />
+      <input type="text" name="system.danos.{{idx}}.formula" value="{{d.formula}}" placeholder="2d8 + [DES]" />
       <select name="system.danos.{{idx}}.tipo">{{selectOptions @root.tiposDano selected=d.tipo localize=true}}</select>
       <button type="button" class="icone perigo" data-action="removerDano" data-index="{{idx}}"
               title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
@@ -127,7 +127,7 @@
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Rolagem"}}</h4>
     <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Item.Formula"}}</span>
-      <input type="text" name="system.formula" value="{{system.formula}}" placeholder="4d6 + @for" /></label>
+      <input type="text" name="system.formula" value="{{system.formula}}" placeholder="4d6 + [FOR]" /></label>
   </div>
 {{/if}}
 
@@ -192,6 +192,7 @@
     {{#if previaScalings.length}}
     <div class="previa-scalings">
       <span class="rotulo">{{localize "PYRO.Item.PreviaIntencoes"}}</span>
+      {{#if previaMult}}<span class="destaque-lingua">x{{previaMult}}</span>{{/if}}
       <table>
         <thead><tr><th></th>{{#each previaIntencoes as |n|}}<th class="numero">{{n}}</th>{{/each}}</tr></thead>
         <tbody>
@@ -265,21 +266,40 @@
 {{#if isMagia}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Item.RunasDaMagia"}}</h4>
-    <ol class="lista-itens">
+    <p class="pyro-nota">{{localize "PYRO.Item.MagiaScalingsDica"}}</p>
+    <div class="magia-runas">
       {{#each system.runas as |r ri|}}
-      <li class="linha-item">
-        <div class="linha-1 grade-linha">
-          <span></span>
-          <span class="nome-item">{{r.nome}}</span>
-          <span class="detalhes"></span>
-          <span class="cauda">
-            <button type="button" class="icone perigo" data-action="removerRunaMagia" data-index="{{ri}}"
-                    title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
-          </span>
+      <div class="runa-bloco">
+        <div class="runa-cab"><strong>{{r.nome}}</strong>
+          <button type="button" class="icone" data-action="adicionarScalingMagia" data-runa="{{ri}}"
+                  title="{{localize 'PYRO.Item.AdicionarScaling'}}"><i class="fa-solid fa-plus"></i></button>
         </div>
-      </li>
+        {{#if r.scalings.length}}
+        <div class="scaling-cabecalho">
+          <span class="rotulo">{{localize "PYRO.Item.ScalingNome"}}</span>
+          <span class="rotulo">{{localize "PYRO.Item.Base"}}</span>
+          <span class="rotulo">{{localize "PYRO.Item.PorIntencao"}}</span>
+          <span class="rotulo">{{localize "PYRO.Item.Faces"}}</span>
+          <span></span>
+        </div>
+        {{#each r.scalings as |sc si|}}
+        <div class="scaling-linha">
+          <input type="text" name="system.runas.{{ri}}.scalings.{{si}}.nome" value="{{sc.nome}}"
+                 placeholder="{{localize 'PYRO.Item.ScalingPlaceholder'}}" />
+          <input type="number" step="any" name="system.runas.{{ri}}.scalings.{{si}}.base" value="{{sc.base}}" />
+          <input type="number" step="any" name="system.runas.{{ri}}.scalings.{{si}}.porIntencao" value="{{sc.porIntencao}}" />
+          <input type="number" name="system.runas.{{ri}}.scalings.{{si}}.faces" value="{{sc.faces}}" min="0" />
+          <button type="button" class="icone perigo" data-action="removerScalingMagia"
+                  data-runa="{{ri}}" data-index="{{si}}"
+                  title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        {{/each}}
+        {{else}}
+        <p class="pyro-nota">{{localize "PYRO.Item.MagiaSemCopia"}}</p>
+        {{/if}}
+      </div>
       {{/each}}
-    </ol>
+    </div>
   </div>
 {{/if}}
 

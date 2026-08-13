@@ -1,5 +1,14 @@
 <section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
-  <div class="barra-acoes">
+  <div class="barra-acoes com-info">
+    <span class="info-inline {{#if system.sobrepeso}}perigo{{/if}}">
+      <i class="fa-solid fa-weight-hanging"></i> {{localize "PYRO.Carga"}}
+      <span class="valor numero">{{system.carga.atual}} / {{system.carga.max}}</span>
+    </span>
+    <span class="info-inline">
+      <i class="fa-solid fa-coins"></i> {{localize "PYRO.Dinheiro"}}
+      <input class="numero rodape-dinheiro" type="number" name="system.dinheiro"
+             value="{{system.dinheiro}}" />
+    </span>
     <button type="button" class="botao-secao" data-action="criarItem"
             data-tipos="arma,equipamento,consumivel" title="{{localize 'PYRO.Criar'}}">
       <i class="fa-solid fa-plus"></i>

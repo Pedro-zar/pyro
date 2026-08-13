@@ -1,6 +1,6 @@
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
-import { formulaTeste } from "../dados.mjs";
+import { formulaTeste, expandirAtributos } from "../dados.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -278,7 +278,7 @@ export class PyroItem extends Item {
     const danos = [];
     for (const d of s.danos ?? []) {
       if (!d.formula?.trim()) continue;
-      const roll = await new Roll(d.formula, this.getRollData()).evaluate();
+      const roll = await new Roll(expandirAtributos(d.formula), this.getRollData()).evaluate();
       rolls.push(roll);
       danos.push({ tipo: d.tipo, total: roll.total });
       const tipo = game.i18n.localize(PYRO.tiposDano[d.tipo]?.label ?? d.tipo ?? "");
@@ -289,7 +289,7 @@ export class PyroItem extends Item {
       partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: Handlebars.escapeExpression(municao.name) })}</p>`);
       // Munição com fórmula (ex.: Flechas de Raio) rola o dano adicional.
       if (municao.system.formula) {
-        const extra = await new Roll(municao.system.formula, this.getRollData()).evaluate();
+        const extra = await new Roll(expandirAtributos(municao.system.formula), this.getRollData()).evaluate();
         rolls.push(extra);
         danos.push({ tipo: municao.system.tipoDano, total: extra.total });
         const tipoMun = game.i18n.localize(PYRO.tiposDano[municao.system.tipoDano]?.label ?? "");
@@ -372,7 +372,7 @@ export class PyroItem extends Item {
 
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
     if (!s.formula) return this.#postar();
-    const roll = await new Roll(s.formula, this.getRollData()).evaluate();
+    const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();
     return roll.toMessage({
       speaker,
       flavor: game.i18n.format("PYRO.Chat.Consumiu", { nome: this.name, acoes: s.acoes }),
@@ -404,7 +404,7 @@ export class PyroItem extends Item {
     ].filter(Boolean).join(" · ");
 
     if (s.formula) {
-      const roll = await new Roll(s.formula, this.getRollData()).evaluate();
+      const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();
       return roll.toMessage({
         speaker,
         flavor: `${this.name}${cab ? " — " + cab : ""}`,
@@ -425,7 +425,7 @@ export class PyroItem extends Item {
       ? game.i18n.format("PYRO.Chat.CustoAcoes", { acoes: s.custoAcoes }) : "";
 
     if (s.formula) {
-      const roll = await new Roll(s.formula, this.getRollData()).evaluate();
+      const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();
       return roll.toMessage({
         speaker,
         flavor: `${this.name}${cab ? " — " + cab : ""}`,

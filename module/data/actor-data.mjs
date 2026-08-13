@@ -166,7 +166,11 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     const caminhos = this.parent.items
       .filter(i => i.type === "caminho")
       .sort((x, y) => (x.sort - y.sort) || x.id.localeCompare(y.id));
-    const raciais = caminhos.filter(i => i.system.ehRacial);
+    // O racial "primeiro" é o criado primeiro, não o primeiro da lista:
+    // adicionar outra raça depois não rouba a definição de tamanho (itens
+    // novos nascem com sort 0 e furavam a fila).
+    const raciais = caminhos.filter(i => i.system.ehRacial)
+      .sort((x, y) => (x._stats?.createdTime ?? 0) - (y._stats?.createdTime ?? 0));
     const racial = raciais[0];
     this.raca = racial?.system.raca ?? "humano";
     this.primeiroRacialId = racial?.id ?? null;

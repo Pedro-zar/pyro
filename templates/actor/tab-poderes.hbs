@@ -15,24 +15,23 @@
     </button>
   </div>
 
+  {{/if}}
+
+  {{#if tiposPoderes}}
   <div class="barra-acoes">
-    <button type="button" class="botao-secao" data-action="criarItem" data-type="runa"
-            title="{{localize 'PYRO.CriarRuna'}}">
+    <button type="button" class="botao-secao" data-action="criarItem" data-tipos="{{tiposPoderes}}"
+            title="{{localize 'PYRO.Criar'}}">
       <i class="fa-solid fa-plus"></i>
     </button>
   </div>
+  {{/if}}
 
+  {{#if system.temMagia}}
   {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.magias}}
   {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.runas}}
   {{/if}}
 
   {{#if system.temFeiticos}}
-  <div class="barra-acoes">
-    <button type="button" class="botao-secao" data-action="criarItem" data-type="feitico"
-            title="{{localize 'PYRO.Criar'}}">
-      <i class="fa-solid fa-plus"></i>
-    </button>
-  </div>
   {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.feiticos}}
   {{/if}}
 

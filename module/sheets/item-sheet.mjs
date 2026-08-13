@@ -17,7 +17,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       adicionarScaling: PyroItemSheet.#adicionarScaling,
       restaurarScalings: PyroItemSheet.#restaurarScalings,
       removerScaling: PyroItemSheet.#removerScaling,
-      removerRunaMagia: PyroItemSheet.#removerRunaMagia,
+      adicionarScalingMagia: PyroItemSheet.#adicionarScalingMagia,
+      removerScalingMagia: PyroItemSheet.#removerScalingMagia,
       adicionarAfinidade: PyroItemSheet.#adicionarAfinidade,
       removerAfinidade: PyroItemSheet.#removerAfinidade,
       criarEfeito: PyroItemSheet.#criarEfeito,
@@ -155,16 +156,23 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       valoresRapidos: this.#valoresRapidos(),
       // Itens físicos compartilham peso, custo e quantidade.
       temPropriedadesFisicas: ["arma", "equipamento", "consumivel"].includes(item.type),
-      // Prévia do que a runa produz nas primeiras Intenções.
+      // Prévia do que a runa produz nas primeiras Intenções, já com o
+      // multiplicador de efeito da língua (a mesma conta da conjuração).
       previaIntencoes: [1, 2, 3, 4, 5],
+      previaMult: item.type === "runa" && (PYRO.linguas[s.lingua]?.efeito ?? 1) !== 1
+        ? PYRO.linguas[s.lingua].efeito : null,
       previaScalings: item.type === "runa"
-        ? (s.scalings ?? []).map(sc => ({
-            nome: sc.nome || game.i18n.localize("PYRO.Scaling.Efeito"),
-            valores: [1, 2, 3, 4, 5].map(n => {
-              const v = valorScaling(sc, n);
-              return sc.faces > 0 ? `${Math.max(0, v)}d${sc.faces}` : v;
-            })
-          }))
+        ? (s.scalings ?? []).map(sc => {
+            const mult = PYRO.linguas[s.lingua]?.efeito ?? 1;
+            return {
+              nome: sc.nome || game.i18n.localize("PYRO.Scaling.Efeito"),
+              valores: [1, 2, 3, 4, 5].map(n => {
+                let v = valorScaling(sc, n);
+                if (mult !== 1) v = Math.max(sc.faces > 0 ? 1 : 0, Math.floor(v * mult));
+                return sc.faces > 0 ? `${Math.max(0, v)}d${sc.faces}` : v;
+              })
+            };
+          })
         : [],
       tipoLabel: game.i18n.localize(`TYPES.Item.${item.type}`),
       pedeDetalhe: item.type === "caminho" && (PYRO.racas[s.raca]?.detalhe ?? false),
@@ -321,7 +329,16 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     }
 
     if (this.item.type === "magia" && sys.runas && !Array.isArray(sys.runas)) {
-      sys.runas = Object.values(sys.runas);
+      const atuais = this.item.system.toObject().runas;
+      const form = sys.runas;
+      sys.runas = atuais.map((base, i) => {
+        const r = form[i] ?? {};
+        let scalings = base.scalings ?? [];
+        if (r.scalings && !Array.isArray(r.scalings)) {
+          scalings = Object.values(r.scalings).map((sc, j) => ({ ...(scalings[j] ?? {}), ...sc }));
+        }
+        return { ...base, ...r, scalings };
+      });
     }
 
     return data;
@@ -364,9 +381,29 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     await this.item.update({ "system.scalings": arr });
   }
 
-  static async #removerRunaMagia(event, target) {
+  /**
+   * Linha nova nos efeitos de uma runa da magia. Se a runa ainda não tinha
+   * cópia própria, os escalonamentos atuais dela entram primeiro — adicionar
+   * uma linha não pode apagar o comportamento que já valia.
+   */
+  static async #adicionarScalingMagia(event, target) {
     const runas = this.item.system.toObject().runas;
-    runas.splice(Number(target.dataset.index), 1);
+    const r = runas[Number(target.dataset.runa)];
+    if (!r) return;
+    if (!r.scalings.length) {
+      const runa = this.item.actor?.items.get(r.itemId)
+        ?? this.item.actor?.items.find(i => i.type === "runa" && i.name === r.nome);
+      r.scalings = foundry.utils.deepClone(runa?.system.toObject().scalings ?? []);
+    }
+    r.scalings.push({ nome: "", base: 0, porIntencao: 0, faces: 0 });
+    await this.item.update({ "system.runas": runas });
+  }
+
+  static async #removerScalingMagia(event, target) {
+    const runas = this.item.system.toObject().runas;
+    const r = runas[Number(target.dataset.runa)];
+    if (!r) return;
+    r.scalings.splice(Number(target.dataset.index), 1);
     await this.item.update({ "system.runas": runas });
   }
 

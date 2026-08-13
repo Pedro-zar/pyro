@@ -1,5 +1,5 @@
 import { PYRO } from "../config.mjs";
-import { formulaTeste } from "../dados.mjs";
+import { formulaTeste, expandirAtributos } from "../dados.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -164,7 +164,7 @@ export class PyroActor extends Actor {
     // Tomar cobertura dobra os dados rolados (SRD §5).
     let formula = this.system.esquiva;
     if (cobertura) formula = PyroActor.#dobrarDados(formula);
-    const roll = await new Roll(formula, this.getRollData()).evaluate();
+    const roll = await new Roll(expandirAtributos(formula), this.getRollData()).evaluate();
     return roll.toMessage({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor: game.i18n.localize(cobertura ? "PYRO.Chat.EsquivaCobertura" : "PYRO.Chat.Esquiva")
@@ -174,7 +174,7 @@ export class PyroActor extends Actor {
   async rolarBloqueio({ cobertura = false } = {}) {
     let formula = this.system.bloqueio;
     if (cobertura) formula = PyroActor.#dobrarDados(formula);
-    const roll = await new Roll(formula, this.getRollData()).evaluate();
+    const roll = await new Roll(expandirAtributos(formula), this.getRollData()).evaluate();
     return roll.toMessage({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor: game.i18n.localize(cobertura ? "PYRO.Chat.BloqueioCobertura" : "PYRO.Chat.Bloqueio")
