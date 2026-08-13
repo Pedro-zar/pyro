@@ -410,12 +410,35 @@
 .pyro .lista-itens li.equipado {
   background: color-mix(in srgb, var(--pyro-brasa) 10%, var(--pyro-painel));
 }
-/* Marcador do elemento da runa. */
-.pyro .linha-item.com-cor { border-left: 3px solid var(--cor-item); }
-/* Magia com mais de um elemento: o friso vira um gradiente entre as cores. */
-.pyro .linha-item.com-grad {
-  border-left: 3px solid transparent;
-  border-image: var(--cor-grad) 1;
+/*
+ * Marcador do elemento (runas e magias). O seletor repete o caminho completo
+ * porque a regra geral da linha usa o atalho "border" com especificidade
+ * maior — sem isso, o friso era pintado por cima com transparente.
+ */
+.pyro .lista-itens li.linha-item.com-cor { border-left: 3px solid var(--cor-item); }
+.pyro .lista-itens li.linha-item.com-cor:hover { border-left-color: var(--cor-item); }
+/* Magia com mais de um elemento: o friso é um gradiente entre as cores. */
+.pyro .lista-itens li.linha-item.com-grad::before {
+  content: ""; position: absolute; left: -1px; top: -1px; bottom: -1px;
+  width: 3px; border-radius: var(--pyro-r-md) 0 0 var(--pyro-r-md);
+  background: var(--cor-grad);
+}
+
+/* Hover tingido pela cor do elemento: fogo esquenta, água esfria. */
+.pyro .lista-itens li.linha-item.com-cor:hover {
+  background: color-mix(in srgb, var(--cor-item) 10%, var(--pyro-painel));
+  border-color: color-mix(in srgb, var(--cor-item) 40%, transparent);
+  border-left-color: var(--cor-item);
+}
+.pyro .linha-item.com-cor .nome-item:hover {
+  color: color-mix(in srgb, var(--cor-item) 65%, white);
+}
+/* Multi-elemento: um lavado do gradiente por cima da linha inteira. */
+.pyro .lista-itens li.linha-item.com-grad:hover::after {
+  content: ""; position: absolute; inset: 0; pointer-events: none;
+  border-radius: var(--pyro-r-md);
+  background: var(--cor-grad-h, var(--cor-grad));
+  opacity: 0.08;
 }
 
 /* Grade compartilhada pela legenda e pela linha, para as colunas baterem. */
@@ -636,6 +659,10 @@
   cursor: pointer;
 }
 .pyro .chip:hover { border-color: var(--pyro-brasa); background: var(--pyro-painel-alto); }
+.pyro .chip.com-cor:hover {
+  border-color: var(--cor-item);
+  background: color-mix(in srgb, var(--cor-item) 12%, var(--pyro-painel-alto));
+}
 .pyro .chip.com-cor { border-left: 3px solid var(--cor-item); }
 .pyro .chip:not(.com-cor) { border-left: 3px solid var(--pyro-borda-forte); }
 .pyro .chip-lingua { font-size: var(--pyro-t-xs); color: var(--pyro-brasa-alta); }

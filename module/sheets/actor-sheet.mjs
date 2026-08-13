@@ -288,8 +288,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       );
       return {
         cor: cores.length === 1 ? cores[0] : null,
+        // Vertical para o friso; horizontal para o lavado do hover.
         grad: cores.length > 1
           ? `linear-gradient(180deg, ${cores.map(c => `var(--pyro-el-${c})`).join(", ")})`
+          : null,
+        gradH: cores.length > 1
+          ? `linear-gradient(90deg, ${cores.map(c => `var(--pyro-el-${c})`).join(", ")})`
           : null,
         detalhes: [{ texto: runasTexto, classe: "" }],
         resumo: [
