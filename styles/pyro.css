@@ -149,17 +149,19 @@
 /* ---------- Recursos em barra ---------------------------------------------- */
 
 /*
- * Recursos em flex com grow: as barras esticam para ocupar a largura da
- * ficha, em vez de parar num tamanho fixo quando sobra espaço.
+ * Barras em grade com o nº de colunas calculado na ficha (--rec-cols):
+ * as linhas saem equilibradas — 4 recursos numa linha, 5 viram 3 + 2 —
+ * em vez do flex-wrap deixar um recurso sozinho ocupando a linha inteira.
  */
 .pyro .recursos {
-  display: flex; flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(var(--rec-cols, 4), minmax(0, 1fr));
   gap: var(--pyro-e-2) var(--pyro-e-3);
   margin-top: var(--pyro-e-1);
 }
 
 .pyro .recurso {
-  flex: 1 1 9rem; min-width: 0;
+  min-width: 0;
   display: flex; flex-direction: column; gap: 2px;
 }
 .pyro .recurso-topo {
@@ -746,8 +748,12 @@
   display: flex; justify-content: flex-end; gap: var(--pyro-e-2);
   margin-bottom: var(--pyro-e-2);
 }
-/* Quando vem depois de um painel (Poderes), não cola nele. */
-.pyro .painel + .barra-acoes { margin-top: var(--pyro-e-3); }
+/* Painel de magia e botão de criar lado a lado (aba Poderes). */
+.pyro .linha-magia {
+  display: flex; align-items: center; gap: var(--pyro-e-2);
+  margin-bottom: var(--pyro-e-3);
+}
+.pyro .linha-magia .painel-magia { flex: 1; min-width: 0; }
 /* Barra com informações à esquerda (carga, dinheiro) e o criar à direita. */
 .pyro .barra-acoes.com-info {
   justify-content: flex-start; align-items: center; gap: var(--pyro-e-4);

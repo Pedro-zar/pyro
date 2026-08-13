@@ -31,7 +31,7 @@
       {{/if}}
     </p>
 
-    <div class="recursos">
+    <div class="recursos" style="--rec-cols: {{recursosCols}};">
       {{#each recursosVisiveis as |rec|}}
       <div class="recurso" style="--cor: var(--pyro-{{rec.chave}}, var(--pyro-recurso-custom))">
         <div class="recurso-topo">

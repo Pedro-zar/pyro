@@ -406,6 +406,14 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })
     };
 
+    /*
+     * Barras de recurso em linhas equilibradas: até 4 por linha e as linhas
+     * com quase o mesmo tamanho — 4 recursos numa linha só, 5 viram 3 + 2.
+     */
+    const recursosVisiveis = this.#recursosVisiveis();
+    const linhasRec = Math.max(1, Math.ceil(recursosVisiveis.length / 4));
+    const recursosCols = Math.max(1, Math.ceil(recursosVisiveis.length / linhasRec));
+
     Object.assign(context, {
       actor,
       system: actor.system,
@@ -420,7 +428,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         actor.system.temFeiticos ? "feitico" : null
       ].filter(Boolean).join(","),
       efeitos: this.#categoriasEfeitos(),
-      recursosVisiveis: this.#recursosVisiveis(),
+      recursosVisiveis,
+      recursosCols,
       identidade: this.#identidade(),
       alertas: this.#alertas(),
       tamanhoLabel: loc(PYRO.tamanhos[actor.system.tamanho]?.label ?? ""),

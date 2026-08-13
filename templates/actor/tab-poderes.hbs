@@ -1,22 +1,27 @@
 <section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
 
   {{#if system.temMagia}}
-  <div class="painel painel-magia">
-    <div class="magia-numeros">
-      {{#if system.afinidadesTexto}}
-      <span><span class="rotulo">{{localize "PYRO.Item.Afinidades"}}</span>
-        <strong class="afinidade">{{system.afinidadesTexto}}</strong></span>
-      {{/if}}
-      <span><span class="rotulo">{{localize "PYRO.RecuperacaoCena"}}</span>
-        <strong class="numero">{{system.recursos.mana.recuperacao}}</strong></span>
+  {{!-- Painel de magia com o botão de criar ao lado, na mesma linha --}}
+  <div class="linha-magia">
+    <div class="painel painel-magia">
+      <div class="magia-numeros">
+        {{#if system.afinidadesTexto}}
+        <span><span class="rotulo">{{localize "PYRO.Item.Afinidades"}}</span>
+          <strong class="afinidade">{{system.afinidadesTexto}}</strong></span>
+        {{/if}}
+        <span><span class="rotulo">{{localize "PYRO.RecuperacaoCena"}}</span>
+          <strong class="numero">{{system.recursos.mana.recuperacao}}</strong></span>
+      </div>
+      <button type="button" class="botao-principal" data-action="abrirConjurador">
+        <i class="fa-solid fa-wand-sparkles"></i> {{localize "PYRO.Conjurador.Abrir"}}
+      </button>
     </div>
-    <button type="button" class="botao-principal" data-action="abrirConjurador">
-      <i class="fa-solid fa-wand-sparkles"></i> {{localize "PYRO.Conjurador.Abrir"}}
+    <button type="button" class="botao-secao" data-action="criarItem" data-tipos="{{tiposPoderes}}"
+            title="{{localize 'PYRO.Criar'}}">
+      <i class="fa-solid fa-plus"></i>
     </button>
   </div>
-
-  {{/if}}
-
+  {{else}}
   {{#if tiposPoderes}}
   <div class="barra-acoes">
     <button type="button" class="botao-secao" data-action="criarItem" data-tipos="{{tiposPoderes}}"
@@ -24,6 +29,7 @@
       <i class="fa-solid fa-plus"></i>
     </button>
   </div>
+  {{/if}}
   {{/if}}
 
   {{#if system.temMagia}}
