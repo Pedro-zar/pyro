@@ -255,8 +255,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }
       case "caminho": {
         partes.push(loc(s.ehRacial ? "PYRO.Item.EhRacial" : "PYRO.Caminhos.profissaoClasse"));
-        if (s.usaMagia) partes.push(loc("PYRO.Item.UsaMagia"));
-        if (s.usaFeiticaria) partes.push(loc("PYRO.Item.UsaFeiticaria"));
+        // No resumo o rótulo é a vocação, não a pergunta do checkbox.
+        if (s.usaMagia) partes.push(loc("PYRO.Item.Mago"));
+        if (s.usaFeiticaria) partes.push(loc("PYRO.Item.Feiticeiro"));
         break;
       }
     }

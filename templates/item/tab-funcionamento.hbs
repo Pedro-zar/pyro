@@ -356,19 +356,6 @@
       {{/if}}
     </div>
 
-    {{#if mostrarChecksRecursos}}
-    {{#if recursosOpts.length}}
-    <div class="campos-check">
-      <span class="rotulo-check">{{localize "PYRO.Item.Concede"}}</span>
-      {{#each recursosOpts as |rc|}}
-      <label class="check-linha">
-        <input type="checkbox" name="system.recursos.{{rc.chave}}" {{checked rc.marcado}} />
-        <span>{{rc.label}}</span>
-      </label>
-      {{/each}}
-    </div>
-    {{/if}}
-    {{/if}}
   </div>
 {{/unless}}
 </section>
