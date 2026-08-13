@@ -412,6 +412,11 @@
 }
 /* Marcador do elemento da runa. */
 .pyro .linha-item.com-cor { border-left: 3px solid var(--cor-item); }
+/* Magia com mais de um elemento: o friso vira um gradiente entre as cores. */
+.pyro .linha-item.com-grad {
+  border-left: 3px solid transparent;
+  border-image: var(--cor-grad) 1;
+}
 
 /* Grade compartilhada pela legenda e pela linha, para as colunas baterem. */
 .pyro .grade-linha {
@@ -447,10 +452,10 @@
 .pyro .cauda .col-curto { width: 4.5rem; }
 .pyro .cauda .col-xp { width: 4.6rem; }
 /* Espaçador da legenda: reserva a largura dos ícones (estrela, equipar). */
-.pyro .cauda .leg-icones-1 { width: 1.6rem; }
-.pyro .cauda .leg-icones-2 { width: 3.7rem; }
+.pyro .cauda .leg-icones-1 { width: 1.9rem; }
+.pyro .cauda .leg-icones-2 { width: 4.3rem; }
 /* Linha sem botão de equipar numa lista que tem: o espaço fica reservado. */
-.pyro .cauda .icone-vazio { width: 1.6rem; }
+.pyro .cauda .icone-vazio { width: 1.9rem; }
 .pyro .cauda .col-qtd { width: 5.5rem; }
 
 .pyro .linha-item .linha-2 {
@@ -481,7 +486,7 @@
 .pyro .nome-item.inativo { color: var(--pyro-texto-3); text-decoration: line-through; }
 
 .pyro button.icone {
-  flex: none; width: 1.6rem; height: 1.6rem; padding: 0;
+  flex: none; width: 1.9rem; height: 1.9rem; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border: none; background: transparent; opacity: 0.55; cursor: pointer;
 }
@@ -825,6 +830,47 @@
   width: 16px; height: 16px; border: none; border-radius: 3px;
 }
 
+/* Rodapé dos cards: fichas de dano por tipo e botões de aplicar. */
+.pyro-chat.pyro-rodape-card {
+  display: flex; flex-direction: column; gap: 0.35rem;
+  margin-top: 0.45rem; padding-top: 0.4rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+}
+.pyro-chat .pyro-fichas-dano { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.pyro-chat .ficha-dano {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  padding: 1px 8px; border-radius: 999px; font-size: 0.75rem;
+  border: 1px solid var(--cor-dano, var(--pyro-borda-forte));
+  color: var(--cor-dano, var(--pyro-texto));
+  background: color-mix(in srgb, var(--cor-dano, #888888) 12%, transparent);
+}
+/* Cores por tipo de dano (elementos emprestam as suas). */
+.pyro-chat .dano-calor { --cor-dano: var(--pyro-el-fogo); }
+.pyro-chat .dano-frio { --cor-dano: var(--pyro-el-gelo); }
+.pyro-chat .dano-energia { --cor-dano: var(--pyro-el-raio); }
+.pyro-chat .dano-mental { --cor-dano: var(--pyro-el-mente); }
+.pyro-chat .dano-cura { --cor-dano: var(--pyro-el-vida); }
+.pyro-chat :is(.dano-impacto, .dano-cortante, .dano-perfurante) { --cor-dano: var(--pyro-texto-2); }
+.pyro-chat .pyro-linha-dano { color: var(--cor-dano, inherit); }
+
+.pyro-chat .pyro-acoes-card { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.pyro-chat .pyro-aplicar {
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  width: auto; height: var(--pyro-toque); padding: 0 10px; line-height: 1;
+  font-size: 0.78rem; border: 1px solid var(--pyro-borda);
+  border-radius: 999px; background: var(--pyro-painel-alto);
+  color: var(--pyro-texto); cursor: pointer;
+}
+.pyro-chat .pyro-aplicar:hover { border-color: var(--pyro-brasa); color: var(--pyro-brasa-alta); }
+
+/* Linha de contexto sob o nome, no cabeçalho dos cards. */
+.pyro-chat .pyro-item-meta { font-size: 0.75rem; opacity: 0.75; }
+
+/* Foco visível também nos cards do chat. */
+.pyro-chat :is(button, a):focus-visible {
+  outline: 2px solid var(--pyro-brasa); outline-offset: 1px;
+}
+
 /* Card de item no chat. */
 .pyro-chat .pyro-item-topo {
   display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.3rem;
@@ -870,7 +916,7 @@
 .pyro .defesas-colunas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
 .pyro .def-col { display: flex; flex-direction: column; gap: 0.3rem; }
 .pyro .def {
-  display: grid; grid-template-columns: 1fr 2.6rem 1.6rem;
+  display: grid; grid-template-columns: 1fr 2.6rem 1.9rem;
   align-items: center; gap: 4px; font-size: 0.72rem;
 }
 .pyro .def input { text-align: center; }
@@ -914,7 +960,7 @@
 .pyro .runa-bloco { border: 1px solid var(--pyro-borda); border-radius: 6px; padding: 0.35rem 0.5rem; }
 .pyro .runa-cab { display: flex; justify-content: space-between; align-items: center; }
 .pyro .scaling-cabecalho, .pyro .scaling-linha {
-  display: grid; grid-template-columns: minmax(0, 1fr) 4rem 5.5rem 3.5rem 1.6rem;
+  display: grid; grid-template-columns: minmax(0, 1fr) 4rem 5.5rem 3.5rem 1.9rem;
   gap: 4px; align-items: center; margin-top: 0.25rem;
 }
 .pyro .scaling-cabecalho span {
@@ -929,7 +975,7 @@
 .pyro .afinidades-lista { flex-basis: 100%; }
 .pyro .afinidades-lista > span { display: flex; align-items: center; gap: 4px; }
 .pyro .linha-afinidade {
-  display: grid; grid-template-columns: 10rem 1fr 1.6rem;
+  display: grid; grid-template-columns: 10rem 1fr 1.9rem;
   gap: 4px; align-items: center; margin-top: 2px;
 }
 .pyro .linha-afinidade input[hidden] { display: none; }
@@ -949,7 +995,7 @@
 .pyro .lista-danos { flex-basis: 100%; }
 .pyro .lista-danos > span { display: flex; align-items: center; gap: 4px; }
 .pyro .linha-dano {
-  display: grid; grid-template-columns: 1fr 9rem 1.6rem;
+  display: grid; grid-template-columns: 1fr 9rem 1.9rem;
   gap: 4px; align-items: center; margin-top: 2px;
 }
 .pyro .linha-dano input, .pyro .linha-dano select { width: 100%; min-width: 0; }
@@ -982,7 +1028,7 @@
 .pyro.config-magia .window-content { gap: 0.6rem; }
 .pyro .config-corpo { display: flex; flex-direction: column; gap: 0.8rem; }
 .pyro .config-cab, .pyro .config-linha {
-  display: grid; grid-template-columns: 6rem 1fr 1fr 4.5rem 4.5rem 1.6rem;
+  display: grid; grid-template-columns: 6rem 1fr 1fr 4.5rem 4.5rem 1.9rem;
   gap: 4px; align-items: center;
 }
 .pyro .config-cab span {
@@ -1034,7 +1080,7 @@
 .pyro .construtor-corpo { display: flex; flex-direction: column; gap: 0.4rem; }
 .pyro .mudancas { display: flex; flex-direction: column; gap: 2px; }
 .pyro .mudanca-cab, .pyro .mudanca-linha {
-  display: grid; grid-template-columns: 1fr 1.4fr 1fr 4.5rem 1.6rem;
+  display: grid; grid-template-columns: 1fr 1.4fr 1fr 4.5rem 1.9rem;
   gap: 4px; align-items: center;
 }
 .pyro .mudanca-cab span {

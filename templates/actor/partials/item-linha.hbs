@@ -1,5 +1,7 @@
-<li class="linha-item{{#if linha.cor}} com-cor{{/if}}" data-item-id="{{linha.id}}" draggable="true"
-    {{#if linha.cor}}style="--cor-item: var(--pyro-el-{{linha.cor}})"{{/if}}>
+<li class="linha-item{{#if linha.cor}} com-cor{{/if}}{{#if linha.grad}} com-grad{{/if}}"
+    data-item-id="{{linha.id}}" draggable="true"
+    {{#if linha.cor}}style="--cor-item: var(--pyro-el-{{linha.cor}})"{{/if}}
+    {{#if linha.grad}}style="--cor-grad: {{linha.grad}}"{{/if}}>
   <div class="linha-1 grade-linha">
     {{#if linha.usavel}}
     <button type="button" class="retrato-item" data-action="usarItem"

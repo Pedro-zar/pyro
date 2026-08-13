@@ -75,6 +75,18 @@ export class PyroItem extends Item {
     </div>`;
   }
 
+  /** Cabeçalho padrão dos cards do chat: ícone, nome e linha de contexto. */
+  #topoHTML(meta) {
+    const esc = Handlebars.escapeExpression;
+    return `<header class="pyro-item-topo">
+      <img src="${this.img}" alt="" />
+      <div>
+        <h3>${esc(this.name)}</h3>
+        ${meta ? `<span class="pyro-item-meta">${meta}</span>` : ""}
+      </div>
+    </header>`;
+  }
+
   /** Runas criadas num ator nascem na língua nativa dele (elfo -> élfica). */
   async _preCreate(data, options, user) {
     const permitido = await super._preCreate(data, options, user);
@@ -252,12 +264,13 @@ export class PyroItem extends Item {
       game.i18n.format("PYRO.Chat.CustoAcoes", { acoes: s.acoes }),
       alcanceTexto
     ].filter(Boolean).join(" · ");
-    const partes = [`<p><strong>${Handlebars.escapeExpression(this.name)}</strong> — ${detalhes}</p>`];
+    const partes = [this.#topoHTML(detalhes)];
 
     if (mira) {
       partes.push(`<div class="pyro-mira ${mira.acertou ? "sucesso" : "falha"}">
         <p>${game.i18n.format("PYRO.Mira.Resultado", { distancia: mira.distancia, nd: mira.nd })}
-          — <strong>${game.i18n.localize(mira.acertou ? "PYRO.Mira.Acertou" : "PYRO.Mira.Errou")}</strong></p>
+          — <strong><i class="fa-solid ${mira.acertou ? "fa-check" : "fa-xmark"}"></i>
+          ${game.i18n.localize(mira.acertou ? "PYRO.Mira.Acertou" : "PYRO.Mira.Errou")}</strong></p>
         ${await mira.roll.render()}
       </div>`);
       if (!mira.acertou) {
@@ -282,7 +295,7 @@ export class PyroItem extends Item {
       rolls.push(roll);
       danos.push({ tipo: d.tipo, total: roll.total });
       const tipo = game.i18n.localize(PYRO.tiposDano[d.tipo]?.label ?? d.tipo ?? "");
-      partes.push(`<p class="pyro-linha-dano">${tipo}</p>`, await roll.render());
+      partes.push(`<p class="pyro-linha-dano dano-${d.tipo}">${tipo}</p>`, await roll.render());
     }
 
     if (municao) {
@@ -373,10 +386,17 @@ export class PyroItem extends Item {
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
     if (!s.formula) return this.#postar();
     const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();
-    return roll.toMessage({
+    return ChatMessage.create({
       speaker,
-      flavor: game.i18n.format("PYRO.Chat.Consumiu", { nome: this.name, acoes: s.acoes }),
-      content: this.#efeitosHTML() || undefined
+      content: `<div class="pyro-chat">
+        ${this.#topoHTML(game.i18n.format("PYRO.Chat.CustoAcoes", { acoes: s.acoes }))}
+        ${await roll.render()}
+        ${this.#efeitosHTML()}
+      </div>`,
+      rolls: [roll],
+      // O rodapé do card decide: o valor pode virar cura ou estamina.
+      flags: { pyro: { danos: [], cura: roll.total } },
+      sound: CONFIG.sounds.dice
     });
   }
 
@@ -405,16 +425,26 @@ export class PyroItem extends Item {
 
     if (s.formula) {
       const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();
-      return roll.toMessage({
+      return ChatMessage.create({
         speaker,
-        flavor: `${this.name}${cab ? " — " + cab : ""}`,
-        content: this.#efeitosHTML() || undefined
+        content: `<div class="pyro-chat">
+          ${this.#topoHTML(cab)}
+          ${await roll.render()}
+          ${this.#efeitosHTML()}
+        </div>`,
+        rolls: [roll],
+        // Sem tipo definido: o rodapé oferece dano (sem defesa), cura e estamina.
+        flags: { pyro: { danos: [{ tipo: "", total: roll.total }], cura: roll.total } },
+        sound: CONFIG.sounds.dice
       });
     }
     return ChatMessage.create({
       speaker,
-      flavor: this.name,
-      content: `${cab ? `<p>${cab}</p>` : ""}${this.system.descricao ?? ""}${this.#efeitosHTML()}`
+      content: `<div class="pyro-chat">
+        ${this.#topoHTML(cab)}
+        ${this.system.descricao ?? ""}
+        ${this.#efeitosHTML()}
+      </div>`
     });
   }
 
@@ -426,16 +456,25 @@ export class PyroItem extends Item {
 
     if (s.formula) {
       const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();
-      return roll.toMessage({
+      return ChatMessage.create({
         speaker,
-        flavor: `${this.name}${cab ? " — " + cab : ""}`,
-        content: this.#efeitosHTML() || undefined
+        content: `<div class="pyro-chat">
+          ${this.#topoHTML(cab)}
+          ${await roll.render()}
+          ${this.#efeitosHTML()}
+        </div>`,
+        rolls: [roll],
+        flags: { pyro: { danos: [{ tipo: "", total: roll.total }], cura: roll.total } },
+        sound: CONFIG.sounds.dice
       });
     }
     return ChatMessage.create({
       speaker,
-      flavor: this.name,
-      content: `${cab ? `<p>${cab}</p>` : ""}${s.descricao ?? ""}${this.#efeitosHTML()}`
+      content: `<div class="pyro-chat">
+        ${this.#topoHTML(cab)}
+        ${s.descricao ?? ""}
+        ${this.#efeitosHTML()}
+      </div>`
     });
   }
 
@@ -466,8 +505,10 @@ export class PyroItem extends Item {
   async #postar() {
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this.actor }),
-      flavor: this.name,
-      content: this.system.descricao || ""
+      content: `<div class="pyro-chat">
+        ${this.#topoHTML(game.i18n.localize(`TYPES.Item.${this.type}`))}
+        ${this.system.descricao || ""}
+      </div>`
     });
   }
 }

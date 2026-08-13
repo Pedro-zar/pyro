@@ -275,10 +275,22 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     const magias = await this.#linhas(porTipo("magia"), item => {
       const runasTexto = item.system.runas.map(r => r.nome).join(" · ");
+      // Cores dos elementos das runas: uma vira friso, várias viram gradiente.
+      const cores = [];
+      for (const ref of item.system.runas) {
+        const runa = actor.items.get(ref.itemId)
+          ?? actor.items.find(i => i.type === "runa" && i.name === ref.nome);
+        const sub = runa?.system.tipoRuna === "elemento" ? runa.system.subtipo : null;
+        if (sub && PYRO.elementos[sub] && !cores.includes(sub)) cores.push(sub);
+      }
       const escalas = item.system.runas.flatMap(r =>
         (r.scalings ?? []).map(sc => `${r.nome}: ${sc.nome} ${sc.base}${sc.porIntencao ? `+${sc.porIntencao}/int` : ""}${sc.faces ? `d${sc.faces}` : ""}`)
       );
       return {
+        cor: cores.length === 1 ? cores[0] : null,
+        grad: cores.length > 1
+          ? `linear-gradient(180deg, ${cores.map(c => `var(--pyro-el-${c})`).join(", ")})`
+          : null,
         detalhes: [{ texto: runasTexto, classe: "" }],
         resumo: [
           { label: loc("PYRO.Item.RunasDaMagia"), valor: runasTexto || "—" },
