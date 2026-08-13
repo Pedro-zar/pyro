@@ -5,9 +5,12 @@
   <div class="linha-magia">
     <div class="painel painel-magia">
       <div class="magia-numeros">
-        {{#if system.afinidadesTexto}}
+        {{#if system.afinidadesLista.length}}
         <span><span class="rotulo">{{localize "PYRO.Item.Afinidades"}}</span>
-          <strong class="afinidade">{{system.afinidadesTexto}}</strong></span>
+          {{#each system.afinidadesLista as |af|}}
+          <strong class="afinidade"{{#if af.cor}} style="color: var(--pyro-el-{{af.cor}})"{{/if}}>{{af.label}}</strong>
+          {{/each}}
+        </span>
         {{/if}}
         <span><span class="rotulo">{{localize "PYRO.RecuperacaoCena"}}</span>
           <strong class="numero">{{system.recursos.mana.recuperacao}}</strong></span>

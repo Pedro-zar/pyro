@@ -662,8 +662,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       partes.push({ texto: c.system.nomeCaminho || c.name, classe: "id-caminho" });
     }
 
-    if (sys.afinidadesTexto) {
-      partes.push({ texto: sys.afinidadesTexto, classe: "id-afinidade" });
+    for (const af of sys.afinidadesLista ?? []) {
+      partes.push({ texto: af.label, classe: "id-afinidade", cor: af.cor });
     }
     return partes;
   }

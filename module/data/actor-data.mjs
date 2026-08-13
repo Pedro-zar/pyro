@@ -211,21 +211,31 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.linguaNativa = magicos[0]?.system.potencial
       ?? racial?.system.potencial ?? "humana";
 
-    // Afinidades: união das listas de todos os caminhos mágicos.
+    // Afinidades: união das listas de todos os caminhos mágicos. A lista
+    // guarda também o elemento que dá a cor do rótulo na ficha (o primeiro
+    // do grupo: Água/Gelo usa a cor de água).
     const els = new Set();
     const rotulos = [];
+    const listaAfinidades = [];
     for (const c of magicos) {
       for (const af of c.system.afinidades ?? []) {
         const cfg = PYRO.afinidades[af.tipo];
         if (af.tipo === "outro") {
-          if (af.outro) rotulos.push(af.outro);
+          if (af.outro && !rotulos.includes(af.outro)) {
+            rotulos.push(af.outro);
+            listaAfinidades.push({ label: af.outro, cor: null });
+          }
           continue;
         }
         if (!cfg) continue;
         cfg.elementos.forEach(e => els.add(e));
-        if (!rotulos.includes(cfg.label)) rotulos.push(cfg.label);
+        if (!rotulos.includes(cfg.label)) {
+          rotulos.push(cfg.label);
+          listaAfinidades.push({ label: cfg.label, cor: cfg.elementos[0] ?? null });
+        }
       }
     }
+    this.afinidadesLista = listaAfinidades;
     // Recursos concedidos pelos caminhos (aparecem na ficha e no token).
     const concedidos = new Set();
     for (const c of caminhos) {

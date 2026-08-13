@@ -433,12 +433,26 @@
 .pyro .linha-item.com-cor .nome-item:hover {
   color: color-mix(in srgb, var(--cor-item) 65%, white);
 }
+/* Multi-elemento: o próprio nome recebe o gradiente no hover. */
+.pyro .linha-item.com-grad .nome-item:hover {
+  background: var(--cor-grad-h, var(--cor-grad));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
 /* Multi-elemento: um lavado do gradiente por cima da linha inteira. */
+.pyro .lista-itens li.linha-item.com-grad:hover { background: var(--pyro-painel); }
 .pyro .lista-itens li.linha-item.com-grad:hover::after {
   content: ""; position: absolute; inset: 0; pointer-events: none;
   border-radius: var(--pyro-r-md);
   background: var(--cor-grad-h, var(--cor-grad));
-  opacity: 0.08;
+  opacity: 0.14;
+}
+
+/* Sem elemento (gestos, itens comuns), o hover do nome clareia em branco:
+   o laranja fica reservado ao fogo. O fundo da linha já dá o cinza sutil. */
+.pyro .linha-item:not(.com-cor):not(.com-grad) button.nome-item:hover {
+  color: var(--pyro-texto);
 }
 
 /* Grade compartilhada pela legenda e pela linha, para as colunas baterem. */
@@ -537,6 +551,9 @@
 }
 .pyro .magia-numeros .rotulo { margin-right: var(--pyro-e-1); }
 .pyro .magia-numeros .afinidade { color: var(--pyro-brasa-alta); }
+.pyro .magia-numeros .afinidade + .afinidade::before {
+  content: "· "; color: var(--pyro-texto-3); font-weight: 400;
+}
 
 .pyro button.destaque {
   background: var(--pyro-brasa); color: #fff; border: none;

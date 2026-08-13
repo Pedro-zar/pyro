@@ -22,7 +22,7 @@
 
     <p class="topo-subtitulo">
       {{#each identidade as |parte|}}
-      <span class="{{parte.classe}}">{{parte.texto}}</span>
+      <span class="{{parte.classe}}"{{#if parte.cor}} style="color: var(--pyro-el-{{parte.cor}})"{{/if}}>{{parte.texto}}</span>
       {{/each}}
       {{#if podeEditarTamanho}}
       <select class="mini-select" name="system.tamanho">
