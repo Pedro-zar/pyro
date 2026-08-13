@@ -442,7 +442,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }
     for (const chave of sys.recursosConcedidos ?? []) {
       const cfg = PYRO.recursosCustom?.[chave];
-      if (cfg) selosPoder.push({ chave: "natural", cor: "var(--pyro-recurso-custom)", label: loc(cfg.label) });
+      if (cfg) selosPoder.push({ chave: "natural", cor: "var(--pyro-recurso-custom)", label: "" });
     }
     if (sys.temTecnicas) {
       selosPoder.push({ chave: "fisico", cor: "var(--pyro-vontade)", label: loc("PYRO.Vocacao.fisico") });
