@@ -91,7 +91,7 @@ export function scalingsPadrao(item) {
  * de gastar mana, e não só depois no card do chat.
  * @param {number} [efeitoMult] multiplicador da língua, quando houver.
  */
-export function previaRuna(item, intencao, efeitoMult = 1, scalingsOverride = null) {
+export function previaRuna(item, intencao, efeitoMult = 1, scalingsOverride = null, tipoDanoOverride = null) {
   const s = item.system;
 
   /*
@@ -102,8 +102,9 @@ export function previaRuna(item, intencao, efeitoMult = 1, scalingsOverride = nu
   const scalings = scalingsOverride?.length ? scalingsOverride : s.scalings;
   if (scalings?.length) {
     const cfg = s.tipoRuna === "elemento" ? PYRO.elementos[s.subtipo] : null;
-    const tipo = cfg?.tipoDano
-      ? loc(PYRO.tiposDano[cfg.tipoDano]?.label ?? `PYRO.Dano.${cfg.tipoDano}`) : "";
+    const tipoChave = (tipoDanoOverride || s.tipoDano || cfg?.tipoDano) ?? "";
+    const tipo = tipoChave
+      ? loc(PYRO.tiposDano[tipoChave]?.label ?? `PYRO.Dano.${tipoChave}`) : "";
     return scalings.map(sc => {
       let v = valorScaling(sc, intencao);
       if (efeitoMult !== 1) v = Math.max(sc.faces > 0 ? 1 : 0, Math.floor(v * efeitoMult));
@@ -217,7 +218,7 @@ export function calcular(actor, escolhas) {
   let maosUsadas = 0;
   const porRuna = [];
 
-  for (const { item, intencao, scalings, subjulgar } of escolhas) {
+  for (const { item, intencao, scalings, subjulgar, tipoDano } of escolhas) {
     const s = item.system;
     const lingua = PYRO.linguas[s.lingua];
     const custoBase = PYRO.custoIntencao(intencao);
@@ -238,6 +239,7 @@ export function calcular(actor, escolhas) {
       // de sobreposição (a cópia editada de uma magia salva).
       scalings: scalings ?? s.scalings,
       subjulgar: subjulgar ?? s.subjulgar ?? false,
+      tipoDano: tipoDano || s.tipoDano || "",
       efeitoMult: lingua.efeito
     });
   }
@@ -366,10 +368,11 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
               const roll = await new Roll(`${n}d${sc.faces}`).evaluate();
               rolls.push(roll);
               const elCfg = PYRO.elementos[s.subtipo];
+              const tipoEfetivo = pr.tipoDano || elCfg?.tipoDano || "";
               // Subjulgar não causa dano direto: fica fora dos totais do chat.
               if (pr.subjulgar) subjulgares.push(roll.total);
-              else if (elCfg?.tipoDano === "cura") totalCura += roll.total;
-              else danos.push({ tipo: elCfg?.tipoDano ?? "", total: roll.total });
+              else if (tipoEfetivo === "cura") totalCura += roll.total;
+              else danos.push({ tipo: tipoEfetivo, total: roll.total });
               partes.push(`<div class="pyro-dano">
                 <p><strong>${nomeRuna} — ${nomeSc}</strong>: ${n}d${sc.faces}
                 ${pr.efeitoMult !== 1 ? `<em>x${pr.efeitoMult}</em>` : ""}</p>
@@ -416,14 +419,15 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
 
         let { n, faces } = PYRO.dadosElemento(cfg, pr.intencao);
         if (pr.efeitoMult !== 1) n = Math.max(1, Math.floor(n * pr.efeitoMult));
-        const tipoDano = cfg.tipoDano ? loc(PYRO.tiposDano[cfg.tipoDano]?.label ?? `PYRO.Dano.${cfg.tipoDano}`) : "";
+        const tipoEfetivo = pr.tipoDano || cfg.tipoDano || "";
+        const tipoDano = tipoEfetivo ? loc(PYRO.tiposDano[tipoEfetivo]?.label ?? `PYRO.Dano.${tipoEfetivo}`) : "";
 
         if (rolarDano) {
           const roll = await new Roll(`${n}d${faces}`).evaluate();
           rolls.push(roll);
           if (pr.subjulgar) subjulgares.push(roll.total);
-          else if (cfg.tipoDano === "cura") totalCura += roll.total;
-          else danos.push({ tipo: cfg.tipoDano ?? "", total: roll.total });
+          else if (tipoEfetivo === "cura") totalCura += roll.total;
+          else danos.push({ tipo: tipoEfetivo, total: roll.total });
           partes.push(`<div class="pyro-dano">
             <p><strong>${loc(cfg.label)}</strong> — ${n}d${faces}${tipoDano ? ` (${tipoDano})` : ""}
             ${pr.efeitoMult !== 1 ? `<em>x${pr.efeitoMult}</em>` : ""}</p>
@@ -475,7 +479,8 @@ export async function conjurarMagiaSalva(actor, magia) {
         id: item.id, intencao: 1, original: true,
         // Sem cópia própria, ambos caem no que a runa define hoje.
         scalings: ref.scalings?.length ? foundry.utils.deepClone(ref.scalings) : undefined,
-        subjulgar: ref.scalings?.length ? !!ref.subjulgar : undefined
+        subjulgar: ref.scalings?.length ? !!ref.subjulgar : undefined,
+        tipoDano: ref.scalings?.length ? (ref.tipoDano || undefined) : undefined
       });
     }
     else faltando.push(ref.nome);

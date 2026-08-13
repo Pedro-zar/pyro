@@ -108,6 +108,7 @@
     </div>
   </div>
 
+  {{#if temCustos}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Custos"}}</h4>
     <div class="grade-campos">
@@ -123,6 +124,7 @@
         <input type="number" name="system.custoEnergia" value="{{system.custoEnergia}}" min="0" /></label>
     </div>
   </div>
+  {{/if}}
 
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Rolagem"}}</h4>
@@ -158,10 +160,13 @@
                placeholder="{{localize 'PYRO.Item.PalavraPlaceholder'}}" /></label>
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Lingua"}}</span>
         <select name="system.lingua">{{selectOptions linguaOpts selected=system.lingua localize=true}}</select></label>
-      {{#unless ehElemento}}
+      {{#if ehElemento}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.TipoDano"}}</span>
+        <select name="system.tipoDano">{{selectOptions tipoDanoOpts selected=system.tipoDano}}</select></label>
+      {{else}}
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Maos"}}</span>
         <input type="number" name="system.maos" value="{{system.maos}}" min="0" /></label>
-      {{/unless}}
+      {{/if}}
     </div>
     {{#if mostrarSubjulgar}}
     <div class="campos-check">
@@ -281,6 +286,12 @@
       {{#each runasMagia as |r ri|}}
       <div class="runa-bloco">
         <div class="runa-cab"><strong>{{r.nome}}</strong>
+          {{#if r.ehElemento}}
+          <select class="mini-select" name="system.runas.{{ri}}.tipoDano"
+                  title="{{localize 'PYRO.Item.TipoDano'}}">
+            {{selectOptions r.tipoDanoOpts selected=r.tipoDano}}
+          </select>
+          {{/if}}
           {{#if r.mostrarSubjulgar}}
           <label class="check-linha"><input type="checkbox" name="system.runas.{{ri}}.subjulgar" {{checked r.subjulgar}} />
             <span>{{localize "PYRO.Item.SubjulgarCurto"}}</span></label>

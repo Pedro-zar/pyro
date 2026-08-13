@@ -32,7 +32,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     tag: "form",
     position: { width: 640, height: "auto" },
     window: { title: "PYRO.Conjurador.Titulo", resizable: true },
-    form: { handler: ConjuradorApp.#aoConjurar, closeOnSubmit: true },
+    form: { handler: ConjuradorApp.#aoConjurar, closeOnSubmit: false },
     actions: {
       adicionarRuna: ConjuradorApp.#adicionarRuna,
       removerRuna: ConjuradorApp.#removerRuna,
@@ -61,7 +61,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return this.frase
       .map(f => ({
         item: this.actor.items.get(f.id), intencao: f.intencao,
-        scalings: f.scalings, subjulgar: f.subjulgar
+        scalings: f.scalings, subjulgar: f.subjulgar, tipoDano: f.tipoDano
       }))
       .filter(e => e.item);
   }
@@ -92,7 +92,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         excesso: pr.excesso,
         limiteTexto: game.i18n.format("PYRO.Conjurador.LimiteRuna", { n: pr.limite }),
         // O que esta runa produz na Intenção escolhida (cópia da magia, se houver).
-        previa: previaRuna(pr.item, pr.intencao, pr.efeitoMult, pr.scalings),
+        previa: previaRuna(pr.item, pr.intencao, pr.efeitoMult, pr.scalings, pr.tipoDano),
         lingua: s.lingua !== nativa ? loc(PYRO.linguas[s.lingua]?.label ?? "") : null
       };
     });
@@ -123,6 +123,9 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const excedeMaos = calc.maos > maosDisponiveis;
     const podeConjurar = escolhas.length > 0 && calc.temElemento && calc.temForma
       && !faltaMana && !excedeMaos;
+    // Guardar no grimório não gasta mana nem mãos: só a frase precisa valer.
+    this._podeConjurar = podeConjurar;
+    this._podeGuardar = escolhas.length > 0 && calc.temElemento && calc.temForma;
 
     Object.assign(context, {
       actor,
@@ -233,6 +236,26 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (salvar && this.salvar !== undefined) salvar.checked = this.salvar;
     const dano = form.querySelector("[name=rolarDano]");
     if (dano && this.rolarDano !== undefined) dano.checked = this.rolarDano;
+
+    // "Salvar no grimório" transforma o botão: Guardar, com nome obrigatório.
+    const botao = form.querySelector("button[type=submit]");
+    const atualizarModo = () => {
+      const guardando = !this.fixa && !!form.querySelector("[name=salvar]")?.checked;
+      if (botao) {
+        botao.innerHTML = guardando
+          ? `<i class="fa-solid fa-book"></i> ${game.i18n.localize("PYRO.Conjurador.Guardar")}`
+          : `<i class="fa-solid fa-wand-sparkles"></i> ${game.i18n.localize("PYRO.Conjurador.Conjurar")}`;
+        botao.disabled = guardando ? !this._podeGuardar : !this._podeConjurar;
+      }
+      const campoNome = form.querySelector("[name=nomeMagia]");
+      if (campoNome) {
+        campoNome.placeholder = game.i18n.localize(guardando
+          ? "PYRO.Conjurador.NomeObrigatorioPlaceholder"
+          : "PYRO.Conjurador.NomePlaceholder");
+      }
+    };
+    salvar?.addEventListener("change", atualizarModo);
+    atualizarModo();
   }
 
   /* ---------------------------------------------------------------------- */
@@ -244,29 +267,42 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const dados = formData.object;
     // Magia salva: sem re-salvar e o dano rola sempre.
     if (this.fixa) {
-      return conjurar(this.actor, escolhas, { nomeMagia: this.nomeMagia, rolarDano: true });
+      await conjurar(this.actor, escolhas, { nomeMagia: this.nomeMagia, rolarDano: true });
+      return this.close();
     }
-    if (dados.salvar && dados.nomeMagia?.trim()) {
-      // As Intenções são escolhidas a cada conjuração; os escalonamentos
-      // entram como cópia editável — ajustar a magia não mexe na runa.
+
+    /*
+     * Guardar no grimório: só registra a frase, sem conjurar nem gastar
+     * mana. O nome é obrigatório — sem ele a janela continua aberta.
+     * As Intenções são escolhidas a cada conjuração; escalonamentos, tipo
+     * de dano e Subjulgar entram como cópia editável na magia.
+     */
+    if (dados.salvar) {
+      const nome = dados.nomeMagia?.trim();
+      if (!nome) {
+        return ui.notifications.warn(game.i18n.localize("PYRO.Conjurador.NomeObrigatorio"));
+      }
       await Item.implementation.create({
-        name: dados.nomeMagia.trim(),
+        name: nome,
         type: "magia",
         system: {
           runas: escolhas.map(e => ({
             itemId: e.item.id,
             nome: e.item.name,
             subjulgar: e.subjulgar ?? e.item.system.subjulgar ?? false,
+            tipoDano: e.tipoDano ?? e.item.system.tipoDano ?? "",
             scalings: foundry.utils.deepClone(e.scalings ?? e.item.system.scalings ?? [])
           }))
         }
       }, { parent: this.actor });
-      ui.notifications.info(game.i18n.format("PYRO.Conjurador.Salva", { nome: dados.nomeMagia.trim() }));
+      ui.notifications.info(game.i18n.format("PYRO.Conjurador.Salva", { nome }));
+      return this.close();
     }
 
-    return conjurar(this.actor, escolhas, {
+    await conjurar(this.actor, escolhas, {
       nomeMagia: dados.nomeMagia?.trim() || null,
       rolarDano: !!dados.rolarDano
     });
+    return this.close();
   }
 }

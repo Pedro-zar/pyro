@@ -192,6 +192,9 @@ export class RunaData extends BaseItemData {
       subjulgar: new fields.BooleanField({ initial: false }),
       // Gestos ocupam mãos; a frase inteira não pode passar das mãos livres.
       maos: num(1, { min: 0 }),
+      // Tipo de dano sobreposto: vazio usa o padrão do elemento (SRD permite
+      // trocar para tipos físicos via gestos).
+      tipoDano: str(""),
       /*
        * O que esta runa produz por Intenção:
        *   valor = floor(base + porIntencao x (Intenção - 1))
@@ -239,6 +242,7 @@ export class MagiaData extends BaseItemData {
         itemId: new fields.StringField({ required: true }),
         nome: new fields.StringField({ required: true }),
         subjulgar: new fields.BooleanField({ initial: false }),
+        tipoDano: new fields.StringField({ required: true, initial: "" }),
         scalings: new fields.ArrayField(new fields.SchemaField({
           nome: new fields.StringField({ required: true, initial: "" }),
           base: dec(0),

@@ -133,6 +133,17 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // O modo Subjulgar é coisa do elemento Morte (ou de runa já marcada).
       mostrarSubjulgar: ehElemento
         && !!(PYRO.elementos[s.subtipo]?.subjulgar || s.subjulgar),
+      // Tipo de dano: vazio herda o do elemento; o rótulo diz qual é.
+      tipoDanoOpts: {
+        "": game.i18n.format("PYRO.Item.TipoDanoPadrao", {
+          tipo: game.i18n.localize(
+            PYRO.tiposDano[PYRO.elementos[s.subtipo]?.tipoDano]?.label
+            ?? `PYRO.Dano.${PYRO.elementos[s.subtipo]?.tipoDano ?? ""}`)
+        }),
+        ...Object.fromEntries(Object.entries(PYRO.tiposDano)
+          .map(([k, v]) => [k, game.i18n.localize(v.label)])),
+        cura: game.i18n.localize("PYRO.Dano.cura")
+      },
       // Runas da magia com a informação de quem pode subjulgar.
       runasMagia: item.type === "magia"
         ? (s.runas ?? []).map(r => {
@@ -140,7 +151,21 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
               ?? actor?.items.find(i => i.type === "runa" && i.name === r.nome);
             const cfg = runa?.system.tipoRuna === "elemento"
               ? PYRO.elementos[runa.system.subtipo] : null;
-            return { ...r, mostrarSubjulgar: !!(cfg?.subjulgar || r.subjulgar) };
+            const padrao = runa?.system.tipoDano || cfg?.tipoDano || "";
+            return {
+              ...r,
+              mostrarSubjulgar: !!(cfg?.subjulgar || r.subjulgar),
+              // Só elementos causam dano: gestos não têm o campo.
+              ehElemento: !!cfg,
+              tipoDanoOpts: cfg ? {
+                "": game.i18n.format("PYRO.Item.TipoDanoPadrao", {
+                  tipo: game.i18n.localize(PYRO.tiposDano[padrao]?.label ?? `PYRO.Dano.${padrao}`)
+                }),
+                ...Object.fromEntries(Object.entries(PYRO.tiposDano)
+                  .map(([k, v]) => [k, game.i18n.localize(v.label)])),
+                cura: game.i18n.localize("PYRO.Dano.cura")
+              } : null
+            };
           })
         : null,
       rotuloPalavra: ehElemento || item.type !== "runa" ? "PYRO.Item.Palavra" : "PYRO.Item.Gesto",
@@ -157,6 +182,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         marcado: (s.recursos ?? []).includes(chave)
       })),
       tipoCustoOpts: PYRO.tiposCusto,
+      // Passiva e perícia não gastam ação nem recurso: sem bloco de Custos.
+      temCustos: item.type === "habilidade" && s.categoria === "ativavel",
       // Caminhos e runas têm nome derivado: só leitura no formulário.
       nomeAutomatico: item.type === "caminho" || item.type === "runa",
       // Munição só pode ser presa nas costas ou na cintura.
