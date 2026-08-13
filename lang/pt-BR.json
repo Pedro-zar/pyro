@@ -493,7 +493,7 @@
   "PYRO.Item.Cat.passiva": "Passiva",
   "PYRO.Item.Cat.ativavel": "Ativável",
   "PYRO.Item.Custos": "Custos",
-  "PYRO.Item.BaseTag": "base (sem custo)",
+  "PYRO.Item.BaseTag": "0",
   "PYRO.Item.Alcance": "Alcance",
   "PYRO.Menu.Usar": "Usar / rolar",
   "PYRO.Menu.Editar": "Editar",
@@ -548,6 +548,9 @@
 
   "PYRO.Bloco.Dano": "Dano",
   "PYRO.Bloco.Uso": "Uso",
+  "PYRO.Bloco.Aumento": "Aumento de atributo",
+  "PYRO.Item.AumentoPontos": "{usados} de {total} pontos",
+  "PYRO.BonusHabTooltip": "Aumento vindo de habilidades de tier 2 ou superior",
   "PYRO.Bloco.Custos": "Custos",
   "PYRO.Bloco.Rolagem": "Rolagem",
   "PYRO.Bloco.Identificacao": "Identificação",

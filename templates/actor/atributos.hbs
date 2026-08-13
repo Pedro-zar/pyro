@@ -14,6 +14,9 @@
       <div class="atributo-base">
         <input class="numero" type="number" name="system.atributos.{{chave}}.valor"
                value="{{attr.valor}}" min="1" />
+        {{#if attr.bonusHab}}
+        <span class="bonus-hab numero" title="{{localize 'PYRO.BonusHabTooltip'}}">+{{attr.bonusHab}}</span>
+        {{/if}}
         {{#if attr.acimaDoLimite}}
         <span class="efetivo numero" title="{{localize 'PYRO.EfetivoTooltip'}}">{{attr.efetivo}}</span>
         {{/if}}

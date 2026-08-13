@@ -103,10 +103,39 @@
         <select name="system.categoria">{{selectOptions config.categoriasHabilidade selected=system.categoria localize=true}}</select></label>
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Tier"}}</span>
         <input type="number" name="system.tier" value="{{system.tier}}" min="1" /></label>
-      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.CustoXp"}}</span>
-        <input type="number" name="system.custoXp" value="{{system.custoXp}}" min="0" /></label>
+      <div class="campo"><span class="rotulo">{{localize "PYRO.Item.CustoXp"}}</span>
+        <span class="valor-texto numero">{{#if system.ehBase}}{{localize "PYRO.Item.BaseTag"}}{{else}}{{system.custoXp}}{{/if}}</span></div>
     </div>
   </div>
+
+  {{#if temAumentos}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Aumento"}}
+      <span class="rotulo">{{aumentoResumo}}</span>
+    </h4>
+    {{#each linhasAumento as |l|}}
+    <div class="linha-aumento">
+      <select name="system.aumentos.{{l.index}}.atributo">
+        {{selectOptions l.opcoes selected=l.atributo}}
+      </select>
+      <input type="number" name="system.aumentos.{{l.index}}.pontos" value="{{l.pontos}}"
+             min="1" max="{{l.max}}" />
+      <button type="button" class="icone perigo" data-action="removerAumento" data-index="{{l.index}}"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {{/each}}
+    {{#if linhaAumentoNova}}
+    <div class="linha-aumento">
+      <select name="system.aumentos.{{linhaAumentoNova.index}}.atributo">
+        {{selectOptions linhaAumentoNova.opcoes selected=""}}
+      </select>
+      <input type="number" name="system.aumentos.{{linhaAumentoNova.index}}.pontos"
+             value="{{linhaAumentoNova.max}}" min="1" max="{{linhaAumentoNova.max}}" />
+      <span></span>
+    </div>
+    {{/if}}
+  </div>
+  {{/if}}
 
   {{#if temCustos}}
   <div class="bloco">

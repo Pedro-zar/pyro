@@ -19,6 +19,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       removerScaling: PyroItemSheet.#removerScaling,
       adicionarScalingMagia: PyroItemSheet.#adicionarScalingMagia,
       removerScalingMagia: PyroItemSheet.#removerScalingMagia,
+      removerAumento: PyroItemSheet.#removerAumento,
       adicionarAfinidade: PyroItemSheet.#adicionarAfinidade,
       removerAfinidade: PyroItemSheet.#removerAfinidade,
       criarEfeito: PyroItemSheet.#criarEfeito,
@@ -184,6 +185,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       tipoCustoOpts: PYRO.tiposCusto,
       // Passiva e perícia não gastam ação nem recurso: sem bloco de Custos.
       temCustos: item.type === "habilidade" && s.categoria === "ativavel",
+      ...(item.type === "habilidade" ? this.#contextoAumentos() : {}),
       // Caminhos e runas têm nome derivado: só leitura no formulário.
       nomeAutomatico: item.type === "caminho" || item.type === "runa",
       // Munição só pode ser presa nas costas ou na cintura.
@@ -225,6 +227,51 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   }
 
   /* ---------------------------------------------------------------------- */
+
+  /**
+   * Aumento de atributo por tier (SRD §3). A ficha mostra as escolhas já
+   * feitas e, enquanto sobrar ponto, uma linha vazia para a próxima — cada
+   * atributo aparece uma vez só, e o campo de pontos nunca deixa passar do
+   * que a habilidade concede.
+   */
+  #contextoAumentos() {
+    const s = this.item.system;
+    const total = s.pontosAumento ?? 0;
+    const usados = s.pontosUsados ?? 0;
+    const restantes = s.pontosRestantes ?? 0;
+    const escolhidos = (s.aumentos ?? []).map(a => a.atributo);
+
+    const opcoesPara = atual => Object.fromEntries(
+      Object.entries(PYRO.atributos)
+        .filter(([k]) => k === atual || !escolhidos.includes(k))
+        .map(([k, label]) => [k, game.i18n.localize(label)])
+    );
+
+    const linhas = (s.aumentos ?? []).map((a, i) => ({
+      index: i,
+      atributo: a.atributo,
+      pontos: a.pontos,
+      // O máximo da linha é o que ela já usa mais o que sobrou.
+      max: a.pontos + restantes,
+      opcoes: opcoesPara(a.atributo)
+    }));
+
+    // Linha nova só enquanto há ponto sobrando e atributo livre.
+    const livres = opcoesPara(null);
+    const linhaNova = restantes > 0 && Object.keys(livres).length
+      ? { index: linhas.length, atributo: "", pontos: "", max: restantes, opcoes: { "": "—", ...livres } }
+      : null;
+
+    return {
+      temAumentos: total > 0,
+      aumentoTotal: total,
+      aumentoUsados: usados,
+      aumentoRestantes: restantes,
+      aumentoResumo: game.i18n.format("PYRO.Item.AumentoPontos", { usados, total }),
+      linhasAumento: linhas,
+      linhaAumentoNova: linhaNova
+    };
+  }
 
   /* ---------------------------------------------------------------------- */
   /*  Resumo mecânico do item                                              */
@@ -274,6 +321,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         if (s.custoEstamina) partes.push(`${s.custoEstamina} ${loc("PYRO.Abrev.estamina")}`);
         if (s.custoMana) partes.push(`${s.custoMana} ${loc("PYRO.Abrev.mana")}`);
         if (s.custoEnergia) partes.push(`${s.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
+        for (const a of s.aumentos ?? []) {
+          partes.push(`+${a.pontos} ${loc(PYRO.atributos[a.atributo] ?? a.atributo)}`);
+        }
         break;
       }
       case "feitico": {
@@ -364,6 +414,23 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }));
     }
 
+    if (this.item.type === "habilidade" && sys.aumentos && !Array.isArray(sys.aumentos)) {
+      const teto = Math.max(0, (sys.tier ?? this.item.system.tier) - 1);
+      let gasto = 0;
+      const vistos = new Set();
+      sys.aumentos = Object.values(sys.aumentos)
+        .map(a => ({ atributo: a.atributo ?? "", pontos: Number(a.pontos) || 0 }))
+        .filter(a => {
+          if (!a.atributo || a.pontos <= 0 || vistos.has(a.atributo)) return false;
+          // Nunca passa do que o tier concede, mesmo com edição simultânea.
+          a.pontos = Math.min(a.pontos, teto - gasto);
+          if (a.pontos <= 0) return false;
+          gasto += a.pontos;
+          vistos.add(a.atributo);
+          return true;
+        });
+    }
+
     if (this.item.type === "runa" && sys.scalings && !Array.isArray(sys.scalings)) {
       const atuais = this.item.system.toObject().scalings;
       sys.scalings = Object.values(sys.scalings)
@@ -447,6 +514,12 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     if (!r) return;
     r.scalings.splice(Number(target.dataset.index), 1);
     await this.item.update({ "system.runas": runas });
+  }
+
+  static async #removerAumento(event, target) {
+    const arr = this.item.system.toObject().aumentos;
+    arr.splice(Number(target.dataset.index), 1);
+    await this.item.update({ "system.aumentos": arr });
   }
 
   static async #adicionarAfinidade() {

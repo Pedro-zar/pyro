@@ -156,8 +156,23 @@ export class HabilidadeData extends BaseItemData {
       custoAcoes: num(0, { min: 0 }),
       // A habilidade gasta ações do próprio turno ou reações fora dele.
       tipoCusto: str("acao", { choices: Object.keys(PYRO.tiposCusto) }),
-      formula: str("")
+      formula: str(""),
+      /*
+       * Aumento de atributo do tier (SRD §3): a habilidade dá tier - 1
+       * pontos, distribuíveis entre atributos relacionados a ela. Cada
+       * atributo entra uma vez só; a ficha soma isso no valor do atributo.
+       */
+      aumentos: new fields.ArrayField(new fields.SchemaField({
+        atributo: str("for", { choices: Object.keys(PYRO.atributos) }),
+        pontos: num(1, { min: 0 })
+      }), { initial: [] })
     };
+  }
+
+  prepareDerivedData() {
+    this.pontosAumento = Math.max(0, (this.tier ?? 1) - 1);
+    this.pontosUsados = (this.aumentos ?? []).reduce((t, a) => t + (a.pontos ?? 0), 0);
+    this.pontosRestantes = Math.max(0, this.pontosAumento - this.pontosUsados);
   }
 }
 

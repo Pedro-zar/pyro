@@ -129,15 +129,29 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     // Multiplicador de patamar: +10% por DET acima de 1.
     this.multi = 1 + 0.1 * (det - 1);
 
+    /* --- Aumentos vindos das habilidades de tier 2+ (SRD §3) ------------- */
+    const bonusHab = {};
+    for (const item of this.parent.items) {
+      if (item.type !== "habilidade") continue;
+      for (const a of item.system.aumentos ?? []) {
+        if (!a.atributo || !a.pontos) continue;
+        bonusHab[a.atributo] = (bonusHab[a.atributo] ?? 0) + a.pontos;
+      }
+    }
+
     /* --- Atributos: limite por DET e valor efetivo (SRD Atributos) ------- */
-    for (const attr of Object.values(this.atributos)) {
+    for (const [chave, attr] of Object.entries(this.atributos)) {
+      // O total é o que vale em jogo: base digitada + aumentos de tier.
+      // (Efeitos já mexeram em .valor antes daqui.)
+      attr.bonusHab = bonusHab[chave] ?? 0;
+      attr.total = attr.valor + attr.bonusHab;
       attr.limite = 15 * det;
-      attr.efetivo = attr.valor <= attr.limite
-        ? attr.valor
-        : attr.limite + Math.floor((attr.valor - attr.limite) / 2);
-      attr.acimaDoLimite = attr.valor > attr.limite;
+      attr.efetivo = attr.total <= attr.limite
+        ? attr.total
+        : attr.limite + Math.floor((attr.total - attr.limite) / 2);
+      attr.acimaDoLimite = attr.total > attr.limite;
       attr.pool = formulaPool(attr.efetivo);
-      attr.poolCheia = formulaPool(attr.valor); // usada em "Passar seus Limites"
+      attr.poolCheia = formulaPool(attr.total); // usada em "Passar seus Limites"
     }
 
     const a = this.atributos;

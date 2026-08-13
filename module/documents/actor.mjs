@@ -118,7 +118,7 @@ export class PyroActor extends Actor {
     }
 
     // Passar seus Limites: usa o atributo cheio; o corpo sofre um rebote [DEFINIR no SRD].
-    const valor = opts.passarLimites ? attr.valor : attr.efetivo;
+    const valor = opts.passarLimites ? attr.total : attr.efetivo;
     const formula = formulaTeste(valor, opts);
 
     const flavorNd = opts.nd ? ` (ND ${opts.nd})` : "";

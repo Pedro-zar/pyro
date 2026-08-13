@@ -37,6 +37,23 @@ export function nomeDoCaminho(sys) {
   return game.i18n.format("PYRO.CaminhoNome", { nome: base });
 }
 
+/**
+ * Custo em XP de uma habilidade: 10 x (habilidades já obtidas no caminho + 1),
+ * conforme o SRD §3. Habilidade base do caminho não custa nada e não entra na
+ * contagem. `excluirId` tira a própria habilidade da conta quando ela já
+ * existe (troca de caminho).
+ */
+export function custoXpAutomatico(actor, caminho, ehBase, excluirId = null) {
+  if (ehBase) return 0;
+  const obtidas = (actor?.items ?? []).filter(i =>
+    i.type === "habilidade"
+    && i.id !== excluirId
+    && !i.system.ehBase
+    && (i.system.caminho === caminho || i.system.caminho === caminho?.name)
+  ).length;
+  return 10 * (obtidas + 1);
+}
+
 /** Nome automático de uma runa: a palavra/gesto, ou o tipo como reserva. */
 export function nomeDaRuna(sys) {
   const palavra = (sys.palavra ?? "").trim();
@@ -114,6 +131,13 @@ export class PyroItem extends Item {
         this.updateSource({ "system.subjulgar": true });
       }
     }
+    // Habilidade nova entra com o custo que ela tem hoje naquele caminho.
+    // (custoXp explícito só vem da habilidade base criada com o caminho.)
+    if (this.type === "habilidade" && this.actor && data.system?.custoXp === undefined) {
+      this.updateSource({
+        "system.custoXp": custoXpAutomatico(this.actor, this.system.caminho, this.system.ehBase)
+      });
+    }
     if (this.type === "caminho" && !data.name?.trim()) {
       this.updateSource({ name: nomeDoCaminho(this.system) });
     }
@@ -171,6 +195,39 @@ export class PyroItem extends Item {
       const menor = s.alcanceMenor ?? this.system.alcanceMenor;
       const maximo = s.alcanceMaximo ?? this.system.alcanceMaximo;
       if (menor > maximo) s.alcanceMaximo = menor + 1;
+      changed.system = s;
+    }
+
+    /*
+     * Baixar o tier reduz os pontos de aumento: o excesso é aparado do fim
+     * para o começo, para a habilidade nunca dar mais do que concede.
+     */
+    if (this.type === "habilidade" && "tier" in s && !("aumentos" in s)) {
+      const teto = Math.max(0, s.tier - 1);
+      const atuais = this.system.toObject().aumentos ?? [];
+      let gasto = atuais.reduce((t, a) => t + a.pontos, 0);
+      if (gasto > teto) {
+        const podados = [];
+        for (const a of atuais) {
+          const cabe = Math.min(a.pontos, Math.max(0, teto - podados.reduce((t, x) => t + x.pontos, 0)));
+          if (cabe > 0) podados.push({ ...a, pontos: cabe });
+        }
+        s.aumentos = podados;
+        changed.system = s;
+      }
+    }
+
+    /*
+     * O custo em XP é derivado, não digitado: trocar o caminho (ou marcar
+     * como base) refaz a conta pela fila daquele caminho.
+     */
+    if (this.type === "habilidade" && ("caminho" in s || "ehBase" in s)) {
+      s.custoXp = custoXpAutomatico(
+        this.actor,
+        s.caminho ?? this.system.caminho,
+        s.ehBase ?? this.system.ehBase,
+        this.id
+      );
       changed.system = s;
     }
 

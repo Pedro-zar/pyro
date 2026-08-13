@@ -1358,3 +1358,17 @@
 .pyro .selo-det {
   box-shadow: 0 0 10px color-mix(in srgb, var(--pyro-brasa) 30%, transparent);
 }
+
+/* Aumento de atributo por tier: atributo, pontos e o botão de remover. */
+.pyro .linha-aumento {
+  display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem 1.9rem;
+  gap: 4px; align-items: center; margin-top: 2px;
+}
+.pyro .linha-aumento select, .pyro .linha-aumento input { width: 100%; min-width: 0; }
+.pyro .linha-aumento input { text-align: center; }
+
+/* Bônus de habilidade ao lado da base do atributo. */
+.pyro .atributo-base .bonus-hab {
+  flex: none; padding-right: var(--pyro-e-1);
+  font-size: var(--pyro-t-xs); font-weight: 700; color: var(--pyro-sucesso);
+}
