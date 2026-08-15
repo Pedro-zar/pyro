@@ -8,12 +8,33 @@
              placeholder="{{localize 'PYRO.Nome'}}" />
 
       <div class="topo-acoes">
+        {{!--
+          Selos clicáveis: o escolhido tinge a ficha inteira. No selo do mago
+          já ativo, um segundo clique abre uma amostra por elemento de
+          afinidade, para escolher a cor exata.
+        --}}
         {{#if selosPoder.length}}
         <div class="poderes-selos">
           {{#each selosPoder as |selo|}}
-          <span class="selo-poder selo-{{selo.chave}}" style="--cor-selo: {{selo.cor}}"
-                title="{{selo.label}}"></span>
+          {{#if @root.podeTrocarTema}}
+          <button type="button" class="selo-poder selo-{{selo.chave}}{{#if selo.ativo}} ativo{{/if}}"
+                  style="--cor-selo: {{selo.cor}}" title="{{selo.dica}}"
+                  data-action="escolherVocacao" data-vocacao="{{selo.chave}}"></button>
+          {{else}}
+          <span class="selo-poder selo-{{selo.chave}}{{#if selo.ativo}} ativo{{/if}}"
+                style="--cor-selo: {{selo.cor}}" title="{{selo.label}}"></span>
+          {{/if}}
           {{/each}}
+
+          {{#if coresElemento.length}}
+          <div class="cores-vocacao" hidden>
+            {{#each coresElemento as |c|}}
+            <button type="button" class="cor-elemento{{#if c.ativo}} ativo{{/if}}"
+                    style="--cor-el: var(--pyro-el-{{c.chave}})" title="{{c.dica}}"
+                    data-action="escolherCorElemento" data-elemento="{{c.chave}}"></button>
+            {{/each}}
+          </div>
+          {{/if}}
         </div>
         {{/if}}
         <div class="selo-det" title="{{localize 'PYRO.DetTooltip'}}">

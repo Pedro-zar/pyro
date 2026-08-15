@@ -103,9 +103,17 @@
         <select name="system.categoria">{{selectOptions config.categoriasHabilidade selected=system.categoria localize=true}}</select></label>
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Tier"}}</span>
         <input type="number" name="system.tier" value="{{system.tier}}" min="1" /></label>
+      {{#unless system.ehBase}}
+      <label class="campo" title="{{localize 'PYRO.Item.OrdemDica'}}">
+        <span class="rotulo">{{localize "PYRO.Item.Ordem"}}</span>
+        <input type="number" name="system.ordem" value="{{system.ordem}}" min="1" /></label>
+      {{/unless}}
       <div class="campo"><span class="rotulo">{{localize "PYRO.Item.CustoXp"}}</span>
         <span class="valor-texto numero">{{#if system.ehBase}}{{localize "PYRO.Item.BaseTag"}}{{else}}{{system.custoXp}}{{/if}}</span></div>
     </div>
+    {{#unless system.ehBase}}
+    <p class="pyro-nota">{{localize "PYRO.Item.OrdemDica"}}</p>
+    {{/unless}}
   </div>
 
   {{#if temAumentos}}

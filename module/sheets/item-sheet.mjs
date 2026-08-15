@@ -1,6 +1,23 @@
 import { PYRO } from "../config.mjs";
 import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
-import { scalingsPadrao, valorScaling } from "../magia.mjs";
+import { scalingsPadrao, valorScaling, SEM_DANO } from "../magia.mjs";
+
+/**
+ * Opções de tipo de dano de um elemento. A primeira herda o tipo do próprio
+ * elemento; "Não causa dano" desliga a rolagem, para runas e magias que só
+ * produzem efeito (uma barreira, um teleporte, um alcance).
+ */
+function opcoesTipoDano(padrao) {
+  return {
+    "": game.i18n.format("PYRO.Item.TipoDanoPadrao", {
+      tipo: game.i18n.localize(PYRO.tiposDano[padrao]?.label ?? `PYRO.Dano.${padrao ?? ""}`)
+    }),
+    [SEM_DANO]: game.i18n.localize("PYRO.Dano.nenhum"),
+    ...Object.fromEntries(Object.entries(PYRO.tiposDano)
+      .map(([k, v]) => [k, game.i18n.localize(v.label)])),
+    cura: game.i18n.localize("PYRO.Dano.cura")
+  };
+}
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ItemSheetV2 } = foundry.applications.sheets;
@@ -135,16 +152,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       mostrarSubjulgar: ehElemento
         && !!(PYRO.elementos[s.subtipo]?.subjulgar || s.subjulgar),
       // Tipo de dano: vazio herda o do elemento; o rótulo diz qual é.
-      tipoDanoOpts: {
-        "": game.i18n.format("PYRO.Item.TipoDanoPadrao", {
-          tipo: game.i18n.localize(
-            PYRO.tiposDano[PYRO.elementos[s.subtipo]?.tipoDano]?.label
-            ?? `PYRO.Dano.${PYRO.elementos[s.subtipo]?.tipoDano ?? ""}`)
-        }),
-        ...Object.fromEntries(Object.entries(PYRO.tiposDano)
-          .map(([k, v]) => [k, game.i18n.localize(v.label)])),
-        cura: game.i18n.localize("PYRO.Dano.cura")
-      },
+      tipoDanoOpts: opcoesTipoDano(PYRO.elementos[s.subtipo]?.tipoDano),
       // Runas da magia com a informação de quem pode subjulgar.
       runasMagia: item.type === "magia"
         ? (s.runas ?? []).map(r => {
@@ -158,14 +166,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
               mostrarSubjulgar: !!(cfg?.subjulgar || r.subjulgar),
               // Só elementos causam dano: gestos não têm o campo.
               ehElemento: !!cfg,
-              tipoDanoOpts: cfg ? {
-                "": game.i18n.format("PYRO.Item.TipoDanoPadrao", {
-                  tipo: game.i18n.localize(PYRO.tiposDano[padrao]?.label ?? `PYRO.Dano.${padrao}`)
-                }),
-                ...Object.fromEntries(Object.entries(PYRO.tiposDano)
-                  .map(([k, v]) => [k, game.i18n.localize(v.label)])),
-                cura: game.i18n.localize("PYRO.Dano.cura")
-              } : null
+              tipoDanoOpts: cfg ? opcoesTipoDano(padrao) : null
             };
           })
         : null,
@@ -204,7 +205,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       previaMult: item.type === "runa" && (PYRO.linguas[s.lingua]?.efeito ?? 1) !== 1
         ? PYRO.linguas[s.lingua].efeito : null,
       previaScalings: item.type === "runa"
-        ? (s.scalings ?? []).map(sc => {
+        // Marcada como "não causa dano", a runa não rola: some da prévia.
+        ? (s.scalings ?? []).filter(sc => !(sc.faces > 0 && s.tipoDano === SEM_DANO)).map(sc => {
             const mult = PYRO.linguas[s.lingua]?.efeito ?? 1;
             return {
               nome: sc.nome || game.i18n.localize("PYRO.Scaling.Efeito"),
@@ -335,6 +337,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         partes.push(loc(PYRO.tiposRuna[s.tipoRuna] ?? ""));
         if (s.tipoRuna === "elemento") {
           partes.push(loc(PYRO.elementos[s.subtipo]?.label ?? ""));
+          if (s.tipoDano === SEM_DANO) partes.push(loc("PYRO.Dano.nenhum"));
           if (s.subjulgar) partes.push(loc("PYRO.Item.SubjulgarCurto"));
         }
         partes.push(loc(PYRO.linguas[s.lingua]?.label ?? ""));

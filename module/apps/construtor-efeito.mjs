@@ -1,10 +1,26 @@
 import { PYRO } from "../config.mjs";
+import { variaveisDoItem } from "../magia.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 /**
+ * Primeira linha de qualquer efeito novo: somar 1 ao bônus de Força. O alvo
+ * sai da própria tabela de alvos, e não escrito à mão, para não apontar para
+ * um campo que saiu da lista.
+ */
+const mudancaPadrao = () => ({
+  categoria: "atributos",
+  alvo: Object.keys(PYRO.alvosEfeito.atributos.alvos)[0],
+  modo: 2,
+  valor: "1"
+});
+
+/** Itens cujo efeito quase sempre é para o alvo, não para quem carrega. */
+const TIPOS_DE_USO = ["magia", "runa", "feitico", "consumivel"];
+
+/**
  * Criação guiada de Active Effects: em vez de digitar caminhos como
- * "system.atributos.for.valor", o jogador escolhe categoria e alvo em listas.
+ * "system.atributos.for.bonus", o jogador escolhe categoria e alvo em listas.
  * Depois de criado, o efeito continua editável pela ficha padrão do Foundry.
  */
 export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV2) {
@@ -12,7 +28,15 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     super(options);
     this.documento = documento;
     this.categoria = categoria;
-    this.mudancas = [{ categoria: "atributos", alvo: "system.atributos.for.valor", modo: 2, valor: "1" }];
+    /*
+     * Estado de trabalho do formulário. Fica aqui e não só no DOM porque a
+     * janela se re-renderiza a cada linha adicionada ou categoria trocada, e
+     * o que já tinha sido digitado precisa sobreviver a isso.
+     */
+    this.nome = game.i18n.localize("PYRO.Efeitos.Novo");
+    this.rodadas = categoria === "temporarios" ? "1" : "0";
+    this.deUso = documento instanceof Item && TIPOS_DE_USO.includes(documento.type);
+    this.mudancas = [mudancaPadrao()];
   }
 
   static DEFAULT_OPTIONS = {
@@ -25,6 +49,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     actions: {
       adicionarMudanca: ConstrutorEfeitoApp.#adicionarMudanca,
       removerMudanca: ConstrutorEfeitoApp.#removerMudanca,
+      inserirVariavel: ConstrutorEfeitoApp.#inserirVariavel,
       avancado: ConstrutorEfeitoApp.#avancado
     }
   };
@@ -34,6 +59,18 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
   };
 
   /* ---------------------------------------------------------------------- */
+
+  /**
+   * Variáveis que o card deste item vai publicar. Em magia e runa são os
+   * escalonamentos (alcance, raio, dano rolado) mais a Intenção e o mana
+   * gastos; nos demais itens, só o que o card já grava nas flags.
+   */
+  #variaveis() {
+    const item = this.documento instanceof Item ? this.documento : null;
+    if (!item) return [];
+    if (["magia", "runa"].includes(item.type)) return variaveisDoItem(item);
+    return ["danoTotal", "cura"];
+  }
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
@@ -49,6 +86,9 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     // Só itens podem ter efeito de uso: num ator, todo efeito é dele próprio.
     context.podeSerDeUso = this.documento instanceof Item;
     context.deUso = this.deUso ?? false;
+    context.nome = this.nome;
+    context.rodadas = this.rodadas;
+    context.variaveis = this.#variaveis();
     context.mudancas = this.mudancas.map((m, i) => ({
       ...m,
       index: i,
@@ -59,8 +99,13 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     return context;
   }
 
-  _onRender(context, options) {
-    super._onRender?.(context, options);
+  /*
+   * O ouvinte de categoria fica aqui, e não em _onRender: a janela mantém o
+   * mesmo elemento raiz entre renderizações, então registrar a cada uma delas
+   * empilharia cópias e um clique dispararia vários re-renders.
+   */
+  _onFirstRender(context, options) {
+    super._onFirstRender?.(context, options);
     // Trocar a categoria refaz a lista de alvos.
     this.element.addEventListener("change", event => {
       const alvo = event.target;
@@ -73,13 +118,24 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     });
   }
 
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+
+    // Guarda o último campo de texto tocado, para o botão de variável saber
+    // onde escrever (valor de uma mudança ou a duração).
+    for (const campo of this.element.querySelectorAll("input[type=text]")) {
+      campo.addEventListener("focus", () => { this._ultimoCampo = campo; });
+    }
+    this._ultimoCampo ??= this.element.querySelector("[name$='.valor']");
+  }
+
   /** Lê o formulário na lista de trabalho (sem gravar nada ainda). */
   #capturar() {
     const dados = foundry.utils.flattenObject(
       new foundry.applications.ux.FormDataExtended(this.element).object
     );
     this.nome = dados.nome ?? this.nome;
-    this.rodadas = Number(dados.rodadas) || 0;
+    this.rodadas = String(dados.rodadas ?? this.rodadas ?? "0");
     this.deUso = dados.deUso ?? this.deUso;
     this.mudancas = this.mudancas.map((m, i) => ({
       categoria: dados[`mudanca.${i}.categoria`] ?? m.categoria,
@@ -92,7 +148,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
 
   static #adicionarMudanca() {
     this.#capturar();
-    this.mudancas.push({ categoria: "atributos", alvo: "system.atributos.for.valor", modo: 2, valor: "1" });
+    this.mudancas.push(mudancaPadrao());
     this.render();
   }
 
@@ -100,9 +156,22 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.#capturar();
     this.mudancas.splice(Number(target.dataset.index), 1);
     if (!this.mudancas.length) {
-      this.mudancas.push({ categoria: "atributos", alvo: "system.atributos.for.valor", modo: 2, valor: "1" });
+      this.mudancas.push(mudancaPadrao());
     }
     this.render();
+  }
+
+  /** Escreve "@variavel" no último campo de texto em que o cursor esteve. */
+  static #inserirVariavel(event, target) {
+    const campo = this._ultimoCampo ?? this.element.querySelector("[name$='.valor']");
+    if (!campo) return;
+    const texto = `@${target.dataset.variavel}`;
+    const inicio = campo.selectionStart ?? campo.value.length;
+    const fim = campo.selectionEnd ?? campo.value.length;
+    campo.value = campo.value.slice(0, inicio) + texto + campo.value.slice(fim);
+    campo.focus();
+    campo.setSelectionRange(inicio + texto.length, inicio + texto.length);
+    this.#capturar();
   }
 
   /** Cria o efeito e abre a ficha completa do Foundry pra ajustes finos. */
@@ -118,10 +187,18 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
 
   async #gravar() {
     const dados = this.#capturar();
-    const rodadas = Number(dados.rodadas) || 0;
     // Efeito de uso vai para o alvo ao usar o item, então não transfere
     // automaticamente para quem carrega.
     const deUso = !!dados.deUso;
+
+    /*
+     * A duração aceita fórmula ("@rodadas", "@intencao * 2"). Número puro vira
+     * duração direto; fórmula fica guardada e só é resolvida quando o efeito é
+     * aplicado, com as variáveis daquela conjuração.
+     */
+    const textoRodadas = String(dados.rodadas ?? "").trim();
+    const rodadasFixas = Number(textoRodadas);
+    const rodadasEhFormula = textoRodadas !== "" && !Number.isFinite(rodadasFixas);
 
     // Condições viram statuses (marcadores no token); o resto vira changes.
     const condicoes = this.mudancas.filter(m => m.categoria === "condicao" && m.alvo);
@@ -141,12 +218,15 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       origin: this.documento.uuid,
       disabled: this.categoria === "inativos",
       transfer: !deUso,
-      flags: { pyro: { deUso } },
+      flags: { pyro: { deUso, ...(rodadasEhFormula ? { rodadasFormula: textoRodadas } : {}) } },
       statuses: [...new Set(condicoes.map(m => m.alvo))],
       changes: mudancas
         .map(m => ({ key: m.alvo, mode: Number(m.modo), value: String(m.valor ?? ""), priority: 20 }))
     };
-    if (rodadas > 0) efeito.duration = { rounds: rodadas };
+    // Fórmula entra com 1 rodada só para o efeito já nascer temporário; o
+    // número real é escrito na cópia que vai para o alvo.
+    if (rodadasEhFormula) efeito.duration = { rounds: 1 };
+    else if (rodadasFixas > 0) efeito.duration = { rounds: rodadasFixas };
 
     const criados = await ActiveEffect.implementation.create(efeito, { parent: this.documento });
     return Array.isArray(criados) ? criados[0] : criados;

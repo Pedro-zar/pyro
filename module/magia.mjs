@@ -1,8 +1,12 @@
 import { PYRO } from "./config.mjs";
 import { formulaTeste } from "./dados.mjs";
+import { htmlEfeitosDeUso } from "./efeitos.mjs";
 
 const esc = s => Handlebars.escapeExpression(s);
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
+
+/** Tipo de dano que desliga a rolagem: a runa só produz efeito e números. */
+export const SEM_DANO = "nenhum";
 
 /**
  * Se true, os efeitos de sobrecarga disparam sempre que o limite seguro é
@@ -85,6 +89,60 @@ export function scalingsPadrao(item) {
   return [];
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Variáveis publicadas para os efeitos                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Chave de variável a partir do nome de um escalonamento:
+ * "Alcance (m)" -> alcance, "PV do muro" -> pvDoMuro.
+ * O trecho entre parênteses é unidade, não faz parte do nome.
+ */
+export function chaveVariavel(nome) {
+  const limpo = String(nome ?? "")
+    .replace(/\(.*?\)/g, " ")
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9]+/g, " ")
+    .trim();
+  if (!limpo) return "";
+  const [primeira, ...resto] = limpo.split(" ");
+  return primeira.toLowerCase()
+    + resto.map(p => p.charAt(0).toUpperCase() + p.slice(1).toLowerCase()).join("");
+}
+
+/** Variáveis que toda conjuração publica, independente das runas usadas. */
+export const VARIAVEIS_CONJURACAO = [
+  "intencao", "intencaoMax", "mana", "acoes", "danoTotal", "cura"
+];
+
+/**
+ * Chaves que este item vai publicar no card. O construtor de efeitos usa isso
+ * para listar o que dá para referenciar sem o jogador ter que adivinhar.
+ */
+export function variaveisDoItem(item) {
+  const chaves = new Set(VARIAVEIS_CONJURACAO);
+  const juntar = lista => {
+    for (const sc of lista ?? []) {
+      const chave = chaveVariavel(sc.nome);
+      if (chave) chaves.add(chave);
+    }
+  };
+
+  if (item?.type === "runa") juntar(item.system.scalings);
+  if (item?.type === "magia") {
+    for (const ref of item.system.runas ?? []) {
+      if (ref.scalings?.length) juntar(ref.scalings);
+      else {
+        // Magia salva sem cópia própria lê o que a runa define hoje.
+        const runa = item.actor?.items.get(ref.itemId)
+          ?? item.actor?.items.find(i => i.type === "runa" && i.name === ref.nome);
+        juntar(runa?.system.scalings);
+      }
+    }
+  }
+  return [...chaves];
+}
+
 /**
  * O que uma runa produz numa Intenção, em texto curto ("9d6 calor",
  * "raio 2m"). Alimenta a prévia do conjurador: o jogador vê o efeito antes
@@ -103,23 +161,28 @@ export function previaRuna(item, intencao, efeitoMult = 1, scalingsOverride = nu
   if (scalings?.length) {
     const cfg = s.tipoRuna === "elemento" ? PYRO.elementos[s.subtipo] : null;
     const tipoChave = (tipoDanoOverride || s.tipoDano || cfg?.tipoDano) ?? "";
-    const tipo = tipoChave
+    const semDano = tipoChave === SEM_DANO;
+    const tipo = tipoChave && !semDano
       ? loc(PYRO.tiposDano[tipoChave]?.label ?? `PYRO.Dano.${tipoChave}`) : "";
-    return scalings.map(sc => {
+    // Runa sem dano não rola nada: só os escalonamentos numéricos aparecem.
+    const texto = scalings.map(sc => {
+      if (sc.faces > 0 && semDano) return null;
       let v = valorScaling(sc, intencao);
       if (efeitoMult !== 1) v = Math.max(sc.faces > 0 ? 1 : 0, Math.floor(v * efeitoMult));
       if (sc.faces > 0) return `${Math.max(1, v)}d${sc.faces}${tipo ? ` ${tipo}` : ""}`;
       const nome = sc.nome?.trim();
       return nome ? `${nome} ${v}` : String(v);
-    }).join(" · ");
+    }).filter(Boolean).join(" · ");
+    return texto || (semDano ? loc("PYRO.Dano.nenhum") : "");
   }
 
   if (s.tipoRuna === "elemento") {
     const cfg = PYRO.elementos[s.subtipo];
     if (!cfg) return "";
     const partes = [];
+    const semDano = (tipoDanoOverride || s.tipoDano) === SEM_DANO;
 
-    if (cfg.faces) {
+    if (cfg.faces && !semDano) {
       let { n, faces } = PYRO.dadosElemento(cfg, intencao);
       if (efeitoMult !== 1) n = Math.max(1, Math.floor(n * efeitoMult));
       const tipo = cfg.tipoDano
@@ -261,7 +324,9 @@ export function calcular(actor, escolhas) {
 /*  Conjuração                                                                */
 /* -------------------------------------------------------------------------- */
 
-export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = true } = {}) {
+export async function conjurar(actor, escolhas, {
+  nomeMagia = null, rolarDano = true, itemMagia = null
+} = {}) {
   if (!escolhas.length) return;
 
   const calc = calcular(actor, escolhas);
@@ -319,6 +384,27 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
   let totalCura = 0;
   const subjulgares = [];
 
+  /*
+   * Variáveis desta conjuração, publicadas nas flags do card. Um efeito de uso
+   * pode escrever "@alcance" ou "@intencao" no valor, e o número certo entra
+   * quando alguém clica em aplicar — a mesma magia rende efeitos diferentes
+   * conforme a Intenção escolhida na hora.
+   */
+  const variaveis = {
+    intencao: calc.somaIntencoes,
+    intencaoMax: calc.porRuna.reduce((m, pr) => Math.max(m, pr.intencao), 0),
+    mana: calc.custoTotal,
+    acoes: calc.acoes,
+    danoTotal: 0,
+    cura: 0
+  };
+  // Duas runas com o mesmo escalonamento (dois alcances): vale o maior.
+  const publicar = (nome, valor) => {
+    const chave = chaveVariavel(nome);
+    if (!chave || !Number.isFinite(valor)) return;
+    variaveis[chave] = Math.max(variaveis[chave] ?? Number.NEGATIVE_INFINITY, valor);
+  };
+
   const titulo = nomeMagia
     ? esc(nomeMagia)
     : escolhas.map(e => esc(e.item.system.palavra || e.item.name)).join(" ");
@@ -353,6 +439,8 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
     for (const pr of calc.porRuna) {
       const s = pr.item.system;
       const nomeRuna = esc(s.palavra || pr.item.name);
+      // Tipo "Não causa dano": os dados não são rolados, o resto continua.
+      const semDano = pr.tipoDano === SEM_DANO;
 
       /* --- Escalonamentos customizados (magias salvas) -------------------- */
       if (pr.scalings?.length) {
@@ -363,12 +451,14 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
           const nomeSc = esc(sc.nome || loc("PYRO.Scaling.Efeito"));
 
           if (sc.faces > 0) {
+            if (semDano) continue;
             const n = Math.max(1, valor);
             if (rolarDano) {
               const roll = await new Roll(`${n}d${sc.faces}`).evaluate();
               rolls.push(roll);
               const elCfg = PYRO.elementos[s.subtipo];
               const tipoEfetivo = pr.tipoDano || elCfg?.tipoDano || "";
+              publicar(sc.nome, roll.total);
               // Subjulgar não causa dano direto: fica fora dos totais do chat.
               if (pr.subjulgar) subjulgares.push(roll.total);
               else if (tipoEfetivo === "cura") totalCura += roll.total;
@@ -382,6 +472,7 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
               partes.push(`<p class="pyro-forma"><strong>${nomeRuna} — ${nomeSc}:</strong> ${n}d${sc.faces} (${loc("PYRO.Chat.NaoRolado")})</p>`);
             }
           } else {
+            publicar(sc.nome, valor);
             partes.push(`<p class="pyro-forma"><strong>${nomeRuna} — ${nomeSc}:</strong> ${valor}</p>`);
           }
         }
@@ -399,6 +490,8 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
         const cfg = chave ? PYRO.formas[chave] : null;
         if (cfg) {
           const d = cfg.desc(pr.intencao);
+          // Os números da Forma (alcance, raio, extensão) também viram variáveis.
+          for (const [nome, valor] of Object.entries(d.data ?? {})) publicar(nome, valor);
           partes.push(`<p class="pyro-forma"><strong>${nomeRuna}:</strong> ${loc(d.key, d.data)}</p>`);
         } else {
           // Gesto livre: sem automação, só o registro da Intenção.
@@ -412,7 +505,8 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
         const cfg = PYRO.elementos[s.subtipo];
         if (!cfg) continue;
         const efeito = loc(cfg.efeito ?? "");
-        if (!cfg.faces) { // Espaço: efeito narrativo, sem dano padrão
+        // Espaço não tem dano padrão; "Não causa dano" desliga o do elemento.
+        if (!cfg.faces || semDano) {
           if (efeito) partes.push(`<p class="pyro-efeito">${efeito}</p>`);
           continue;
         }
@@ -425,6 +519,7 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
         if (rolarDano) {
           const roll = await new Roll(`${n}d${faces}`).evaluate();
           rolls.push(roll);
+          publicar(loc("PYRO.Scaling.Dano"), roll.total);
           if (pr.subjulgar) subjulgares.push(roll.total);
           else if (tipoEfetivo === "cura") totalCura += roll.total;
           else danos.push({ tipo: tipoEfetivo, total: roll.total });
@@ -446,13 +541,22 @@ export async function conjurar(actor, escolhas, { nomeMagia = null, rolarDano = 
       partes.push(tabelaSubjulgar(actor.system.det, total));
     }
 
+    /*
+     * Efeitos de uso da magia salva e das runas da frase. Sem isto, um efeito
+     * criado na magia nunca chegava ao chat: o card da conjuração era o único
+     * que não montava os botões.
+     */
+    partes.push(htmlEfeitosDeUso(itemMagia, calc.porRuna.map(pr => pr.item)));
   }
+
+  variaveis.danoTotal = danos.reduce((t, d) => t + d.total, 0);
+  variaveis.cura = totalCura;
 
   return ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<div class="pyro-chat">${partes.join("")}</div>`,
     rolls,
-    flags: { pyro: { danos, cura: totalCura } },
+    flags: { pyro: { danos, cura: totalCura, variaveis } },
     sound: CONFIG.sounds.dice
   });
 }
@@ -493,5 +597,7 @@ export async function conjurarMagiaSalva(actor, magia) {
 
   // Importa aqui para evitar dependência circular entre magia.mjs e o app.
   const { ConjuradorApp } = await import("./apps/conjurador.mjs");
-  return new ConjuradorApp({ actor, frase, nomeMagia: magia.name, fixa: true }).render(true);
+  return new ConjuradorApp({
+    actor, frase, nomeMagia: magia.name, fixa: true, itemMagia: magia
+  }).render(true);
 }

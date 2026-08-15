@@ -282,8 +282,10 @@ PYRO.condicoes = {
 PYRO.alvosEfeito = {
   atributos: {
     label: "PYRO.Efeitos.Cat.atributos",
+    // O alvo é o bônus, não o valor digitado: o efeito vira +X ao lado da
+    // base na ficha, em vez de sobrescrever o número do jogador.
     alvos: Object.fromEntries(Object.entries(PYRO.atributos)
-      .map(([k, label]) => [`system.atributos.${k}.valor`, label]))
+      .map(([k, label]) => [`system.atributos.${k}.bonus`, label]))
   },
   recursos: {
     label: "PYRO.Efeitos.Cat.recursos",
@@ -309,6 +311,13 @@ PYRO.alvosEfeito = {
     label: "PYRO.Efeitos.Cat.condicao",
     alvos: Object.fromEntries(Object.entries(PYRO.condicoes)
       .map(([k, cfg]) => [k, cfg.label]))
+  },
+  movimento: {
+    label: "PYRO.Efeitos.Cat.movimento",
+    alvos: {
+      "system.velocidadeBonus": "PYRO.Efeitos.Alvo.velocidadeBonus",
+      "system.velocidadeMult": "PYRO.Efeitos.Alvo.velocidadeMult"
+    }
   },
   outros: {
     label: "PYRO.Efeitos.Cat.outros",

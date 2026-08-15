@@ -1,9 +1,14 @@
 <div class="construtor-corpo">
+  {{!--
+    Os valores vêm do estado da janela, e não de um padrão fixo: a janela se
+    re-renderiza a cada linha nova ou troca de categoria, e o que já foi
+    digitado tem que sobreviver a isso.
+  --}}
   <div class="linha-campos">
     <label class="campo cresce"><span>{{localize "PYRO.Efeitos.NomeEfeito"}}</span>
-      <input type="text" name="nome" value="{{localize 'PYRO.Efeitos.Novo'}}" /></label>
+      <input type="text" name="nome" value="{{nome}}" /></label>
     <label class="campo"><span>{{localize "PYRO.Efeitos.Rodadas"}}</span>
-      <input type="number" name="rodadas" value="{{#if temporario}}1{{else}}0{{/if}}" min="0" /></label>
+      <input type="text" name="rodadas" value="{{rodadas}}" /></label>
   </div>
   <p class="pyro-nota">{{localize "PYRO.Efeitos.RodadasDica"}}</p>
 
@@ -50,6 +55,19 @@
     </div>
     {{/each}}
   </div>
+
+  {{#if variaveis.length}}
+  <div class="variaveis-efeito">
+    <span class="rotulo">{{localize "PYRO.Efeitos.Variaveis"}}</span>
+    <div class="variaveis-lista">
+      {{#each variaveis as |v|}}
+      <button type="button" class="ficha-variavel" data-action="inserirVariavel" data-variavel="{{v}}"
+              title="{{localize 'PYRO.Efeitos.InserirVariavel'}}">@{{v}}</button>
+      {{/each}}
+    </div>
+    <p class="pyro-nota">{{localize "PYRO.Efeitos.VariaveisDica"}}</p>
+  </div>
+  {{/if}}
 
   <p class="pyro-nota">{{localize "PYRO.Efeitos.ValorDica"}}</p>
   <p class="pyro-nota">{{localize "PYRO.Efeitos.TamanhoDica"}}</p>

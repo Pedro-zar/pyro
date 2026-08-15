@@ -6,6 +6,7 @@ import {
 } from "./data/item-data.mjs";
 import { PyroActor } from "./documents/actor.mjs";
 import { PyroItem } from "./documents/item.mjs";
+import { PyroActiveEffect } from "./documents/active-effect.mjs";
 import { PyroActorSheet } from "./sheets/actor-sheet.mjs";
 import { PyroItemSheet } from "./sheets/item-sheet.mjs";
 import { registrarSettings, aplicarSettings } from "./settings.mjs";
@@ -35,6 +36,7 @@ Hooks.once("init", () => {
   }
   CONFIG.Actor.documentClass = PyroActor;
   CONFIG.Item.documentClass = PyroItem;
+  CONFIG.ActiveEffect.documentClass = PyroActiveEffect;
 
   CONFIG.Actor.dataModels = {
     personagem: PersonagemData,

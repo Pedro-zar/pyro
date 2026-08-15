@@ -1,0 +1,113 @@
+/**
+ * Efeitos de uso: o que um item entrega ao alvo, e não a quem carrega.
+ *
+ * Vive fora de item.mjs e magia.mjs porque os dois montam cards de chat com
+ * os mesmos botões — arma, consumível, habilidade, feitiço e conjuração de
+ * magia. Aqui também mora a resolução das @variáveis publicadas pelo card,
+ * que é o que permite um efeito dizer "alcance = @alcance" em vez de um
+ * número fixo escolhido quando o efeito foi criado.
+ */
+
+const esc = s => Handlebars.escapeExpression(s ?? "");
+
+/** Efeitos de uso ativos de um ou mais itens, sem repetir o mesmo efeito. */
+export function efeitosDeUso(...itens) {
+  const vistos = new Set();
+  const saida = [];
+  for (const item of itens.flat().filter(Boolean)) {
+    for (const efeito of item.effects ?? []) {
+      if (!efeito.flags?.pyro?.deUso || efeito.disabled) continue;
+      if (vistos.has(efeito.uuid)) continue;
+      vistos.add(efeito.uuid);
+      saida.push(efeito);
+    }
+  }
+  return saida;
+}
+
+/**
+ * Bloco de botões do card do chat, um por efeito de uso. Quem clica decide o
+ * alvo: os tokens selecionados, ou o próprio personagem do usuário.
+ */
+export function htmlEfeitosDeUso(...itens) {
+  const lista = efeitosDeUso(...itens);
+  if (!lista.length) return "";
+
+  const botoes = lista.map(efeito => `
+    <button type="button" class="pyro-aplicar-efeito" data-efeito-uuid="${efeito.uuid}">
+      <img src="${efeito.img}" alt="" />
+      <span>${esc(efeito.name)}</span>
+    </button>`).join("");
+
+  return `<div class="pyro-efeitos-uso">
+    <span class="pyro-efeitos-rotulo">${game.i18n.localize("PYRO.Efeitos.AplicarEm")}</span>
+    ${botoes}
+  </div>`;
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Variáveis do card                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Variáveis que um card do sistema publicou. Conjurações gravam a lista
+ * completa (alcance, raio, intenção...); os demais cards oferecem ao menos o
+ * dano somado e a cura, que já vêm nas flags para o menu de aplicar.
+ */
+export function variaveisDaMensagem(message) {
+  const flags = message?.flags?.pyro ?? {};
+  const vars = { ...(flags.variaveis ?? {}) };
+  if (vars.danoTotal === undefined) {
+    vars.danoTotal = (flags.danos ?? []).reduce((t, d) => t + (d.total ?? 0), 0);
+  }
+  if (vars.cura === undefined) vars.cura = flags.cura ?? 0;
+  return vars;
+}
+
+/**
+ * Troca as @variáveis pelo valor daquela conjuração e resolve a conta quando
+ * o que sobra é aritmética ("@alcance / 2" vira "3"). Referências que não
+ * estão no mapa ficam intactas, então "@det" continua valendo o DET de quem
+ * recebe o efeito, resolvido pelo Foundry na aplicação.
+ */
+export function resolverValorEfeito(valor, vars) {
+  const bruto = String(valor ?? "");
+  if (!bruto.includes("@")) return bruto;
+  const resolvido = Roll.replaceFormulaData(bruto, vars);
+  if (resolvido.includes("@")) return resolvido;
+  if (!/^[\d\s+\-*/().]+$/.test(resolvido)) return resolvido;
+  try {
+    return String(Roll.safeEval(resolvido));
+  } catch (erro) {
+    console.warn("PYRO | Valor de efeito não pôde ser calculado", bruto, erro);
+    return resolvido;
+  }
+}
+
+/**
+ * Cópia do efeito pronta para o alvo: valores e duração já resolvidos com as
+ * variáveis do card. É cópia independente de propósito — editar o item depois
+ * não mexe em quem já recebeu.
+ */
+export function dadosDoEfeitoAplicado(efeito, vars) {
+  const dados = efeito.toObject();
+  delete dados._id;
+  dados.origin = efeito.uuid;
+  dados.transfer = false;
+  dados.disabled = false;
+  dados.changes = (dados.changes ?? []).map(m => ({
+    ...m,
+    value: resolverValorEfeito(m.value, vars)
+  }));
+
+  // Duração escrita como fórmula ("@rodadas") só vira número aqui, porque só
+  // agora se sabe com que Intenção a magia foi conjurada.
+  const formula = efeito.flags?.pyro?.rodadasFormula;
+  if (formula) {
+    const rodadas = Number(resolverValorEfeito(formula, vars));
+    if (Number.isFinite(rodadas) && rodadas > 0) {
+      dados.duration = { ...(dados.duration ?? {}), rounds: rodadas };
+    }
+  }
+  return dados;
+}

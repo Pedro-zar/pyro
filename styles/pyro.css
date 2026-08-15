@@ -1138,6 +1138,27 @@
 .pyro .mudanca-linha select, .pyro .mudanca-linha input { width: 100%; min-width: 0; }
 .pyro .construtor-rodape { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.3rem; }
 
+/* Variáveis da conjuração: fichas clicáveis que escrevem @nome no campo. */
+.pyro .variaveis-efeito {
+  display: flex; flex-direction: column; gap: var(--pyro-e-1);
+  padding: var(--pyro-e-2); margin-top: var(--pyro-e-2);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
+  background: var(--pyro-painel-alto);
+}
+.pyro .variaveis-lista { display: flex; flex-wrap: wrap; gap: var(--pyro-e-1); }
+.pyro .ficha-variavel {
+  width: auto; line-height: 1.2;
+  padding: 0.1rem var(--pyro-e-2);
+  border: 1px solid var(--pyro-borda-forte); border-radius: var(--pyro-r-pill);
+  background: var(--pyro-realce); color: var(--pyro-brasa);
+  font-family: var(--pyro-fonte-texto); font-size: var(--pyro-t-xs);
+  font-variant-numeric: tabular-nums; cursor: pointer;
+}
+.pyro .ficha-variavel:hover {
+  background: var(--pyro-brasa-suave); border-color: var(--pyro-brasa);
+}
+.pyro .variaveis-efeito .pyro-nota { margin: 0; }
+
 .pyro-chat .pyro-mira {
   border-left: 3px solid var(--pyro-sucesso); padding: 0.2rem 0.5rem;
   background: color-mix(in srgb, var(--pyro-sucesso) 8%, transparent); font-size: 0.85rem;
@@ -1301,14 +1322,43 @@
   mask: url("marca-fisico.svg") center / contain no-repeat;
 }
 
-/* --- Selos de poder: legíveis, um por sistema que o personagem tem -------- */
+/* --- Selos de poder: legíveis, um por sistema que o personagem tem --------
+   São botões: o selo escolhido tinge a ficha, e o do mago abre as cores. */
 .pyro .poderes-selos { display: flex; gap: var(--pyro-e-1); align-items: center; }
 .pyro .selo-poder {
-  width: 2.1rem; height: 2.1rem; flex: none;
+  width: 2.1rem; height: 2.1rem; flex: none; padding: 0; min-height: 0;
   display: inline-flex; align-items: center; justify-content: center;
   border: 1px solid color-mix(in srgb, var(--cor-selo) 55%, transparent);
   border-radius: var(--pyro-r-md);
   background: color-mix(in srgb, var(--cor-selo) 12%, transparent);
+  transition: opacity 120ms ease, box-shadow 120ms ease;
+}
+/* Um selo só na barra já é o tema: não precisa parecer apagado. */
+.pyro .poderes-selos:has(.selo-poder + .selo-poder) .selo-poder:not(.ativo) { opacity: 0.45; }
+button.selo-poder { cursor: pointer; }
+button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
+.pyro .selo-poder.ativo {
+  border-color: var(--cor-selo);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--cor-selo) 35%, transparent);
+}
+
+/* Amostras de elemento do mago, abertas pelo segundo clique no selo. */
+.pyro .cores-vocacao {
+  display: flex; gap: 3px; align-items: center;
+  padding: 3px var(--pyro-e-1);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-pill);
+  background: var(--pyro-painel-alto);
+}
+.pyro .cores-vocacao[hidden] { display: none; }
+.pyro .cor-elemento {
+  width: 1rem; height: 1rem; flex: none; padding: 0; min-height: 0;
+  border: 1px solid color-mix(in srgb, var(--cor-el) 60%, transparent);
+  border-radius: var(--pyro-r-pill);
+  background: var(--cor-el); opacity: 0.65; cursor: pointer;
+}
+.pyro .cor-elemento:hover { opacity: 1; }
+.pyro .cor-elemento.ativo {
+  opacity: 1; box-shadow: 0 0 0 2px var(--pyro-painel), 0 0 0 3px var(--cor-el);
 }
 .pyro .selo-poder::before {
   content: ""; width: 1.45rem; height: 1.45rem;
@@ -1367,8 +1417,10 @@
 .pyro .linha-aumento select, .pyro .linha-aumento input { width: 100%; min-width: 0; }
 .pyro .linha-aumento input { text-align: center; }
 
-/* Bônus de habilidade ao lado da base do atributo. */
+/* Bônus ao lado da base do atributo: aumentos de tier e efeitos, somados.
+   Verde quando somam, vermelho quando descontam. */
 .pyro .atributo-base .bonus-hab {
   flex: none; padding-right: var(--pyro-e-1);
   font-size: var(--pyro-t-xs); font-weight: 700; color: var(--pyro-sucesso);
 }
+.pyro .atributo-base .bonus-hab.negativo { color: var(--pyro-perigo); }

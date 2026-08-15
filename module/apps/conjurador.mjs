@@ -9,7 +9,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
  * a ideia é que o custo e o risco apareçam antes de conjurar, não depois.
  */
 export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor({ actor, frase = [], nomeMagia = "", fixa = false, ...options } = {}) {
+  constructor({ actor, frase = [], nomeMagia = "", fixa = false, itemMagia = null, ...options } = {}) {
     super(options);
     this.actor = actor;
     /** Runas escolhidas, na ordem da frase: [{ id, intencao, scalings? }] */
@@ -17,6 +17,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.nomeMagia = nomeMagia;
     /** Magia salva: a frase é fixa, só as Intenções mudam. */
     this.fixa = fixa;
+    /** Item de magia de origem, quando veio do grimório (leva os efeitos de uso). */
+    this.itemMagia = itemMagia;
   }
 
   /** Conjurando uma magia salva, o título é o nome dela. */
@@ -267,7 +269,9 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const dados = formData.object;
     // Magia salva: sem re-salvar e o dano rola sempre.
     if (this.fixa) {
-      await conjurar(this.actor, escolhas, { nomeMagia: this.nomeMagia, rolarDano: true });
+      await conjurar(this.actor, escolhas, {
+        nomeMagia: this.nomeMagia, rolarDano: true, itemMagia: this.itemMagia
+      });
       return this.close();
     }
 

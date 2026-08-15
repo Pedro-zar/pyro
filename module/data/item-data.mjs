@@ -17,6 +17,59 @@ class BaseItemData extends foundry.abstract.TypeDataModel {
   }
 }
 
+/* ---------------------- Vínculo habilidade <-> caminho --------------------- */
+
+/**
+ * O campo `caminho` da habilidade guarda o id do Caminho, mas fichas antigas
+ * guardavam o nome. Resolve os dois para o id, senão a mesma fila de XP se
+ * parte em duas quando um item usa uma forma e outro usa a outra.
+ */
+export function idDoCaminho(actor, chave) {
+  if (!chave) return "";
+  if (actor?.items.get(chave)) return chave;
+  const caminho = actor?.items.find(i => i.type === "caminho" && i.name === chave);
+  return caminho?.id ?? chave;
+}
+
+/**
+ * Custo em XP de uma habilidade: 10 x a posição dela na fila do Caminho
+ * (SRD §3). A habilidade base do Caminho vem junto e não custa nada.
+ *
+ * A posição é gravada na criação e não se mexe mais. Antes o custo era
+ * recalculado por contagem, então editar a primeira habilidade de um caminho
+ * com duas fazia ela custar 20 — ela contava a irmã e ia para o fim da fila.
+ */
+export function custoDaHabilidade(sys) {
+  return sys?.ehBase ? 0 : 10 * Math.max(0, sys?.ordem ?? 0);
+}
+
+/** Posições já ocupadas por habilidades pagas de um Caminho. */
+function ordensUsadas(actor, caminho, excluirId = null) {
+  const alvo = idDoCaminho(actor, caminho);
+  return new Set((actor?.items ?? [])
+    .filter(i => i.type === "habilidade"
+      && i.id !== excluirId
+      && !i.system.ehBase
+      && idDoCaminho(actor, i.system.caminho) === alvo)
+    .map(i => i.system.ordem)
+    .filter(n => Number.isInteger(n) && n > 0));
+}
+
+/**
+ * Primeira posição livre do Caminho: se ninguém tem a 1, é a 1 (custo 10);
+ * senão tenta a 2, e assim por diante. Apagar uma habilidade devolve a vaga
+ * dela para a próxima que for criada.
+ * @param {number} [preferida] mantém esta posição se ela estiver livre
+ *   (usado ao mover uma habilidade de Caminho sem mudar o custo à toa).
+ */
+export function proximaOrdem(actor, caminho, { excluirId = null, preferida = 0 } = {}) {
+  const usadas = ordensUsadas(actor, caminho, excluirId);
+  if (Number.isInteger(preferida) && preferida > 0 && !usadas.has(preferida)) return preferida;
+  let n = 1;
+  while (usadas.has(n)) n++;
+  return n;
+}
+
 /* ---------------------------- Arma ---------------------------------------- */
 
 export class ArmaData extends BaseItemData {
@@ -149,6 +202,13 @@ export class HabilidadeData extends BaseItemData {
       // podem morar na aba daquele caminho.
       abaCaminho: new fields.BooleanField({ initial: false }),
       tier: num(1, { min: 1 }),
+      /*
+       * Posição na fila de habilidades pagas daquele Caminho, atribuída na
+       * criação: a primeira vaga livre. É ela que fixa o custo, então uma
+       * habilidade antiga não fica mais cara porque outras foram compradas
+       * depois. 0 em habilidade base (não ocupa vaga e não custa XP).
+       */
+      ordem: num(1, { min: 0 }),
       custoXp: num(10, { min: 0 }),
       custoEstamina: num(0, { min: 0 }),
       custoMana: num(0, { min: 0 }),
@@ -169,10 +229,22 @@ export class HabilidadeData extends BaseItemData {
     };
   }
 
+  /** Fichas anteriores à posição fixa: a vaga sai do custo já gravado. */
+  static migrateData(source) {
+    if (source.ordem === undefined) {
+      source.ordem = source.ehBase ? 0
+        : Math.max(1, Math.round((source.custoXp ?? 10) / 10));
+    }
+    return super.migrateData(source);
+  }
+
   prepareDerivedData() {
     this.pontosAumento = Math.max(0, (this.tier ?? 1) - 1);
     this.pontosUsados = (this.aumentos ?? []).reduce((t, a) => t + (a.pontos ?? 0), 0);
     this.pontosRestantes = Math.max(0, this.pontosAumento - this.pontosUsados);
+    // O custo é sempre derivado da posição: o campo gravado só serve de
+    // memória para fichas antigas, que a migração já converteu.
+    this.custoXp = custoDaHabilidade(this);
   }
 }
 
@@ -346,17 +418,21 @@ export class CaminhoData extends BaseItemData {
 
   prepareDerivedData() {
     const actor = this.parent?.actor;
-    // XP gasta é a soma do custo das habilidades deste caminho (o vínculo
-    // aceita o id ou o nome, pra não quebrar fichas antigas).
+    // XP gasta é a soma do custo das habilidades deste caminho. O vínculo
+    // aceita o id ou o nome, pra não quebrar fichas antigas.
     const habilidades = actor?.items.filter(i =>
       i.type === "habilidade"
-      && (i.system.caminho === this.parent.id || i.system.caminho === this.parent.name)
+      && idDoCaminho(actor, i.system.caminho) === this.parent.id
     ) ?? [];
-    this.xpGasta = habilidades.reduce((t, i) => t + (i.system.custoXp ?? 0), 0);
+    /*
+     * Lê a posição gravada em vez do custo derivado da habilidade: os itens
+     * são preparados em ordem, e um caminho preparado antes das habilidades
+     * dele veria o custo ainda não calculado.
+     */
+    this.xpGasta = habilidades.reduce((t, i) => t + custoDaHabilidade(i.system), 0);
     this.xpDisponivel = this.xp - this.xpGasta;
-    // Custo da próxima habilidade: 10 x (habilidades já obtidas + 1).
-    // A habilidade base do caminho não entra nessa conta.
-    const obtidas = habilidades.filter(i => !i.system.ehBase).length;
-    this.proximoCusto = 10 * (obtidas + 1);
+    // A próxima habilidade ocupa a primeira vaga livre da fila.
+    this.proximaOrdem = proximaOrdem(actor, this.parent.id);
+    this.proximoCusto = 10 * this.proximaOrdem;
   }
 }

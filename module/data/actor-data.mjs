@@ -6,6 +6,10 @@ const fields = foundry.data.fields;
 const num = (initial, opts = {}) =>
   new fields.NumberField({ required: true, integer: true, initial, ...opts });
 
+/** Igual ao num, mas aceita fração (multiplicadores de efeito). */
+const dec = (initial, opts = {}) =>
+  new fields.NumberField({ required: true, initial, ...opts });
+
 /**
  * Recurso com value/max nos nomes que o Foundry entende, pra virar barra de
  * token. O max é recalculado em prepareDerivedData a cada preparação; o campo
@@ -17,6 +21,9 @@ const recurso = (initial) => new fields.SchemaField({
   // Ajuste manual do máximo (itens mágicos, bênçãos, etc).
   bonus: num(0)
 });
+
+/** "+3" ou "-2": o sinal deixa claro de que lado o bônus puxa. */
+const comSinal = n => (n > 0 ? `+${n}` : String(n));
 
 /** Aceita a chave interna ("grande") ou o rótulo traduzido ("Grande"). */
 function chaveTamanho(valor) {
@@ -63,7 +70,16 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
     const atributos = {};
     for (const chave of Object.keys(PYRO.atributos)) {
-      atributos[chave] = new fields.SchemaField({ valor: num(8, { min: 1 }) });
+      atributos[chave] = new fields.SchemaField({
+        valor: num(8, { min: 1 }),
+        /*
+         * Alvo dos efeitos, e não o valor digitado. Assim uma bênção ou uma
+         * condição aparece como +X ao lado da base, do mesmo jeito que o
+         * aumento de tier das habilidades, em vez de reescrever o número que
+         * o jogador escolheu na criação.
+         */
+        bonus: num(0)
+      });
     }
 
     return {
@@ -77,6 +93,15 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       // Quantas mãos a criatura tem para gestos e armas. Efeitos somam ou
       // tiram (membro extra, braço imobilizado).
       maos: num(2, { min: 0 }),
+
+      /*
+       * Deslocamento: a base sai de AGI/2 em prepareDerivedData, que roda
+       * depois dos efeitos — por isso o alvo dos efeitos são estes dois
+       * campos, e não a velocidade final. Bônus soma metros (Pressa +3),
+       * multiplicador escala (Friagem 0.5, Lentidão 0).
+       */
+      velocidadeBonus: num(0),
+      velocidadeMult: dec(1, { min: 0 }),
 
       atributos: new fields.SchemaField(atributos),
 
@@ -141,10 +166,21 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
 
     /* --- Atributos: limite por DET e valor efetivo (SRD Atributos) ------- */
     for (const [chave, attr] of Object.entries(this.atributos)) {
-      // O total é o que vale em jogo: base digitada + aumentos de tier.
-      // (Efeitos já mexeram em .valor antes daqui.)
+      // O total é o que vale em jogo: base digitada, mais os aumentos de tier
+      // das habilidades, mais o que os efeitos somaram em .bonus.
       attr.bonusHab = bonusHab[chave] ?? 0;
-      attr.total = attr.valor + attr.bonusHab;
+      attr.bonusEfeito = attr.bonus ?? 0;
+      attr.bonusTotal = attr.bonusHab + attr.bonusEfeito;
+      // Piso 1: um efeito negativo forte não derruba o atributo abaixo da
+      // primeira linha da Tabela de Dados.
+      attr.total = Math.max(1, attr.valor + attr.bonusTotal);
+      attr.bonusTexto = comSinal(attr.bonusTotal);
+      attr.bonusNegativo = attr.bonusTotal < 0;
+      attr.bonusDica = [
+        game.i18n.format("PYRO.BonusOrigem.base", { valor: attr.valor }),
+        attr.bonusHab ? game.i18n.format("PYRO.BonusOrigem.habilidades", { valor: comSinal(attr.bonusHab) }) : null,
+        attr.bonusEfeito ? game.i18n.format("PYRO.BonusOrigem.efeitos", { valor: comSinal(attr.bonusEfeito) }) : null
+      ].filter(Boolean).join(" · ");
       attr.limite = 15 * det;
       attr.efetivo = attr.total <= attr.limite
         ? attr.total
@@ -280,7 +316,12 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.sobrecargaLimite = det * 2; // Intenção segura base (por runa)
 
     /* --- Deslocamento e carga --------------------------------------------- */
-    this.velocidade = Math.floor(a.agi.efetivo / 2); // metros, sem meio metro
+    // Metros por ação de Mover, sem meio metro. Bônus entra antes do
+    // multiplicador, então "+3m" e "metade" resultam em (base + 3) / 2.
+    this.velocidadeBase = Math.floor(a.agi.efetivo / 2);
+    this.velocidade = Math.max(0, Math.floor(
+      (this.velocidadeBase + (this.velocidadeBonus ?? 0)) * (this.velocidadeMult ?? 1)
+    ));
     const multCarga = PYRO.tamanhos[this.tamanho]?.multCarga ?? 2;
     this.carga = { max: a.for.efetivo * multCarga, atual: 0 };
 

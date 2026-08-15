@@ -29,6 +29,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       alternarResumo: PyroActorSheet.#alternarResumo,
       alternarEquipado: PyroActorSheet.#alternarEquipado,
       alternarFavorito: PyroActorSheet.#alternarFavorito,
+      escolherVocacao: PyroActorSheet.#escolherVocacao,
+      escolherCorElemento: PyroActorSheet.#escolherCorElemento,
       criarEfeito: PyroActorSheet.#criarEfeito,
       editarEfeito: PyroActorSheet.#editarEfeito,
       excluirEfeito: PyroActorSheet.#excluirEfeito,
@@ -422,31 +424,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })
     };
 
-    /*
-     * Selos de poder: um por sistema que o personagem empunha — magia rúnica
-     * (na cor da primeira afinidade), feitiçaria, energia natural e técnicas.
-     * O primeiro selo define o acento e a marca d'água da ficha.
-     */
     const sys = actor.system;
-    const selosPoder = [];
-    if (sys.temMagia) {
-      selosPoder.push({
-        chave: "mago",
-        cor: sys.afinidadesLista?.[0]?.cor
-          ? `var(--pyro-el-${sys.afinidadesLista[0].cor})` : "var(--pyro-brasa)",
-        label: loc("PYRO.Vocacao.mago")
-      });
-    }
-    if (sys.temFeiticos) {
-      selosPoder.push({ chave: "feiticeiro", cor: "var(--pyro-sangue)", label: loc("PYRO.Vocacao.feiticeiro") });
-    }
-    for (const chave of sys.recursosConcedidos ?? []) {
-      const cfg = PYRO.recursosCustom?.[chave];
-      if (cfg) selosPoder.push({ chave: "natural", cor: "var(--pyro-recurso-custom)", label: "" });
-    }
-    if (sys.temTecnicas) {
-      selosPoder.push({ chave: "fisico", cor: "var(--pyro-vontade)", label: loc("PYRO.Vocacao.fisico") });
-    }
+    const { selosPoder, seloPrincipal, coresElemento } = this.#selosDePoder();
 
     /*
      * Barras de recurso em linhas equilibradas: até 4 por linha e as linhas
@@ -473,6 +452,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       recursosVisiveis,
       recursosCols,
       selosPoder,
+      seloPrincipal,
+      coresElemento,
+      podeTrocarTema: actor.isOwner,
       identidade: this.#identidade(),
       alertas: this.#alertas(),
       tamanhoLabel: loc(PYRO.tamanhos[actor.system.tamanho]?.label ?? ""),
@@ -654,6 +636,93 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   /**
+   * Selos de poder: um por sistema que o personagem empunha (magia rúnica,
+   * feitiçaria, energia natural e técnicas). Clicar num selo escolhe qual
+   * deles tinge a ficha, e a escolha fica na flag "tema".
+   *
+   * O selo do mago aceita ainda uma cor específica entre as afinidades, na
+   * flag "temaCor": o mago de gelo e o de fogo não precisam ter a mesma ficha.
+   */
+  #selosDePoder() {
+    const actor = this.actor;
+    const sys = actor.system;
+    const loc = k => game.i18n.localize(k);
+    const selos = [];
+    const elementos = sys.afinidadesElementos ?? [];
+
+    if (sys.temMagia) {
+      // Cor escolhida à mão, quando ainda é uma afinidade válida. Senão a
+      // primeira afinidade, e por último o acento padrão do sistema.
+      const escolhida = actor.getFlag("pyro", "temaCor");
+      const elemento = elementos.includes(escolhida)
+        ? escolhida
+        : (sys.afinidadesLista?.[0]?.cor ?? null);
+      selos.push({
+        chave: "mago",
+        cor: elemento ? `var(--pyro-el-${elemento})` : "var(--pyro-brasa)",
+        label: loc("PYRO.Vocacao.mago"),
+        temCores: elementos.length > 0
+      });
+    }
+    if (sys.temFeiticos) {
+      selos.push({ chave: "feiticeiro", cor: "var(--pyro-sangue)", label: loc("PYRO.Vocacao.feiticeiro") });
+    }
+    // Vários recursos próprios ainda rendem um selo só: a marca é a mesma.
+    if ((sys.recursosConcedidos ?? []).some(c => PYRO.recursosCustom?.[c])) {
+      selos.push({ chave: "natural", cor: "var(--pyro-recurso-custom)", label: loc("PYRO.Vocacao.natural") });
+    }
+    if (sys.temTecnicas) {
+      selos.push({ chave: "fisico", cor: "var(--pyro-vontade)", label: loc("PYRO.Vocacao.fisico") });
+    }
+
+    const escolhido = actor.getFlag("pyro", "tema");
+    const principal = selos.find(s => s.chave === escolhido) ?? selos[0] ?? null;
+    for (const selo of selos) {
+      selo.ativo = selo === principal;
+      selo.dica = game.i18n.format(
+        selo.ativo && selo.temCores ? "PYRO.Vocacao.DicaCores" : "PYRO.Vocacao.DicaTema",
+        { nome: selo.label }
+      );
+    }
+    // A action lê isto para saber se o clique troca o tema ou abre as cores.
+    this._vocacaoAtiva = principal?.chave ?? null;
+
+    const corAtual = actor.getFlag("pyro", "temaCor");
+    const coresElemento = principal?.chave === "mago"
+      ? elementos.map(chave => ({
+          chave,
+          label: loc(PYRO.elementos[chave]?.label ?? chave),
+          ativo: chave === corAtual,
+          dica: game.i18n.format(
+            chave === corAtual ? "PYRO.Vocacao.CorAutomatica" : "PYRO.Vocacao.CorElemento",
+            { elemento: loc(PYRO.elementos[chave]?.label ?? chave) }
+          )
+        }))
+      : [];
+
+    return { selosPoder: selos, seloPrincipal: principal, coresElemento };
+  }
+
+  /** Clique num selo: troca o tema. No selo já ativo do mago, abre as cores. */
+  static async #escolherVocacao(event, target) {
+    const chave = target.dataset.vocacao;
+    if (chave !== this._vocacaoAtiva) return this.actor.setFlag("pyro", "tema", chave);
+    // Segundo clique no mago: uma amostra por elemento de afinidade. Abrir e
+    // fechar é só uma classe, sem re-renderizar a ficha inteira.
+    const cores = this.element.querySelector(".cores-vocacao");
+    if (cores) cores.hidden = !cores.hidden;
+  }
+
+  /** Amostra de elemento: define a cor do selo do mago, ou volta à automática. */
+  static async #escolherCorElemento(event, target) {
+    const elemento = target.dataset.elemento;
+    if (elemento === this.actor.getFlag("pyro", "temaCor")) {
+      return this.actor.unsetFlag("pyro", "temaCor");
+    }
+    await this.actor.setFlag("pyro", "temaCor", elemento);
+  }
+
+  /**
    * Linha de identidade sob o nome: o que a ficha já sabe sobre o personagem,
    * montado a partir dos caminhos em vez de campos digitados.
    */
@@ -801,12 +870,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   /**
-   * O primeiro selo de poder tinge a ficha: acento dos ornamentos e marca
-   * d'água do cabeçalho. Sem selos, a ficha fica no acento padrão, sem marca.
+   * O selo escolhido tinge a ficha: acento dos ornamentos e marca d'água do
+   * cabeçalho. Sem selos, a ficha fica no acento padrão, sem marca.
    */
   _onRender(context, options) {
     super._onRender?.(context, options);
-    const principal = context.selosPoder?.[0] ?? null;
+    const principal = context.seloPrincipal ?? null;
     this.element.style.setProperty("--pyro-acento-ficha", principal?.cor ?? "var(--pyro-brasa)");
     for (const chave of ["mago", "feiticeiro", "natural", "fisico"]) {
       this.element.classList.toggle(`marca-${chave}`, principal?.chave === chave);

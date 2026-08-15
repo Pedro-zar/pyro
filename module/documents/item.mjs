@@ -1,6 +1,8 @@
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { formulaTeste, expandirAtributos } from "../dados.mjs";
+import { htmlEfeitosDeUso } from "../efeitos.mjs";
+import { proximaOrdem } from "../data/item-data.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -37,23 +39,6 @@ export function nomeDoCaminho(sys) {
   return game.i18n.format("PYRO.CaminhoNome", { nome: base });
 }
 
-/**
- * Custo em XP de uma habilidade: 10 x (habilidades já obtidas no caminho + 1),
- * conforme o SRD §3. Habilidade base do caminho não custa nada e não entra na
- * contagem. `excluirId` tira a própria habilidade da conta quando ela já
- * existe (troca de caminho).
- */
-export function custoXpAutomatico(actor, caminho, ehBase, excluirId = null) {
-  if (ehBase) return 0;
-  const obtidas = (actor?.items ?? []).filter(i =>
-    i.type === "habilidade"
-    && i.id !== excluirId
-    && !i.system.ehBase
-    && (i.system.caminho === caminho || i.system.caminho === caminho?.name)
-  ).length;
-  return 10 * (obtidas + 1);
-}
-
 /** Nome automático de uma runa: a palavra/gesto, ou o tipo como reserva. */
 export function nomeDaRuna(sys) {
   const palavra = (sys.palavra ?? "").trim();
@@ -71,25 +56,9 @@ export class PyroItem extends Item {
     return this.effects.filter(e => e.flags?.pyro?.deUso && !e.disabled);
   }
 
-  /**
-   * Bloco de botões no card do chat, um por efeito de uso. Quem clica decide
-   * o alvo: os tokens selecionados, ou o próprio conjurador.
-   */
+  /** Bloco de botões de efeito de uso no card do chat. */
   #efeitosHTML() {
-    const efeitos = this.efeitosDeUso;
-    if (!efeitos.length) return "";
-    const esc = Handlebars.escapeExpression;
-
-    const botoes = efeitos.map(e => `
-      <button type="button" class="pyro-aplicar-efeito" data-efeito-uuid="${e.uuid}">
-        <img src="${e.img}" alt="" />
-        <span>${esc(e.name)}</span>
-      </button>`).join("");
-
-    return `<div class="pyro-efeitos-uso">
-      <span class="pyro-efeitos-rotulo">${game.i18n.localize("PYRO.Efeitos.AplicarEm")}</span>
-      ${botoes}
-    </div>`;
+    return htmlEfeitosDeUso(this);
   }
 
   /** Cabeçalho padrão dos cards do chat: ícone, nome e linha de contexto. */
@@ -131,11 +100,17 @@ export class PyroItem extends Item {
         this.updateSource({ "system.subjulgar": true });
       }
     }
-    // Habilidade nova entra com o custo que ela tem hoje naquele caminho.
-    // (custoXp explícito só vem da habilidade base criada com o caminho.)
-    if (this.type === "habilidade" && this.actor && data.system?.custoXp === undefined) {
+    /*
+     * Habilidade nova ocupa a primeira vaga livre da fila daquele caminho, e
+     * é a vaga que fixa o custo. Uma vaga que já venha no dado (duplicar uma
+     * habilidade, arrastar de outra ficha) é respeitada quando está livre —
+     * senão duas habilidades dividiriam a mesma vaga e o mesmo custo.
+     */
+    if (this.type === "habilidade" && this.actor) {
       this.updateSource({
-        "system.custoXp": custoXpAutomatico(this.actor, this.system.caminho, this.system.ehBase)
+        "system.ordem": this.system.ehBase ? 0 : proximaOrdem(this.actor, this.system.caminho, {
+          preferida: data.system?.ordem
+        })
       });
     }
     if (this.type === "caminho" && !data.name?.trim()) {
@@ -154,7 +129,7 @@ export class PyroItem extends Item {
     await Item.implementation.create({
       name: game.i18n.localize("PYRO.Item.HabilidadeBase"),
       type: "habilidade",
-      system: { caminho: this.id, tier: 1, custoXp: 0, ehBase: true }
+      system: { caminho: this.id, tier: 1, ordem: 0, ehBase: true }
     }, { parent: this.actor });
   }
 
@@ -218,16 +193,24 @@ export class PyroItem extends Item {
     }
 
     /*
-     * O custo em XP é derivado, não digitado: trocar o caminho (ou marcar
-     * como base) refaz a conta pela fila daquele caminho.
+     * Trocar de caminho (ou marcar como base) refaz a vaga na fila. A vaga
+     * atual é mantida quando está livre no caminho novo, então mover uma
+     * habilidade de lugar não encarece ela sem motivo. Vaga digitada à mão
+     * pelo jogador tem prioridade e passa direto.
      */
     if (this.type === "habilidade" && ("caminho" in s || "ehBase" in s)) {
-      s.custoXp = custoXpAutomatico(
-        this.actor,
-        s.caminho ?? this.system.caminho,
-        s.ehBase ?? this.system.ehBase,
-        this.id
-      );
+      const ehBase = s.ehBase ?? this.system.ehBase;
+      // A ficha reenvia o formulário inteiro a cada mudança, então "ordem"
+      // chega junto mesmo quando o jogador só trocou o caminho. Só conta como
+      // escolha dele quando o número de fato mudou.
+      const digitada = "ordem" in s && s.ordem !== this.system.ordem;
+      if (ehBase) s.ordem = 0;
+      else if (!digitada) {
+        s.ordem = proximaOrdem(this.actor, s.caminho ?? this.system.caminho, {
+          excluirId: this.id,
+          preferida: this.system.ordem
+        });
+      }
       changed.system = s;
     }
 

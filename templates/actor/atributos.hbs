@@ -14,8 +14,11 @@
       <div class="atributo-base">
         <input class="numero" type="number" name="system.atributos.{{chave}}.valor"
                value="{{attr.valor}}" min="1" />
-        {{#if attr.bonusHab}}
-        <span class="bonus-hab numero" title="{{localize 'PYRO.BonusHabTooltip'}}">+{{attr.bonusHab}}</span>
+        {{!-- Aumentos de tier e de efeito somados num chip só, verde quando
+              somam e vermelho quando descontam. A base fica intocada. --}}
+        {{#if attr.bonusTotal}}
+        <span class="bonus-hab numero {{#if attr.bonusNegativo}}negativo{{/if}}"
+              title="{{attr.bonusDica}}">{{attr.bonusTexto}}</span>
         {{/if}}
         {{#if attr.acimaDoLimite}}
         <span class="efetivo numero" title="{{localize 'PYRO.EfetivoTooltip'}}">{{attr.efetivo}}</span>

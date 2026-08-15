@@ -1,7 +1,7 @@
 {
   "id": "pyro",
   "title": "PYRO",
-  "description": "Sistema PYRO — pools de dados por atributo, Determinação e magia rúnica por Intenção.",
+  "description": "Sistema PYRO",
   "version": "0.2.0",
   "compatibility": {
     "minimum": "13",

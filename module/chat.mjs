@@ -5,6 +5,8 @@
  * mas o caminho principal está visível no próprio card.
  */
 
+import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
+
 /** Atores alvo da aplicação: tokens selecionados, ou o personagem do usuário. */
 function alvos() {
   const selecionados = canvas.tokens?.controlled?.map(t => t.actor).filter(Boolean) ?? [];
@@ -199,7 +201,7 @@ export function registrarMenuChat() {
   Hooks.on("renderChatMessageHTML", (message, element) => {
     // Botões de efeito de uso nos cards: quem clica escolhe em quem aplicar.
     for (const botao of element.querySelectorAll(".pyro-aplicar-efeito")) {
-      botao.addEventListener("click", () => aplicarEfeito(botao.dataset.efeitoUuid));
+      botao.addEventListener("click", () => aplicarEfeito(botao.dataset.efeitoUuid, message));
     }
     injetarRodape(message, element);
   });
@@ -208,8 +210,11 @@ export function registrarMenuChat() {
 /**
  * Copia o efeito do item para os atores alvo. Sem token selecionado, cai no
  * personagem do usuário — muitos efeitos de uso são no próprio conjurador.
+ * As @variáveis daquele card (alcance, intenção, dano rolado) são resolvidas
+ * agora, então a mesma magia conjurada com Intenção 3 entrega um efeito
+ * diferente do que ela entregou com Intenção 1.
  */
-async function aplicarEfeito(uuid) {
+async function aplicarEfeito(uuid, message = null) {
   const efeito = await fromUuid(uuid);
   if (!efeito) return ui.notifications.warn(game.i18n.localize("PYRO.Efeitos.NaoEncontrado"));
 
@@ -218,19 +223,16 @@ async function aplicarEfeito(uuid) {
     return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemAlvoSelecionado"));
   }
 
+  const vars = variaveisDaMensagem(message);
   const nomes = [];
   for (const actor of destinos) {
     if (!actor.isOwner) {
       ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemPermissao", { nome: actor.name }));
       continue;
     }
-    // Cópia independente: alterar o item depois não mexe em quem já recebeu.
-    const dados = efeito.toObject();
-    delete dados._id;
-    dados.origin = efeito.uuid;
-    dados.transfer = false;
-    dados.disabled = false;
-    await ActiveEffect.implementation.create(dados, { parent: actor });
+    await ActiveEffect.implementation.create(
+      dadosDoEfeitoAplicado(efeito, vars), { parent: actor }
+    );
     nomes.push(actor.name);
   }
 
