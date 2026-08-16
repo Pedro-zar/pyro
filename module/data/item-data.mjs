@@ -32,15 +32,67 @@ export function idDoCaminho(actor, chave) {
 }
 
 /**
- * Custo em XP de uma habilidade: 10 x a posição dela na fila do Caminho
- * (SRD §3). A habilidade base do Caminho vem junto e não custa nada.
+ * Quanto vale cada vaga na fila de habilidades. A escala já foi 10 (10, 20,
+ * 30...) e hoje é 1 (1, 2, 3...). Fica isolado aqui para uma troca dessas ser
+ * uma linha, e não uma caçada por multiplicações espalhadas.
+ */
+export const XP_POR_VAGA = 1;
+
+/**
+ * Curva de um Caminho: qual regra de progressão ele está usando.
+ *
+ * A regra é disparada pelo nome de uma habilidade do próprio Caminho, e a
+ * varredura inclui a habilidade base de propósito — é ela que costuma carregar
+ * o traço do Caminho, e ela não custa XP nem ocupa vaga.
+ *
+ * Quando nada bate, vale a curva padrão (uma unidade por vaga).
+ */
+export function progressaoDoCaminho(actor, caminho) {
+  const indice = PYRO.progressaoPorNome;
+  const padrao = { ...PYRO.progressaoPadrao, multiplicador: XP_POR_VAGA };
+  if (!actor || !indice?.size) return padrao;
+
+  const alvo = idDoCaminho(actor, caminho);
+  if (!alvo) return padrao;
+
+  // Quando mais de uma habilidade dispara regras diferentes, vale a que vem
+  // antes na lista de configuração, e não a que estiver antes na ficha: a
+  // ordem dos itens muda com arraste e criação, a da lista o mestre controla.
+  let escolhida = null;
+  for (const item of actor.items) {
+    if (item.type !== "habilidade") continue;
+    if (idDoCaminho(actor, item.system.caminho) !== alvo) continue;
+    const regra = indice.get(PYRO.normalizarNome(item.name));
+    if (!regra) continue;
+    if (regra.posicao === 0) return regra;
+    if (!escolhida || regra.posicao < escolhida.posicao) escolhida = regra;
+  }
+  return escolhida ?? padrao;
+}
+
+/**
+ * Custo em XP de uma habilidade:
+ *
+ *   multiplicador x teto(posição / passo)
+ *
+ * Na curva padrão (passo 1, multiplicador 1) isso é a própria posição: 1, 2,
+ * 3, 4. Com passo 2 vira 1, 1, 2, 2, 3, 3. A habilidade base do Caminho vem
+ * junto dele e não custa nada.
  *
  * A posição é gravada na criação e não se mexe mais. Antes o custo era
  * recalculado por contagem, então editar a primeira habilidade de um caminho
- * com duas fazia ela custar 20 — ela contava a irmã e ia para o fim da fila.
+ * com duas fazia ela custar o dobro: ela contava a irmã e ia para o fim da fila.
  */
-export function custoDaHabilidade(sys) {
-  return sys?.ehBase ? 0 : 10 * Math.max(0, sys?.ordem ?? 0);
+export function custoDaHabilidade(sys, progressao = null) {
+  if (sys?.ehBase) return 0;
+  const ordem = Math.max(0, sys?.ordem ?? 0);
+  if (!ordem) return 0;
+  const passo = Math.max(1, progressao?.passo ?? 1);
+  const mult = Number(progressao?.multiplicador ?? XP_POR_VAGA);
+  // Arredondado porque o multiplicador aceita fração (meio preço) e XP é
+  // sempre inteiro na ficha. Arredonda por habilidade, e não no total, para o
+  // que a ficha mostra bater com o que ela soma.
+  return Math.max(0, Math.round(mult * Math.ceil(ordem / passo)));
 }
 
 /** Posições já ocupadas por habilidades pagas de um Caminho. */
@@ -56,9 +108,9 @@ function ordensUsadas(actor, caminho, excluirId = null) {
 }
 
 /**
- * Primeira posição livre do Caminho: se ninguém tem a 1, é a 1 (custo 10);
- * senão tenta a 2, e assim por diante. Apagar uma habilidade devolve a vaga
- * dela para a próxima que for criada.
+ * Primeira posição livre do Caminho: se ninguém tem a 1, é a 1; senão tenta a
+ * 2, e assim por diante. Apagar uma habilidade devolve a vaga dela para a
+ * próxima que for criada.
  * @param {number} [preferida] mantém esta posição se ela estiver livre
  *   (usado ao mover uma habilidade de Caminho sem mudar o custo à toa).
  */
@@ -209,7 +261,9 @@ export class HabilidadeData extends BaseItemData {
        * depois. 0 em habilidade base (não ocupa vaga e não custa XP).
        */
       ordem: num(1, { min: 0 }),
-      custoXp: num(10, { min: 0 }),
+      // Vestigial: só a migração ainda lê este campo, para converter fichas
+      // anteriores à posição fixa. O custo em jogo vem de custoDaHabilidade.
+      custoXp: num(1, { min: 0 }),
       custoEstamina: num(0, { min: 0 }),
       custoMana: num(0, { min: 0 }),
       custoEnergia: num(0, { min: 0 }),
@@ -229,11 +283,17 @@ export class HabilidadeData extends BaseItemData {
     };
   }
 
-  /** Fichas anteriores à posição fixa: a vaga sai do custo já gravado. */
+  /**
+   * Fichas anteriores à posição fixa: a vaga sai do custo já gravado. O
+   * divisor é 10 porque é a escala em que aquele custo foi escrito, e não a
+   * escala de hoje — uma habilidade que custava 30 era a terceira da fila,
+   * e passa a custar 3.
+   */
   static migrateData(source) {
+    const ESCALA_ANTIGA = 10;
     if (source.ordem === undefined) {
       source.ordem = source.ehBase ? 0
-        : Math.max(1, Math.round((source.custoXp ?? 10) / 10));
+        : Math.max(1, Math.round((source.custoXp ?? ESCALA_ANTIGA) / ESCALA_ANTIGA));
     }
     return super.migrateData(source);
   }
@@ -242,9 +302,12 @@ export class HabilidadeData extends BaseItemData {
     this.pontosAumento = Math.max(0, (this.tier ?? 1) - 1);
     this.pontosUsados = (this.aumentos ?? []).reduce((t, a) => t + (a.pontos ?? 0), 0);
     this.pontosRestantes = Math.max(0, this.pontosAumento - this.pontosUsados);
-    // O custo é sempre derivado da posição: o campo gravado só serve de
-    // memória para fichas antigas, que a migração já converteu.
-    this.custoXp = custoDaHabilidade(this);
+    // O custo é sempre derivado da posição e da curva do Caminho: o campo
+    // gravado só serve de memória para fichas antigas, que a migração já
+    // converteu. A curva é lida aqui, e não herdada do item de Caminho, porque
+    // os itens são preparados em ordem e o Caminho pode vir depois.
+    this.progressao = progressaoDoCaminho(this.parent?.actor, this.caminho);
+    this.custoXp = custoDaHabilidade(this, this.progressao);
   }
 }
 
@@ -429,10 +492,14 @@ export class CaminhoData extends BaseItemData {
      * são preparados em ordem, e um caminho preparado antes das habilidades
      * dele veria o custo ainda não calculado.
      */
-    this.xpGasta = habilidades.reduce((t, i) => t + custoDaHabilidade(i.system), 0);
+    this.progressao = progressaoDoCaminho(actor, this.parent.id);
+    this.xpGasta = habilidades.reduce(
+      (t, i) => t + custoDaHabilidade(i.system, this.progressao), 0);
     this.xpDisponivel = this.xp - this.xpGasta;
     // A próxima habilidade ocupa a primeira vaga livre da fila.
     this.proximaOrdem = proximaOrdem(actor, this.parent.id);
-    this.proximoCusto = 10 * this.proximaOrdem;
+    // O próprio "Próx." já denuncia a curva: com passo 2 ele repete o mesmo
+    // número por duas vagas seguidas. Não precisa de aviso escrito na ficha.
+    this.proximoCusto = custoDaHabilidade({ ordem: this.proximaOrdem }, this.progressao);
   }
 }

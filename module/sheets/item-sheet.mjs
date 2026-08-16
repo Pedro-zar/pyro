@@ -173,6 +173,14 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       rotuloPalavra: ehElemento || item.type !== "runa" ? "PYRO.Item.Palavra" : "PYRO.Item.Gesto",
       afinidadeOpts: Object.fromEntries(Object.entries(PYRO.afinidades).map(([k, v]) => [k, v.label])),
       potencialOpts: Object.fromEntries(Object.entries(PYRO.linguas).map(([k, v]) => [k, v.povo ?? v.label])),
+      /*
+       * Raça pré-definida já traz o potencial mágico da tabela do mundo, e
+       * trocar a raça reescreve o campo. Mostrar o select ali seria repetir
+       * uma configuração que o jogador não decide. Sobra para caminho de
+       * profissão/classe e para raça que o mestre tirou da tabela.
+       */
+      mostrarPotencial: item.type === "caminho" && s.usaMagia
+        && !(s.ehRacial && !!PYRO.racas[s.raca]),
       // Recursos personalizados que este caminho pode conceder.
       rotuloAbaCaminho,
       // Em raças fechadas o preset define os recursos: nada de checkbox.

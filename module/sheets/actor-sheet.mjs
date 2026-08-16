@@ -328,16 +328,17 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
             classe: "col-xp", dica: loc("PYRO.ProximoCustoTooltip")
           }
         ],
+        /*
+         * Só o que não dá para ler em outro lugar da linha. Raça e detalhe já
+         * estão no nome do caminho, logo acima; potencial mágico e curva de
+         * progressão são configuração do mundo, não característica do
+         * personagem. Sobra o que muda de ficha para ficha.
+         */
         resumo: [
-          { label: loc("PYRO.Item.EhRacial"), valor: loc(s.ehRacial ? "PYRO.Sim" : "PYRO.Nao") },
-          ...(s.ehRacial
-            ? [{ label: loc("PYRO.Item.Raca"), valor: loc(PYRO.racas[s.raca]?.label ?? s.raca) }]
-            : []),
-          ...(s.racaDetalhe ? [{ label: loc("PYRO.Item.RacaDetalhe"), valor: s.racaDetalhe }] : []),
+          ...(s.ehRacial ? [{ label: "", valor: loc("PYRO.Item.EhRacial") }] : []),
           { label: loc("PYRO.Item.Xp"), valor: `${s.xpDisponivel} / ${s.xp}` },
           ...(s.usaMagia
-            ? [{ label: loc("PYRO.Item.Potencial"), valor: loc(PYRO.linguas[s.potencial]?.povo ?? "") },
-               { label: loc("PYRO.Item.Afinidades"), valor: afinidades || "—" }]
+            ? [{ label: loc("PYRO.Item.Afinidades"), valor: afinidades || "—" }]
             : []),
           ...(recursos ? [{ label: loc("PYRO.Item.Concede"), valor: recursos }] : [])
         ]

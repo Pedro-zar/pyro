@@ -49,7 +49,8 @@
   <div class="resumo-item">
     {{#if linha.resumo.length}}
     <div class="resumo-valores">
-      {{#each linha.resumo as |v|}}<span><strong>{{v.label}}:</strong> {{v.valor}}</span>{{/each}}
+      {{!-- Entrada sem rótulo vira só a marca ("Caminho racial"), sem par. --}}
+      {{#each linha.resumo as |v|}}<span>{{#if v.label}}<strong>{{v.label}}:</strong> {{/if}}{{v.valor}}</span>{{/each}}
     </div>
     {{/if}}
     {{#if linha.descricaoHTML}}

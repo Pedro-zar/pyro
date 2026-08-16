@@ -222,6 +222,70 @@ PYRO.racasPadrao = {
 
 PYRO.racas = foundry.utils.deepClone(PYRO.racasPadrao);
 
+/* -------------------------------------------------------------------------- */
+/*  Progressão de XP                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Curva padrão de custo das habilidades: cada vaga da fila custa uma unidade
+ * a mais que a anterior (1, 2, 3, 4...).
+ */
+PYRO.progressaoPadrao = { chave: "", label: "", passo: 1, multiplicador: 1 };
+
+/**
+ * Regras que trocam a curva de um Caminho inteiro. Uma regra é disparada por
+ * nome: se o Caminho tem uma habilidade chamada como um dos `nomes`, ele passa
+ * a usar aquele passo e multiplicador. É por isso que a criação de habilidade
+ * não ganhou campo nenhum — quem define o comportamento é o nome que o jogador
+ * escreveu, e a lista mora aqui, com o mestre.
+ *
+ *   custo da vaga N = multiplicador x teto(N / passo)
+ *
+ * passo 2 e multiplicador 1 dá 1, 1, 2, 2, 3, 3. passo 1 e multiplicador 2 dá
+ * 2, 4, 6. Um passo altíssimo deixa o caminho inteiro a preço fixo.
+ *
+ * Nasce vazia: a mesa cria as regras que quiser em Configurações > Sistema.
+ */
+PYRO.progressoesPadrao = {};
+
+PYRO.progressoes = foundry.utils.deepClone(PYRO.progressoesPadrao);
+
+/** Nome de habilidade normalizado: sem acento, sem caixa, sem espaço sobrando. */
+PYRO.normalizarNome = texto => String(texto ?? "")
+  .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+  .replace(/\s+/g, " ").trim();
+
+/**
+ * Índice nome -> regra, remontado sempre que as configurações são aplicadas.
+ * Sem ele, cada habilidade preparada teria que reprocessar a lista inteira.
+ * A ordem da lista é a prioridade: o primeiro dono de um nome fica com ele.
+ */
+PYRO.indexarProgressoes = () => {
+  const indice = new Map();
+  let posicao = 0;
+  for (const [chave, regra] of Object.entries(PYRO.progressoes ?? {})) {
+    for (const nome of String(regra.nomes ?? "").split(",")) {
+      const limpo = PYRO.normalizarNome(nome);
+      if (!limpo || indice.has(limpo)) continue;
+      indice.set(limpo, {
+        chave,
+        // Posição na lista: é o desempate quando o Caminho tem habilidades
+        // que disparam mais de uma regra. A ordem dos itens na ficha seria
+        // arbitrária demais para servir de critério.
+        posicao,
+        label: regra.label || chave,
+        passo: Math.max(1, Math.round(regra.passo ?? 1)),
+        multiplicador: Number(regra.multiplicador ?? 1)
+      });
+    }
+    posicao += 1;
+  }
+  PYRO.progressaoPorNome = indice;
+  return indice;
+};
+
+PYRO.progressaoPorNome = new Map();
+
 /** Como a habilidade se comporta na ficha. */
 PYRO.categoriasHabilidade = {
   pericia: "PYRO.Item.Cat.pericia",

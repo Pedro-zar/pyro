@@ -290,10 +290,15 @@
   {{#if system.usaMagia}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Magia"}}</h4>
+    {{!-- Em raça pré-definida o potencial vem da tabela do mundo, então o
+          campo aqui só repetiria uma configuração que o jogador não escolhe.
+          Ele volta em caminho de profissão/classe, onde não há preset. --}}
+    {{#if mostrarPotencial}}
     <div class="grade-campos">
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Potencial"}}</span>
         <select name="system.potencial">{{selectOptions potencialOpts selected=system.potencial localize=true}}</select></label>
     </div>
+    {{/if}}
     <div class="afinidades-lista">
       <span class="rotulo">{{localize "PYRO.Item.Afinidades"}}
         <button type="button" class="icone" data-action="adicionarAfinidade"
