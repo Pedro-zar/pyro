@@ -47,6 +47,23 @@
       "feitico": {}
     }
   },
+  "packs": [
+    {
+      "name": "itens",
+      "label": "Itens",
+      "path": "packs/itens",
+      "type": "Item",
+      "system": "pyro",
+      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+    }
+  ],
+  "packFolders": [
+    {
+      "name": "PYRO",
+      "sorting": "m",
+      "packs": ["itens"]
+    }
+  ],
   "grid": {
     "distance": 1,
     "units": "m"

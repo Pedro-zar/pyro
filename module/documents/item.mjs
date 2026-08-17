@@ -193,11 +193,16 @@ export class PyroItem extends Item {
       }
     }
 
-    // Arma: o alcance máximo nunca fica abaixo do menor.
+    /*
+     * Arma à distância: o alcance máximo nunca fica abaixo do menor. Máximo
+     * zero é corpo a corpo, e aí o menor é o alcance da arma (um bastão chega
+     * a 1m) — a correção não vale para esse caso, senão toda arma de mão
+     * viraria arma de arremesso ao ser editada.
+     */
     if (this.type === "arma" && ("alcanceMenor" in s || "alcanceMaximo" in s)) {
       const menor = s.alcanceMenor ?? this.system.alcanceMenor;
       const maximo = s.alcanceMaximo ?? this.system.alcanceMaximo;
-      if (menor > maximo) s.alcanceMaximo = menor + 1;
+      if (maximo > 0 && menor > maximo) s.alcanceMaximo = menor + 1;
       changed.system = s;
     }
 
