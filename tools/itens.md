@@ -63,6 +63,7 @@
 | Adaga                 | 4d4                           |     1 |    1 |      0m | Cortante           |    3 |    80 |                                          |
 | Bastão                | 4d8                           |     2 |    1 |      1m | Impacto            |    9 |    64 |                                          |
 | Katana                | 6d6                           |     2 |    2 |      0m | Cortante           |    9 |    70 |                                          |
+| Espada Longa          | 5d6                           |     2 |    1 |      1m | Cortante           |    9 |    68 |                                          |
 | Claymore              | 8d8                           |     3 |    2 |      2m | Cortante           |    9 |    60 |                                          |
 | Glaive                | 6d12                          |     4 |    1 |      2m | Cortante           |    3 |    72 |                                          |
 | Arco Curto            | 2d8 + DES                     |     2 |    2 |  15/30m | Perfurante         |    3 |    74 | Consome 1 flecha.                        |
