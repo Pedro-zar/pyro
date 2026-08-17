@@ -223,7 +223,11 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           { label: loc("PYRO.Item.Tier"), valor: s.tier },
           { label: loc("PYRO.Item.CustoXp"), valor: s.ehBase ? loc("PYRO.Item.BaseTag") : s.custoXp },
           { label: loc("PYRO.Item.Custos"), valor: custos || "—" },
-          { label: loc("PYRO.Item.Formula"), valor: s.formula || "—" }
+          { label: loc("PYRO.Item.Formula"), valor: s.formula || "—" },
+          // Ligações da árvore: de onde esta veio e em que ela foi consumida.
+          ...(s.requisitosNomes
+            ? [{ label: loc("PYRO.Item.Requisitos"), valor: s.requisitosNomes }] : []),
+          ...(s.usadaEm ? [{ label: loc("PYRO.Item.UsadaEm"), valor: s.usadaEm }] : [])
         ]
       };
     };

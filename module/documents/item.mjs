@@ -5,7 +5,7 @@ import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado
 } from "../efeitos.mjs";
 import { formulaPool } from "../dados.mjs";
-import { proximaOrdem } from "../data/item-data.mjs";
+import { proximaOrdem, idDoCaminho } from "../data/item-data.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -143,6 +143,25 @@ export class PyroItem extends Item {
   }
 
   /**
+   * Habilidade apagada solta quem a usava como base. Sem isto, a vaga ficaria
+   * ocupada por uma referência morta e a habilidade de cima continuaria dizendo
+   * que veio de algo que não existe mais.
+   */
+  async _onDelete(options, userId) {
+    super._onDelete(options, userId);
+    if (userId !== game.user.id || this.type !== "habilidade" || !this.actor) return;
+
+    const dependentes = this.actor.items.filter(i =>
+      i.type === "habilidade" && (i.system.requisitos ?? []).some(r => r.id === this.id));
+    if (!dependentes.length) return;
+
+    await this.actor.updateEmbeddedDocuments("Item", dependentes.map(i => ({
+      _id: i.id,
+      "system.requisitos": i.system.toObject().requisitos.filter(r => r.id !== this.id)
+    })));
+  }
+
+  /**
    * Caminhos têm nome derivado (raça/profissão) e, ao trocar de raça,
    * herdam o preset de potencial mágico e as marcações de magia/feitiçaria.
    */
@@ -197,6 +216,37 @@ export class PyroItem extends Item {
           if (cabe > 0) podados.push({ ...a, pontos: cabe });
         }
         s.aumentos = podados;
+        changed.system = s;
+      }
+    }
+
+    /*
+     * Pré-requisitos só valem enquanto apontam para habilidades que existem,
+     * estão no tier imediatamente abaixo e respeitam a regra de caminho: o
+     * tier 2 funde dentro do próprio caminho, o tier 3 pode misturar.
+     *
+     * Subir o tier de 2 para 3 derruba as bases antigas, que agora estão dois
+     * degraus abaixo, e trocar o caminho de uma tier 2 derruba as que ficaram
+     * do lado de fora. Melhor perder a ligação do que guardar uma que a árvore
+     * não saberia desenhar.
+     *
+     * A habilidade base do caminho não entra nessa contabilidade: ela não é
+     * ingrediente de ninguém, e não precisa de ingredientes para subir de tier.
+     */
+    if (this.type === "habilidade" && this.actor) {
+      const tier = s.tier ?? this.system.tier;
+      const ehBase = s.ehBase ?? this.system.ehBase;
+      const caminho = idDoCaminho(this.actor, s.caminho ?? this.system.caminho);
+      const lista = s.requisitos ?? this.system.requisitos ?? [];
+      const validos = (tier >= 2 && !ehBase)
+        ? lista.filter(r => {
+            const base = this.actor.items.get(r.id);
+            if (base?.system.tier !== tier - 1 || base.system.ehBase) return false;
+            return tier >= 3 || idDoCaminho(this.actor, base.system.caminho) === caminho;
+          })
+        : [];
+      if (validos.length !== lista.length) {
+        s.requisitos = validos.map(r => ({ id: r.id, nome: r.nome }));
         changed.system = s;
       }
     }

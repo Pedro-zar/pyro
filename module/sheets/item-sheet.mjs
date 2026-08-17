@@ -1,6 +1,7 @@
 import { PYRO } from "../config.mjs";
 import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
 import { scalingsPadrao, valorScaling, SEM_DANO } from "../magia.mjs";
+import { idDoCaminho } from "../data/item-data.mjs";
 
 /**
  * Opções de tipo de dano de um elemento. A primeira herda o tipo do próprio
@@ -207,6 +208,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // Passiva e perícia não gastam ação nem recurso: sem bloco de Custos.
       temCustos: item.type === "habilidade" && s.categoria === "ativavel",
       ...(item.type === "habilidade" ? this.#contextoAumentos() : {}),
+      ...(item.type === "habilidade" ? this.#contextoRequisitos() : {}),
       // Caminhos e runas têm nome derivado: só leitura no formulário.
       nomeAutomatico: item.type === "caminho" || item.type === "runa",
       // Munição só pode ser presa nas costas ou na cintura.
@@ -249,6 +251,72 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   }
 
   /* ---------------------------------------------------------------------- */
+
+  /**
+   * Pré-requisitos (SRD §3): uma habilidade de tier 2 ou mais nasce da fusão
+   * de duas do tier imediatamente abaixo.
+   *
+   * A lista de escolha exclui o que já virou base de outra habilidade, porque
+   * cada uma é ingrediente uma vez só. Também exclui a própria habilidade e a
+   * que estiver na outra vaga, senão daria para montar uma com ela mesma.
+   *
+   * O tier 2 é fechado no caminho: as duas origens têm que ser do mesmo
+   * caminho da habilidade. Do tier 3 em diante a fusão pode misturar, e é aí
+   * que uma tier 2 de mago e uma de espadachim viram algo novo.
+   *
+   * A habilidade base do caminho fica de fora dos dois lados: ela vem junto do
+   * caminho, não é comprada, então não é ingrediente de ninguém nem precisa de
+   * ingredientes para subir de tier.
+   */
+  #contextoRequisitos() {
+    const item = this.item;
+    const actor = item.actor;
+    const s = item.system;
+    if (!actor || s.ehBase || (s.tier ?? 1) < 2) return { temRequisitos: false };
+
+    const tierBase = s.tier - 1;
+    const mistoPermitido = s.tier >= 3;
+    const caminhoAlvo = idDoCaminho(actor, s.caminho);
+
+    const consumidas = new Set();
+    for (const hab of actor.items) {
+      if (hab.type !== "habilidade" || hab.id === item.id) continue;
+      for (const r of hab.system.requisitos ?? []) if (r.id) consumidas.add(r.id);
+    }
+
+    const escolhidas = (s.requisitos ?? []).map(r => r.id).filter(Boolean);
+    const nomeDoCaminho = hab => {
+      const caminho = actor.items.get(hab.system.caminho)
+        ?? actor.items.find(i => i.type === "caminho" && i.name === hab.system.caminho);
+      return caminho?.name ?? "";
+    };
+
+    const livres = actor.items.filter(hab =>
+      hab.type === "habilidade" && hab.id !== item.id && !hab.system.ehBase
+      && (hab.system.tier ?? 1) === tierBase && !consumidas.has(hab.id)
+      && (mistoPermitido || idDoCaminho(actor, hab.system.caminho) === caminhoAlvo));
+
+    const linhas = [0, 1].map(indice => {
+      const atual = escolhidas[indice] ?? "";
+      const opcoes = { "": "—" };
+      for (const hab of livres) {
+        if (escolhidas.includes(hab.id) && hab.id !== atual) continue;
+        // O caminho no rótulo só ajuda quando a fusão pode misturar; no
+        // tier 2 seria a mesma palavra repetida em todas as linhas.
+        const caminho = mistoPermitido ? nomeDoCaminho(hab) : "";
+        opcoes[hab.id] = caminho ? `${hab.name} (${caminho})` : hab.name;
+      }
+      return { indice, atual, opcoes, rotulo: game.i18n.format("PYRO.Item.BaseN", { n: indice + 1 }) };
+    });
+
+    return {
+      temRequisitos: true,
+      tierBase,
+      mistoPermitido,
+      linhasRequisito: linhas,
+      semCandidatos: !livres.length && !escolhidas.length
+    };
+  }
 
   /**
    * Aumento de atributo por tier (SRD §3). A ficha mostra as escolhas já
@@ -452,6 +520,25 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
           vistos.add(a.atributo);
           return true;
         });
+    }
+
+    /*
+     * Os dois selects de pré-requisito chegam como { 0: id, 1: id }. Vaga
+     * vazia e repetição saem fora, e o nome é resolvido agora para a ligação
+     * sobreviver a um id que mude.
+     */
+    if (this.item.type === "habilidade" && sys.requisitos && !Array.isArray(sys.requisitos)) {
+      const actor = this.item.actor;
+      const vistos = new Set();
+      const ids = [];
+      for (const valor of Object.values(sys.requisitos)) {
+        const id = typeof valor === "string" ? valor : (valor?.id ?? "");
+        if (!id || vistos.has(id)) continue;
+        vistos.add(id);
+        ids.push(id);
+      }
+      sys.requisitos = ids.slice(0, 2)
+        .map(id => ({ id, nome: actor?.items.get(id)?.name ?? "" }));
     }
 
     if (this.item.type === "runa" && sys.scalings && !Array.isArray(sys.scalings)) {

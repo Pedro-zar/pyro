@@ -116,6 +116,28 @@
     {{/unless}}
   </div>
 
+  {{!-- Fusão de duas habilidades do tier de baixo (SRD §3). Só aparece a
+        partir do tier 2, que é quando existe um tier anterior. --}}
+  {{#if temRequisitos}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Requisitos"}}
+      <span class="rotulo">{{localize "PYRO.Item.Tier"}} {{tierBase}}</span>
+    </h4>
+    {{#if semCandidatos}}
+    <p class="secao-vazia">{{localize "PYRO.Item.SemCandidatos"}}</p>
+    {{else}}
+    <div class="grade-campos">
+      {{#each linhasRequisito as |l|}}
+      <label class="campo largo"><span class="rotulo">{{l.rotulo}}</span>
+        <select name="system.requisitos.{{l.indice}}">{{selectOptions l.opcoes selected=l.atual}}</select></label>
+      {{/each}}
+    </div>
+    {{/if}}
+    <p class="pyro-nota">{{localize "PYRO.Item.RequisitosDica"}}</p>
+    <p class="pyro-nota">{{#if mistoPermitido}}{{localize "PYRO.Item.RequisitosMisto"}}{{else}}{{localize "PYRO.Item.RequisitosMesmoCaminho"}}{{/if}}</p>
+  </div>
+  {{/if}}
+
   {{#if temAumentos}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Aumento"}}

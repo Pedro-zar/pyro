@@ -261,6 +261,17 @@ export class HabilidadeData extends BaseItemData {
        * depois. 0 em habilidade base (não ocupa vaga e não custa XP).
        */
       ordem: num(1, { min: 0 }),
+      /*
+       * Pré-requisitos (SRD §3): duas habilidades do tier imediatamente
+       * abaixo, que se fundem nesta. Cada habilidade só pode ser ingrediente
+       * uma vez, então a lista de escolha exclui o que já foi consumido.
+       * Guarda id e nome: o id resolve na ficha, o nome sobrevive a exportar
+       * e reimportar o personagem.
+       */
+      requisitos: new fields.ArrayField(new fields.SchemaField({
+        id: new fields.StringField({ required: true, initial: "" }),
+        nome: new fields.StringField({ required: true, initial: "" })
+      }), { initial: [] }),
       // Vestigial: só a migração ainda lê este campo, para converter fichas
       // anteriores à posição fixa. O custo em jogo vem de custoDaHabilidade.
       custoXp: num(1, { min: 0 }),
@@ -308,6 +319,23 @@ export class HabilidadeData extends BaseItemData {
     // os itens são preparados em ordem e o Caminho pode vir depois.
     this.progressao = progressaoDoCaminho(this.parent?.actor, this.caminho);
     this.custoXp = custoDaHabilidade(this, this.progressao);
+
+    /* --- Ligações da árvore de habilidades ------------------------------- */
+    const actor = this.parent?.actor;
+    // Referência morta (a habilidade de origem foi apagada) some da leitura.
+    this.requisitosItens = (this.requisitos ?? [])
+      .map(r => actor?.items.get(r.id))
+      .filter(Boolean);
+    this.requisitosNomes = this.requisitosItens.length
+      ? this.requisitosItens.map(i => i.name).join(" + ")
+      : "";
+    // Quem consumiu esta habilidade. Uma habilidade só serve de base uma vez,
+    // então isto é no máximo um nome, mas a lista tolera dado inconsistente.
+    this.usadaEm = (actor?.items ?? [])
+      .filter(i => i.type === "habilidade" && i.id !== this.parent.id
+        && (i.system.requisitos ?? []).some(r => r.id === this.parent.id))
+      .map(i => i.name)
+      .join(", ");
   }
 }
 
