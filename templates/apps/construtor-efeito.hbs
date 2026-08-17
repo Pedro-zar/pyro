@@ -49,6 +49,10 @@
             fórmula. O "alvo" da linha já é o tipo do dano. --}}
       <span class="pyro-nota">{{localize "PYRO.Efeitos.DanoModo"}}</span>
       <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="2d6+2" />
+      {{else if m.ehCusto}}
+      {{!-- Custo é sempre soma com sinal: -2 barateia, +1 encarece. --}}
+      <span class="pyro-nota">{{localize "PYRO.Efeitos.CustoModo"}}</span>
+      <input type="number" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="-2" />
       {{else}}
       <select name="mudanca.{{m.index}}.modo">
         {{selectOptions @root.modos selected=m.modo localize=true}}
@@ -69,15 +73,28 @@
   {{#if itensAlvo.length}}
   <div class="restricao-efeito">
     <span class="rotulo">{{localize "PYRO.Efeitos.ApenasEm"}}</span>
-    <select name="alvosItem" multiple size="5">
+    <div class="alvos-lista">
       {{#each itensAlvo as |grupo|}}
-      <optgroup label="{{grupo.label}}">
-        {{#each grupo.itens as |i|}}
-        <option value="{{i.id}}" {{#if i.marcado}}selected{{/if}}>{{i.nome}}</option>
-        {{/each}}
-      </optgroup>
+      <div class="alvo-grupo">
+        {{!-- Marcar o tipo prende o efeito ao grupo inteiro, inclusive nos
+              itens criados depois. Os itens abaixo ficam apagados porque
+              deixam de fazer diferença. --}}
+        <label class="check-linha alvo-tipo">
+          <input type="checkbox" name="alvoTipo.{{grupo.tipo}}" {{checked grupo.todos}} />
+          <span>{{grupo.label}}</span>
+          <span class="rotulo">{{localize "PYRO.Efeitos.TodosDoTipo"}}</span>
+        </label>
+        <div class="alvo-itens">
+          {{#each grupo.itens as |i|}}
+          <label class="check-linha">
+            <input type="checkbox" name="alvoItem.{{i.id}}" {{checked i.marcado}} />
+            <span>{{i.nome}}</span>
+          </label>
+          {{/each}}
+        </div>
+      </div>
       {{/each}}
-    </select>
+    </div>
     <p class="pyro-nota">{{localize "PYRO.Efeitos.ApenasEmDica"}}</p>
   </div>
   {{/if}}

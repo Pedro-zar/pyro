@@ -103,7 +103,7 @@ PYRO.elementosPadrao = {
   terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 2,   faces: 12, efeito: "PYRO.Elementos.Efeito.terra" },
   raio:   { label: "PYRO.Elementos.raio",   grupo: "raio",       tipoDano: "energia", base: 2, porIntencao: 0.5, faces: 10, efeito: "PYRO.Elementos.Efeito.raio",
             extras: [{ nome: "PYRO.Scaling.Corrente", base: 0.5, porIntencao: 0.5, faces: 0 }] },
-  vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 2, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
+  vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 4, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
   mente:  { label: "PYRO.Elementos.mente",  grupo: "mente",      tipoDano: "mental",  base: 1, porIntencao: 1,   faces: 6,  efeito: "PYRO.Elementos.Efeito.mente" },
   morte:  { label: "PYRO.Elementos.morte",  grupo: "morte",      tipoDano: "indefinido", base: 2, porIntencao: 2, faces: 12, efeito: "PYRO.Elementos.Efeito.morte", subjulgar: true },
   espaco: { label: "PYRO.Elementos.espaco", grupo: "espaco",     tipoDano: "",        base: 0, porIntencao: 0,   faces: 0,  efeito: "PYRO.Elementos.Efeito.espaco" }
@@ -423,6 +423,20 @@ PYRO.alvosEfeito = {
     alvos: {
       "": "PYRO.Efeitos.DanoHerdado",
       ...Object.fromEntries(Object.entries(PYRO.tiposDano).map(([k, cfg]) => [k, cfg.label]))
+    }
+  },
+  /*
+   * Custo de usar alguma coisa: ações e os recursos que o sistema realmente
+   * cobra hoje. PV e Força de Vontade não entram porque nada os cobra como
+   * custo, e recurso personalizado idem — opção morta na lista é ruído.
+   */
+  custo: {
+    label: "PYRO.Efeitos.Cat.custo",
+    alvos: {
+      acoes: "PYRO.Acoes",
+      mana: "PYRO.Recursos.mana",
+      estamina: "PYRO.Recursos.estamina",
+      energia: "PYRO.Recursos.energia"
     }
   },
   movimento: {

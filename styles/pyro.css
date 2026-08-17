@@ -1156,8 +1156,30 @@
   border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
   background: var(--pyro-painel-alto);
 }
-.pyro .restricao-efeito select { width: 100%; }
 .pyro .restricao-efeito .pyro-nota { margin: 0; }
+/* Lista alta o bastante para escolher sem caçar, e rolável quando passa. */
+.pyro .alvos-lista {
+  max-height: 18rem; overflow-y: auto;
+  display: flex; flex-direction: column; gap: var(--pyro-e-2);
+  padding: var(--pyro-e-2);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-sm);
+  background: var(--pyro-painel);
+}
+.pyro .alvo-grupo { display: flex; flex-direction: column; gap: 1px; }
+.pyro .alvo-tipo {
+  border-bottom: 1px solid var(--pyro-borda);
+  padding-bottom: 2px; margin-bottom: 2px;
+}
+.pyro .alvo-tipo > span:first-of-type {
+  font-family: var(--pyro-fonte-display); font-weight: 600;
+}
+.pyro .alvo-itens {
+  display: flex; flex-direction: column; gap: 1px; padding-left: var(--pyro-e-4);
+}
+/* Tipo inteiro marcado torna a escolha item a item irrelevante. */
+.pyro .alvo-grupo:has(.alvo-tipo input:checked) .alvo-itens {
+  opacity: 0.35; pointer-events: none;
+}
 
 /* Variáveis da conjuração: fichas clicáveis que escrevem @nome no campo. */
 .pyro .variaveis-efeito {

@@ -1,6 +1,6 @@
 import { PYRO } from "./config.mjs";
 import { formulaTeste } from "./dados.mjs";
-import { htmlEfeitosDeUso, bonusDeDano } from "./efeitos.mjs";
+import { htmlEfeitosDeUso, bonusDeDano, ajustesDeCusto, custoAjustado } from "./efeitos.mjs";
 
 const esc = s => Handlebars.escapeExpression(s);
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
@@ -270,8 +270,12 @@ export function tabelaSubjulgar(det, total) {
 /**
  * @param {Actor} actor
  * @param {Array<{item: Item, intencao: number, scalings?: object[]}>} escolhas
+ * @param {Item} [itemMagia] magia do grimório, quando a frase veio de uma.
+ *   Serve para os efeitos de custo presos a ela entrarem na conta — e como o
+ *   conjurador e a conjuração chamam a mesma função, a prévia nunca mostra um
+ *   custo diferente do que vai ser cobrado.
  */
-export function calcular(actor, escolhas) {
+export function calcular(actor, escolhas, itemMagia = null) {
   const fatorRaca = actor.system.fatorLinguistico ?? 1;
   const limiteBase = actor.system.sobrecargaLimite;
 
@@ -307,13 +311,18 @@ export function calcular(actor, escolhas) {
     });
   }
 
+  // Efeitos de custo entram por último, sobre o total. Piso zero nos dois.
+  const ajustes = ajustesDeCusto(actor, itemMagia);
+
   return {
     porRuna,
-    custoTotal,
+    custoTotal: custoAjustado(custoTotal, ajustes.mana),
+    custoBase: custoTotal,
     sobrecarga,
     somaIntencoes,
     maos: maosUsadas,
-    acoes: escolhas.length, // 1 ação por runa verbal ou somática (SRD §5)
+    // 1 ação por runa verbal ou somática (SRD §5), antes dos efeitos.
+    acoes: custoAjustado(escolhas.length, ajustes.acoes),
     nd: 10 + somaIntencoes,
     temElemento: escolhas.some(e => e.item.system.tipoRuna === "elemento"),
     temForma: escolhas.some(e => e.item.system.tipoRuna === "forma")
@@ -329,7 +338,7 @@ export async function conjurar(actor, escolhas, {
 } = {}) {
   if (!escolhas.length) return;
 
-  const calc = calcular(actor, escolhas);
+  const calc = calcular(actor, escolhas, itemMagia);
   const r = actor.system.recursos;
 
   // Toda magia precisa de ao menos um Elemento e uma Forma (SRD Magia).

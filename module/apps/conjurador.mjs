@@ -76,7 +76,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const loc = k => game.i18n.localize(k);
 
     const escolhas = this.#escolhas();
-    const calc = calcular(actor, escolhas);
+    // Passa a magia salva: efeitos de custo presos a ela contam já na prévia.
+    const calc = calcular(actor, escolhas, this.itemMagia);
 
     /* --- Fichas da frase montada ----------------------------------------- */
     const fichas = calc.porRuna.map((pr, indice) => {
@@ -193,7 +194,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // Gesto sem mão livre não entra na frase.
     const runa = this.actor.items.get(id);
     if (runa && runa.system.tipoRuna !== "elemento") {
-      const calc = calcular(this.actor, this.#escolhas());
+      const calc = calcular(this.actor, this.#escolhas(), this.itemMagia);
       if (calc.maos + (runa.system.maos ?? 1) > (this.actor.system.maos ?? 2)) {
         return ui.notifications.warn(game.i18n.localize("PYRO.Conjurador.SemMaosLivres"));
       }

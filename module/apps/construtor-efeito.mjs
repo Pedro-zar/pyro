@@ -41,6 +41,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.deUso = documento instanceof Item && TIPOS_DE_USO.includes(documento.type);
     /** Ids dos itens a que o efeito fica preso. Vazio = vale sempre. */
     this.alvosItem = [];
+    /** Tipos inteiros presos ("todas as magias"), pelo nome do tipo de item. */
+    this.alvosTipo = [];
     this.mudancas = [mudancaPadrao()];
   }
 
@@ -83,8 +85,12 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
   }
 
   /**
-   * Itens que podem receber a restrição, agrupados por tipo. Sem ator não há
-   * lista: um item solto no mundo não sabe com o que ele conviveria.
+   * Itens que podem receber a restrição, agrupados por tipo. Cada grupo tem a
+   * própria marcação: marcar "Magia" prende o efeito a todas as magias, sem
+   * precisar caçar uma a uma e sem quebrar quando uma nova for criada.
+   *
+   * Sem ator não há lista: um item solto no mundo não sabe com o que ele
+   * conviveria.
    */
   #itensAlvo() {
     const ator = this.#ator;
@@ -99,9 +105,12 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
         marcado: this.alvosItem.includes(item.id)
       });
     }
-    return [...grupos].map(([tipo, itens]) => ({
+    // Ordem dos tipos igual à da constante, para a lista não dançar.
+    return TIPOS_RESTRINGIVEIS.filter(t => grupos.has(t)).map(tipo => ({
+      tipo,
       label: game.i18n.localize(`TYPES.Item.${tipo}`),
-      itens: itens.sort((a, b) => a.nome.localeCompare(b.nome))
+      todos: this.alvosTipo.includes(tipo),
+      itens: grupos.get(tipo).sort((a, b) => a.nome.localeCompare(b.nome))
     }));
   }
 
@@ -130,6 +139,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       ehCondicao: m.categoria === "condicao",
       // Dano troca o modo por uma fórmula, e o "alvo" vira o tipo do dano.
       ehDano: m.categoria === "dano",
+      // Custo é sempre soma com sinal: sem escolher modo.
+      ehCusto: m.categoria === "custo",
       alvos: PYRO.alvosEfeito[m.categoria]?.alvos ?? {}
     }));
     return context;
@@ -173,9 +184,13 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.nome = dados.nome ?? this.nome;
     this.rodadas = String(dados.rodadas ?? this.rodadas ?? "0");
     this.deUso = dados.deUso ?? this.deUso;
-    // Um select múltiplo devolve string quando só uma opção está marcada.
-    if (dados.alvosItem !== undefined) {
-      this.alvosItem = [dados.alvosItem].flat().filter(Boolean);
+    // Marcações da árvore de alvos, item a item e por tipo inteiro.
+    const marcados = (prefixo, chaves) =>
+      chaves.filter(c => dados[`${prefixo}.${c}`]);
+    const grupos = this.#itensAlvo();
+    if (grupos.length) {
+      this.alvosTipo = marcados("alvoTipo", grupos.map(g => g.tipo));
+      this.alvosItem = marcados("alvoItem", grupos.flatMap(g => g.itens.map(i => i.id)));
     }
     this.mudancas = this.mudancas.map((m, i) => ({
       categoria: dados[`mudanca.${i}.categoria`] ?? m.categoria,
@@ -249,15 +264,25 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     const danos = this.mudancas
       .filter(m => m.categoria === "dano" && String(m.valor ?? "").trim())
       .map(m => ({ formula: String(m.valor).trim(), tipo: m.alvo || "" }));
+    const custos = this.mudancas
+      .filter(m => m.categoria === "custo" && m.alvo && Number.isFinite(Number(m.valor)))
+      .map(m => ({ chave: m.alvo, valor: Number(m.valor) }));
     const mudancas = this.mudancas
-      .filter(m => !["condicao", "dano"].includes(m.categoria) && m.alvo);
+      .filter(m => !["condicao", "dano", "custo"].includes(m.categoria) && m.alvo);
 
-    // A restrição guarda id e nome: o id resolve nesta ficha, o nome sobrevive
-    // ao efeito ser copiado para outro personagem.
+    /*
+     * A restrição guarda id e nome no item específico (o id resolve nesta
+     * ficha, o nome sobrevive ao efeito ser copiado) e só o tipo no grupo
+     * inteiro. Item de um tipo já marcado por inteiro não precisa repetir.
+     */
     const ator = this.#ator;
-    const alvosItem = this.alvosItem
-      .map(id => ({ id, nome: ator?.items.get(id)?.name ?? "" }))
-      .filter(a => a.nome);
+    const alvosItem = [
+      ...this.alvosTipo.map(tipo => ({ tipo, nome: game.i18n.localize(`TYPES.Item.${tipo}`) })),
+      ...this.alvosItem
+        .filter(id => !this.alvosTipo.includes(ator?.items.get(id)?.type))
+        .map(id => ({ id, nome: ator?.items.get(id)?.name ?? "" }))
+        .filter(a => a.nome)
+    ];
 
     // Sem nome digitado, a primeira condição batiza o efeito e dá o ícone.
     let nome = (dados.nome ?? "").trim();
@@ -278,6 +303,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
           deUso,
           ...(rodadasEhFormula ? { rodadasFormula: textoRodadas } : {}),
           ...(danos.length ? { danos } : {}),
+          ...(custos.length ? { custos } : {}),
           ...(alvosItem.length ? { alvosItem } : {})
         }
       },

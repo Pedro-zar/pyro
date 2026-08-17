@@ -1,7 +1,9 @@
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { formulaTeste, expandirAtributos } from "../dados.mjs";
-import { htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo } from "../efeitos.mjs";
+import {
+  htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado
+} from "../efeitos.mjs";
 import { formulaPool } from "../dados.mjs";
 import { proximaOrdem } from "../data/item-data.mjs";
 
@@ -373,8 +375,10 @@ export class PyroItem extends Item {
 
     const alcanceTexto = s.alcanceMaximo > 0
       ? `${s.alcanceMenor}/${s.alcanceMaximo}m` : `${s.alcanceMenor}m`;
+    // Efeito de custo pode baratear ou encarecer o ataque em ações.
+    const acoes = custoAjustado(s.acoes, ajustesDeCusto(actor, this).acoes);
     const detalhes = [
-      game.i18n.format("PYRO.Chat.CustoAcoes", { acoes: s.acoes }),
+      game.i18n.format("PYRO.Chat.CustoAcoes", { acoes }),
       alcanceTexto
     ].filter(Boolean).join(" · ");
     const partes = [this.#topoHTML(detalhes)];
@@ -508,7 +512,9 @@ export class PyroItem extends Item {
     return ChatMessage.create({
       speaker,
       content: `<div class="pyro-chat">
-        ${this.#topoHTML(game.i18n.format("PYRO.Chat.CustoAcoes", { acoes: s.acoes }))}
+        ${this.#topoHTML(game.i18n.format("PYRO.Chat.CustoAcoes", {
+          acoes: custoAjustado(s.acoes, ajustesDeCusto(this.actor, this).acoes)
+        }))}
         ${await roll.render()}
         ${this.#efeitosHTML()}
       </div>`,
@@ -523,11 +529,22 @@ export class PyroItem extends Item {
     const s = this.system;
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
 
+    /*
+     * Custos já ajustados pelos efeitos: um "Conjuração Econômica: -2 mana"
+     * desconta antes de cobrar, e não só no texto do card. Piso zero, para
+     * um desconto grande não virar ganho de recurso.
+     */
+    const ajustes = ajustesDeCusto(this.actor, this);
+    const cobra = {
+      estamina: custoAjustado(s.custoEstamina, ajustes.estamina),
+      mana: custoAjustado(s.custoMana, ajustes.mana),
+      energia: custoAjustado(s.custoEnergia, ajustes.energia)
+    };
+    const custoAcoes = custoAjustado(s.custoAcoes, ajustes.acoes);
+
     const custos = [];
-    if (this.actor && (s.custoEstamina || s.custoMana || s.custoEnergia)) {
-      const pago = await this.actor.pagarCustos({
-        estamina: s.custoEstamina, mana: s.custoMana, energia: s.custoEnergia
-      });
+    if (this.actor && (cobra.estamina || cobra.mana || cobra.energia)) {
+      const pago = await this.actor.pagarCustos(cobra);
       if (!pago) return; // faltou mana ou energia
       if (pago.daEstamina) custos.push(game.i18n.format("PYRO.Chat.CustoEstamina", { valor: pago.daEstamina }));
       // Sem estamina suficiente, o resto sai dos PV (SRD Recursos).
@@ -538,7 +555,7 @@ export class PyroItem extends Item {
 
     const chaveCusto = s.tipoCusto === "reacao" ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";
     const cab = [
-      s.custoAcoes ? game.i18n.format(chaveCusto, { acoes: s.custoAcoes }) : null,
+      custoAcoes ? game.i18n.format(chaveCusto, { acoes: custoAcoes }) : null,
       ...custos
     ].filter(Boolean).join(" · ");
 
@@ -571,7 +588,9 @@ export class PyroItem extends Item {
     const s = this.system;
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
     const cab = s.custoAcoes
-      ? game.i18n.format("PYRO.Chat.CustoAcoes", { acoes: s.custoAcoes }) : "";
+      ? game.i18n.format("PYRO.Chat.CustoAcoes", {
+          acoes: custoAjustado(s.custoAcoes, ajustesDeCusto(this.actor, this).acoes)
+        }) : "";
 
     if (s.formula) {
       const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();

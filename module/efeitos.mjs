@@ -26,13 +26,21 @@ export function restricaoDoEfeito(efeito) {
   return efeito?.flags?.pyro?.alvosItem ?? [];
 }
 
-/** Este efeito vale para este item? Sem restrição, vale para qualquer um. */
+/**
+ * Este efeito vale para este item? Sem restrição, vale para qualquer um.
+ * Uma entrada pode prender o efeito a um tipo inteiro ("todas as magias") ou a
+ * um item específico. No item específico o id resolve primeiro e o nome é a
+ * rede de segurança; num alvo de tipo o nome é só rótulo, e não entra na
+ * comparação, senão um item chamado "Magia" casaria por acidente.
+ */
 export function efeitoValeParaItem(efeito, item) {
   const alvos = restricaoDoEfeito(efeito);
   if (!alvos.length) return true;
   if (!item) return false;
   const nome = PYRO.normalizarNome(item.name);
-  return alvos.some(a => a.id === item.id || PYRO.normalizarNome(a.nome) === nome);
+  return alvos.some(a => a.tipo
+    ? a.tipo === item.type
+    : (a.id === item.id || (!!a.nome && PYRO.normalizarNome(a.nome) === nome)));
 }
 
 /** Efeitos ativos do ator, incluindo os que estão presos a algum item. */
@@ -59,6 +67,33 @@ export function bonusDeDano(actor, item) {
     }
   }
   return saida;
+}
+
+/**
+ * Quanto os efeitos somam ou tiram do custo de usar este item. Chaves são as
+ * de PYRO.alvosEfeito.custo: acoes, mana, estamina, energia.
+ *
+ * Diferente do bônus de dano, aqui não há fórmula: é um número com sinal, e a
+ * conta é sempre soma. "Metade do custo" pediria uma regra de ordem entre
+ * efeitos que não vale a complexidade enquanto ninguém precisar.
+ */
+export function ajustesDeCusto(actor, item) {
+  const ajustes = {};
+  for (const efeito of efeitosAtivos(actor)) {
+    if (!efeitoValeParaItem(efeito, item)) continue;
+    for (const custo of efeito.flags?.pyro?.custos ?? []) {
+      const valor = Number(custo.valor);
+      if (custo.chave && Number.isFinite(valor)) {
+        ajustes[custo.chave] = (ajustes[custo.chave] ?? 0) + valor;
+      }
+    }
+  }
+  return ajustes;
+}
+
+/** Custo já ajustado, sem descer abaixo de zero. */
+export function custoAjustado(base, delta) {
+  return Math.max(0, Math.round((base ?? 0) + (delta ?? 0)));
 }
 
 /**
