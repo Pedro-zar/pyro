@@ -35,13 +35,26 @@
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Uso"}}</h4>
     <div class="grade-campos">
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Categoria"}}</span>
+        <select name="system.categoria">{{selectOptions config.categoriasEquipamento selected=system.categoria localize=true}}</select></label>
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Parte"}}</span>
         <select name="system.parte">{{selectOptions config.partesCorpo selected=system.parte localize=true}}</select></label>
+      {{!-- Números que só a mochila e o item arcano têm. --}}
+      {{#if ehMochila}}
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.CargaBonus"}}</span>
+        <input type="number" name="system.cargaBonus" value="{{system.cargaBonus}}" min="0" /></label>
+      {{/if}}
+      {{#if ehArcano}}
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.ReducaoMana"}}</span>
+        <input type="number" name="system.reducaoMana" value="{{system.reducaoMana}}" min="0" /></label>
+      {{/if}}
       <label class="campo"><span class="rotulo">{{localize "PYRO.Bloquear"}} +</span>
         <input type="text" name="system.bloqueio" value="{{system.bloqueio}}" placeholder="1d4" /></label>
       <label class="campo"><span class="rotulo">{{localize "PYRO.Esquivar"}} +</span>
         <input type="text" name="system.esquiva" value="{{system.esquiva}}" placeholder="1d12" /></label>
     </div>
+    {{#if ehMochila}}<p class="pyro-nota">{{localize "PYRO.Item.CargaBonusDica"}}</p>{{/if}}
+    {{#if ehArcano}}<p class="pyro-nota">{{localize "PYRO.Item.ReducaoManaDica"}}</p>{{/if}}
   </div>
 
   <div class="bloco">

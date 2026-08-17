@@ -211,6 +211,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       ...(item.type === "habilidade" ? this.#contextoRequisitos() : {}),
       // Caminhos e runas têm nome derivado: só leitura no formulário.
       nomeAutomatico: item.type === "caminho" || item.type === "runa",
+      // Mochila e item arcano ganham um campo próprio; os demais sabores de
+      // equipamento não têm o que mostrar além do que já é comum a todos.
+      ehMochila: item.type === "equipamento" && s.categoria === "mochila",
+      ehArcano: item.type === "equipamento" && s.categoria === "arcano",
       // Munição só pode ser presa nas costas ou na cintura.
       parteMunicaoOpts: Object.fromEntries(
         PYRO.partesMunicao.map(k => [k, PYRO.partesCorpo[k]])
@@ -384,7 +388,18 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         break;
       }
       case "equipamento": {
+        // O sabor vem primeiro quando não é equipamento comum: é o que
+        // distingue uma mochila de uma armadura no cabeçalho.
+        if (s.categoria && s.categoria !== "equipamento") {
+          partes.push(loc(PYRO.categoriasEquipamento[s.categoria] ?? ""));
+        }
         partes.push(loc(PYRO.partesCorpo[s.parte] ?? ""));
+        if (s.categoria === "mochila" && s.cargaBonus) {
+          partes.push(`${loc("PYRO.Item.CargaBonus")} +${s.cargaBonus}`);
+        }
+        if (s.categoria === "arcano" && s.reducaoMana) {
+          partes.push(`${loc("PYRO.Item.ReducaoMana")} -${s.reducaoMana}`);
+        }
         for (const [cat, val] of Object.entries(s.defesas?.categorias ?? {})) {
           if (val) partes.push(`${loc(PYRO.categoriasDano[cat])} +${val}`);
         }

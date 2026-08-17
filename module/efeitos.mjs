@@ -88,6 +88,17 @@ export function ajustesDeCusto(actor, item) {
       }
     }
   }
+
+  /*
+   * Item arcano equipado abate mana de tudo que gasta mana. Entra por aqui,
+   * e não como efeito, para o jogador só precisar equipar o item — e como o
+   * desconto vale para qualquer conjuração, ele não olha o item em uso.
+   */
+  for (const equip of actor?.items ?? []) {
+    const s = equip.system;
+    if (equip.type !== "equipamento" || !s.equipado || s.categoria !== "arcano") continue;
+    if (s.reducaoMana) ajustes.mana = (ajustes.mana ?? 0) - s.reducaoMana;
+  }
   return ajustes;
 }
 

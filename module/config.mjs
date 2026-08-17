@@ -83,6 +83,50 @@ PYRO.partesCorpo = {
 PYRO.partesMunicao = ["costas", "cintura"];
 
 /* -------------------------------------------------------------------------- */
+/*  Categorias de item                                                        */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Sabores de equipamento. Todos compartilham parte do corpo, defesas e peso;
+ * o que muda é o que cada um faz além disso — mochila carrega mais, item
+ * arcano barateia mana.
+ */
+PYRO.categoriasEquipamento = {
+  equipamento: "PYRO.CatItem.equipamento",
+  artefato:    "PYRO.CatItem.artefato",
+  arcano:      "PYRO.CatItem.arcano",
+  mochila:     "PYRO.CatItem.mochila"
+};
+
+/**
+ * Baldes do inventário, na ordem em que aparecem na ficha.
+ *
+ * Cada balde sabe filtrar o que lhe pertence e criar um item novo já
+ * classificado, então a aba, o botão de criar e as pastas do compêndio saem
+ * todos daqui. Munição e consumível são o mesmo tipo de item separados por uma
+ * marcação; artefato, arcano e mochila são equipamento com categoria própria.
+ */
+PYRO.categoriasItem = {
+  equipamento: { rotulo: "PYRO.CatItem.equipamento", secao: "PYRO.Secao.equipamentos", tipo: "equipamento", categoria: "equipamento" },
+  arma:        { rotulo: "PYRO.CatItem.arma",        secao: "PYRO.Secao.armas",        tipo: "arma" },
+  municao:     { rotulo: "PYRO.CatItem.municao",     secao: "PYRO.Secao.municoes",     tipo: "consumivel", municao: true },
+  artefato:    { rotulo: "PYRO.CatItem.artefato",    secao: "PYRO.Secao.artefatos",    tipo: "equipamento", categoria: "artefato" },
+  arcano:      { rotulo: "PYRO.CatItem.arcano",      secao: "PYRO.Secao.arcanos",      tipo: "equipamento", categoria: "arcano" },
+  mochila:     { rotulo: "PYRO.CatItem.mochila",     secao: "PYRO.Secao.mochilas",     tipo: "equipamento", categoria: "mochila" },
+  consumivel:  { rotulo: "PYRO.CatItem.consumivel",  secao: "PYRO.Secao.consumiveis",  tipo: "consumivel", municao: false }
+};
+
+/** O item cai neste balde do inventário? */
+PYRO.itemNaCategoria = (item, chave) => {
+  const cfg = PYRO.categoriasItem[chave];
+  if (!cfg || item.type !== cfg.tipo) return false;
+  if (cfg.municao !== undefined) return !!item.system.municao === cfg.municao;
+  // Equipamento antigo, sem categoria gravada, conta como equipamento comum.
+  if (cfg.categoria !== undefined) return (item.system.categoria || "equipamento") === cfg.categoria;
+  return true;
+};
+
+/* -------------------------------------------------------------------------- */
 /*  Magia                                                                     */
 /* -------------------------------------------------------------------------- */
 

@@ -334,12 +334,22 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     let bloqueioExtra = [];
     let esquivaExtra = [];
 
+    let cargaExtra = 0;
+
     for (const item of this.parent.items) {
       const s = item.system;
       if (["arma", "equipamento", "consumivel"].includes(item.type)) {
-        // Munição conta o peso do lote uma vez só (aljava, bolsa de balas).
-        const unidades = s.municao ? 1 : (s.quantidade ?? 1);
-        this.carga.atual += (s.peso ?? 0) * unidades;
+        /*
+         * Munição pesa 1 no total, quantas quer que sejam: uma aljava é uma
+         * aljava. O peso do item é ignorado de propósito, é regra do sistema.
+         */
+        this.carga.atual += s.municao
+          ? ((s.quantidade ?? 0) > 0 ? 1 : 0)
+          : (s.peso ?? 0) * (s.quantidade ?? 1);
+      }
+      // Mochila equipada aumenta o quanto o personagem aguenta carregar.
+      if (item.type === "equipamento" && s.equipado && s.categoria === "mochila") {
+        cargaExtra += s.cargaBonus ?? 0;
       }
       if (item.type === "equipamento" && s.equipado) {
         for (const cat of Object.keys(equipBonus)) {
@@ -353,6 +363,10 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       }
     }
 
+    // As mochilas entram depois do laço porque só ali se sabe quais estão
+    // equipadas; o limite é sempre o da criatura mais o que ela veste.
+    this.carga.bonus = cargaExtra;
+    this.carga.max += cargaExtra;
     this.sobrepeso = this.carga.atual > this.carga.max;
 
     /* --- Defesas totais: base + equipamento ------------------------------- */

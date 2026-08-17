@@ -105,11 +105,15 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const context = await super._prepareContext(options);
     const actor = this.actor;
     // Ordem manual: o campo sort é mantido pelo arraste na lista.
-    const porTipo = tipo => actor.items.filter(i => i.type === tipo)
-      .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+    const ordenado = lista => lista.sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0));
+    const porTipo = tipo => ordenado(actor.items.filter(i => i.type === tipo));
+    // Baldes do inventário: munição sai de consumíveis, e artefato, item
+    // arcano e mochila saem de equipamentos (ver PYRO.categoriasItem).
+    const porCategoria = chave =>
+      ordenado(actor.items.filter(i => PYRO.itemNaCategoria(i, chave)));
     const loc = k => game.i18n.localize(k);
 
-    const armas = await this.#linhas(porTipo("arma"), item => {
+    const linhaArma = item => {
       const s = item.system;
       const danos = (s.danos ?? []).filter(d => d.formula?.trim());
       const resumoDano = danos
@@ -133,9 +137,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           { label: loc("PYRO.Quantidade"), valor: s.quantidade }
         ]
       };
-    });
+    };
 
-    const equipamentos = await this.#linhas(porTipo("equipamento"), item => {
+    const linhaEquipamento = item => {
       const s = item.system;
       const defesas = [];
       for (const [cat, val] of Object.entries(s.defesas.categorias)) {
@@ -144,13 +148,26 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       for (const [tipo, val] of Object.entries(s.defesas.tipos)) {
         if (val) defesas.push(`${loc(PYRO.tiposDano[tipo].label)} +${val}`);
       }
+      // Mochila e item arcano carregam um número que só eles têm: ele vai
+      // junto na linha, senão a lista deles não diria nada de útil.
+      const extra = [];
+      if (s.categoria === "mochila" && s.cargaBonus) {
+        extra.push({ chave: "PYRO.Item.CargaBonus", texto: `+${s.cargaBonus}` });
+      }
+      if (s.categoria === "arcano" && s.reducaoMana) {
+        extra.push({ chave: "PYRO.Item.ReducaoMana", texto: `-${s.reducaoMana}` });
+      }
       return {
         equipavel: true,
         equipado: s.equipado,
-        detalhes: [{ texto: loc(PYRO.partesCorpo[s.parte] ?? ""), classe: "col-parte" }],
+        detalhes: [
+          { texto: loc(PYRO.partesCorpo[s.parte] ?? ""), classe: "col-parte" },
+          ...extra.map(e => ({ texto: `${loc(e.chave)} ${e.texto}`, classe: "destaque-lingua" }))
+        ],
         cauda: [{ texto: s.peso, classe: "col-curto" }],
         resumo: [
           { label: loc("PYRO.Item.Parte"), valor: loc(PYRO.partesCorpo[s.parte] ?? "") },
+          ...extra.map(e => ({ label: loc(e.chave), valor: e.texto })),
           { label: loc("PYRO.Defesas"), valor: defesas.join(" · ") || "—" },
           { label: loc("PYRO.Bloquear"), valor: s.bloqueio || "—" },
           { label: loc("PYRO.Esquivar"), valor: s.esquiva || "—" },
@@ -159,9 +176,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           { label: loc("PYRO.Quantidade"), valor: s.quantidade }
         ]
       };
-    });
+    };
 
-    const consumiveis = await this.#linhas(porTipo("consumivel"), item => {
+    const linhaConsumivel = item => {
       const s = item.system;
       const tipoDano = loc(PYRO.tiposDano[s.tipoDano]?.label ?? "");
       const detalhes = [];
@@ -183,18 +200,29 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         detalhes,
         cauda: [
           { texto: s.quantidade, classe: "col-qtd" },
-          { texto: s.peso, classe: "col-curto" },
+          // Munição pesa 1 no total, não importa a quantidade nem o peso
+          // digitado: mostrar outro número aqui só confundiria a conta.
+          { texto: s.municao ? 1 : s.peso, classe: "col-curto" },
           { texto: s.custo, classe: "col-curto" }
         ],
         resumo: [
           { label: loc("PYRO.Item.Formula"), valor: s.formula || "—" },
           ...(s.municao ? [{ label: loc("PYRO.Item.TipoDano"), valor: tipoDano }] : []),
           { label: loc("PYRO.Quantidade"), valor: s.quantidade },
-          { label: loc("PYRO.Peso"), valor: s.peso },
+          { label: loc("PYRO.Peso"),
+            valor: s.municao ? `1 (${loc("PYRO.Item.PesoLote")})` : s.peso },
           { label: loc("PYRO.Item.Custo"), valor: s.custo }
         ]
       };
-    });
+    };
+
+    const armas = await this.#linhas(porCategoria("arma"), linhaArma);
+    const equipamentos = await this.#linhas(porCategoria("equipamento"), linhaEquipamento);
+    const municoes = await this.#linhas(porCategoria("municao"), linhaConsumivel);
+    const artefatos = await this.#linhas(porCategoria("artefato"), linhaEquipamento);
+    const arcanos = await this.#linhas(porCategoria("arcano"), linhaEquipamento);
+    const mochilas = await this.#linhas(porCategoria("mochila"), linhaEquipamento);
+    const consumiveis = await this.#linhas(porCategoria("consumivel"), linhaConsumivel);
 
     const habilidade = item => {
       const s = item.system;
@@ -360,7 +388,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       .map(i => i.id));
     const favoritos = [
       ...tecnicas, ...habilidades, ...habilidadesCaminho, ...feiticos, ...magias,
-      ...armas, ...equipamentos, ...consumiveis
+      ...armas, ...equipamentos, ...municoes, ...artefatos, ...arcanos,
+      ...mochilas, ...consumiveis
     ].filter(l => favIds.has(l.id));
 
     /*
@@ -385,6 +414,20 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       legIcones: "leg-icones-1"
     };
 
+    // Colunas compartilhadas: os quatro baldes de equipamento leem igual, e
+    // munição lê igual a consumível.
+    const secaoEquip = (chave, itens) => secao(chave, itens, {
+      colNome: loc("PYRO.Col.equipamento"),
+      colunas: [col("parte", "col-parte")],
+      cauda: [col("peso", "col-curto")],
+      legIcones: "leg-icones-2"
+    });
+    const secaoConsumo = (chave, itens) => secao(chave, itens, {
+      colNome: loc("PYRO.Col.consumivel"),
+      cauda: [col("quantidade", "col-qtd"), col("peso", "col-curto"), col("custo", "col-curto")],
+      legIcones: "leg-icones-2"
+    });
+
     const secoes = {
       favoritos: secao("favoritos", favoritos, { semLegenda: true }),
       tecnicas: secao("tecnicas", tecnicas, colsHabilidade),
@@ -399,17 +442,14 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         cauda: [col("acoes", "col-curto"), col("alcance", "col-curto")],
         legIcones: "leg-icones-1"
       }),
-      equipamentos: secao("equipamentos", equipamentos, {
-        colNome: loc("PYRO.Col.equipamento"),
-        colunas: [col("parte", "col-parte")],
-        cauda: [col("peso", "col-curto")],
-        legIcones: "leg-icones-2"
-      }),
-      consumiveis: secao("consumiveis", consumiveis, {
-        colNome: loc("PYRO.Col.consumivel"),
-        cauda: [col("quantidade", "col-qtd"), col("peso", "col-curto"), col("custo", "col-curto")],
-        legIcones: "leg-icones-2"
-      }),
+      // Artefato, item arcano e mochila são equipamento por baixo, então
+      // repetem as colunas dele; munição repete as de consumível.
+      equipamentos: secaoEquip("equipamentos", equipamentos),
+      artefatos: secaoEquip("artefatos", artefatos),
+      arcanos: secaoEquip("arcanos", arcanos),
+      mochilas: secaoEquip("mochilas", mochilas),
+      municoes: secaoConsumo("municoes", municoes),
+      consumiveis: secaoConsumo("consumiveis", consumiveis),
       feiticos: secao("feiticos", feiticos, {
         colNome: loc("PYRO.Col.feitico"),
         colunas: [col("formula", "")],
@@ -541,31 +581,51 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     new GuiaAcoesApp().render(true);
   }
 
-  static async #criarItem(event, target) {
-    // Tipo fixo no botão: cria direto.
-    let tipo = target.dataset.type;
-
-    // Sem tipo fixo, o botão traz os tipos daquela aba e pergunta qual criar.
-    if (!tipo) {
-      const tipos = (target.dataset.tipos ?? "").split(",").filter(Boolean);
-      if (!tipos.length) return;
-      if (tipos.length === 1) tipo = tipos[0];
-      else {
-        tipo = await foundry.applications.api.DialogV2.wait({
-          window: { title: game.i18n.localize("PYRO.CriarItem") },
-          content: `<p class="hint">${game.i18n.localize("PYRO.CriarItemDica")}</p>`,
-          buttons: tipos.map(t => ({
-            action: t,
-            label: game.i18n.localize(`TYPES.Item.${t}`)
-          })),
-          rejectClose: false
-        });
-        if (!tipo) return;
+  /**
+   * Receita de um item novo. O botão pode pedir um tipo cru ("runa") ou um
+   * balde do inventário ("mochila"), que é tipo mais classificação — assim a
+   * aba oferece Munição e Mochila sem o jogador ter que criar um consumível e
+   * marcar uma caixa depois.
+   */
+  static #receitaDeItem(chave) {
+    const cfg = PYRO.categoriasItem[chave];
+    if (!cfg) {
+      return { tipo: chave, nome: game.i18n.localize(`TYPES.Item.${chave}`), system: {} };
+    }
+    return {
+      tipo: cfg.tipo,
+      nome: game.i18n.localize(cfg.rotulo),
+      system: {
+        ...(cfg.categoria !== undefined ? { categoria: cfg.categoria } : {}),
+        ...(cfg.municao !== undefined ? { municao: cfg.municao } : {})
       }
+    };
+  }
+
+  static async #criarItem(event, target) {
+    // Um botão traz um valor fixo; o da aba traz a lista daquela aba.
+    const chaves = target.dataset.type
+      ? [target.dataset.type]
+      : (target.dataset.tipos ?? "").split(",").filter(Boolean);
+    if (!chaves.length) return;
+
+    let escolha = chaves[0];
+    if (chaves.length > 1) {
+      escolha = await foundry.applications.api.DialogV2.wait({
+        window: { title: game.i18n.localize("PYRO.CriarItem") },
+        content: `<p class="hint">${game.i18n.localize("PYRO.CriarItemDica")}</p>`,
+        buttons: chaves.map(c => ({
+          action: c,
+          label: PyroActorSheet.#receitaDeItem(c).nome
+        })),
+        rejectClose: false
+      });
+      if (!escolha) return;
     }
 
+    const receita = PyroActorSheet.#receitaDeItem(escolha);
     await Item.implementation.create(
-      { name: game.i18n.localize(`TYPES.Item.${tipo}`), type: tipo },
+      { name: receita.nome, type: receita.tipo, system: receita.system },
       { parent: this.actor, renderSheet: true }
     );
   }

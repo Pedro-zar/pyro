@@ -1,6 +1,7 @@
 <section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
   <div class="barra-acoes com-info">
-    <span class="info-inline {{#if system.sobrepeso}}perigo{{/if}}">
+    <span class="info-inline {{#if system.sobrepeso}}perigo{{/if}}"
+          title="{{#if system.carga.bonus}}{{localize 'PYRO.CargaComMochila'}}{{/if}}">
       <i class="fa-solid fa-weight-hanging"></i> {{localize "PYRO.Carga"}}
       <span class="valor numero">{{system.carga.atual}} / {{system.carga.max}}</span>
     </span>
@@ -10,12 +11,18 @@
              value="{{system.dinheiro}}" />
     </span>
     <button type="button" class="botao-secao" data-action="criarItem"
-            data-tipos="arma,equipamento,consumivel" title="{{localize 'PYRO.Criar'}}">
+            data-tipos="equipamento,arma,municao,artefato,arcano,mochila,consumivel"
+            title="{{localize 'PYRO.Criar'}}">
       <i class="fa-solid fa-plus"></i>
     </button>
   </div>
 
-  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.armas}}
+  {{!-- Ordem fixa das sete categorias de item do sistema. --}}
   {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.equipamentos}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.armas}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.municoes}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.artefatos}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.arcanos}}
+  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.mochilas}}
   {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.consumiveis}}
 </section>

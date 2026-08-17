@@ -179,8 +179,15 @@ export class EquipamentoData extends BaseItemData {
     }, {});
     return {
       ...super.defineSchema(),
+      // Sabor do equipamento: separa a lista do inventário e libera os campos
+      // próprios de mochila e de item arcano.
+      categoria: str("equipamento", { choices: Object.keys(PYRO.categoriasEquipamento) }),
       parte: str("peitoral", { choices: Object.keys(PYRO.partesCorpo) }),
       equipado: new fields.BooleanField({ initial: false }),
+      // Mochila: soma na capacidade de carga enquanto equipada.
+      cargaBonus: num(0, { min: 0 }),
+      // Item arcano: abate mana de tudo que gasta mana, enquanto equipado.
+      reducaoMana: num(0, { min: 0 }),
       // Bônus de defesa por categoria E por tipo específico.
       defesas: new fields.SchemaField({
         categorias: new fields.SchemaField({
