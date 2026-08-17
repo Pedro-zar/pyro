@@ -49,6 +49,16 @@ PYRO.tiposDano = {
   mental:     { label: "PYRO.Dano.mentalTipo", categoria: "mental" }
 };
 
+/**
+ * Dados base das reações (SRD §5). As faces são do sistema, não da ficha:
+ * bloquear é sempre d4 e esquivar sempre d12, e o que muda de personagem para
+ * personagem é a quantidade — o que equipamento e efeito somam.
+ */
+PYRO.reacoes = {
+  bloqueio: { dados: 2, faces: 4 },
+  esquiva:  { dados: 2, faces: 12 }
+};
+
 /* -------------------------------------------------------------------------- */
 /*  Tamanho e carga                                                           */
 /* -------------------------------------------------------------------------- */
@@ -450,6 +460,18 @@ PYRO.alvosEfeito = {
     label: "PYRO.Efeitos.Cat.defesasTipo",
     alvos: Object.fromEntries(Object.entries(PYRO.tiposDano)
       .map(([k, cfg]) => [`system.defesas.tipos.${k}`, cfg.label]))
+  },
+  /*
+   * Reação conta dado, não ponto: o valor da linha é quantos dados entram a
+   * mais na rolagem. As faces já são as do sistema, então "+2" no bloqueio é
+   * mais 2d4 e o botão passa a mostrar o total somado.
+   */
+  reacoes: {
+    label: "PYRO.Efeitos.Cat.reacoes",
+    alvos: {
+      "system.bloqueioBonus": "PYRO.Efeitos.Alvo.bloqueioBonus",
+      "system.esquivaBonus": "PYRO.Efeitos.Alvo.esquivaBonus"
+    }
   },
   condicao: {
     label: "PYRO.Efeitos.Cat.condicao",

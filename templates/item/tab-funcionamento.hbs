@@ -232,12 +232,15 @@
                placeholder="{{localize 'PYRO.Item.PalavraPlaceholder'}}" /></label>
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Lingua"}}</span>
         <select name="system.lingua">{{selectOptions linguaOpts selected=system.lingua localize=true}}</select></label>
-      {{#if ehElemento}}
-      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.TipoDano"}}</span>
-        <select name="system.tipoDano">{{selectOptions tipoDanoOpts selected=system.tipoDano}}</select></label>
-      {{else}}
+      {{!-- Mãos é coisa de gesto; o tipo de dano aparece para qualquer runa
+            que role dados, inclusive um gesto com escalonamento próprio. --}}
+      {{#unless ehElemento}}
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Maos"}}</span>
         <input type="number" name="system.maos" value="{{system.maos}}" min="0" /></label>
+      {{/unless}}
+      {{#if mostrarTipoDano}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.TipoDano"}}</span>
+        <select name="system.tipoDano">{{selectOptions tipoDanoOpts selected=system.tipoDano}}</select></label>
       {{/if}}
     </div>
     {{#if mostrarSubjulgar}}
@@ -363,7 +366,7 @@
       {{#each runasMagia as |r ri|}}
       <div class="runa-bloco">
         <div class="runa-cab"><strong>{{r.nome}}</strong>
-          {{#if r.ehElemento}}
+          {{#if r.mostrarTipoDano}}
           <select class="mini-select" name="system.runas.{{ri}}.tipoDano"
                   title="{{localize 'PYRO.Item.TipoDano'}}">
             {{selectOptions r.tipoDanoOpts selected=r.tipoDano}}

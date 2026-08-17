@@ -10,14 +10,35 @@ import { idDoCaminho } from "../data/item-data.mjs";
  */
 function opcoesTipoDano(padrao) {
   return {
-    "": game.i18n.format("PYRO.Item.TipoDanoPadrao", {
-      tipo: game.i18n.localize(PYRO.tiposDano[padrao]?.label ?? `PYRO.Dano.${padrao ?? ""}`)
-    }),
+    /*
+     * Sem elemento por trás não há tipo a herdar, e a primeira opção passa a
+     * ser o dano cru — que é exatamente o que a rolagem faz quando ninguém
+     * escolhe. Um gesto não pode cair no tipo do elemento que por acaso está
+     * gravado no subtipo dele.
+     */
+    "": padrao
+      ? game.i18n.format("PYRO.Item.TipoDanoPadrao", {
+          tipo: game.i18n.localize(PYRO.tiposDano[padrao]?.label ?? `PYRO.Dano.${padrao}`)
+        })
+      : game.i18n.localize("PYRO.Item.TipoDanoSemTipo"),
     [SEM_DANO]: game.i18n.localize("PYRO.Dano.nenhum"),
     ...Object.fromEntries(Object.entries(PYRO.tiposDano)
       .map(([k, v]) => [k, game.i18n.localize(v.label)])),
     cura: game.i18n.localize("PYRO.Dano.cura")
   };
+}
+
+/**
+ * A runa rola dados? Elemento sempre pode, pela tabela do próprio elemento.
+ * Gesto e modificador só quando alguém deu um escalonamento com faces a eles —
+ * e é aí que a escolha do tipo de dano passa a fazer sentido.
+ *
+ * A cópia dentro de uma magia salva tem escalonamento próprio, então quem
+ * pergunta por ela passa a lista da cópia em `scalings`.
+ */
+export function rolaDados(sys, scalings = null) {
+  if (sys?.tipoRuna === "elemento") return true;
+  return (scalings?.length ? scalings : sys?.scalings ?? []).some(sc => (sc?.faces ?? 0) > 0);
 }
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -164,8 +185,13 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // O modo Subjulgar é coisa do elemento Morte (ou de runa já marcada).
       mostrarSubjulgar: ehElemento
         && !!(PYRO.elementos[s.subtipo]?.subjulgar || s.subjulgar),
-      // Tipo de dano: vazio herda o do elemento; o rótulo diz qual é.
-      tipoDanoOpts: opcoesTipoDano(PYRO.elementos[s.subtipo]?.tipoDano),
+      /*
+       * A lista de tipos aparece sempre que a runa rola dados, seja ela
+       * elemento ou não: quem pôs um d6 num gesto precisa dizer de que dano
+       * ele é. Só o elemento tem tipo herdado para oferecer como padrão.
+       */
+      mostrarTipoDano: item.type === "runa" && rolaDados(s),
+      tipoDanoOpts: opcoesTipoDano(ehElemento ? PYRO.elementos[s.subtipo]?.tipoDano : null),
       // Runas da magia com a informação de quem pode subjulgar.
       runasMagia: item.type === "magia"
         ? (s.runas ?? []).map(r => {
@@ -174,12 +200,14 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
             const cfg = runa?.system.tipoRuna === "elemento"
               ? PYRO.elementos[runa.system.subtipo] : null;
             const padrao = runa?.system.tipoDano || cfg?.tipoDano || "";
+            // A cópia guardada na magia manda: ela pode ter ganhado dados que
+            // a runa original não tem, e vice-versa.
+            const rola = !!runa && rolaDados(runa.system, r.scalings);
             return {
               ...r,
               mostrarSubjulgar: !!(cfg?.subjulgar || r.subjulgar),
-              // Só elementos causam dano: gestos não têm o campo.
-              ehElemento: !!cfg,
-              tipoDanoOpts: cfg ? opcoesTipoDano(padrao) : null
+              mostrarTipoDano: rola,
+              tipoDanoOpts: rola ? opcoesTipoDano(padrao) : null
             };
           })
         : null,

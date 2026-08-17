@@ -465,7 +465,12 @@ export async function conjurar(actor, escolhas, {
             if (rolarDano) {
               const roll = await new Roll(`${n}d${sc.faces}`).evaluate();
               rolls.push(roll);
-              const elCfg = PYRO.elementos[s.subtipo];
+              /*
+               * Só elemento herda tipo de dano. Gesto e modificador guardam um
+               * subtipo que não quer dizer nada aqui, e ler a tabela sem
+               * conferir fazia um Toque com dados sair como dano de energia.
+               */
+              const elCfg = s.tipoRuna === "elemento" ? PYRO.elementos[s.subtipo] : null;
               const tipoEfetivo = pr.tipoDano || elCfg?.tipoDano || "";
               publicar(sc.nome, roll.total);
               // Subjulgar não causa dano direto: fica fora dos totais do chat.

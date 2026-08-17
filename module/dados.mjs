@@ -46,3 +46,50 @@ export function formulaPool(valor) {
   const pool = poolDoAtributo(valor);
   return pool.faces === 0 ? "1" : `${pool.n}d${pool.faces}`;
 }
+
+/**
+ * Junta várias fórmulas numa só, somando os dados de mesmas faces.
+ *
+ * Um bloqueio com escudo e brincos virava "2d4 + 2d4 + 2d4" no botão, e com
+ * mais uma peça não cabia mais na ficha. A rolagem é a mesma, então o que
+ * aparece é o total: "6d4". Dados de faces diferentes continuam separados,
+ * porque 1d4 e 1d12 não viram um dado só, e o que não for dado nem número
+ * ([FOR], @sab) passa intacto para o Roll resolver.
+ */
+export function juntarDados(partes) {
+  const porFaces = new Map();
+  const soltos = [];
+  let fixo = 0;
+
+  for (const parte of partes) {
+    if (!parte) continue;
+    // Separa os sinais dos termos: "2d4-1" vira ["2d4", "-", "1"].
+    const termos = String(parte).replace(/([+-])/g, " $1 ").split(/\s+/).filter(Boolean);
+    let sinal = 1;
+    for (const termo of termos) {
+      if (termo === "+" || termo === "-") { sinal = termo === "+" ? 1 : -1; continue; }
+      const dado = /^(\d*)d(\d+)$/i.exec(termo);
+      if (dado) {
+        const faces = Number(dado[2]);
+        const n = dado[1] === "" ? 1 : Number(dado[1]);
+        porFaces.set(faces, (porFaces.get(faces) ?? 0) + sinal * n);
+      }
+      else if (/^\d+$/.test(termo)) fixo += sinal * Number(termo);
+      else soltos.push(sinal < 0 ? `-${termo}` : termo);
+      sinal = 1;
+    }
+  }
+
+  // Dados maiores primeiro: "2d12 + 1d4" lê melhor que o contrário.
+  const pedacos = [...porFaces.entries()]
+    .sort(([a], [b]) => b - a)
+    .filter(([, n]) => n !== 0)
+    .map(([faces, n]) => (n > 0 ? `${n}d${faces}` : `-${-n}d${faces}`));
+  pedacos.push(...soltos);
+  if (fixo) pedacos.push(String(fixo));
+
+  return pedacos.reduce((texto, p) => {
+    if (!texto) return p;
+    return p.startsWith("-") ? `${texto} - ${p.slice(1)}` : `${texto} + ${p}`;
+  }, "");
+}

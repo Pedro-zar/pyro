@@ -4,6 +4,23 @@ import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
 import { restricaoDoEfeito } from "../efeitos.mjs";
 
+/**
+ * O que fazer com um drop que caiu em cima de uma linha do inventário.
+ *
+ * Só a reordenação interna é da ficha. Todo o resto — item de compêndio, item
+ * de outra ficha, ator, efeito — volta para o Foundry, que já sabe criar. Com
+ * os dois criando, o item entrava duas vezes.
+ *
+ * A decisão sai do uuid do arrasto porque precisa ser síncrona: depois de um
+ * await o evento já foi entregue aos outros ouvintes e não há mais o que barrar.
+ */
+export function planoDeDrop(dados, atorUuid) {
+  if (dados?.type !== "Item" || !atorUuid) return { acao: "passar" };
+  const prefixo = `${atorUuid}.Item.`;
+  if (!dados.uuid?.startsWith(prefixo)) return { acao: "passar" };
+  return { acao: "reordenar", id: dados.uuid.slice(prefixo.length) };
+}
+
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -1030,27 +1047,39 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         ?.classList.remove("alvo-antes", "alvo-depois");
     });
 
-    raiz.addEventListener("drop", async event => {
+    /*
+     * Reordenar é nosso; trazer item de fora continua sendo do Foundry.
+     *
+     * O ActorSheetV2 escuta "drop" neste mesmo elemento e já cria o item que
+     * vem de compêndio ou de outra ficha. Enquanto este ouvinte também criava,
+     * o item entrava duas vezes — e stopPropagation não resolvia, porque ele
+     * não silencia outro ouvinte do mesmo elemento, só os dos elementos acima.
+     *
+     * Daí a fase de captura: ela roda antes de qualquer ouvinte de bolha,
+     * independentemente da ordem de registro, e aí stopImmediatePropagation
+     * derruba o do Foundry. Só que o evento é engolido no caso que é nosso —
+     * arrastar uma linha para outro lugar da mesma ficha. Todo o resto passa
+     * intacto e chega a quem sabe tratar.
+     */
+    raiz.addEventListener("drop", event => {
       const li = event.target.closest?.(".linha-item");
+      const antes = !!li?.classList.contains("alvo-antes");
+      raiz.querySelectorAll(".alvo-antes, .alvo-depois")
+        .forEach(el => el.classList.remove("alvo-antes", "alvo-depois"));
       if (!li) return;
-      // Impede que a ficha trate o mesmo drop como "adicionar item".
-      event.preventDefault();
-      event.stopPropagation();
-      const antes = li.classList.contains("alvo-antes");
-      li.classList.remove("alvo-antes", "alvo-depois");
 
       const dados = foundry.applications.ux.TextEditor.implementation.getDragEventData(event);
-      const origem = await Item.implementation.fromDropData(dados);
-      const alvo = this.actor.items.get(li.dataset.itemId);
-      if (!origem || !alvo) return;
+      const plano = planoDeDrop(dados, this.actor.uuid);
+      if (plano.acao !== "reordenar") return;
 
-      // Item de fora da ficha: copia em vez de reordenar.
-      if (origem.parent !== this.actor) {
-        return Item.implementation.create(origem.toObject(), { parent: this.actor });
-      }
-      if (origem.id === alvo.id || origem.type !== alvo.type) return;
-      await this.#ordenar(origem, alvo, antes);
-    });
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      const origem = this.actor.items.get(plano.id);
+      const alvo = this.actor.items.get(li.dataset.itemId);
+      if (!origem || !alvo || origem.id === alvo.id || origem.type !== alvo.type) return;
+      this.#ordenar(origem, alvo, antes);
+    }, { capture: true });
   }
 
   /** Reescreve o campo sort de todos os itens do tipo, na ordem nova. */

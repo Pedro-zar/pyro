@@ -1,5 +1,5 @@
 import { PYRO } from "../config.mjs";
-import { poolDoAtributo, formulaPool } from "../dados.mjs";
+import { poolDoAtributo, formulaPool, juntarDados } from "../dados.mjs";
 
 const fields = foundry.data.fields;
 
@@ -102,6 +102,15 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
        */
       velocidadeBonus: num(0),
       velocidadeMult: dec(1, { min: 0 }),
+
+      /*
+       * Dados a mais nas reações, em dados inteiros: +2 no bloqueio é "mais
+       * dois d4". As faces são fixas pelo sistema (d4 bloqueia, d12 esquiva),
+       * então o efeito só precisa dizer quantos. Mesmo motivo da velocidade:
+       * a fórmula final é derivada, e efeito não alcança campo derivado.
+       */
+      bloqueioBonus: num(0),
+      esquivaBonus: num(0),
 
       atributos: new fields.SchemaField(atributos),
 
@@ -382,8 +391,17 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     }
 
     /* --- Fórmulas de reação ------------------------------------------------ */
-    this.bloqueio = ["2d4", ...bloqueioExtra].join(" + ");
-    this.esquiva = ["2d12", ...esquivaExtra].join(" + ");
+    /*
+     * Base do sistema mais o que o efeito somar, e o equipamento entra por
+     * fora com a fórmula que estiver escrita nele. Bônus negativo tira dados
+     * mas para em zero: rolar dado nenhum já é o pior caso.
+     */
+    const reacao = (cfg, bonus, extras) => juntarDados([
+      `${Math.max(0, cfg.dados + (bonus ?? 0))}d${cfg.faces}`,
+      ...extras
+    ]);
+    this.bloqueio = reacao(PYRO.reacoes.bloqueio, this.bloqueioBonus, bloqueioExtra);
+    this.esquiva = reacao(PYRO.reacoes.esquiva, this.esquivaBonus, esquivaExtra);
   }
 }
 
