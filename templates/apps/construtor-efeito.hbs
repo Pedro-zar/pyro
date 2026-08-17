@@ -44,6 +44,11 @@
       {{#if m.ehCondicao}}
       <span class="pyro-nota">{{localize "PYRO.Efeitos.CondicaoDica"}}</span>
       <span></span>
+      {{else if m.ehDano}}
+      {{!-- Dano é rolagem, não alteração de campo: sem modo, e o valor é uma
+            fórmula. O "alvo" da linha já é o tipo do dano. --}}
+      <span class="pyro-nota">{{localize "PYRO.Efeitos.DanoModo"}}</span>
+      <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="2d6+2" />
       {{else}}
       <select name="mudanca.{{m.index}}.modo">
         {{selectOptions @root.modos selected=m.modo localize=true}}
@@ -55,6 +60,27 @@
     </div>
     {{/each}}
   </div>
+
+  {{!--
+    Restrição por item: com algum item marcado, o efeito sai da conta geral da
+    ficha e passa a valer só na rolagem daqueles itens. É como "Maestria com
+    Katana" soma dano na katana sem somar no arco.
+  --}}
+  {{#if itensAlvo.length}}
+  <div class="restricao-efeito">
+    <span class="rotulo">{{localize "PYRO.Efeitos.ApenasEm"}}</span>
+    <select name="alvosItem" multiple size="5">
+      {{#each itensAlvo as |grupo|}}
+      <optgroup label="{{grupo.label}}">
+        {{#each grupo.itens as |i|}}
+        <option value="{{i.id}}" {{#if i.marcado}}selected{{/if}}>{{i.nome}}</option>
+        {{/each}}
+      </optgroup>
+      {{/each}}
+    </select>
+    <p class="pyro-nota">{{localize "PYRO.Efeitos.ApenasEmDica"}}</p>
+  </div>
+  {{/if}}
 
   {{#if variaveis.length}}
   <div class="variaveis-efeito">

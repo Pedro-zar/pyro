@@ -2,6 +2,7 @@ import { PYRO } from "../config.mjs";
 import { ConjuradorApp } from "../apps/conjurador.mjs";
 import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
+import { restricaoDoEfeito } from "../efeitos.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -1012,6 +1013,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   #categoriasEfeitos() {
     const cats = { temporarios: [], passivos: [], inativos: [] };
     for (const ef of this.actor.allApplicableEffects()) {
+      // Efeito preso a item não soma na ficha: a etiqueta diz onde ele vale,
+      // senão pareceria um efeito passivo que simplesmente não funciona.
+      const presoA = restricaoDoEfeito(ef).map(a => a.nome).filter(Boolean);
       const view = {
         uuid: ef.uuid,
         id: ef.id,
@@ -1019,6 +1023,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         name: ef.name,
         disabled: ef.disabled,
         duracao: ef.duration?.label ?? "",
+        restrito: presoA.join(", "),
         origem: ef.parent === this.actor ? "" : ef.parent?.name ?? ""
       };
       if (ef.disabled) cats.inativos.push(view);

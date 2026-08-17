@@ -11,7 +11,21 @@
 const ALVO_ANTIGO = /^system\.atributos\.(\w+)\.valor$/;
 
 export class PyroActiveEffect extends ActiveEffect {
+  /**
+   * Efeito preso a itens não vale o tempo todo. Ele continua listado na ficha,
+   * mas fora da conta dos atributos: quem consome é a rolagem daqueles itens
+   * (ver ajustesDeAtributo e bonusDeDano em efeitos.mjs). Sem isso, um "+2 FOR
+   * com a katana" valeria também de mãos vazias.
+   */
+  get isSuppressed() {
+    if ((this.flags?.pyro?.alvosItem ?? []).length) return true;
+    return super.isSuppressed ?? false;
+  }
+
   apply(actor, change) {
+    // Rede de segurança: se alguma versão do Foundry deixar de olhar
+    // isSuppressed, a restrição continua valendo por aqui.
+    if ((this.flags?.pyro?.alvosItem ?? []).length) return {};
     /*
      * Só o modo Somar é redirecionado. Substituir, Mínimo e Máximo falam do
      * atributo inteiro ("este monstro tem FOR 20"), e passar isso para o bônus

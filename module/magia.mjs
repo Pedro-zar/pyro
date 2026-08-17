@@ -1,6 +1,6 @@
 import { PYRO } from "./config.mjs";
 import { formulaTeste } from "./dados.mjs";
-import { htmlEfeitosDeUso } from "./efeitos.mjs";
+import { htmlEfeitosDeUso, bonusDeDano } from "./efeitos.mjs";
 
 const esc = s => Handlebars.escapeExpression(s);
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
@@ -533,6 +533,26 @@ export async function conjurar(actor, escolhas, {
           partes.push(`<p class="pyro-forma"><strong>${loc(cfg.label)}:</strong> ${n}d${faces}${tipoDano ? ` (${tipoDano})` : ""} (${loc("PYRO.Chat.NaoRolado")})</p>
             <p class="pyro-efeito">${efeito}</p>`);
         }
+      }
+    }
+
+    /*
+     * Bônus de dano de efeitos ("Foco em Fogo: 2d6"). Numa magia salva o
+     * bônus pode estar preso a ela; numa frase montada na hora só entram os
+     * bônus sem restrição de item.
+     */
+    if (rolarDano) {
+      for (const bonus of bonusDeDano(actor, itemMagia)) {
+        const roll = await new Roll(bonus.formula).evaluate();
+        rolls.push(roll);
+        // Sem tipo escolhido, o bônus acompanha o primeiro dano da magia.
+        const tipo = bonus.tipo || danos[0]?.tipo || "";
+        danos.push({ tipo, total: roll.total });
+        const rotulo = tipo ? loc(PYRO.tiposDano[tipo]?.label ?? tipo) : "";
+        partes.push(`<div class="pyro-dano">
+          <p><strong>${esc(bonus.nome)}</strong>${rotulo ? ` — ${rotulo}` : ""}</p>
+          ${await roll.render()}
+        </div>`);
       }
     }
 

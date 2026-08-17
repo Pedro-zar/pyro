@@ -73,6 +73,9 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
     context.potenciais = Object.fromEntries(
       Object.entries(d.linguas).map(([k, v]) => [k, game.i18n.localize(v.povo ?? v.label)])
     );
+    context.tamanhos = Object.fromEntries(
+      Object.entries(PYRO.tamanhos).map(([k, v]) => [k, game.i18n.localize(v.label)])
+    );
     return context;
   }
 
@@ -105,6 +108,10 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
       v.label = dados[`raca.${chave}.label`] ?? v.label;
       v.nome = dados[`raca.${chave}.nome`] ?? v.nome;
       v.potencial = dados[`raca.${chave}.potencial`] ?? v.potencial;
+      // Faixa de tamanho: guardada crua, inclusive se o mestre inverter as
+      // pontas. Quem lê (PYRO.faixaTamanho) sabe desentortar.
+      v.tamanhoMin = dados[`raca.${chave}.tamanhoMin`] ?? v.tamanhoMin;
+      v.tamanhoMax = dados[`raca.${chave}.tamanhoMax`] ?? v.tamanhoMax;
       v.magia = !!dados[`raca.${chave}.magia`];
       v.feiticos = !!dados[`raca.${chave}.feiticos`];
       v.detalhe = !!dados[`raca.${chave}.detalhe`];
@@ -135,9 +142,12 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
     let n = Object.keys(d.racas).length + 1;
     while (d.racas[`raca${n}`]) n++;
     const rotulo = game.i18n.localize("PYRO.Config.RacaNova");
+    const ordem = Object.keys(PYRO.tamanhos);
     d.racas[`raca${n}`] = {
       label: rotulo, nome: rotulo, potencial: Object.keys(d.linguas)[0] ?? "humana",
-      magia: false, feiticos: false, detalhe: false, custom: true
+      magia: false, feiticos: false, detalhe: false, custom: true,
+      // Raça nova nasce sem trava: o mestre estreita a faixa se quiser.
+      tamanhoMin: ordem[0], tamanhoMax: ordem[ordem.length - 1]
     };
     this.render();
   }

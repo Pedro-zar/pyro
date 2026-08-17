@@ -18,6 +18,10 @@
           <span class="nome-item {{#if ef.disabled}}inativo{{/if}}">{{ef.name}}</span>
           <span class="detalhes">
             <span class="detalhe col-parte" title="{{localize 'PYRO.Efeitos.Origem'}}">{{ef.origem}}</span>
+            {{#if ef.restrito}}
+            <span class="detalhe destaque-lingua" title="{{localize 'PYRO.Efeitos.ApenasEmDica'}}">
+              {{localize "PYRO.Efeitos.ApenasEm"}} {{ef.restrito}}</span>
+            {{/if}}
           </span>
           <span class="cauda">
             <span class="detalhe col-curto">{{ef.duracao}}</span>

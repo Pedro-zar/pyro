@@ -83,6 +83,12 @@
           <input type="text" name="raca.{{r.chave}}.nome" value="{{r.nome}}" /></label>
         <label><span>{{localize "PYRO.Item.Potencial"}}</span>
           <select name="raca.{{r.chave}}.potencial">{{selectOptions @root.potenciais selected=r.potencial}}</select></label>
+        {{!-- Faixa de tamanho: é ela que monta o dropdown na ficha do caminho,
+              então um humano nem chega a ver a opção Gigante. --}}
+        <label><span>{{localize "PYRO.Config.TamanhoMin"}}</span>
+          <select name="raca.{{r.chave}}.tamanhoMin">{{selectOptions @root.tamanhos selected=r.tamanhoMin}}</select></label>
+        <label><span>{{localize "PYRO.Config.TamanhoMax"}}</span>
+          <select name="raca.{{r.chave}}.tamanhoMax">{{selectOptions @root.tamanhos selected=r.tamanhoMax}}</select></label>
       </div>
       <div class="campos-check">
         <label class="check-linha"><input type="checkbox" name="raca.{{r.chave}}.magia" {{checked r.magia}} />

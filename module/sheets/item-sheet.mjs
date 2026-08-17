@@ -127,6 +127,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     /* --- Caminho racial: só o primeiro define o tamanho ------------------- */
     const ehRacial = item.type === "caminho" && s.ehRacial;
+    // null em caminho de profissão/classe: lá o tamanho não vem de raça.
+    const faixaTamanho = ehRacial ? PYRO.faixaTamanho(s.raca) : null;
     const ehPrimeiroRacial = ehRacial
       && (!actor || actor.system.primeiroRacialId === item.id || actor.system.primeiroRacialId === null);
 
@@ -144,7 +146,17 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // em raças abertas — nas raças fechadas o preset já define.
       mostrarChecksMagia: item.type === "caminho"
         && (!s.ehRacial || (PYRO.racas[s.raca]?.custom ?? true)),
-      tamanhoOpts: Object.fromEntries(Object.entries(PYRO.tamanhos).map(([k, v]) => [k, v.label])),
+      /*
+       * Em caminho racial o dropdown mostra só a faixa da raça, então não dá
+       * para gravar um humano gigante sem querer. Um valor já salvo fora da
+       * faixa (o mestre estreitou depois) continua na lista, senão o select
+       * mostraria uma coisa e a ficha teria outra.
+       */
+      tamanhoOpts: Object.fromEntries(
+        Object.entries(PYRO.tamanhos)
+          .filter(([k]) => !faixaTamanho || k === s.tamanho || faixaTamanho.includes(k))
+          .map(([k, v]) => [k, v.label])
+      ),
       ehRacial,
       ehPrimeiroRacial,
       ehElemento,

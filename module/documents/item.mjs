@@ -1,7 +1,8 @@
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { formulaTeste, expandirAtributos } from "../dados.mjs";
-import { htmlEfeitosDeUso } from "../efeitos.mjs";
+import { htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo } from "../efeitos.mjs";
+import { formulaPool } from "../dados.mjs";
 import { proximaOrdem } from "../data/item-data.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -113,8 +114,14 @@ export class PyroItem extends Item {
         })
       });
     }
-    if (this.type === "caminho" && !data.name?.trim()) {
-      this.updateSource({ name: nomeDoCaminho(this.system) });
+    if (this.type === "caminho") {
+      if (!data.name?.trim()) this.updateSource({ name: nomeDoCaminho(this.system) });
+      // Caminho vindo de compêndio ou duplicado pode trazer tamanho fora da
+      // faixa da raça: encaixa já na criação.
+      if (this.system.ehRacial) {
+        const ajustado = PYRO.tamanhoNaFaixa(this.system.raca, this.system.tamanho);
+        if (ajustado !== this.system.tamanho) this.updateSource({ "system.tamanho": ajustado });
+      }
     }
     if (this.type === "runa" && data.system?.palavra) {
       this.updateSource({ name: nomeDaRuna(this.system) });
@@ -235,6 +242,23 @@ export class PyroItem extends Item {
       }
     }
 
+    /*
+     * O tamanho fica dentro da faixa da raça. Trocar um Demi-Humano gigante
+     * para Humano puxa o valor para Médio, em vez de deixar gravado um tamanho
+     * que o dropdown nem oferece mais. Vale também para ficha antiga, que se
+     * corrige na primeira edição.
+     */
+    const ehRacial = sys.ehRacial ?? this.system.ehRacial;
+    if (ehRacial) {
+      const raca = sys.raca ?? this.system.raca;
+      const tamanho = sys.tamanho ?? this.system.tamanho;
+      const ajustado = PYRO.tamanhoNaFaixa(raca, tamanho);
+      if (ajustado !== tamanho) {
+        sys.tamanho = ajustado;
+        changed.system = sys;
+      }
+    }
+
     // Recalcula sempre: assim o nome também se corrige quando o mestre muda
     // o padrão da raça nas configurações do mundo.
     if (changed.name === undefined) {
@@ -243,8 +267,46 @@ export class PyroItem extends Item {
     }
   }
 
+  /**
+   * Dados de rolagem deste item. Sobre o que o ator já oferece, entram os
+   * aumentos de atributo dos efeitos presos a este item — eles ficam de fora
+   * da ficha justamente para valerem só aqui.
+   */
   getRollData() {
-    return this.actor?.getRollData() ?? {};
+    const dados = this.actor?.getRollData() ?? {};
+    for (const [chave, delta] of Object.entries(ajustesDeAtributo(this.actor, this))) {
+      if (typeof dados[chave] !== "number") continue;
+      dados[chave] += delta;
+      // A pool acompanha, senão "@dados.for" continuaria na linha antiga.
+      if (dados.dados) dados.dados[chave] = formulaPool(dados[chave]);
+    }
+    return dados;
+  }
+
+  /**
+   * Rolagens de dano que os efeitos somam a este item, já renderizadas.
+   * Cada bônus entra como parcela própria, com tipo, para o desconto de
+   * defesa no chat continuar batendo tipo a tipo.
+   */
+  async #bonusDeDanoHTML(tipoPadrao) {
+    const esc = Handlebars.escapeExpression;
+    const partes = [];
+    const danos = [];
+    const rolls = [];
+
+    for (const bonus of bonusDeDano(this.actor, this)) {
+      const roll = await new Roll(expandirAtributos(bonus.formula), this.getRollData()).evaluate();
+      rolls.push(roll);
+      // Sem tipo escolhido, o bônus herda o tipo do ataque que ele acompanha.
+      const tipo = bonus.tipo || tipoPadrao || "";
+      danos.push({ tipo, total: roll.total });
+      const rotulo = tipo ? game.i18n.localize(PYRO.tiposDano[tipo]?.label ?? tipo) : "";
+      partes.push(
+        `<p class="pyro-linha-dano dano-${tipo}">${esc(bonus.nome)}${rotulo ? ` — ${rotulo}` : ""}</p>`,
+        await roll.render()
+      );
+    }
+    return { partes, danos, rolls };
   }
 
   /** Ponto de entrada único de "usar" um item — a ficha chama isso. */
@@ -348,6 +410,12 @@ export class PyroItem extends Item {
       const tipo = game.i18n.localize(PYRO.tiposDano[d.tipo]?.label ?? d.tipo ?? "");
       partes.push(`<p class="pyro-linha-dano dano-${d.tipo}">${tipo}</p>`, await roll.render());
     }
+
+    // Bônus de efeito ("Maestria com Katana: 2d6") entram como parcelas extras.
+    const bonus = await this.#bonusDeDanoHTML(s.danos?.[0]?.tipo);
+    partes.push(...bonus.partes);
+    danos.push(...bonus.danos);
+    rolls.push(...bonus.rolls);
 
     if (municao) {
       partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: Handlebars.escapeExpression(municao.name) })}</p>`);

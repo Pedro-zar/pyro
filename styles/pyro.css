@@ -1149,6 +1149,16 @@
 .pyro .mudanca-linha select, .pyro .mudanca-linha input { width: 100%; min-width: 0; }
 .pyro .construtor-rodape { display: flex; justify-content: flex-end; gap: 0.5rem; margin-top: 0.3rem; }
 
+/* Restrição por item: onde o efeito passa a valer. */
+.pyro .restricao-efeito {
+  display: flex; flex-direction: column; gap: var(--pyro-e-1);
+  padding: var(--pyro-e-2); margin-top: var(--pyro-e-2);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
+  background: var(--pyro-painel-alto);
+}
+.pyro .restricao-efeito select { width: 100%; }
+.pyro .restricao-efeito .pyro-nota { margin: 0; }
+
 /* Variáveis da conjuração: fichas clicáveis que escrevem @nome no campo. */
 .pyro .variaveis-efeito {
   display: flex; flex-direction: column; gap: var(--pyro-e-1);

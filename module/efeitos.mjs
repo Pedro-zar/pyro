@@ -8,7 +8,82 @@
  * número fixo escolhido quando o efeito foi criado.
  */
 
+import { PYRO } from "./config.mjs";
+
 const esc = s => Handlebars.escapeExpression(s ?? "");
+
+/* -------------------------------------------------------------------------- */
+/*  Efeitos restritos a itens                                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Itens a que um efeito está preso. Lista vazia significa "vale sempre".
+ * Cada entrada guarda id e nome: o id resolve na ficha em que o efeito nasceu,
+ * o nome salva a referência quando o efeito viaja para outro personagem ou o
+ * item é recriado.
+ */
+export function restricaoDoEfeito(efeito) {
+  return efeito?.flags?.pyro?.alvosItem ?? [];
+}
+
+/** Este efeito vale para este item? Sem restrição, vale para qualquer um. */
+export function efeitoValeParaItem(efeito, item) {
+  const alvos = restricaoDoEfeito(efeito);
+  if (!alvos.length) return true;
+  if (!item) return false;
+  const nome = PYRO.normalizarNome(item.name);
+  return alvos.some(a => a.id === item.id || PYRO.normalizarNome(a.nome) === nome);
+}
+
+/** Efeitos ativos do ator, incluindo os que estão presos a algum item. */
+function efeitosAtivos(actor) {
+  const lista = [];
+  for (const efeito of actor?.allApplicableEffects?.() ?? []) {
+    // `disabled` é escolha do jogador. Efeito preso a item aparece aqui de
+    // propósito: ele está suprimido na ficha, mas vale na rolagem certa.
+    if (!efeito.disabled) lista.push(efeito);
+  }
+  return lista;
+}
+
+/**
+ * Rolagens de dano que os efeitos somam a este item. A fórmula aceita dado,
+ * número plano ou os dois ("2d6", "2", "2d6+2", "2d6+1d4").
+ */
+export function bonusDeDano(actor, item) {
+  const saida = [];
+  for (const efeito of efeitosAtivos(actor)) {
+    if (!efeitoValeParaItem(efeito, item)) continue;
+    for (const dano of efeito.flags?.pyro?.danos ?? []) {
+      if (dano.formula?.trim()) saida.push({ ...dano, nome: efeito.name });
+    }
+  }
+  return saida;
+}
+
+/**
+ * Aumentos de atributo que valem só quando este item é usado.
+ *
+ * Efeito preso a item fica suprimido na ficha, senão um "+2 FOR com a katana"
+ * valeria também de mãos vazias. O que ele altera entra aqui, na hora da
+ * rolagem daquele item. Só atributos, e só no modo Somar: é o que faz sentido
+ * numa rolagem isolada.
+ */
+export function ajustesDeAtributo(actor, item) {
+  const ALVO = /^system\.atributos\.(\w+)\.(?:valor|bonus)$/;
+  const ajustes = {};
+  for (const efeito of efeitosAtivos(actor)) {
+    if (!restricaoDoEfeito(efeito).length) continue; // já aplicado na ficha
+    if (!efeitoValeParaItem(efeito, item)) continue;
+    for (const mudanca of efeito.changes ?? []) {
+      if (mudanca.mode !== CONST.ACTIVE_EFFECT_MODES.ADD) continue;
+      const chave = ALVO.exec(mudanca.key)?.[1];
+      const valor = Number(mudanca.value);
+      if (chave && Number.isFinite(valor)) ajustes[chave] = (ajustes[chave] ?? 0) + valor;
+    }
+  }
+  return ajustes;
+}
 
 /** Efeitos de uso ativos de um ou mais itens, sem repetir o mesmo efeito. */
 export function efeitosDeUso(...itens) {

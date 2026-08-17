@@ -91,7 +91,7 @@ PYRO.partesMunicao = ["costas", "cintura"];
  *   nº de dados = base + floor(porIntencao x (Intenção - 1))
  * Conferindo com a tabela do SRD: fogo 3N d6 (3/3), água e vento 4N d4 (4/4),
  * gelo (2N+2) d8 (4/2), terra (2N+1) d12 (3/2), raio 2+floor((N-1)/2) d10
- * (2/0.5), vida 4N d8 (4/4), mente N d6 (1/1), morte 2N d12 (2/2).
+ * (2/0.5), vida (2N+2) d8 (4/2), mente N d6 (1/1), morte 2N d12 (2/2).
  * faces 0 = elemento sem dano padrão (Espaço).
  * grupo = afinidade que libera este elemento (Água e Gelo compartilham).
  */
@@ -103,7 +103,7 @@ PYRO.elementosPadrao = {
   terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 2,   faces: 12, efeito: "PYRO.Elementos.Efeito.terra" },
   raio:   { label: "PYRO.Elementos.raio",   grupo: "raio",       tipoDano: "energia", base: 2, porIntencao: 0.5, faces: 10, efeito: "PYRO.Elementos.Efeito.raio",
             extras: [{ nome: "PYRO.Scaling.Corrente", base: 0.5, porIntencao: 0.5, faces: 0 }] },
-  vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 4, porIntencao: 4,   faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
+  vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 2, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
   mente:  { label: "PYRO.Elementos.mente",  grupo: "mente",      tipoDano: "mental",  base: 1, porIntencao: 1,   faces: 6,  efeito: "PYRO.Elementos.Efeito.mente" },
   morte:  { label: "PYRO.Elementos.morte",  grupo: "morte",      tipoDano: "indefinido", base: 2, porIntencao: 2, faces: 12, efeito: "PYRO.Elementos.Efeito.morte", subjulgar: true },
   espaco: { label: "PYRO.Elementos.espaco", grupo: "espaco",     tipoDano: "",        base: 0, porIntencao: 0,   faces: 0,  efeito: "PYRO.Elementos.Efeito.espaco" }
@@ -214,13 +214,49 @@ PYRO.recursosCustom = foundry.utils.deepClone(PYRO.recursosCustomPadrao);
  */
 PYRO.racasPadrao = {
   // Humano é uma entrada só: magia e feitiçaria ficam nas checkboxes.
-  humano:           { label: "PYRO.Racas.humano",           nome: "PYRO.Racas.Nome.humano",           potencial: "humana", magia: false, feiticos: false, detalhe: false, custom: true },
-  elfo:             { label: "PYRO.Racas.elfo",             nome: "PYRO.Racas.Nome.elfo",             potencial: "elfica", magia: true,  feiticos: false, detalhe: true,  custom: false, recursos: ["energiaNatural"] },
-  demiHumano:       { label: "PYRO.Racas.demiHumano",       nome: "PYRO.Racas.Nome.demiHumano",       potencial: "humana", magia: false, feiticos: false, detalhe: true,  custom: true },
-  outro:            { label: "PYRO.Racas.outro",            nome: "PYRO.Racas.Nome.outro",            potencial: "humana", magia: false, feiticos: false, detalhe: true,  custom: true }
+  humano:           { label: "PYRO.Racas.humano",           nome: "PYRO.Racas.Nome.humano",           potencial: "humana", magia: false, feiticos: false, detalhe: false, custom: true,  tamanhoMin: "pequeno",   tamanhoMax: "medio" },
+  elfo:             { label: "PYRO.Racas.elfo",             nome: "PYRO.Racas.Nome.elfo",             potencial: "elfica", magia: true,  feiticos: false, detalhe: true,  custom: false, tamanhoMin: "medio",     tamanhoMax: "medio", recursos: ["energiaNatural"] },
+  demiHumano:       { label: "PYRO.Racas.demiHumano",       nome: "PYRO.Racas.Nome.demiHumano",       potencial: "humana", magia: false, feiticos: false, detalhe: true,  custom: true,  tamanhoMin: "pequeno",   tamanhoMax: "grande" },
+  outro:            { label: "PYRO.Racas.outro",            nome: "PYRO.Racas.Nome.outro",            potencial: "humana", magia: false, feiticos: false, detalhe: true,  custom: true,  tamanhoMin: "minusculo", tamanhoMax: "colossal" }
 };
 
 PYRO.racas = foundry.utils.deepClone(PYRO.racasPadrao);
+
+/**
+ * Tamanhos que uma raça aceita, do mínimo ao máximo configurados. É o que
+ * alimenta o dropdown na ficha do caminho racial: um humano não aparece com
+ * a opção Gigante, então não dá para escolher por engano.
+ *
+ * Raça fora da tabela (criada pelo mestre sem faixa, ou apagada depois) volta
+ * à lista inteira, que é o comportamento de antes desta trava existir.
+ */
+PYRO.faixaTamanho = raca => {
+  const ordem = Object.keys(PYRO.tamanhos);
+  const preset = PYRO.racas?.[raca];
+  if (!preset) return ordem;
+  let min = ordem.indexOf(preset.tamanhoMin);
+  let max = ordem.indexOf(preset.tamanhoMax);
+  if (min < 0) min = 0;
+  if (max < 0) max = ordem.length - 1;
+  // Faixa configurada ao contrário ainda produz algo usável.
+  if (min > max) [min, max] = [max, min];
+  return ordem.slice(min, max + 1);
+};
+
+/**
+ * Encaixa um tamanho na faixa da raça, puxando para a borda mais próxima.
+ * Trocar um Demi-Humano gigante para Humano vira Médio, e não um valor
+ * inválido gravado na ficha.
+ */
+PYRO.tamanhoNaFaixa = (raca, tamanho) => {
+  const faixa = PYRO.faixaTamanho(raca);
+  if (faixa.includes(tamanho)) return tamanho;
+  const ordem = Object.keys(PYRO.tamanhos);
+  const atual = ordem.indexOf(tamanho);
+  return atual >= 0 && atual > ordem.indexOf(faixa[faixa.length - 1])
+    ? faixa[faixa.length - 1]
+    : faixa[0];
+};
 
 /* -------------------------------------------------------------------------- */
 /*  Progressão de XP                                                          */
@@ -375,6 +411,19 @@ PYRO.alvosEfeito = {
     label: "PYRO.Efeitos.Cat.condicao",
     alvos: Object.fromEntries(Object.entries(PYRO.condicoes)
       .map(([k, cfg]) => [k, cfg.label]))
+  },
+  /*
+   * Dano não é uma alteração de campo do ator: é uma rolagem a mais que entra
+   * no ataque ou na magia. Por isso a linha guarda uma fórmula ("2d6+2") no
+   * lugar do valor, e o "alvo" é o tipo de dano. Fica na mesma lista para o
+   * jogador não ter que aprender uma segunda tela.
+   */
+  dano: {
+    label: "PYRO.Efeitos.Cat.dano",
+    alvos: {
+      "": "PYRO.Efeitos.DanoHerdado",
+      ...Object.fromEntries(Object.entries(PYRO.tiposDano).map(([k, cfg]) => [k, cfg.label]))
+    }
   },
   movimento: {
     label: "PYRO.Efeitos.Cat.movimento",

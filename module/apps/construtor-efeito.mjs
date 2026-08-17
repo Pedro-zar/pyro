@@ -18,6 +18,9 @@ const mudancaPadrao = () => ({
 /** Itens cujo efeito quase sempre é para o alvo, não para quem carrega. */
 const TIPOS_DE_USO = ["magia", "runa", "feitico", "consumivel"];
 
+/** Tipos que podem receber um efeito preso ("só vale com a katana"). */
+const TIPOS_RESTRINGIVEIS = ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia", "runa"];
+
 /**
  * Criação guiada de Active Effects: em vez de digitar caminhos como
  * "system.atributos.for.bonus", o jogador escolhe categoria e alvo em listas.
@@ -36,6 +39,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.nome = game.i18n.localize("PYRO.Efeitos.Novo");
     this.rodadas = categoria === "temporarios" ? "1" : "0";
     this.deUso = documento instanceof Item && TIPOS_DE_USO.includes(documento.type);
+    /** Ids dos itens a que o efeito fica preso. Vazio = vale sempre. */
+    this.alvosItem = [];
     this.mudancas = [mudancaPadrao()];
   }
 
@@ -72,6 +77,34 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     return ["danoTotal", "cura"];
   }
 
+  /** O ator dono, seja o efeito criado na ficha dele ou num item dele. */
+  get #ator() {
+    return this.documento instanceof Actor ? this.documento : this.documento?.actor ?? null;
+  }
+
+  /**
+   * Itens que podem receber a restrição, agrupados por tipo. Sem ator não há
+   * lista: um item solto no mundo não sabe com o que ele conviveria.
+   */
+  #itensAlvo() {
+    const ator = this.#ator;
+    if (!ator) return [];
+    const grupos = new Map();
+    for (const item of ator.items) {
+      if (!TIPOS_RESTRINGIVEIS.includes(item.type)) continue;
+      if (!grupos.has(item.type)) grupos.set(item.type, []);
+      grupos.get(item.type).push({
+        id: item.id,
+        nome: item.name,
+        marcado: this.alvosItem.includes(item.id)
+      });
+    }
+    return [...grupos].map(([tipo, itens]) => ({
+      label: game.i18n.localize(`TYPES.Item.${tipo}`),
+      itens: itens.sort((a, b) => a.nome.localeCompare(b.nome))
+    }));
+  }
+
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
 
@@ -89,11 +122,14 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     context.nome = this.nome;
     context.rodadas = this.rodadas;
     context.variaveis = this.#variaveis();
+    context.itensAlvo = this.#itensAlvo();
     context.mudancas = this.mudancas.map((m, i) => ({
       ...m,
       index: i,
       // Condição não tem modo nem valor: só marca o alvo com o status.
       ehCondicao: m.categoria === "condicao",
+      // Dano troca o modo por uma fórmula, e o "alvo" vira o tipo do dano.
+      ehDano: m.categoria === "dano",
       alvos: PYRO.alvosEfeito[m.categoria]?.alvos ?? {}
     }));
     return context;
@@ -137,6 +173,10 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.nome = dados.nome ?? this.nome;
     this.rodadas = String(dados.rodadas ?? this.rodadas ?? "0");
     this.deUso = dados.deUso ?? this.deUso;
+    // Um select múltiplo devolve string quando só uma opção está marcada.
+    if (dados.alvosItem !== undefined) {
+      this.alvosItem = [dados.alvosItem].flat().filter(Boolean);
+    }
     this.mudancas = this.mudancas.map((m, i) => ({
       categoria: dados[`mudanca.${i}.categoria`] ?? m.categoria,
       alvo: dados[`mudanca.${i}.alvo`] ?? m.alvo,
@@ -200,9 +240,24 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     const rodadasFixas = Number(textoRodadas);
     const rodadasEhFormula = textoRodadas !== "" && !Number.isFinite(rodadasFixas);
 
-    // Condições viram statuses (marcadores no token); o resto vira changes.
+    /*
+     * Três destinos diferentes: condição vira status (marcador no token),
+     * dano vira uma fórmula guardada nas flags (é rolagem, não alteração de
+     * campo) e o resto vira change de Active Effect como sempre.
+     */
     const condicoes = this.mudancas.filter(m => m.categoria === "condicao" && m.alvo);
-    const mudancas = this.mudancas.filter(m => m.categoria !== "condicao" && m.alvo);
+    const danos = this.mudancas
+      .filter(m => m.categoria === "dano" && String(m.valor ?? "").trim())
+      .map(m => ({ formula: String(m.valor).trim(), tipo: m.alvo || "" }));
+    const mudancas = this.mudancas
+      .filter(m => !["condicao", "dano"].includes(m.categoria) && m.alvo);
+
+    // A restrição guarda id e nome: o id resolve nesta ficha, o nome sobrevive
+    // ao efeito ser copiado para outro personagem.
+    const ator = this.#ator;
+    const alvosItem = this.alvosItem
+      .map(id => ({ id, nome: ator?.items.get(id)?.name ?? "" }))
+      .filter(a => a.nome);
 
     // Sem nome digitado, a primeira condição batiza o efeito e dá o ícone.
     let nome = (dados.nome ?? "").trim();
@@ -218,7 +273,14 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       origin: this.documento.uuid,
       disabled: this.categoria === "inativos",
       transfer: !deUso,
-      flags: { pyro: { deUso, ...(rodadasEhFormula ? { rodadasFormula: textoRodadas } : {}) } },
+      flags: {
+        pyro: {
+          deUso,
+          ...(rodadasEhFormula ? { rodadasFormula: textoRodadas } : {}),
+          ...(danos.length ? { danos } : {}),
+          ...(alvosItem.length ? { alvosItem } : {})
+        }
+      },
       statuses: [...new Set(condicoes.map(m => m.alvo))],
       changes: mudancas
         .map(m => ({ key: m.alvo, mode: Number(m.modo), value: String(m.valor ?? ""), priority: 20 }))
