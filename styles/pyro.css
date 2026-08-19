@@ -2,8 +2,19 @@
 /*  PYRO — fichas (ApplicationV2) e cards de chat                             */
 /* ========================================================================== */
 
-/* O acento antigo vira apelido do token, para regras ainda não migradas. */
-.pyro { --pyro-accent: var(--pyro-brasa); }
+/* --- Acento da ficha -------------------------------------------------------
+   Todo ornamento laranja da ficha sai daqui, e não do token da paleta: o selo
+   de poder repinta estas três variáveis na raiz da ficha (ver actor-sheet.mjs)
+   e com isso a aba ativa, o botão de conjurar, as defesas e o resto seguem a
+   vocação do personagem. Sem selo escolhido, valem os valores de brasa.
+
+   Os cards do chat ficam de fora de propósito: eles são da mesa, não de um
+   personagem, e ficariam com a cor de quem mandou a mensagem. */
+.pyro {
+  --pyro-acento-ficha: var(--pyro-brasa);
+  --pyro-acento-alto:  var(--pyro-brasa-alta);
+  --pyro-acento-suave: var(--pyro-brasa-suave);
+}
 
 /*
  * Consultas de container em vez de media queries: o que importa é a largura
@@ -55,7 +66,7 @@
 
 /* Foco visível para navegação por teclado. */
 .pyro :is(button, input, select, textarea):focus-visible {
-  outline: 2px solid var(--pyro-brasa);
+  outline: 2px solid var(--pyro-acento-ficha);
   outline-offset: 1px;
 }
 
@@ -102,7 +113,7 @@
 }
 .pyro input.nome:hover { border-bottom-color: var(--pyro-borda); }
 .pyro input.nome:focus {
-  border-bottom-color: var(--pyro-brasa); box-shadow: none; outline: none;
+  border-bottom-color: var(--pyro-acento-ficha); box-shadow: none; outline: none;
 }
 
 /* DET é o eixo do sistema: ganha selo próprio. */
@@ -110,13 +121,13 @@
   flex: none; display: flex; flex-direction: column; align-items: center;
   height: 2.1rem; justify-content: center;
   padding: 0 var(--pyro-e-2);
-  border: 1px solid var(--pyro-brasa); border-radius: var(--pyro-r-md);
-  background: var(--pyro-brasa-suave);
+  border: 1px solid var(--pyro-acento-ficha); border-radius: var(--pyro-r-md);
+  background: var(--pyro-acento-suave);
 }
 .pyro .selo-det .selo-rotulo {
   font-family: var(--pyro-fonte-display);
   font-size: 0.6rem; font-weight: 700; letter-spacing: 0.12em; line-height: 1;
-  color: var(--pyro-brasa-alta);
+  color: var(--pyro-acento-alto);
 }
 .pyro .selo-det input {
   width: 2.2rem; height: 1.1rem; padding: 0; text-align: center;
@@ -131,7 +142,7 @@
   border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
   background: var(--pyro-realce); cursor: pointer;
 }
-.pyro .botao-menu:hover { color: var(--pyro-brasa-alta); border-color: var(--pyro-brasa); }
+.pyro .botao-menu:hover { color: var(--pyro-acento-alto); border-color: var(--pyro-acento-ficha); }
 
 /* Linha de identidade: derivada dos caminhos, não digitada. */
 .pyro .topo-subtitulo {
@@ -143,7 +154,7 @@
   content: "·"; margin-right: var(--pyro-e-3); color: var(--pyro-texto-3);
 }
 .pyro .topo-subtitulo .id-raca { color: var(--pyro-texto); font-weight: 600; }
-.pyro .topo-subtitulo .id-afinidade { color: var(--pyro-brasa-alta); }
+.pyro .topo-subtitulo .id-afinidade { color: var(--pyro-acento-alto); }
 .pyro .mini-select {
   height: 1.4rem; padding: 0 var(--pyro-e-1); font-size: var(--pyro-t-xs);
   background: var(--pyro-realce); border: 1px solid var(--pyro-borda);
@@ -255,7 +266,7 @@
   border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
   background: var(--pyro-painel-alto); overflow: hidden;
 }
-.pyro .atributo.acima-limite { border-color: var(--pyro-brasa); }
+.pyro .atributo.acima-limite { border-color: var(--pyro-acento-ficha); }
 
 .pyro .atributo .rolagem {
   display: flex; flex-direction: column; gap: 3px;
@@ -264,13 +275,13 @@
   height: auto; min-height: 0;
 }
 .pyro .atributo .rolagem:hover {
-  background: color-mix(in srgb, var(--pyro-brasa) 15%, transparent);
+  background: color-mix(in srgb, var(--pyro-acento-ficha) 15%, transparent);
 }
 .pyro .atributo .rotulo {
   font-size: var(--pyro-t-xs); letter-spacing: 0.08em; font-weight: 700;
   line-height: 1.4; color: var(--pyro-texto-2); overflow: visible;
 }
-.pyro .atributo.acima-limite .rotulo { color: var(--pyro-brasa-alta); }
+.pyro .atributo.acima-limite .rotulo { color: var(--pyro-acento-alto); }
 .pyro .atributo .pool {
   font-size: var(--pyro-t-md); font-weight: 700; line-height: 1.25;
 }
@@ -285,7 +296,7 @@
 }
 .pyro .atributo-base .efetivo {
   flex: none; padding-right: var(--pyro-e-1);
-  font-size: var(--pyro-t-xs); font-weight: 700; color: var(--pyro-brasa-alta);
+  font-size: var(--pyro-t-xs); font-weight: 700; color: var(--pyro-acento-alto);
 }
 
 /* ---------- Painéis (defesas / lateral) ------------------------------------ */
@@ -328,10 +339,10 @@
 }
 .pyro nav.tabs > *:hover { color: var(--pyro-texto); background: var(--pyro-painel); }
 .pyro nav.tabs > .active {
-  color: var(--pyro-brasa-alta);
+  color: var(--pyro-acento-alto);
   background: var(--pyro-painel-alto);
   border-color: var(--pyro-borda);
-  box-shadow: inset 0 2px 0 var(--pyro-brasa);
+  box-shadow: inset 0 2px 0 var(--pyro-acento-ficha);
 }
 .pyro nav.tabs i { font-size: 0.9em; }
 
@@ -360,7 +371,7 @@
   cursor: pointer;
 }
 .pyro .botao-secao:hover {
-  color: var(--pyro-brasa-alta); border-color: var(--pyro-brasa);
+  color: var(--pyro-acento-alto); border-color: var(--pyro-acento-ficha);
 }
 
 /* Legenda de coluna: mesma grade da linha, para os títulos baterem. */
@@ -412,7 +423,7 @@
   background: var(--pyro-painel-alto); border-color: var(--pyro-borda);
 }
 .pyro .lista-itens li.equipado {
-  background: color-mix(in srgb, var(--pyro-brasa) 10%, var(--pyro-painel));
+  background: color-mix(in srgb, var(--pyro-acento-ficha) 10%, var(--pyro-painel));
 }
 /*
  * Marcador do elemento (runas e magias). O seletor repete o caminho completo
@@ -505,7 +516,7 @@
 .pyro .linha-item .resumo-item { display: none; }
 .pyro .linha-item.aberto .resumo-item {
   display: block; margin: 0.3rem 0 0.4rem 2rem;
-  padding: 0.4rem 0.6rem; border-left: 2px solid var(--pyro-brasa);
+  padding: 0.4rem 0.6rem; border-left: 2px solid var(--pyro-acento-ficha);
   background: color-mix(in srgb, currentColor 4%, transparent);
   border-radius: 0 4px 4px 0;
 }
@@ -519,10 +530,10 @@
 
 /* Arraste para reordenar */
 .pyro .linha-item.arrastando { opacity: 0.4; }
-.pyro .linha-item.alvo-antes { box-shadow: inset 0 2px 0 var(--pyro-brasa); }
-.pyro .linha-item.alvo-depois { box-shadow: inset 0 -2px 0 var(--pyro-brasa); }
+.pyro .linha-item.alvo-antes { box-shadow: inset 0 2px 0 var(--pyro-acento-ficha); }
+.pyro .linha-item.alvo-depois { box-shadow: inset 0 -2px 0 var(--pyro-acento-ficha); }
 .pyro .linha-item .nome-item { cursor: pointer; }
-.pyro button.nome-item:hover { color: var(--pyro-brasa-alta); }
+.pyro button.nome-item:hover { color: var(--pyro-acento-alto); }
 /* Efeito desligado continua legível, só recua visualmente. */
 .pyro .nome-item.inativo { color: var(--pyro-texto-3); text-decoration: line-through; }
 
@@ -533,7 +544,7 @@
 }
 .pyro button.icone:hover { opacity: 1; }
 .pyro button.icone.perigo:hover { color: var(--pyro-perigo); }
-.pyro button.icone.equipar.ativo { opacity: 1; color: var(--pyro-brasa); }
+.pyro button.icone.equipar.ativo { opacity: 1; color: var(--pyro-acento-ficha); }
 
 /* Estrela de favorito: some até o hover da linha; dourada quando ativa. */
 .pyro button.icone.favorito:not(.ativo) { opacity: 0; }
@@ -554,13 +565,13 @@
   font-size: var(--pyro-t-sm);
 }
 .pyro .magia-numeros .rotulo { margin-right: var(--pyro-e-1); }
-.pyro .magia-numeros .afinidade { color: var(--pyro-brasa-alta); }
+.pyro .magia-numeros .afinidade { color: var(--pyro-acento-alto); }
 .pyro .magia-numeros .afinidade + .afinidade::before {
   content: "· "; color: var(--pyro-texto-3); font-weight: 400;
 }
 
 .pyro button.destaque {
-  background: var(--pyro-brasa); color: #fff; border: none;
+  background: var(--pyro-acento-ficha); color: #fff; border: none;
   padding: 4px 12px; font-weight: 600;
 }
 .pyro button.destaque:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -659,7 +670,7 @@
 .pyro .barra-custo {
   position: absolute; inset: 0 auto 0 0;
   background: repeating-linear-gradient(45deg,
-    var(--pyro-brasa) 0 6px, var(--pyro-brasa-alta) 6px 12px);
+    var(--pyro-acento-ficha) 0 6px, var(--pyro-acento-alto) 6px 12px);
   opacity: 0.9; transition: width 0.2s ease;
 }
 .pyro .barra-custo.perigo {
@@ -679,14 +690,14 @@
   border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-pill);
   cursor: pointer;
 }
-.pyro .chip:hover { border-color: var(--pyro-brasa); background: var(--pyro-painel-alto); }
+.pyro .chip:hover { border-color: var(--pyro-acento-ficha); background: var(--pyro-painel-alto); }
 .pyro .chip.com-cor:hover {
   border-color: var(--cor-item);
   background: color-mix(in srgb, var(--cor-item) 12%, var(--pyro-painel-alto));
 }
 .pyro .chip.com-cor { border-left: 3px solid var(--cor-item); }
 .pyro .chip:not(.com-cor) { border-left: 3px solid var(--pyro-borda-forte); }
-.pyro .chip-lingua { font-size: var(--pyro-t-xs); color: var(--pyro-brasa-alta); }
+.pyro .chip-lingua { font-size: var(--pyro-t-xs); color: var(--pyro-acento-alto); }
 
 .pyro .conjurador-rodape {
   display: flex; align-items: center; gap: var(--pyro-e-3); flex-wrap: wrap;
@@ -792,7 +803,7 @@
   background: transparent;
   border: none; border-bottom: 1px solid var(--pyro-borda);
 }
-.pyro .titulo-livre:focus { border-bottom-color: var(--pyro-brasa); box-shadow: none; }
+.pyro .titulo-livre:focus { border-bottom-color: var(--pyro-acento-ficha); box-shadow: none; }
 
 /* ---------- Notas e chat ----------------------------------------------------- */
 
@@ -836,7 +847,7 @@
 .pyro .retrato-item i {
   position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
-  font-size: 0.95rem; color: var(--pyro-brasa-alta);
+  font-size: 0.95rem; color: var(--pyro-acento-alto);
   background: rgba(0, 0, 0, 0.72);
   opacity: 0; transition: opacity 0.12s ease;
 }
@@ -968,13 +979,13 @@
   align-items: center; gap: 4px; font-size: 0.72rem;
 }
 .pyro .def input { text-align: center; }
-.pyro .def .total { font-weight: 700; text-align: center; color: var(--pyro-brasa); }
+.pyro .def .total { font-weight: 700; text-align: center; color: var(--pyro-acento-ficha); }
 .pyro .def.categoria {
   border-bottom: 1px solid var(--pyro-borda); padding-bottom: 0.25rem;
   font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
 }
 
-.pyro .destaque-lingua { color: var(--pyro-brasa); font-weight: 600; opacity: 1; }
+.pyro .destaque-lingua { color: var(--pyro-acento-ficha); font-weight: 600; opacity: 1; }
 
 .pyro.guia-acoes .window-content { gap: 0.5rem; }
 .pyro .guia-lista { display: flex; flex-direction: column; gap: 0.5rem; }
@@ -1095,7 +1106,7 @@
   margin: 0 0 var(--pyro-e-3) 0; display: flex; gap: var(--pyro-e-2); align-items: baseline;
 }
 .pyro .progressao-exemplo code {
-  font-size: var(--pyro-t-xs); color: var(--pyro-brasa); letter-spacing: 0.04em;
+  font-size: var(--pyro-t-xs); color: var(--pyro-acento-ficha); letter-spacing: 0.04em;
 }
 
 .pyro .config-elemento {
@@ -1193,12 +1204,12 @@
   width: auto; line-height: 1.2;
   padding: 0.1rem var(--pyro-e-2);
   border: 1px solid var(--pyro-borda-forte); border-radius: var(--pyro-r-pill);
-  background: var(--pyro-realce); color: var(--pyro-brasa);
+  background: var(--pyro-realce); color: var(--pyro-acento-ficha);
   font-family: var(--pyro-fonte-texto); font-size: var(--pyro-t-xs);
   font-variant-numeric: tabular-nums; cursor: pointer;
 }
 .pyro .ficha-variavel:hover {
-  background: var(--pyro-brasa-suave); border-color: var(--pyro-brasa);
+  background: var(--pyro-acento-suave); border-color: var(--pyro-acento-ficha);
 }
 .pyro .variaveis-efeito .pyro-nota { margin: 0; }
 
@@ -1225,7 +1236,7 @@
   gap: 0.5rem; font-size: 0.72rem;
 }
 .pyro .def .total {
-  font-weight: 700; color: var(--pyro-brasa); font-size: 0.9rem;
+  font-weight: 700; color: var(--pyro-acento-ficha); font-size: 0.9rem;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1312,11 +1323,11 @@
   padding: var(--pyro-e-2) var(--pyro-e-4);
   font-family: var(--pyro-fonte-display); font-size: var(--pyro-t-sm);
   font-weight: 700; letter-spacing: 0.04em;
-  color: #fff; background: var(--pyro-brasa);
+  color: #fff; background: var(--pyro-acento-ficha);
   border: none; border-radius: var(--pyro-r-md); cursor: pointer;
   box-shadow: var(--pyro-sombra-1);
 }
-.pyro .botao-principal:hover { background: var(--pyro-brasa-alta); }
+.pyro .botao-principal:hover { background: var(--pyro-acento-alto); }
 .pyro .botao-principal:disabled { opacity: 0.45; cursor: not-allowed; }
 
 
@@ -1331,12 +1342,6 @@
 .pyro .window-content {
   background: radial-gradient(120% 70% at 50% 0%, #201814 0%, var(--pyro-fundo) 60%);
 }
-
-/* --- Acento do personagem -------------------------------------------------
-   Definido na raiz da ficha pelo primeiro selo de poder: a cor da afinidade
-   do mago, o carmesim do feiticeiro, o verde da energia natural ou o dourado
-   das técnicas. Os ornamentos da ficha inteira bebem daqui. */
-.pyro { --pyro-acento-ficha: var(--pyro-brasa); }
 
 /* --- Marca d'água do cabeçalho: a marca do poder principal, na cor dele --- */
 .pyro .ficha-topo { position: relative; overflow: hidden; }
@@ -1449,7 +1454,7 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 
 /* --- Selo de DET com um brilho de brasa contido --------------------------- */
 .pyro .selo-det {
-  box-shadow: 0 0 10px color-mix(in srgb, var(--pyro-brasa) 30%, transparent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--pyro-acento-ficha) 30%, transparent);
 }
 
 /* Aumento de atributo por tier: atributo, pontos e o botão de remover. */

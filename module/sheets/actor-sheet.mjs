@@ -955,11 +955,26 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /**
    * O selo escolhido tinge a ficha: acento dos ornamentos e marca d'água do
    * cabeçalho. Sem selos, a ficha fica no acento padrão, sem marca.
+   *
+   * São três variáveis porque a ficha usa três tons do mesmo acento — o cheio
+   * nas barras e botões, o claro nos textos de destaque, o translúcido nos
+   * fundos. Os dois derivados saem por color-mix da cor escolhida, então o
+   * selo só precisa saber a própria cor. Sem selo elas são apagadas e o CSS
+   * volta sozinho para os tons de brasa.
    */
   _onRender(context, options) {
     super._onRender?.(context, options);
     const principal = context.seloPrincipal ?? null;
-    this.element.style.setProperty("--pyro-acento-ficha", principal?.cor ?? "var(--pyro-brasa)");
+    const estilo = this.element.style;
+    const cor = principal?.cor ?? null;
+    if (cor) {
+      estilo.setProperty("--pyro-acento-ficha", cor);
+      estilo.setProperty("--pyro-acento-alto", `color-mix(in srgb, ${cor} 72%, #fff)`);
+      estilo.setProperty("--pyro-acento-suave", `color-mix(in srgb, ${cor} 16%, transparent)`);
+    }
+    else for (const v of ["--pyro-acento-ficha", "--pyro-acento-alto", "--pyro-acento-suave"]) {
+      estilo.removeProperty(v);
+    }
     for (const chave of ["mago", "feiticeiro", "natural", "fisico"]) {
       this.element.classList.toggle(`marca-${chave}`, principal?.chave === chave);
     }
