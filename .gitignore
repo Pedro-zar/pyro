@@ -1,0 +1,19 @@
+# Dependências do build (o compilador de packs vem do @foundryvtt/foundryvtt-cli).
+node_modules/
+
+# Pasta de conferência do tools/compilar-packs.mjs, apagada ao fim de cada run.
+.tmp-conferencia/
+
+# Packs compilados.
+#
+# O que o Foundry lê é um banco LevelDB, e o LevelDB numera os próprios
+# arquivos: a cada `npm run packs` os .ldb e o MANIFEST mudam de nome, o LOG e
+# o LOCK são reescritos, e o git vê uma dúzia de remoções e adições sem uma
+# linha de conteúdo novo. A fonte de verdade é packs/_source/, que é texto,
+# rende diff legível e reconstrói o banco inteiro.
+#
+# O preço: um clone novo não tem compêndio até rodar `npm install && npm run
+# build`. Se um dia você publicar o sistema por manifesto, é preciso compilar
+# antes de empacotar o zip.
+/packs/*
+!/packs/_source/
