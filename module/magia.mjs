@@ -221,7 +221,7 @@ export function tabelaSubjulgar(det, total) {
     if (!faixa.faixa && alvo < 1) continue;
     if (faixa.faixa === "abaixo" && alvo < 1) continue;
 
-    const mult = PYRO.multiplicadorSubjulgar(faixa.dif);
+    const mult = faixa.mult ?? PYRO.multiplicadorSubjulgar(faixa.dif);
     const valor = Math.floor(total * mult);
     const rotuloAlvo = faixa.faixa === "acima" ? `≥ ${Math.max(1, alvo)}`
       : faixa.faixa === "abaixo" ? `≤ ${alvo}`

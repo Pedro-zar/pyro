@@ -389,26 +389,37 @@ PYRO.tiposCusto = {
   reacao: "PYRO.Item.Reacao"
 };
 
-/** Multiplicador de Subjulgar por diferença de DET (usuário - alvo). */
-PYRO.multiplicadorSubjulgar = dif => {
-  if (dif <= -2) return 0;
-  if (dif === -1) return 0.25;
-  if (dif === 0) return 0.5;
-  if (dif === 1) return 1;
-  if (dif === 2) return 2.5;
-  if (dif === 3) return 5;
-  return 10;
-};
-
 /**
- * Linhas da tabela de Subjulgar, do alvo mais forte pro mais fraco.
- * dif = DET do conjurador - DET do alvo. As pontas são faixas ("≥" e "≤").
+ * Tabela de Subjulgar: o multiplicador sai da diferença de DET entre quem
+ * conjura e quem recebe (usuário − alvo).
+ *
+ * A ordem é a das linhas no chat, do alvo mais forte para o mais fraco. As
+ * duas pontas são abertas e por isso marcadas com `faixa`: contra alguém dois
+ * pontos de DET acima ou mais a magia não faz nada, e a partir de cinco pontos
+ * abaixo o multiplicador para de crescer.
+ *
+ * Multiplicador e linha moram juntos de propósito — enquanto eram duas listas,
+ * mexer numa e esquecer a outra era um erro que ninguém veria na mesa.
  */
 PYRO.faixasSubjulgar = [
-  { dif: -2, faixa: "acima" },
-  { dif: -1 }, { dif: 0 }, { dif: 1 }, { dif: 2 }, { dif: 3 },
-  { dif: 4, faixa: "abaixo" }
+  { dif: -2, mult: 0,    faixa: "acima" },
+  { dif: -1, mult: 0.25 },
+  { dif:  0, mult: 0.5 },
+  { dif:  1, mult: 1 },
+  { dif:  2, mult: 2 },
+  { dif:  3, mult: 4 },
+  { dif:  4, mult: 5 },
+  { dif:  5, mult: 10,   faixa: "abaixo" }
 ];
+
+/** Multiplicador de Subjulgar por diferença de DET (usuário − alvo). */
+PYRO.multiplicadorSubjulgar = dif => {
+  // Fora das pontas vale a ponta: a tabela não continua além delas.
+  const primeira = PYRO.faixasSubjulgar[0];
+  const ultima = PYRO.faixasSubjulgar[PYRO.faixasSubjulgar.length - 1];
+  const d = Math.min(ultima.dif, Math.max(primeira.dif, Math.round(dif ?? 0)));
+  return PYRO.faixasSubjulgar.find(f => f.dif === d)?.mult ?? 0;
+};
 
 /**
  * Condições do sistema (SRD §11; Desmaiado vem de Subjulgar). Registradas em
