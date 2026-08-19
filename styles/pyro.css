@@ -74,7 +74,8 @@
 
 .pyro .ficha-topo {
   display: grid;
-  grid-template-columns: 104px minmax(0, 1fr);
+  /* A coluna do retrato acompanha o retrato: ver a regra dele logo abaixo. */
+  grid-template-columns: auto minmax(0, 1fr);
   gap: var(--pyro-e-4);
   padding: var(--pyro-e-3);
   background: linear-gradient(180deg, var(--pyro-painel-alto), var(--pyro-painel));
@@ -86,6 +87,20 @@
   width: 104px; height: 104px; object-fit: cover;
   border: 1px solid var(--pyro-borda-forte); border-radius: var(--pyro-r-md);
   cursor: pointer; background: var(--pyro-fundo);
+}
+
+/*
+ * O retrato do personagem mostra a arte inteira, não um recorte dela: quem
+ * escolheu a imagem escolheu o enquadramento. Quem manda é a altura, que é a
+ * do cabeçalho; a largura sai da proporção da arte, então um retrato em pé
+ * fica estreito em vez de perder a cabeça e os pés. O teto de largura existe
+ * para uma arte deitada não empurrar o nome para fora — nesse caso a imagem
+ * ainda aparece inteira, com faixa em cima e embaixo.
+ */
+.pyro .ficha-topo .retrato {
+  width: auto; max-width: 104px;
+  object-fit: contain;
+  justify-self: start;
 }
 
 .pyro .topo-corpo {
@@ -1280,8 +1295,8 @@
 
 @container pyro-ficha (max-width: 580px) {
   .pyro .descricao-layout { grid-template-columns: 1fr; }
-  .pyro .ficha-topo { grid-template-columns: 68px minmax(0, 1fr); }
-  .pyro .retrato { width: 68px; height: 68px; }
+  .pyro .retrato { height: 68px; }
+  .pyro .ficha-topo .retrato { max-width: 68px; }
   .pyro input.nome { font-size: var(--pyro-t-lg); }
 
   .pyro .recursos { grid-template-columns: repeat(2, minmax(0, 1fr)); }
