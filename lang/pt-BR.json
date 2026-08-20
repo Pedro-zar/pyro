@@ -480,7 +480,7 @@
   "PYRO.Efeitos.CustoModo": "Somado ao custo",
   "PYRO.Efeitos.TodosDoTipo": "(todos)",
   "PYRO.Efeitos.ApenasEm": "Aplicar apenas em",
-  "PYRO.Efeitos.ApenasEmDica": "Sem nada marcado, o efeito vale sempre. Marcando itens, ele sai da conta geral da ficha e passa a valer só quando um deles é usado: o dano entra na rolagem daquele item, o custo muda ali e aumentos de atributo valem só ali. Marcar o tipo (Magia, Arma) pega o grupo inteiro, inclusive o que for criado depois.",
+  "PYRO.Efeitos.ApenasEmDica": "",
   "PYRO.Efeitos.CondicaoDica": "Marca o alvo com a condição escolhida",
   "PYRO.Condicoes.queimando": "Queimando",
   "PYRO.Condicoes.friagem": "Friagem",
