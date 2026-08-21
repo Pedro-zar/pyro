@@ -63,19 +63,85 @@ PYRO.reacoes = {
 /*  Tamanho e carga                                                           */
 /* -------------------------------------------------------------------------- */
 
-// multCarga: capacidade = FOR x mult (SRD: pequena 1x, média 2x, grande 3x).
-// token: lado do token em quadrados do grid (o mapa usa 1m por quadrado).
-// AJUSTE: as medidas de token são estimativas, já que o SRD só nomeia as
-// categorias — ajuste aqui se a sua mesa usar outra escala.
+/**
+ * Tamanhos (SRD). Cada linha carrega tudo que o tamanho decide:
+ *
+ *   token       lado do token em espaços do grid (o mapa usa 1m por espaço).
+ *   dadosArma   multiplicador dos dados da arma. Está aqui só como referência:
+ *               o sistema não aplica sozinho, quem aplica é quem monta a arma.
+ *   alcance     até onde a criatura alcança, em metros, medido do centro do
+ *               token. É a base da mira — o dobro disso não pede teste.
+ *   vidaPorVig  PV por ponto de VIG.
+ *   multCarga   capacidade de carga = FOR x mult.
+ *   exato       [mínimo, máximo] de espaços quando o tamanho não é fechado.
+ *               Massivo e colossal pedem esse número na raça; máximo null é
+ *               ponta aberta. Nos outros tamanhos o campo não existe.
+ *
+ * Pequeno e Médio têm os mesmos números de propósito: a diferença entre eles
+ * é de descrição, não de regra.
+ */
 PYRO.tamanhos = {
-  minusculo: { label: "PYRO.Tamanhos.minusculo", multCarga: 1, token: 0.25 },
-  pequenino: { label: "PYRO.Tamanhos.pequenino", multCarga: 1, token: 0.5 },
-  pequeno:   { label: "PYRO.Tamanhos.pequeno",   multCarga: 1, token: 1 },
-  medio:     { label: "PYRO.Tamanhos.medio",     multCarga: 2, token: 1 },
-  grande:    { label: "PYRO.Tamanhos.grande",    multCarga: 3, token: 2 },
-  gigante:   { label: "PYRO.Tamanhos.gigante",   multCarga: 3, token: 3 },
-  massivo:   { label: "PYRO.Tamanhos.massivo",   multCarga: 3, token: 4 },
-  colossal:  { label: "PYRO.Tamanhos.colossal",  multCarga: 3, token: 6 }
+  minusculo: { label: "PYRO.Tamanhos.minusculo", token: 0.25, dadosArma: 0.25, alcance: 0,  vidaPorVig: 4,  multCarga: 0.5 },
+  pequenino: { label: "PYRO.Tamanhos.pequenino", token: 0.5,  dadosArma: 0.5,  alcance: 1,  vidaPorVig: 5,  multCarga: 1 },
+  pequeno:   { label: "PYRO.Tamanhos.pequeno",   token: 1,    dadosArma: 1,    alcance: 1,  vidaPorVig: 7,  multCarga: 2 },
+  medio:     { label: "PYRO.Tamanhos.medio",     token: 1,    dadosArma: 1,    alcance: 1,  vidaPorVig: 7,  multCarga: 2 },
+  grande:    { label: "PYRO.Tamanhos.grande",    token: 2,    dadosArma: 2,    alcance: 2,  vidaPorVig: 10, multCarga: 4 },
+  gigante:   { label: "PYRO.Tamanhos.gigante",   token: 4,    dadosArma: 4,    alcance: 4,  vidaPorVig: 14, multCarga: 8 },
+  massivo:   { label: "PYRO.Tamanhos.massivo",   token: 8,    dadosArma: 8,    alcance: 8,  vidaPorVig: 20, multCarga: 16, exato: [8, 15] },
+  colossal:  { label: "PYRO.Tamanhos.colossal",  token: 16,   dadosArma: 16,   alcance: 16, vidaPorVig: 28, multCarga: 32, exato: [16, null] }
+};
+
+/** O tamanho pede um número exato de espaços? Massivo e colossal pedem. */
+PYRO.pedeTamanhoExato = tamanho => !!PYRO.tamanhos[tamanho]?.exato;
+
+/** Encaixa o número exato nos limites do tamanho (massivo 8–15, colossal 16+). */
+PYRO.tamanhoExatoNaFaixa = (tamanho, valor) => {
+  const faixa = PYRO.tamanhos[tamanho]?.exato;
+  if (!faixa) return 0;
+  const [min, max] = faixa;
+  const n = Math.round(Number(valor)) || min;
+  return max === null ? Math.max(min, n) : Math.min(max, Math.max(min, n));
+};
+
+/**
+ * Espaços que a criatura ocupa no grid. Massivo e colossal usam o número
+ * exato da raça quando ela tem um; sem número, vale o mínimo do degrau.
+ */
+PYRO.escalaTamanho = (tamanho, exato = 0) => {
+  const cfg = PYRO.tamanhos[tamanho];
+  if (!cfg) return 1;
+  return cfg.exato && exato ? PYRO.tamanhoExatoNaFaixa(tamanho, exato) : cfg.token;
+};
+
+/**
+ * Alcance da criatura em metros. Do Grande para cima o alcance é o próprio
+ * espaço ocupado, então um colossal de 24 espaços alcança 24m — a tabela
+ * fecha assim, e o número exato continua valendo aqui.
+ */
+PYRO.alcanceTamanho = (tamanho, exato = 0) => {
+  const cfg = PYRO.tamanhos[tamanho];
+  if (!cfg) return 1;
+  return cfg.exato && exato ? PYRO.tamanhoExatoNaFaixa(tamanho, exato) : cfg.alcance;
+};
+
+/**
+ * Até onde a criatura ataca sem teste de mira: o dobro do alcance dela. Um
+ * Médio (1m) acerta de graça a 1m e 2m e testa de 3m em diante; um Grande
+ * (2m) vai até 4m.
+ */
+PYRO.miraLivre = (tamanho, exato = 0) => 2 * PYRO.alcanceTamanho(tamanho, exato);
+
+/**
+ * Quanto o PV precisa acompanhar quando o tamanho muda. Vida por VIG é o
+ * único número da tabela que mexe num recurso, então trocar de médio (7) para
+ * enorme (14) dobra o PV atual junto com o máximo: quem estava com 3 de 7
+ * fica com 6 de 14, e não com 3 de 14.
+ */
+PYRO.razaoVida = (de, para) => {
+  const antes = PYRO.tamanhos[de]?.vidaPorVig;
+  const depois = PYRO.tamanhos[para]?.vidaPorVig;
+  if (!antes || !depois) return 1;
+  return depois / antes;
 };
 
 PYRO.partesCorpo = {

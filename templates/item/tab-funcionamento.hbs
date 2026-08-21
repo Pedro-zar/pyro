@@ -14,6 +14,11 @@
               title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
     </div>
     {{/each}}
+    {{!-- O sistema não escala a arma pelo tamanho de quem a usa: o número
+          fica aqui para você aplicar na fórmula acima. --}}
+    {{#if dadosArmaDica}}
+    <p class="pyro-nota">{{dadosArmaDica}}</p>
+    {{/if}}
   </div>
 
   <div class="bloco">
@@ -314,6 +319,14 @@
       {{#if ehPrimeiroRacial}}
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tamanho"}}</span>
         <select name="system.tamanho">{{selectOptions tamanhoOpts selected=system.tamanho localize=true}}</select></label>
+      {{!-- Massivo e colossal são faixas: o número diz quantos espaços a
+            criatura ocupa, e é ele que vira o alcance dela. --}}
+      {{#if pedeTamanhoExato}}
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.TamanhoExato"}}</span>
+        <input type="number" name="system.tamanhoExato" value="{{system.tamanhoExato}}"
+               min="{{tamanhoExatoMin}}" {{#if tamanhoExatoMax}}max="{{tamanhoExatoMax}}"{{/if}}
+               title="{{localize 'PYRO.Item.TamanhoExatoDica'}}" /></label>
+      {{/if}}
       {{/if}}
       {{else}}
       <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Item.NomeCaminho"}}</span>

@@ -16,11 +16,14 @@ export class PyroActor extends Actor {
     if (data.prototypeToken?.actorLink !== undefined) return;
 
     const personagem = this.type === "personagem";
-    const escala = PYRO.tamanhos[this.system.tamanho]?.token ?? 1;
+    const escala = PYRO.escalaTamanho(this.system.tamanho, this.system.tamanhoExato);
     this.updateSource({
       prototypeToken: {
-        width: escala,
-        height: escala,
+        ...PyroActor.formaDoToken(escala),
+        // Ficha nova já nasce assinada, então a primeira troca de tamanho
+        // dela redesenha o token normalmente.
+        flags: { pyro: { tamanho: this.system.tamanhoExato
+          ? `${this.system.tamanho}:${this.system.tamanhoExato}` : this.system.tamanho } },
         actorLink: personagem,
         disposition: personagem
           ? CONST.TOKEN_DISPOSITIONS.FRIENDLY
@@ -47,32 +50,84 @@ export class PyroActor extends Actor {
   }
 
   /**
-   * Deixa o token do mesmo tamanho da criatura. Roda quando o tamanho muda
-   * por raça, efeito ou edição direta; tokens já colocados só mudam se ainda
-   * estiverem no tamanho anterior, para não desfazer ajuste manual do mestre.
+   * Reage a uma mudança de tamanho da criatura: o token passa a ocupar o
+   * espaço novo e o PV acompanha em proporção — quem estava com 3 de 7 vira
+   * 6 de 14, e não 3 de 14. Roda pelos hooks de ator, item e efeito, porque
+   * o tamanho pode vir de qualquer um dos três.
+   *
+   * Quem decide se há o que fazer é a marca gravada no prototypeToken, e não
+   * a largura dele. A diferença importa: mudar a tabela de tamanhos não sai
+   * redesenhando token que ninguém pediu para mudar — quem já estava Enorme
+   * continua no desenho antigo até o tamanho mudar de verdade. Ficha que nunca
+   * viu a marca adota o estado atual sem mexer em nada.
    */
-  async sincronizarTamanhoToken() {
-    const escala = PYRO.tamanhos[this.system.tamanho]?.token;
-    if (!escala) return;
-    const anterior = this.prototypeToken.width;
-    if (anterior === escala) return;
+  async aplicarMudancaDeTamanho() {
+    const marca = PyroActor.#marcaDeTamanho(this.system);
+    const anterior = this.prototypeToken.getFlag("pyro", "tamanho");
+    if (anterior === marca) return;
     // Um cliente só faz a atualização, senão todos disparam a mesma coisa.
     if (!(game.users.activeGM?.isSelf ?? game.user.isGM)) return;
 
-    await this.update({
-      "prototypeToken.width": escala,
-      "prototypeToken.height": escala
-    });
+    const mudancas = { "prototypeToken.flags.pyro.tamanho": marca };
+    const escala = this.system.escalaTamanho;
+    const larguraAntiga = this.prototypeToken.width;
 
+    // Primeira vez: só assina o estado de hoje, sem redesenhar nem recalcular.
+    if (anterior !== undefined) {
+      if (escala !== larguraAntiga) {
+        for (const [k, v] of Object.entries(PyroActor.formaDoToken(escala))) {
+          mudancas[`prototypeToken.${k}`] = v;
+        }
+      }
+      const razao = PYRO.razaoVida(PyroActor.#tamanhoDaMarca(anterior), this.system.tamanho);
+      if (razao !== 1) {
+        const pv = this.system.recursos.pv;
+        mudancas["system.recursos.pv.value"] = Math.max(0, Math.round(pv.value * razao));
+      }
+    }
+
+    await this.update(mudancas);
+    if (anterior === undefined || escala === larguraAntiga) return;
+
+    // Tokens já postos no mapa: só os que ainda estavam no tamanho anterior,
+    // para não desfazer um ajuste manual do mestre.
     for (const cena of game.scenes) {
       const alvos = cena.tokens.filter(t =>
-        t.actorId === this.id && t.width === anterior && t.height === anterior
+        t.actorId === this.id && t.width === larguraAntiga && t.height === larguraAntiga
       );
       if (alvos.length) {
         await cena.updateEmbeddedDocuments("Token",
-          alvos.map(t => ({ _id: t.id, width: escala, height: escala })));
+          alvos.map(t => ({ _id: t.id, ...PyroActor.formaDoToken(escala) })));
       }
     }
+  }
+
+  /**
+   * O que o token precisa para ocupar `escala` espaços.
+   *
+   * Em grid hexagonal o Foundry tem forma própria para token de 2, 3 e 4
+   * espaços — a elipse variante 2 é a que esta mesa usa. Acima de 4 só existe
+   * o bloco, que já é o padrão, e em grid quadrado a forma é ignorada.
+   */
+  static formaDoToken(escala) {
+    const dados = { width: escala, height: escala };
+    const formas = CONST.TOKEN_HEXAGONAL_SHAPES;
+    if (!formas) return dados;
+    return { ...dados, hexagonalShape: [2, 3, 4].includes(escala) ? formas.ELLIPSE_2 : formas.ELLIPSE_1 };
+  }
+
+  /**
+   * Assinatura do tamanho, na forma "gigante" ou "colossal:24". O número
+   * exato entra porque mudar só ele (colossal 20 para 24) também redesenha
+   * o token, sem trocar de degrau.
+   */
+  static #marcaDeTamanho(sys) {
+    return sys.tamanhoExato ? `${sys.tamanho}:${sys.tamanhoExato}` : sys.tamanho;
+  }
+
+  /** O degrau de uma marca, ignorando o número exato. */
+  static #tamanhoDaMarca(marca) {
+    return String(marca ?? "").split(":")[0];
   }
 
   /* ---------------------------------------------------------------------- */

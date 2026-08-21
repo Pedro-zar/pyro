@@ -182,6 +182,20 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       ehRacial,
       ehPrimeiroRacial,
       ehElemento,
+      /*
+       * Massivo e colossal são faixas, não um tamanho só, então pedem o número
+       * de espaços — e é ele que vira o alcance da criatura.
+       */
+      pedeTamanhoExato: PYRO.pedeTamanhoExato(s.tamanho),
+      tamanhoExatoMin: PYRO.tamanhos[s.tamanho]?.exato?.[0] ?? 0,
+      tamanhoExatoMax: PYRO.tamanhos[s.tamanho]?.exato?.[1] ?? null,
+      // A arma não escala sozinha: o número é lembrete para aplicar na mão.
+      dadosArmaDica: item.type === "arma" && actor
+        ? game.i18n.format("PYRO.Item.DadosArmaDica", {
+            tamanho: game.i18n.localize(PYRO.tamanhos[actor.system.tamanho]?.label ?? ""),
+            mult: PYRO.tamanhos[actor.system.tamanho]?.dadosArma ?? 1
+          })
+        : null,
       // O modo Subjulgar é coisa do elemento Morte (ou de runa já marcada).
       mostrarSubjulgar: ehElemento
         && !!(PYRO.elementos[s.subtipo]?.subjulgar || s.subjulgar),

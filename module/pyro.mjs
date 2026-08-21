@@ -87,10 +87,11 @@ Hooks.once("i18nInit", () => PYRO.construirAfinidades());
 
 /*
  * O tamanho da criatura vem de caminho racial, efeito ou edição direta, então
- * a sincronia do token escuta todas essas origens. O método sai cedo quando o
- * token já está no tamanho certo, o que evita laço com o próprio updateActor.
+ * a reação a ele escuta todas essas origens — é ela que redesenha o token e
+ * ajusta o PV em proporção. O método sai cedo quando o tamanho não mudou, o
+ * que evita laço com o próprio updateActor que ele mesmo dispara.
  */
-const sincronizarTamanho = actor => actor?.sincronizarTamanhoToken?.();
+const sincronizarTamanho = actor => actor?.aplicarMudancaDeTamanho?.();
 const donoDoItem = doc => (doc?.parent instanceof Actor ? doc.parent : doc?.parent?.parent);
 
 Hooks.on("updateActor", sincronizarTamanho);

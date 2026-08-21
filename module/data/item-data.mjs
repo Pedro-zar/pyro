@@ -468,6 +468,13 @@ export class CaminhoData extends BaseItemData {
       }), { initial: [] }),
       // O tamanho vem da raça; só o primeiro caminho racial do ator define.
       tamanho: str("medio", { choices: Object.keys(PYRO.tamanhos) }),
+      /*
+       * Massivo e colossal não são um tamanho só: são faixas. O número diz
+       * quantos espaços a criatura ocupa de fato (massivo 8–15, colossal 16+),
+       * e é ele que vira o alcance dela. Zero nos outros tamanhos, que são
+       * fechados e não têm o que perguntar.
+       */
+      tamanhoExato: num(0, { min: 0 }),
       xp: num(0, { min: 0 })
     };
   }

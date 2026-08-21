@@ -123,6 +123,8 @@ export class PyroItem extends Item {
       if (this.system.ehRacial) {
         const ajustado = PYRO.tamanhoNaFaixa(this.system.raca, this.system.tamanho);
         if (ajustado !== this.system.tamanho) this.updateSource({ "system.tamanho": ajustado });
+        const exato = PYRO.tamanhoExatoNaFaixa(ajustado, this.system.tamanhoExato);
+        if (exato !== this.system.tamanhoExato) this.updateSource({ "system.tamanhoExato": exato });
       }
     }
     if (this.type === "runa" && data.system?.palavra) {
@@ -314,6 +316,17 @@ export class PyroItem extends Item {
         sys.tamanho = ajustado;
         changed.system = sys;
       }
+      /*
+       * O número exato acompanha o tamanho: entrando em massivo ou colossal
+       * ele nasce no mínimo do degrau e fica preso à faixa; saindo para um
+       * tamanho fechado ele zera, senão sobraria um 24 escondido descrevendo
+       * um colossal que a criatura não é mais.
+       */
+      const exato = PYRO.tamanhoExatoNaFaixa(ajustado, sys.tamanhoExato ?? this.system.tamanhoExato);
+      if (exato !== (sys.tamanhoExato ?? this.system.tamanhoExato)) {
+        sys.tamanhoExato = exato;
+        changed.system = sys;
+      }
     }
 
     // Recalcula sempre: assim o nome também se corrige quando o mestre muda
@@ -416,13 +429,24 @@ export class PyroItem extends Item {
       // munição quando o ataque é cancelado.
     }
 
-    /* --- Teste de mira (armas de 3m ou mais) -------------------------------- */
+    /* --- Teste de mira ------------------------------------------------------ */
+    /*
+     * O limite é o dobro do alcance do tamanho: um Médio (1m) acerta de graça
+     * a 1m e 2m, um Grande (2m) vai até 4m. Duas saídas antes de abrir a
+     * janela — arma que nem chega ao limite nunca pede teste (corpo a corpo
+     * cai aqui, com alcance máximo 0), e alvo marcado dentro do limite também
+     * não. Sem alvo marcado a janela abre e a distância digitada decide.
+     */
+    const limiteMira = actor?.system.miraLivre ?? 2;
     const rolls = [];
     let mira = null;
-    if (s.alcanceMaximo >= 3) {
-      mira = await this.#testeDeMira();
-      if (mira === null) return; // cancelado: nada é gasto
-      rolls.push(mira.roll);
+    if (s.alcanceMaximo > limiteMira) {
+      const distanciaAlvo = distanciaAteAlvo(actor);
+      if (distanciaAlvo === null || distanciaAlvo > limiteMira) {
+        mira = await this.#testeDeMira(limiteMira);
+        if (mira === null) return; // cancelado: nada é gasto
+        rolls.push(mira.roll);
+      }
     }
 
     // Munição some ao disparar, acertando ou errando.
@@ -505,16 +529,17 @@ export class PyroItem extends Item {
    * Com um alvo marcado, a distância e o ND já vêm preenchidos, e passar do
    * alcance menor soma uma desvantagem automaticamente (SRD §5).
    */
-  async #testeDeMira() {
+  async #testeDeMira(limiteMira = 2) {
     const s = this.system;
     const actor = this.actor;
     const medida = distanciaAteAlvo(actor);
-    const distancia = medida ?? Math.max(3, s.alcanceMenor || 3);
+    // Sem alvo marcado, começa no primeiro metro que já pede teste.
+    const distancia = medida ?? Math.max(limiteMira + 1, s.alcanceMenor);
     const desvInicial = distancia > s.alcanceMenor ? 1 : 0;
 
     const dica = medida !== null
       ? game.i18n.format("PYRO.Mira.AlvoMarcado", { distancia: medida })
-      : game.i18n.localize("PYRO.Mira.SemAlvo");
+      : game.i18n.format("PYRO.Mira.SemAlvoLimite", { limite: limiteMira });
 
     const res = await DialogV2.prompt({
       window: { title: game.i18n.localize("PYRO.Mira.Titulo") },

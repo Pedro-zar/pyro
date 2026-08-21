@@ -202,9 +202,50 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     const a = this.atributos;
     const arred = v => Math.floor(v);
 
+    /* --- Caminhos e tamanho ----------------------------------------------- */
+    /*
+     * O tamanho é resolvido antes dos recursos porque o PV por VIG sai dele:
+     * um Enorme tem 14 por VIG onde um Médio tem 7.
+     */
+    const caminhos = this.parent.items
+      .filter(i => i.type === "caminho")
+      .sort((x, y) => (x.sort - y.sort) || x.id.localeCompare(y.id));
+    // O racial "primeiro" é o criado primeiro, não o primeiro da lista:
+    // adicionar outra raça depois não rouba a definição de tamanho (itens
+    // novos nascem com sort 0 e furavam a fila).
+    const raciais = caminhos.filter(i => i.system.ehRacial)
+      .sort((x, y) => (x._stats?.createdTime ?? 0) - (y._stats?.createdTime ?? 0));
+    const racial = raciais[0];
+    this.raca = racial?.system.raca ?? "humano";
+    this.primeiroRacialId = racial?.id ?? null;
+
+    // Efeitos rodam antes daqui, então comparo com o valor salvo: se mudou,
+    // foi um efeito sobrepondo o tamanho e ele tem prioridade sobre a raça.
+    const sobreposto = this.tamanho !== this._source.tamanho
+      ? chaveTamanho(this.tamanho) : null;
+    const base = sobreposto ?? racial?.system.tamanho ?? this._source.tamanho;
+    const ordem = Object.keys(PYRO.tamanhos);
+    let i = ordem.indexOf(base);
+    if (i < 0) i = ordem.indexOf("medio");
+    this.tamanho = ordem[Math.clamp(i + (this.tamanhoMod ?? 0), 0, ordem.length - 1)];
+
+    /*
+     * Número exato de espaços do massivo e do colossal. Só vale enquanto o
+     * tamanho continua sendo o que a raça declarou: um efeito que empurra a
+     * criatura para outro degrau descarta o número, porque ele descrevia o
+     * degrau antigo.
+     */
+    this.tamanhoExato = (this.tamanho === racial?.system.tamanho)
+      ? PYRO.tamanhoExatoNaFaixa(this.tamanho, racial?.system.tamanhoExato)
+      : 0;
+    this.escalaTamanho = PYRO.escalaTamanho(this.tamanho, this.tamanhoExato);
+    this.alcanceTamanho = PYRO.alcanceTamanho(this.tamanho, this.tamanhoExato);
+    this.miraLivre = PYRO.miraLivre(this.tamanho, this.tamanhoExato);
+
     /* --- Recursos --------------------------------------------------------- */
     const r = this.recursos;
-    r.pv.max = arred(a.vig.efetivo * 7 * this.multi) + r.pv.bonus;
+    const vidaPorVig = PYRO.tamanhos[this.tamanho]?.vidaPorVig ?? 7;
+    r.pv.max = arred(a.vig.efetivo * vidaPorVig * this.multi) + r.pv.bonus;
     r.estamina.max = arred((a.vig.efetivo / 2) * 25 * this.multi) + r.estamina.bonus;
     r.mana.max = arred(a.sab.efetivo * 5 * this.multi) + r.mana.bonus;
     r.mana.recuperacao = Math.ceil(a.int.efetivo * this.multi);
@@ -224,29 +265,8 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       rec.recuperacao = attrRec ? Math.ceil(attrRec * (cfg.recPorPonto ?? 0) * this.multi) : 0;
     }
 
-    /* --- Caminhos: raça, magia, feitiçaria, afinidades -------------------- */
-    const caminhos = this.parent.items
-      .filter(i => i.type === "caminho")
-      .sort((x, y) => (x.sort - y.sort) || x.id.localeCompare(y.id));
-    // O racial "primeiro" é o criado primeiro, não o primeiro da lista:
-    // adicionar outra raça depois não rouba a definição de tamanho (itens
-    // novos nascem com sort 0 e furavam a fila).
-    const raciais = caminhos.filter(i => i.system.ehRacial)
-      .sort((x, y) => (x._stats?.createdTime ?? 0) - (y._stats?.createdTime ?? 0));
-    const racial = raciais[0];
-    this.raca = racial?.system.raca ?? "humano";
-    this.primeiroRacialId = racial?.id ?? null;
-    /* --- Tamanho: raça, override de efeito e passos ----------------------- */
-    // Efeitos rodam antes daqui, então comparo com o valor salvo: se mudou,
-    // foi um efeito sobrepondo o tamanho e ele tem prioridade sobre a raça.
-    const sobreposto = this.tamanho !== this._source.tamanho
-      ? chaveTamanho(this.tamanho) : null;
-    const base = sobreposto ?? racial?.system.tamanho ?? this._source.tamanho;
-    const ordem = Object.keys(PYRO.tamanhos);
-    let i = ordem.indexOf(base);
-    if (i < 0) i = ordem.indexOf("medio");
-    this.tamanho = ordem[Math.clamp(i + (this.tamanhoMod ?? 0), 0, ordem.length - 1)];
-
+    /* --- Caminhos: magia, feitiçaria, afinidades -------------------------- */
+    /* Raça e tamanho já saíram acima, antes dos recursos. */
     const magicos = caminhos.filter(i => i.system.usaMagia);
     const feiticeiros = caminhos.filter(i => i.system.usaFeiticaria);
 
@@ -332,7 +352,8 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       (this.velocidadeBase + (this.velocidadeBonus ?? 0)) * (this.velocidadeMult ?? 1)
     ));
     const multCarga = PYRO.tamanhos[this.tamanho]?.multCarga ?? 2;
-    this.carga = { max: a.for.efetivo * multCarga, atual: 0 };
+    // Minúsculo carrega meia FOR, e meio quilo de capacidade não existe.
+    this.carga = { max: Math.floor(a.for.efetivo * multCarga), atual: 0 };
 
     /* --- Soma de itens carregados/equipados ------------------------------- */
     const equipBonus = { fisico: 0, energetico: 0, mental: 0 };
