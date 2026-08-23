@@ -189,13 +189,19 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       pedeTamanhoExato: PYRO.pedeTamanhoExato(s.tamanho),
       tamanhoExatoMin: PYRO.tamanhos[s.tamanho]?.exato?.[0] ?? 0,
       tamanhoExatoMax: PYRO.tamanhos[s.tamanho]?.exato?.[1] ?? null,
-      // A arma não escala sozinha: o número é lembrete para aplicar na mão.
-      dadosArmaDica: item.type === "arma" && actor
-        ? game.i18n.format("PYRO.Item.DadosArmaDica", {
-            tamanho: game.i18n.localize(PYRO.tamanhos[actor.system.tamanho]?.label ?? ""),
-            mult: PYRO.tamanhos[actor.system.tamanho]?.dadosArma ?? 1
-          })
-        : null,
+      /*
+       * O lembrete só aparece quando há o que lembrar. Arma média e arma
+       * pequena multiplicam por 1, e um aviso de "multiplique por 1" é ruído
+       * permanente em quase toda arma do jogo.
+       */
+      dadosArmaDica: (() => {
+        if (item.type !== "arma") return null;
+        const cfg = PYRO.tamanhos[s.tamanho];
+        if (!cfg || cfg.dadosArma === 1) return null;
+        return game.i18n.format("PYRO.Item.DadosArmaDica", {
+          tamanho: game.i18n.localize(cfg.label), mult: cfg.dadosArma
+        });
+      })(),
       // O modo Subjulgar é coisa do elemento Morte (ou de runa já marcada).
       mostrarSubjulgar: ehElemento
         && !!(PYRO.elementos[s.subtipo]?.subjulgar || s.subjulgar),

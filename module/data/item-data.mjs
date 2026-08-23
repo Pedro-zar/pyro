@@ -135,6 +135,13 @@ export class ArmaData extends BaseItemData {
         tipo: str("impacto")
       }), { initial: [{ formula: "2d6", tipo: "impacto" }] }),
       usaMunicao: new fields.BooleanField({ initial: false }),
+      /*
+       * Tamanho da arma, não de quem a empunha: uma clava de gigante continua
+       * sendo de gigante na mão de quem a roubou. Médio é o padrão e vale ×1,
+       * então arma antiga e item de compêndio nascem sem multiplicador — é
+       * característica a mais, não regra nova para todo mundo.
+       */
+      tamanho: str("medio", { choices: Object.keys(PYRO.tamanhos) }),
       acoes: num(2, { min: 1 }),
       maos: num(1, { min: 1, max: 2 }),
       // Alcance menor: até aqui o tiro é normal. Além dele, e até o máximo,

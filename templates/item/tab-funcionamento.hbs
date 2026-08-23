@@ -28,6 +28,10 @@
         <input type="number" name="system.acoes" value="{{system.acoes}}" min="1" /></label>
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Maos"}}</span>
         <input type="number" name="system.maos" value="{{system.maos}}" min="1" max="2" /></label>
+      {{!-- Tamanho da arma, não de quem empunha. Médio é o padrão e não muda
+            nada; os outros ganham o lembrete no bloco de dano. --}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.TamanhoArma"}}</span>
+        <select name="system.tamanho">{{selectOptions tamanhoOpts selected=system.tamanho localize=true}}</select></label>
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.AlcanceMenor"}}</span>
         <input type="number" name="system.alcanceMenor" value="{{system.alcanceMenor}}" min="0" /></label>
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.AlcanceMaximo"}}</span>

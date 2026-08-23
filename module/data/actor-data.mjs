@@ -195,6 +195,26 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
         ? attr.total
         : attr.limite + Math.floor((attr.total - attr.limite) / 2);
       attr.acimaDoLimite = attr.total > attr.limite;
+
+      /*
+       * A ficha em repouso mostra um número por atributo: o que vale em jogo.
+       * Acima do limite de DET esse número é o efetivo, com a metade já
+       * descontada — mostrar a soma crua ali mentiria sobre a pool.
+       *
+       * O hover troca esse número pela conta que chegou nele, "14 +1", e o
+       * clique cai no campo, que continua editando só a base. Sem bônus não
+       * há conta a mostrar, e a célula não troca nada no hover.
+       */
+      attr.totalTexto = String(attr.efetivo);
+      attr.mostrarDetalhe = attr.bonusTotal !== 0;
+      attr.detalheTexto = `${attr.valor} ${comSinal(attr.bonusTotal)}`;
+      attr.classeTotal = attr.acimaDoLimite ? "limitado"
+        : attr.bonusNegativo ? "negativo"
+        : attr.bonusTotal > 0 ? "somado" : "";
+      attr.dicaTotal = attr.acimaDoLimite
+        ? game.i18n.localize("PYRO.EfetivoTooltip")
+        : attr.bonusDica;
+
       attr.pool = formulaPool(attr.efetivo);
       attr.poolCheia = formulaPool(attr.total); // usada em "Passar seus Limites"
     }

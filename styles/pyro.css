@@ -300,19 +300,42 @@
 .pyro .atributo .pool {
   font-size: var(--pyro-t-md); font-weight: 700; line-height: 1.25;
 }
-/* Base e, quando passa do limite de DET, o valor efetivo ao lado. */
+/* --- Base do atributo, com três leituras no mesmo lugar -------------------
+   Em repouso a célula mostra o valor em jogo — um número por atributo, sem
+   chip de bônus disputando espaço com ele. O mouse troca esse número pela
+   conta que chegou nele ("14 +1"), e o foco apaga os dois para descobrir o
+   campo, que edita só a base. Nenhum dos dois textos recebe clique, então
+   clicar em qualquer ponto da célula cai sempre no input. */
 .pyro .atributo-base {
-  display: flex; align-items: center; justify-content: center; gap: var(--pyro-e-1);
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
   border-top: 1px solid var(--pyro-borda);
 }
 .pyro .atributo-base input {
   width: 100%; border: none; border-radius: 0; background: transparent;
   text-align: center; font-size: var(--pyro-t-sm); color: var(--pyro-texto-2);
 }
-.pyro .atributo-base .efetivo {
-  flex: none; padding-right: var(--pyro-e-1);
-  font-size: var(--pyro-t-xs); font-weight: 700; color: var(--pyro-acento-alto);
+.pyro .atributo-total,
+.pyro .atributo-detalhe {
+  position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--pyro-painel-alto);
+  font-weight: 700; color: var(--pyro-texto-2);
+  pointer-events: none; transition: opacity 90ms ease;
 }
+.pyro .atributo-total { font-size: var(--pyro-t-sm); opacity: 1; }
+/* A conta é leitura secundária: um corpo menor a separa do valor em jogo. */
+.pyro .atributo-detalhe { font-size: var(--pyro-t-xs); opacity: 0; }
+
+/* Cor só quando o número não é a base crua, para dizer que há conta por trás. */
+.pyro :is(.atributo-total, .atributo-detalhe).somado { color: var(--pyro-sucesso); }
+.pyro :is(.atributo-total, .atributo-detalhe).negativo { color: var(--pyro-perigo); }
+.pyro :is(.atributo-total, .atributo-detalhe).limitado { color: var(--pyro-acento-alto); }
+
+/* Sem bônus não há troca a fazer: o total fica onde está. */
+.pyro .atributo:hover .com-detalhe .atributo-total { opacity: 0; }
+.pyro .atributo:hover .atributo-detalhe { opacity: 1; }
+.pyro .atributo-base:focus-within :is(.atributo-total, .atributo-detalhe) { opacity: 0; }
 
 /* ---------- Painéis (defesas / lateral) ------------------------------------ */
 
@@ -1482,8 +1505,3 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 
 /* Bônus ao lado da base do atributo: aumentos de tier e efeitos, somados.
    Verde quando somam, vermelho quando descontam. */
-.pyro .atributo-base .bonus-hab {
-  flex: none; padding-right: var(--pyro-e-1);
-  font-size: var(--pyro-t-xs); font-weight: 700; color: var(--pyro-sucesso);
-}
-.pyro .atributo-base .bonus-hab.negativo { color: var(--pyro-perigo); }
