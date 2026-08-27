@@ -25,6 +25,8 @@ Hooks.once("init", () => {
   // Helper usado na ficha de item (afinidade "outro" mostra o campo de texto).
   Handlebars.registerHelper("pyroEhOutro", v => v === "outro");
   Handlebars.registerHelper("pyroInclui", (lista, valor) => Array.isArray(lista) && lista.includes(valor));
+  // Ternário inline: {{localize (pyroSe editando "A" "B")}}.
+  Handlebars.registerHelper("pyroSe", (cond, sim, nao) => (cond ? sim : nao));
 
   CONFIG.PYRO = PYRO;
 

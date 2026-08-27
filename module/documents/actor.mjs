@@ -1,5 +1,6 @@
 import { PYRO } from "../config.mjs";
 import { formulaTeste, expandirAtributos } from "../dados.mjs";
+import { nivelExaustao } from "../efeitos.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -144,9 +145,11 @@ export class PyroActor extends Actor {
     const label = game.i18n.localize(PYRO.atributos[chave]);
 
     let opts = { bonus: 0, vantagem: 0, desvantagem: 0, nd: null, passarLimites: false };
+    const exaustao = nivelExaustao(this);
 
     if (!rapido) {
       const conteudo = `
+        ${exaustao > 0 ? `<p class="hint">${game.i18n.format("PYRO.Teste.ExaustaoDica", { n: exaustao })}</p>` : ""}
         <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Bonus")}</label>
           <input type="number" name="bonus" value="0"></div>
         <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Vantagem")}</label>
@@ -171,6 +174,9 @@ export class PyroActor extends Actor {
       if (!res) return;
       opts = { ...opts, ...res, nd: res.nd || null };
     }
+
+    // Cada nível de exaustão tira 1 de todos os testes.
+    opts.bonus = (Number(opts.bonus) || 0) - exaustao;
 
     // Passar seus Limites: usa o atributo cheio; o corpo sofre um rebote [DEFINIR no SRD].
     const valor = opts.passarLimites ? attr.total : attr.efetivo;

@@ -713,8 +713,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     new ConstrutorEfeitoApp({ documento: this.item }).render(true);
   }
 
+  /** Editar reabre o construtor do PYRO, não a ficha padrão (ver actor-sheet). */
   static #editarEfeito(event, target) {
-    this.item.effects.get(target.closest("[data-effect-id]")?.dataset.effectId)?.sheet.render(true);
+    const efeito = this.item.effects.get(target.closest("[data-effect-id]")?.dataset.effectId);
+    if (efeito) new ConstrutorEfeitoApp({ efeito }).render(true);
   }
 
   static async #excluirEfeito(event, target) {

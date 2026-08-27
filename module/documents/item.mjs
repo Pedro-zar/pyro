@@ -2,7 +2,8 @@ import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { formulaTeste, expandirAtributos } from "../dados.mjs";
 import {
-  htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado
+  htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado,
+  nivelExaustao
 } from "../efeitos.mjs";
 import { formulaPool } from "../dados.mjs";
 import { proximaOrdem, idDoCaminho } from "../data/item-data.mjs";
@@ -563,9 +564,11 @@ export class PyroItem extends Item {
     if (!res) return null;
 
     const des = actor?.system.atributos.des;
+    // A mira é um teste como outro qualquer: a exaustão desconta dela também.
     const formula = des ? formulaTeste(des.efetivo, {
       vantagem: Number(res.vantagem) || 0,
-      desvantagem: Number(res.desvantagem) || 0
+      desvantagem: Number(res.desvantagem) || 0,
+      bonus: -nivelExaustao(actor)
     }) : null;
 
     // Pool zerada por desvantagens: erra sem rolar (mesma regra dos testes).

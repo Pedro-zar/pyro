@@ -1,6 +1,9 @@
 import { PYRO } from "./config.mjs";
 import { formulaTeste } from "./dados.mjs";
-import { htmlEfeitosDeUso, bonusDeDano, ajustesDeCusto, custoAjustado } from "./efeitos.mjs";
+import {
+  htmlEfeitosDeUso, bonusDeDano, ajustesDeCusto, custoAjustado,
+  aplicarExaustao, nivelExaustao
+} from "./efeitos.mjs";
 
 const esc = s => Handlebars.escapeExpression(s);
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
@@ -9,11 +12,11 @@ const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 export const SEM_DANO = "nenhum";
 
 /**
- * Se true, os efeitos de sobrecarga disparam sempre que o limite seguro é
- * excedido. Se false, disparam apenas quando o teste de conjuração falha.
- * O SRD deixa ambíguo — troque aqui quando decidir no playtest.
+ * Se true, a exaustão da sobrecarga entra sempre que o limite seguro é
+ * excedido; se false, só quando o teste de SAB falha. Decidido no playtest:
+ * o teste existe para resistir — venceu, não se exaure.
  */
-const SOBRECARGA_SEMPRE = true;
+const SOBRECARGA_SEMPRE = false;
 
 /* -------------------------------------------------------------------------- */
 /*  Escalonamentos                                                             */
@@ -353,37 +356,38 @@ export async function conjurar(actor, escolhas, {
     return ui.notifications.warn(loc("PYRO.Avisos.SemMaos", { usadas: calc.maos, maos: maosDisponiveis }));
   }
 
-  /* --- Teste de sobrecarga (SAB ou INT, o maior) vs 10 + soma Intenções --- */
+  /* --- Teste de sobrecarga: SAB contra 10 + soma das Intenções ------------ */
+  /* A exaustão que o personagem já carrega desconta do próprio teste. */
   let testeRoll = null;
   let falhou = false;
   if (calc.sobrecarga > 0) {
-    const a = actor.system.atributos;
-    // AJUSTE: "teste de SAB ou INT" — automatizei pro maior dos dois.
-    const chave = a.sab.efetivo >= a.int.efetivo ? "sab" : "int";
-    const formula = formulaTeste(a[chave].efetivo);
-    testeRoll = await new Roll(formula).evaluate();
-    falhou = testeRoll.total < calc.nd;
+    const formula = formulaTeste(actor.system.atributos.sab.efetivo, {
+      bonus: -nivelExaustao(actor)
+    });
+    if (formula === null) {
+      falhou = true; // pool zerada: falha automática, sem rolagem
+    } else {
+      testeRoll = await new Roll(formula).evaluate();
+      falhou = testeRoll.total < calc.nd;
+    }
   }
 
-  /* --- Gasto de mana (acontece mesmo na falha) ---------------------------- */
-  const updates = { "system.recursos.mana.value": r.mana.value - calc.custoTotal };
+  /* --- Gasto de mana (a magia sai de qualquer jeito) ---------------------- */
+  await actor.update({ "system.recursos.mana.value": r.mana.value - calc.custoTotal });
 
-  /* --- Efeitos de sobrecarga --------------------------------------------- */
+  /* --- Sobrecarga: exaustão no lugar dos efeitos escalonados -------------- */
+  /*
+   * Falhou no teste, ganha exaustão igual ao nível da sobrecarga — somada à
+   * que já tinha (2 + 2 = 4). Cada nível tira 1 de todos os testes. A magia é
+   * conjurada mesmo assim: o preço é o corpo, não o feitiço.
+   */
   const efeitosSobrecarga = [];
   if (calc.sobrecarga > 0 && (SOBRECARGA_SEMPRE || falhou)) {
-    if (calc.sobrecarga >= 1) {
-      const perda = 2 * calc.custoTotal;
-      updates["system.recursos.estamina.value"] = Math.max(0, r.estamina.value - perda);
-      efeitosSobrecarga.push(loc("PYRO.Sobrecarga.Nivel1", { valor: perda }));
-    }
-    if (calc.sobrecarga >= 2) {
-      updates["system.recursos.pv.value"] = Math.max(0, r.pv.value - calc.custoTotal);
-      efeitosSobrecarga.push(loc("PYRO.Sobrecarga.Nivel2", { valor: calc.custoTotal }));
-    }
-    if (calc.sobrecarga >= 3) efeitosSobrecarga.push(loc("PYRO.Sobrecarga.Nivel3"));
-    if (calc.sobrecarga >= 4) efeitosSobrecarga.push(loc("PYRO.Sobrecarga.Nivel4"));
+    const total = await aplicarExaustao(actor, calc.sobrecarga);
+    efeitosSobrecarga.push(loc("PYRO.Sobrecarga.Exaustao", {
+      niveis: calc.sobrecarga, total
+    }));
   }
-  await actor.update(updates);
 
   /* --- Montagem do card e rolagens ---------------------------------------- */
   const rolls = testeRoll ? [testeRoll] : [];
@@ -434,17 +438,17 @@ export async function conjurar(actor, escolhas, {
   }).join("");
   partes.push(`<ul class="pyro-runas-usadas">${linhas}</ul>`);
 
-  // Teste de sobrecarga
-  if (testeRoll) {
+  // Teste de sobrecarga: falhar custa exaustão, nunca a magia.
+  if (calc.sobrecarga > 0) {
     partes.push(`<div class="pyro-sobrecarga ${falhou ? "falha" : "sucesso"}">
-      <p>${loc("PYRO.Sobrecarga.Teste", { nivel: calc.sobrecarga, nd: calc.nd, total: testeRoll.total })}
+      <p>${loc("PYRO.Sobrecarga.Teste", { nivel: calc.sobrecarga, nd: calc.nd, total: testeRoll?.total ?? 0 })}
       — <strong>${loc(falhou ? "PYRO.Chat.Falha" : "PYRO.Chat.Sucesso")}</strong></p>
-      ${falhou ? `<p>${loc("PYRO.Sobrecarga.Falhou")}</p>` : ""}
+      ${!falhou ? `<p>${loc("PYRO.Sobrecarga.Resistiu")}</p>` : ""}
       ${efeitosSobrecarga.length ? `<ul>${efeitosSobrecarga.map(e => `<li>${e}</li>`).join("")}</ul>` : ""}
     </div>`);
   }
 
-  if (!falhou) {
+  {
     for (const pr of calc.porRuna) {
       const s = pr.item.system;
       const nomeRuna = esc(s.palavra || pr.item.name);

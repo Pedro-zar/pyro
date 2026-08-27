@@ -236,3 +236,71 @@ export function dadosDoEfeitoAplicado(efeito, vars) {
   }
   return dados;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Exaustão                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/** O efeito carrega a condição "exausto"? statuses é Set no documento vivo. */
+function ehExaustao(efeito) {
+  const st = efeito.statuses;
+  return st?.has ? st.has("exausto") : (st ?? []).includes("exausto");
+}
+
+/**
+ * A trilha de exaustão gravada em efeitos. O nível mora na flag; um efeito
+ * com o status mas sem a flag (posto pelo HUD do token, por exemplo) conta
+ * como 1.
+ */
+function exaustaoDosEfeitos(actor) {
+  let total = 0;
+  for (const efeito of efeitosAtivos(actor)) {
+    if (ehExaustao(efeito)) total += efeito.flags?.pyro?.exaustao ?? 1;
+  }
+  return total;
+}
+
+/**
+ * Quantos níveis de exaustão valem agora. Cada nível tira 1 de todos os
+ * testes (atributo, mira, sobrecarga).
+ *
+ * Sobrepeso entra aqui como +1 enquanto durar — é estado, não evento: soltar
+ * o peso desfaz o nível sozinho, sem efeito gravado para lembrar de apagar.
+ * Por isso ele fica fora da trilha de efeitos, que é a que a sobrecarga
+ * acumula em definitivo.
+ */
+export function nivelExaustao(actor) {
+  return exaustaoDosEfeitos(actor) + (actor?.system?.sobrepeso ? 1 : 0);
+}
+
+/**
+ * Soma níveis de exaustão ao ator e devolve o total novo.
+ *
+ * A exaustão acumula num efeito só: quem tem 2 e sofre sobrecarga 2 fica com
+ * um "Exaustão (4)", e não com dois efeitos separados — o nome diz o número e
+ * a remoção é uma só quando o personagem descansar.
+ */
+export async function aplicarExaustao(actor, niveis) {
+  if (!actor || !(niveis > 0)) return exaustaoDosEfeitos(actor);
+  const loc = (chave, dados) => game.i18n.format(chave, dados);
+
+  const existente = actor.effects?.find?.(e => ehExaustao(e) && !e.disabled);
+  if (existente) {
+    const novo = (existente.flags?.pyro?.exaustao ?? 1) + niveis;
+    await existente.update({
+      name: loc("PYRO.Exaustao.Nome", { n: novo }),
+      "flags.pyro.exaustao": novo
+    });
+    return exaustaoDosEfeitos(actor);
+  }
+
+  await ActiveEffect.implementation.create({
+    name: loc("PYRO.Exaustao.Nome", { n: niveis }),
+    img: PYRO.condicoes.exausto?.img ?? "icons/svg/sleep.svg",
+    origin: actor.uuid,
+    statuses: ["exausto"],
+    description: game.i18n.localize("PYRO.Exaustao.Dica"),
+    flags: { pyro: { exaustao: niveis } }
+  }, { parent: actor });
+  return exaustaoDosEfeitos(actor);
+}

@@ -20,16 +20,17 @@ export function poolDoAtributo(valor) {
  * Retorna null se a pool cair a 0 dados (falha automática).
  */
 export function formulaTeste(valor, { vantagem = 0, desvantagem = 0, bonus = 0 } = {}) {
+  // "+ -2" rola, mas ninguém escreve assim: o sinal entra no operador.
+  const comBonus = base => (!bonus ? base
+    : bonus > 0 ? `${base} + ${bonus}` : `${base} - ${-bonus}`);
   const pool = poolDoAtributo(valor);
   if (pool.faces === 0) {
     // Atributo 1: valor fixo. Vantagem/desvantagem não se aplicam a um dado fixo.
-    return bonus ? `1 + ${bonus}` : "1";
+    return comBonus("1");
   }
   const n = pool.n + vantagem - desvantagem;
   if (n <= 0) return null;
-  let formula = `${n}d${pool.faces}`;
-  if (bonus) formula += ` + ${bonus}`;
-  return formula;
+  return comBonus(`${n}d${pool.faces}`);
 }
 
 /**

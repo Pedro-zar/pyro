@@ -21,22 +21,104 @@ const TIPOS_DE_USO = ["magia", "runa", "feitico", "consumivel"];
 /** Tipos que podem receber um efeito preso ("só vale com a katana"). */
 const TIPOS_RESTRINGIVEIS = ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia", "runa"];
 
+/** Aumento antigo mirando a base digitada: na tela ele já aparece como bônus. */
+const ALVO_ANTIGO = /^system\.atributos\.(\w+)\.valor$/;
+
+/**
+ * Lê um efeito gravado de volta para o estado do construtor — é o caminho da
+ * edição. Cada pedaço volta para a linha que o criou: status vira Condição,
+ * flag de dano vira linha de Dano, flag de custo vira Custo, e as mudanças de
+ * system.changes viram a linha da categoria cujo alvo bate com a chave.
+ *
+ * O que o construtor não sabe representar não é jogado fora: mudança com
+ * chave fora das tabelas e status que não é condição do sistema ficam num
+ * bolso à parte, e o gravar os devolve intactos. Assim editar um efeito que
+ * alguém ajustou na ficha completa não apaga o ajuste.
+ */
+export function estadoDeEfeito(efeito) {
+  const flags = efeito.flags?.pyro ?? {};
+  const mudancas = [];
+  const avancadas = [];
+  const statusPreservados = [];
+
+  for (const status of efeito.statuses ?? []) {
+    if (PYRO.condicoes[status]) {
+      mudancas.push({ categoria: "condicao", alvo: status, modo: "add", valor: "" });
+    } else {
+      statusPreservados.push(status);
+    }
+  }
+  for (const d of flags.danos ?? []) {
+    mudancas.push({ categoria: "dano", alvo: d.tipo ?? "", modo: "add", valor: d.formula ?? "" });
+  }
+  for (const c of flags.custos ?? []) {
+    mudancas.push({ categoria: "custo", alvo: c.chave, modo: "add", valor: String(c.valor) });
+  }
+  for (const ch of efeito.system?.changes ?? []) {
+    // Efeito antigo mirando .valor entra como .bonus, igual à aplicação.
+    const chave = ch.type === "add" && ALVO_ANTIGO.test(ch.key)
+      ? ch.key.replace(ALVO_ANTIGO, "system.atributos.$1.bonus")
+      : ch.key;
+    const categoria = Object.entries(PYRO.alvosEfeito).find(([k, cfg]) =>
+      !["condicao", "dano", "custo"].includes(k) && chave in (cfg.alvos ?? {}))?.[0];
+    if (categoria) {
+      mudancas.push({ categoria, alvo: chave, modo: ch.type ?? "add", valor: String(ch.value ?? "") });
+    } else {
+      avancadas.push({ ...ch });
+    }
+  }
+
+  const rodadas = flags.rodadasFormula
+    ?? ((efeito.duration?.rounds ?? 0) > 0 ? String(efeito.duration.rounds) : "0");
+
+  return {
+    nome: efeito.name,
+    img: efeito.img,
+    rodadas: String(rodadas),
+    deUso: !!flags.deUso,
+    alvosItem: (flags.alvosItem ?? []).filter(a => a.id).map(a => a.id),
+    alvosTipo: (flags.alvosItem ?? []).filter(a => a.tipo).map(a => a.tipo),
+    mudancas,
+    avancadas,
+    statusPreservados,
+    categoria: efeito.disabled ? "inativos" : rodadas !== "0" ? "temporarios" : "passivos"
+  };
+}
+
 /**
  * Criação guiada de Active Effects: em vez de digitar caminhos como
  * "system.atributos.for.bonus", o jogador escolhe categoria e alvo em listas.
  * Depois de criado, o efeito continua editável pela ficha padrão do Foundry.
  */
 export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor({ documento, categoria = "passivos", ...options } = {}) {
+  constructor({ documento, categoria = "passivos", efeito = null, ...options } = {}) {
     super(options);
-    this.documento = documento;
-    this.categoria = categoria;
+    /** Efeito sendo editado; null quando a janela está criando um novo. */
+    this.efeito = efeito;
+    this.documento = efeito?.parent ?? documento;
     /*
      * Estado de trabalho do formulário. Fica aqui e não só no DOM porque a
      * janela se re-renderiza a cada linha adicionada ou categoria trocada, e
      * o que já tinha sido digitado precisa sobreviver a isso.
      */
+    if (efeito) {
+      const estado = estadoDeEfeito(efeito);
+      this.categoria = estado.categoria;
+      this.nome = estado.nome;
+      this.img = estado.img;
+      this.rodadas = estado.rodadas;
+      this.deUso = estado.deUso;
+      this.alvosItem = estado.alvosItem;
+      this.alvosTipo = estado.alvosTipo;
+      this.mudancas = estado.mudancas.length ? estado.mudancas : [mudancaPadrao()];
+      /* O que veio da ficha completa e o construtor não desenha: volta como está. */
+      this.avancadas = estado.avancadas;
+      this.statusPreservados = estado.statusPreservados;
+      return;
+    }
+    this.categoria = categoria;
     this.nome = game.i18n.localize("PYRO.Efeitos.Novo");
+    this.img = null;
     this.rodadas = categoria === "temporarios" ? "1" : "0";
     this.deUso = documento instanceof Item && TIPOS_DE_USO.includes(documento.type);
     /** Ids dos itens a que o efeito fica preso. Vazio = vale sempre. */
@@ -44,6 +126,15 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     /** Tipos inteiros presos ("todas as magias"), pelo nome do tipo de item. */
     this.alvosTipo = [];
     this.mudancas = [mudancaPadrao()];
+    this.avancadas = [];
+    this.statusPreservados = [];
+  }
+
+  /** O título diz o que a janela está fazendo: criando ou editando. */
+  get title() {
+    return this.efeito
+      ? game.i18n.format("PYRO.Efeitos.EditarTitulo", { nome: this.efeito.name })
+      : game.i18n.localize("PYRO.Efeitos.Construtor");
   }
 
   static DEFAULT_OPTIONS = {
@@ -132,6 +223,12 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     context.rodadas = this.rodadas;
     context.variaveis = this.#variaveis();
     context.itensAlvo = this.#itensAlvo();
+    context.editando = !!this.efeito;
+    // Ajustes feitos na ficha completa que o construtor preserva sem desenhar.
+    const avancadas = (this.avancadas?.length ?? 0) + (this.statusPreservados?.length ?? 0);
+    context.notaAvancadas = avancadas
+      ? game.i18n.format("PYRO.Efeitos.AvancadasPreservadas", { n: avancadas })
+      : null;
     context.mudancas = this.mudancas.map((m, i) => ({
       ...m,
       index: i,
@@ -295,31 +392,57 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
 
     const efeito = {
       name: nome,
-      img: dados.img || primeira?.img || "icons/svg/aura.svg",
-      origin: this.documento.uuid,
-      disabled: this.categoria === "inativos",
-      transfer: !deUso,
+      // Na edição o ícone que o efeito já tem fica; ícone é coisa da ficha
+      // completa, e o construtor não o desenha para não o perder.
+      img: dados.img || this.img || primeira?.img || "icons/svg/aura.svg",
+      /*
+       * As flags do PYRO são escritas por inteiro, com vazio explícito: numa
+       * edição que removeu o dano, um { danos: [] } de verdade apaga a flag
+       * antiga — só espalhar o que existe deixaria o dano removido no ar.
+       */
       flags: {
         pyro: {
           deUso,
-          ...(rodadasEhFormula ? { rodadasFormula: textoRodadas } : {}),
-          ...(danos.length ? { danos } : {}),
-          ...(custos.length ? { custos } : {}),
-          ...(alvosItem.length ? { alvosItem } : {})
+          rodadasFormula: rodadasEhFormula ? textoRodadas : null,
+          danos,
+          custos,
+          alvosItem
         }
       },
-      statuses: [...new Set(condicoes.map(m => m.alvo))],
+      // Status que não é condição do construtor (posto pela ficha completa
+      // ou por outro módulo) sobrevive à edição.
+      statuses: [...new Set([...condicoes.map(m => m.alvo), ...(this.statusPreservados ?? [])])],
       // v14: as mudanças moram no system do efeito, com o tipo em texto.
+      // As avançadas — chaves fora das tabelas do construtor — voltam intactas.
       system: {
-        changes: mudancas
-          .map(m => ({ key: m.alvo, type: m.modo, value: String(m.valor ?? ""), priority: 20 }))
-      }
+        changes: [
+          ...mudancas.map(m => ({ key: m.alvo, type: m.modo, value: String(m.valor ?? ""), priority: 20 })),
+          ...(this.avancadas ?? [])
+        ]
+      },
+      /*
+       * Fórmula entra com 1 rodada só para o efeito nascer temporário (o
+       * número real vai na cópia aplicada); sem duração nenhuma, o null
+       * limpa o que houver — uma edição pode justamente tirar a duração.
+       */
+      duration: { rounds: rodadasEhFormula ? 1 : rodadasFixas > 0 ? rodadasFixas : null }
     };
-    // Fórmula entra com 1 rodada só para o efeito já nascer temporário; o
-    // número real é escrito na cópia que vai para o alvo.
-    if (rodadasEhFormula) efeito.duration = { rounds: 1 };
-    else if (rodadasFixas > 0) efeito.duration = { rounds: rodadasFixas };
 
+    if (this.efeito) {
+      /*
+       * Edição: nem tudo é do construtor. disabled fica como está (a lista
+       * da ficha liga e desliga), origin é de quem criou, e transfer só é
+       * tocado onde o checkbox de uso existe — num efeito de ator não há
+       * checkbox, e não se muda o que não se mostra.
+       */
+      if (this.documento instanceof Item) efeito.transfer = !deUso;
+      await this.efeito.update(efeito);
+      return this.efeito;
+    }
+
+    efeito.origin = this.documento.uuid;
+    efeito.disabled = this.categoria === "inativos";
+    efeito.transfer = !deUso;
     const criados = await ActiveEffect.implementation.create(efeito, { parent: this.documento });
     return Array.isArray(criados) ? criados[0] : criados;
   }

@@ -116,11 +116,18 @@
   <p class="pyro-nota">{{localize "PYRO.Efeitos.TamanhoDica"}}</p>
 
   <footer class="construtor-rodape">
+    {{!-- Ajustes feitos na ficha completa que esta tela não desenha: ficam
+          guardados e voltam intactos no salvar. --}}
+    {{#if notaAvancadas}}
+    <p class="pyro-nota">{{notaAvancadas}}</p>
+    {{/if}}
     <button type="button" data-action="avancado">
-      <i class="fa-solid fa-sliders"></i> {{localize "PYRO.Efeitos.Avancado"}}
+      <i class="fa-solid fa-sliders"></i>
+      {{localize (pyroSe editando "PYRO.Efeitos.SalvarAvancado" "PYRO.Efeitos.Avancado")}}
     </button>
     <button type="submit" class="destaque">
-      <i class="fa-solid fa-check"></i> {{localize "PYRO.Efeitos.CriarEfeito"}}
+      <i class="fa-solid fa-check"></i>
+      {{localize (pyroSe editando "PYRO.Efeitos.SalvarEfeito" "PYRO.Efeitos.CriarEfeito")}}
     </button>
   </footer>
 </div>

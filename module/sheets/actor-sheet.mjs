@@ -1153,8 +1153,15 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     }).render(true);
   }
 
+  /**
+   * Editar reabre o construtor do PYRO carregado com o efeito, e não a ficha
+   * padrão do Foundry: é lá que dano, custo e restrição por item fazem
+   * sentido. A ficha completa continua a um clique, no botão "abrir edição
+   * completa" do próprio construtor.
+   */
   static #editarEfeito(event, target) {
-    this.#getEfeito(target)?.sheet.render(true);
+    const efeito = this.#getEfeito(target);
+    if (efeito) new ConstrutorEfeitoApp({ efeito }).render(true);
   }
 
   static async #excluirEfeito(event, target) {

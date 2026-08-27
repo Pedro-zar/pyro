@@ -501,7 +501,9 @@ PYRO.condicoes = {
   apavorado: { label: "PYRO.Condicoes.apavorado", img: "icons/svg/terror.svg" },
   culpado:   { label: "PYRO.Condicoes.culpado",   img: "icons/svg/degen.svg" },
   insensato: { label: "PYRO.Condicoes.insensato", img: "icons/svg/daze.svg" },
-  desmaiado: { label: "PYRO.Condicoes.desmaiado", img: "icons/svg/unconscious.svg" }
+  desmaiado: { label: "PYRO.Condicoes.desmaiado", img: "icons/svg/unconscious.svg" },
+  // Acumula em níveis: cada nível tira 1 de todos os testes (ver efeitos.mjs).
+  exausto:   { label: "PYRO.Condicoes.exausto",   img: "icons/svg/sleep.svg" }
 };
 
 /**
