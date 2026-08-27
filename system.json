@@ -2,10 +2,10 @@
   "id": "pyro",
   "title": "PYRO",
   "description": "Sistema PYRO",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "compatibility": {
-    "minimum": "13",
-    "verified": "13"
+    "minimum": "14",
+    "verified": "14"
   },
   "authors": [
     {
@@ -54,14 +54,19 @@
       "path": "packs/itens",
       "type": "Item",
       "system": "pyro",
-      "ownership": { "PLAYER": "OBSERVER", "ASSISTANT": "OWNER" }
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [
     {
       "name": "PYRO",
       "sorting": "m",
-      "packs": ["itens"]
+      "packs": [
+        "itens"
+      ]
     }
   ],
   "grid": {

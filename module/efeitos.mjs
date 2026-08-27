@@ -121,8 +121,8 @@ export function ajustesDeAtributo(actor, item) {
   for (const efeito of efeitosAtivos(actor)) {
     if (!restricaoDoEfeito(efeito).length) continue; // já aplicado na ficha
     if (!efeitoValeParaItem(efeito, item)) continue;
-    for (const mudanca of efeito.changes ?? []) {
-      if (mudanca.mode !== CONST.ACTIVE_EFFECT_MODES.ADD) continue;
+    for (const mudanca of efeito.system?.changes ?? []) {
+      if (mudanca.type !== "add") continue;
       const chave = ALVO.exec(mudanca.key)?.[1];
       const valor = Number(mudanca.value);
       if (chave && Number.isFinite(valor)) ajustes[chave] = (ajustes[chave] ?? 0) + valor;
@@ -216,10 +216,14 @@ export function dadosDoEfeitoAplicado(efeito, vars) {
   dados.origin = efeito.uuid;
   dados.transfer = false;
   dados.disabled = false;
-  dados.changes = (dados.changes ?? []).map(m => ({
-    ...m,
-    value: resolverValorEfeito(m.value, vars)
-  }));
+  // v14: as mudanças vivem em system.changes.
+  dados.system = {
+    ...(dados.system ?? {}),
+    changes: (dados.system?.changes ?? []).map(m => ({
+      ...m,
+      value: resolverValorEfeito(m.value, vars)
+    }))
+  };
 
   // Duração escrita como fórmula ("@rodadas") só vira número aqui, porque só
   // agora se sabe com que Intenção a magia foi conjurada.

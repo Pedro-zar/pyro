@@ -1,12 +1,11 @@
 /**
- * Efeitos do PYRO.
+ * Efeitos do PYRO — versão para o Foundry v14.
  *
- * O único ajuste sobre o comportamento do Foundry é o destino dos aumentos de
- * atributo. O construtor passou a mirar `system.atributos.<x>.bonus`, para o
- * aumento aparecer como +X ao lado da base em vez de reescrever o número que o
- * jogador digitou. Efeitos criados antes disso miram `.valor`, e continuariam
- * apagando a base; aqui eles são redirecionados na hora de aplicar, sem mexer
- * no que está gravado.
+ * O v14 refez a aplicação de efeitos: as mudanças moram em `system.changes`,
+ * o modo numérico virou o `type` em texto ("add", "override"...), e a
+ * aplicação passou a ser o par `shouldApplyChange` (portão por mudança, na
+ * instância) + `applyChange` (a conta em si, estática). Os dois ajustes do
+ * PYRO se encaixam um em cada metade.
  */
 const ALVO_ANTIGO = /^system\.atributos\.(\w+)\.valor$/;
 
@@ -22,18 +21,23 @@ export class PyroActiveEffect extends ActiveEffect {
     return super.isSuppressed ?? false;
   }
 
-  apply(actor, change) {
-    // Rede de segurança: se alguma versão do Foundry deixar de olhar
-    // isSuppressed, a restrição continua valendo por aqui.
-    if ((this.flags?.pyro?.alvosItem ?? []).length) return {};
-    /*
-     * Só o modo Somar é redirecionado. Substituir, Mínimo e Máximo falam do
-     * atributo inteiro ("este monstro tem FOR 20"), e passar isso para o bônus
-     * mudaria o sentido do efeito.
-     */
-    if (change.mode === CONST.ACTIVE_EFFECT_MODES.ADD && ALVO_ANTIGO.test(change.key)) {
+  /** O mesmo travamento, no portão que a pipeline nova consulta por mudança. */
+  shouldApplyChange(change, options) {
+    if ((this.flags?.pyro?.alvosItem ?? []).length) return false;
+    return super.shouldApplyChange?.(change, options) ?? true;
+  }
+
+  /**
+   * Aumento de atributo criado antes do construtor mirar `.bonus` aponta para
+   * `.valor` e apagaria o número que o jogador digitou. O redirecionamento
+   * acontece na hora de aplicar, sem mexer no que está gravado — e só no tipo
+   * Somar: Substituir, Mínimo e Máximo falam do atributo inteiro ("este
+   * monstro tem FOR 20"), e mandar isso para o bônus mudaria o sentido.
+   */
+  static applyChange(alvo, change, options) {
+    if (change?.type === "add" && ALVO_ANTIGO.test(change.key)) {
       change = { ...change, key: change.key.replace(ALVO_ANTIGO, "system.atributos.$1.bonus") };
     }
-    return super.apply(actor, change);
+    return super.applyChange(alvo, change, options);
   }
 }

@@ -11,7 +11,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 const mudancaPadrao = () => ({
   categoria: "atributos",
   alvo: Object.keys(PYRO.alvosEfeito.atributos.alvos)[0],
-  modo: 2,
+  modo: "add",
   valor: "1"
 });
 
@@ -195,7 +195,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.mudancas = this.mudancas.map((m, i) => ({
       categoria: dados[`mudanca.${i}.categoria`] ?? m.categoria,
       alvo: dados[`mudanca.${i}.alvo`] ?? m.alvo,
-      modo: Number(dados[`mudanca.${i}.modo`] ?? m.modo),
+      // v14: o tipo da mudança é texto ("add"), não mais um número.
+      modo: String(dados[`mudanca.${i}.modo`] ?? m.modo),
       valor: dados[`mudanca.${i}.valor`] ?? m.valor
     }));
     return dados;
@@ -308,8 +309,11 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
         }
       },
       statuses: [...new Set(condicoes.map(m => m.alvo))],
-      changes: mudancas
-        .map(m => ({ key: m.alvo, mode: Number(m.modo), value: String(m.valor ?? ""), priority: 20 }))
+      // v14: as mudanças moram no system do efeito, com o tipo em texto.
+      system: {
+        changes: mudancas
+          .map(m => ({ key: m.alvo, type: m.modo, value: String(m.valor ?? ""), priority: 20 }))
+      }
     };
     // Fórmula entra com 1 rodada só para o efeito já nascer temporário; o
     // número real é escrito na cópia que vai para o alvo.

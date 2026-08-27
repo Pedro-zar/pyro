@@ -601,13 +601,17 @@ PYRO.alvosEfeito = {
   }
 };
 
-/** Modos de aplicação (espelham CONST.ACTIVE_EFFECT_MODES). */
+/**
+ * Tipos de mudança dos efeitos (espelham os tipos do núcleo no v14, que
+ * trocou o modo numérico por texto). "upgrade" é o piso ("no mínimo X") e
+ * "downgrade" o teto — os rótulos traduzem isso, não o nome interno.
+ */
 PYRO.modosEfeito = {
-  2: "PYRO.Efeitos.Modo.somar",
-  1: "PYRO.Efeitos.Modo.multiplicar",
-  5: "PYRO.Efeitos.Modo.substituir",
-  4: "PYRO.Efeitos.Modo.minimo",
-  3: "PYRO.Efeitos.Modo.maximo"
+  add: "PYRO.Efeitos.Modo.somar",
+  multiply: "PYRO.Efeitos.Modo.multiplicar",
+  override: "PYRO.Efeitos.Modo.substituir",
+  upgrade: "PYRO.Efeitos.Modo.minimo",
+  downgrade: "PYRO.Efeitos.Modo.maximo"
 };
 
 /** Guia rápido de ações (SRD §5). */

@@ -242,7 +242,10 @@ function efeitosDoTexto(nome, texto, idBase) {
       _key: `!items.effects!${idBase}.${idEfeito}`,
       name: nome,
       img: "icons/svg/upgrade.svg",
-      changes: [{ key: `system.atributos.${attr}.bonus`, mode: 2, value: m[2], priority: 20 }],
+      // v14: mudanças em system.changes, com o tipo em texto.
+      system: {
+        changes: [{ key: `system.atributos.${attr}.bonus`, type: "add", value: m[2], priority: 20 }]
+      },
       disabled: false,
       transfer: true
     });
