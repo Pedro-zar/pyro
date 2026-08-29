@@ -444,6 +444,21 @@ export class MagiaData extends BaseItemData {
       }))
     };
   }
+
+  prepareDerivedData() {
+    /*
+     * O nome na referência é um retrato de quando a magia foi salva. Em
+     * memória ele acompanha a runa atual: renomear a runa reflete na lista
+     * do grimório e na ficha da magia na hora, mesmo em magia salva antes
+     * desta correção — e o _onUpdate da runa regrava o retrato no banco.
+     */
+    const actor = this.parent?.actor;
+    if (!actor) return;
+    for (const ref of this.runas ?? []) {
+      const runa = ref.itemId ? actor.items.get(ref.itemId) : null;
+      if (runa?.name && ref.nome !== runa.name) ref.nome = runa.name;
+    }
+  }
 }
 
 /* ---------------------------- Caminho ---------------------------------------- */

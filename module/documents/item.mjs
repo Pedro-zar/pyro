@@ -209,6 +209,12 @@ export class PyroItem extends Item {
       }
     }
 
+    // O nome antigo viaja nas options: o _onUpdate usa para achar, nas magias
+    // salvas, referências antigas desta runa que ainda não têm itemId.
+    if (this.type === "runa" && changed.name !== undefined && changed.name !== this.name) {
+      options.pyroRunaRenomeada = this.name;
+    }
+
     /*
      * Arma à distância: o alcance máximo nunca fica abaixo do menor. Máximo
      * zero é corpo a corpo, e aí o menor é o alcance da arma (um bastão chega
@@ -349,6 +355,36 @@ export class PyroItem extends Item {
       const projecao = foundry.utils.mergeObject(this.system.toObject(), sys, { inplace: false });
       changed.name = nomeDoCaminho(projecao);
     }
+  }
+
+  /**
+   * Renomear uma runa regrava o retrato dela nas magias salvas do mesmo
+   * ator. A conjuração já resolvia pelo itemId, mas a lista do grimório e a
+   * ficha da magia mostravam o nome gravado no dia em que ela foi salva —
+   * parecia desvinculada. Referência antiga, gravada só pelo nome, também é
+   * religada pelo id aqui.
+   */
+  _onUpdate(changed, options, userId) {
+    super._onUpdate(changed, options, userId);
+    if (this.type !== "runa" || changed.name === undefined) return;
+    // Só quem editou dispara a regravação, senão cada cliente repetiria.
+    if (game.user.id !== userId || !this.actor) return;
+    const antigo = options.pyroRunaRenomeada;
+    const updates = [];
+    for (const magia of this.actor.items) {
+      if (magia.type !== "magia") continue;
+      const runas = magia.system.toObject().runas ?? [];
+      let mexeu = false;
+      for (const ref of runas) {
+        const minha = ref.itemId === this.id
+          || (!ref.itemId && antigo && ref.nome === antigo);
+        if (!minha) continue;
+        if (ref.nome !== this.name) { ref.nome = this.name; mexeu = true; }
+        if (!ref.itemId) { ref.itemId = this.id; mexeu = true; }
+      }
+      if (mexeu) updates.push({ _id: magia.id, "system.runas": runas });
+    }
+    if (updates.length) this.actor.updateEmbeddedDocuments("Item", updates);
   }
 
   /**
