@@ -103,10 +103,13 @@
       {{#if @root.recursos.length}}
       <div class="campos-check">
         <span class="rotulo-check">{{localize "PYRO.Config.Concede"}}</span>
+        {{!-- r é block param do each de fora: dentro deste each ele resolve
+              direto, e "../r" resolveria contra a raça (vazio) — foi isso que
+              deixava o name como "raca..recursos.x" e o save zerava tudo. --}}
         {{#each @root.recursos as |rc|}}
         <label class="check-linha">
-          <input type="checkbox" name="raca.{{../r.chave}}.recursos.{{rc.chave}}"
-                 {{checked (pyroInclui ../r.recursos rc.chave)}} />
+          <input type="checkbox" name="raca.{{r.chave}}.recursos.{{rc.chave}}"
+                 {{checked (pyroInclui r.recursos rc.chave)}} />
           <span>{{rc.label}}</span>
         </label>
         {{/each}}

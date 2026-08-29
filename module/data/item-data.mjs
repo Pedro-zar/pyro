@@ -529,6 +529,19 @@ export class CaminhoData extends BaseItemData {
   }
 
   prepareDerivedData() {
+    /*
+     * Em raça fechada o preset manda nos recursos, como já manda em magia e
+     * feitiçaria — não há checkbox para o jogador decidir. Derivar aqui
+     * também conserta ficha antiga, de antes do carimbo gravar a lista no
+     * item: o elfo de ontem volta a conceder Energia Natural sem precisar
+     * reescolher a raça. Raça aberta e caminho de classe seguem com o que
+     * está gravado.
+     */
+    if (this.ehRacial) {
+      const preset = PYRO.racas?.[this.raca];
+      if (preset && !preset.custom) this.recursos = [...(preset.recursos ?? [])];
+    }
+
     const actor = this.parent?.actor;
     // XP gasta é a soma do custo das habilidades deste caminho. O vínculo
     // aceita o id ou o nome, pra não quebrar fichas antigas.

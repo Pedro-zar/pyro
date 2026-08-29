@@ -31,9 +31,8 @@ export function distanciaAteAlvo(actor) {
 export function nomeDoCaminho(sys) {
   let base;
   if (sys.ehRacial) {
-    const preset = PYRO.racas[sys.raca];
-    base = preset
-      ? game.i18n.format(preset.nome, { detalhe: sys.racaDetalhe || game.i18n.localize("PYRO.Item.SemDetalhe") })
+    base = PYRO.racas[sys.raca]
+      ? PYRO.nomeDaRaca(sys.raca, sys.racaDetalhe || game.i18n.localize("PYRO.Item.SemDetalhe"))
       : (sys.racaDetalhe || "");
   } else {
     base = sys.nomeCaminho || "";
@@ -55,6 +54,20 @@ export function nomeDaRuna(sys) {
 }
 
 export class PyroItem extends Item {
+  /**
+   * Autocura de nomes gravados com o molde por preencher. Na troca para o
+   * v14 o "{detalhe}" ficou sem interpolar e nomes como "Elfo ({detalhe})"
+   * foram parar no banco. Aqui o nome certo é refeito em memória a cada
+   * preparação; a próxima edição do caminho grava de vez, pelo recálculo
+   * que o _preUpdate já faz.
+   */
+  prepareDerivedData() {
+    super.prepareDerivedData();
+    if (this.type === "caminho" && game.i18n && /\{(detalhe|nome)\}/.test(this.name ?? "")) {
+      try { this.name = nomeDoCaminho(this.system); } catch { /* fica o gravado */ }
+    }
+  }
+
   /** Efeitos marcados como "de uso": vão para o alvo, não para quem carrega. */
   get efeitosDeUso() {
     return this.effects.filter(e => e.flags?.pyro?.deUso && !e.disabled);

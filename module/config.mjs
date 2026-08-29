@@ -254,6 +254,22 @@ PYRO.linguasPadrao = {
 PYRO.linguas = foundry.utils.deepClone(PYRO.linguasPadrao);
 
 /**
+ * Sobe (ou desce) um potencial na escada das línguas, na ordem em que estão
+ * configuradas: humana → élfica → dracônica → angelical. É o degrau que o
+ * efeito "potencial mágico" percorre — um Milagre com +1 faz o humano conjurar
+ * como um elfo, sem trocar de raça. Passos além das pontas param nelas, e
+ * língua fora da tabela fica onde está.
+ */
+PYRO.subirPotencial = (chave, passos) => {
+  const n = Math.round(Number(passos) || 0);
+  if (!n) return chave;
+  const ordem = Object.keys(PYRO.linguas);
+  const i = ordem.indexOf(chave);
+  if (i < 0) return chave;
+  return ordem[Math.clamp(i + n, 0, ordem.length - 1)];
+};
+
+/**
  * Afinidades: derivadas dos elementos pelo campo grupo. Um grupo com mais de
  * um elemento vira uma afinidade só (Água/Gelo libera as duas runas).
  * "outro" é texto livre pra elementos customizados da mesa.
@@ -341,6 +357,24 @@ PYRO.racasPadrao = {
 };
 
 PYRO.racas = foundry.utils.deepClone(PYRO.racasPadrao);
+
+/**
+ * Nome de uma raça com o {detalhe} preenchido: elfo + "Corvo" => "Elfo (Corvo)".
+ * A troca é feita à mão porque o padrão nem sempre é chave de tradução: a
+ * configuração de raças do mundo salva o texto já resolvido, e o
+ * game.i18n.format do v14 só interpola chaves registradas no catálogo — um
+ * padrão literal voltava com o "{detalhe}" por preencher. Detalhe vazio também
+ * não deixa um "Elfo ()" para trás.
+ */
+PYRO.nomeDaRaca = (raca, detalhe) => {
+  const preset = PYRO.racas?.[raca];
+  if (!preset) return "";
+  const modelo = game.i18n.localize(preset.nome ?? preset.label ?? "");
+  return modelo
+    .replace(/\{detalhe\}/g, (detalhe ?? "").trim())
+    .replace(/\(\s*\)/g, "")
+    .trim();
+};
 
 /**
  * Tamanhos que uma raça aceita, do mínimo ao máximo configurados. É o que
@@ -598,7 +632,10 @@ PYRO.alvosEfeito = {
       "system.dinheiro": "PYRO.Dinheiro",
       "system.tamanhoMod": "PYRO.Efeitos.Alvos.tamanhoMod",
       "system.tamanho": "PYRO.Efeitos.Alvos.tamanho",
-      "system.maos": "PYRO.Efeitos.Alvos.maos"
+      "system.maos": "PYRO.Efeitos.Alvos.maos",
+      // Conta degraus na escada das línguas, não pontos de fator: +1 sobe
+      // humano para élfico em tudo que o potencial decide.
+      "system.potencialBonus": "PYRO.Efeitos.Alvo.potencialBonus"
     }
   }
 };

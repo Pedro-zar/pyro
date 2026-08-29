@@ -19,11 +19,27 @@
   </div>
   {{/unless}}
 
+  {{#if secao.grupos}}
+  {{!-- Seção agrupada (habilidades por caminho): um cabeçalho por grupo, e
+        as linhas de cada um já vêm na ordem das vagas de XP. --}}
+  {{#each secao.grupos as |grupo|}}
+  <div class="grupo-secao">
+    <h4 class="grupo-titulo">{{grupo.titulo}}
+      <span class="secao-contagem numero">{{grupo.itens.length}}</span></h4>
+    <ol class="lista-itens">
+      {{#each grupo.itens as |item|}}
+      {{> "systems/pyro/templates/actor/partials/item-linha.hbs" linha=item}}
+      {{/each}}
+    </ol>
+  </div>
+  {{/each}}
+  {{else}}
   <ol class="lista-itens">
     {{#each secao.itens as |item|}}
     {{> "systems/pyro/templates/actor/partials/item-linha.hbs" linha=item}}
     {{/each}}
   </ol>
+  {{/if}}
   {{else}}
   <p class="secao-vazia">{{secao.vazio}}</p>
   {{/if}}

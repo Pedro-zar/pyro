@@ -425,6 +425,21 @@
   border: 1px dashed var(--pyro-borda); border-radius: var(--pyro-r-md);
 }
 
+/* --- Grupos dentro de uma seção (habilidades por caminho) ------------------
+   Cabeçalho discreto entre o título da seção e a linha de item: filete no
+   acento da vocação, caixa alta pequena, contagem do grupo ao lado. */
+.pyro .grupo-secao { margin-top: var(--pyro-e-2); }
+.pyro .grupo-secao + .grupo-secao { margin-top: var(--pyro-e-4); }
+.pyro .grupo-titulo {
+  display: flex; align-items: center; gap: var(--pyro-e-2);
+  margin: 0 0 var(--pyro-e-1); padding-left: var(--pyro-e-2);
+  border-left: 3px solid var(--pyro-acento-ficha);
+  font-family: var(--pyro-fonte-display);
+  font-size: var(--pyro-t-xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--pyro-texto-2);
+}
+
 /* ---------- Listas de itens ------------------------------------------------ */
 
 .pyro .lista-itens {

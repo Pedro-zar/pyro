@@ -21,6 +21,45 @@ export function planoDeDrop(dados, atorUuid) {
   return { acao: "reordenar", id: dados.uuid.slice(prefixo.length) };
 }
 
+/**
+ * Agrupa as habilidades por caminho, para a lista da ficha.
+ *
+ * Os grupos saem na ordem da lista de caminhos, e dentro de cada um as
+ * habilidades seguem a posição no caminho — a vaga de XP: base (vaga 0)
+ * primeiro, depois 1, 2, 3... que é a ordem em que foram pegas. "Geral" e
+ * habilidades de caminho apagado (agrupadas pelo nome que ficou gravado)
+ * fecham a lista. Caminho sem habilidade não vira cabeçalho vazio.
+ */
+export function gruposDeHabilidades(caminhos, habilidades) {
+  const porVaga = (a, b) => (a.system.ordem ?? 0) - (b.system.ordem ?? 0)
+    || a.name.localeCompare(b.name);
+  const donoDe = h => caminhos.find(c => c.id === h.system.caminho)
+    ?? caminhos.find(c => c.name === h.system.caminho);
+
+  const grupos = caminhos.map(c => ({ chave: c.id, titulo: c.name, ehGeral: false, itens: [] }));
+  const geral = { chave: "geral", titulo: null, ehGeral: true, itens: [] };
+  const orfaos = new Map();
+
+  for (const h of habilidades) {
+    const dono = donoDe(h);
+    if (dono) {
+      grupos.find(g => g.chave === dono.id).itens.push(h);
+    } else if (!h.system.caminho || h.system.caminho === "geral") {
+      geral.itens.push(h);
+    } else {
+      if (!orfaos.has(h.system.caminho)) {
+        orfaos.set(h.system.caminho,
+          { chave: h.system.caminho, titulo: h.system.caminho, ehGeral: false, itens: [] });
+      }
+      orfaos.get(h.system.caminho).itens.push(h);
+    }
+  }
+
+  const todos = [...grupos, ...orfaos.values(), geral];
+  for (const g of todos) g.itens.sort(porVaga);
+  return todos.filter(g => g.itens.length);
+}
+
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
 
@@ -241,12 +280,14 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const mochilas = await this.#linhas(porCategoria("mochila"), linhaEquipamento);
     const consumiveis = await this.#linhas(porCategoria("consumivel"), linhaConsumivel);
 
-    const habilidade = item => {
+    const habilidade = (item, agrupada = false) => {
       const s = item.system;
       const caminho = actor.items.get(s.caminho)
         ?? actor.items.find(i => i.type === "caminho" && i.name === s.caminho);
       const caminhoNome = caminho?.name
         ?? (s.caminho === "geral" ? loc("PYRO.CaminhoGeral") : s.caminho);
+      // A vaga de XP no caminho: é a ordem em que a habilidade foi pega.
+      const posicao = s.ehBase ? loc("PYRO.Item.BaseTag") : `#${s.ordem}`;
       const custos = [
         s.custoEstamina ? `${s.custoEstamina} ${loc("PYRO.Abrev.estamina")}` : null,
         s.custoMana ? `${s.custoMana} ${loc("PYRO.Abrev.mana")}` : null,
@@ -255,7 +296,11 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ].filter(Boolean).join(" · ");
       return {
         detalhes: [
-          { texto: caminhoNome, classe: "col-caminho" },
+          // Agrupada por caminho, o nome dele já está no cabeçalho do grupo:
+          // a coluna vira a posição, que é o que a lista quer evidenciar.
+          agrupada
+            ? { texto: posicao, classe: "col-curto" }
+            : { texto: caminhoNome, classe: "col-caminho" },
           { texto: custos, classe: "col-custo" }
         ],
         cauda: [
@@ -264,6 +309,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         ],
         resumo: [
           { label: loc("TYPES.Item.caminho"), valor: caminhoNome },
+          { label: loc("PYRO.Item.Posicao"), valor: posicao },
           { label: loc("PYRO.Item.Categoria"), valor: loc(PYRO.categoriasHabilidade[s.categoria] ?? "") },
           { label: loc("PYRO.Item.Tier"), valor: s.tier },
           { label: loc("PYRO.Item.CustoXp"), valor: s.ehBase ? loc("PYRO.Item.BaseTag") : s.custoXp },
@@ -278,8 +324,21 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     };
 
     const todasHabilidades = porTipo("habilidade");
-    const habilidades = await this.#linhas(
-      todasHabilidades.filter(i => !i.system.ehTecnica && !i.system.abaCaminho), habilidade);
+    /*
+     * A lista de habilidades sai agrupada por caminho, cada grupo na ordem
+     * das vagas de XP. As linhas continuam nascendo do mesmo montador; o
+     * flat (habilidades) segue existindo para contagem e favoritos.
+     */
+    const gruposHab = gruposDeHabilidades(porTipo("caminho"),
+      todasHabilidades.filter(i => !i.system.ehTecnica && !i.system.abaCaminho));
+    const habilidadesGrupos = [];
+    for (const g of gruposHab) {
+      habilidadesGrupos.push({
+        titulo: g.ehGeral ? loc("PYRO.CaminhoGeral") : g.titulo,
+        itens: await this.#linhas(g.itens, i => habilidade(i, true))
+      });
+    }
+    const habilidades = habilidadesGrupos.flatMap(g => g.itens);
     const tecnicas = await this.#linhas(
       todasHabilidades.filter(i => i.system.ehTecnica && !i.system.abaCaminho), habilidade);
     const habilidadesCaminho = await this.#linhas(
@@ -448,7 +507,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const secoes = {
       favoritos: secao("favoritos", favoritos, { semLegenda: true }),
       tecnicas: secao("tecnicas", tecnicas, colsHabilidade),
-      habilidades: secao("habilidades", habilidades, colsHabilidade),
+      habilidades: secao("habilidades", habilidades, {
+        ...colsHabilidade,
+        // Agrupada, a coluna do caminho vira a posição na vaga de XP.
+        colunas: [col("posicao", "col-curto"), col("custo", "col-custo")],
+        grupos: habilidadesGrupos
+      }),
       caminhoProprio: secao("caminhoProprio", habilidadesCaminho, {
         titulo: actor.system.abaCaminhoLabel || loc("PYRO.Secao.caminhoProprio"),
         ...colsHabilidade
@@ -820,7 +884,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // {detalhe}, então a ficha mostra "Raposa" e não "Outro (Raposa)".
       const detalhe = racial.system.racaDetalhe?.trim();
       const nome = preset
-        ? game.i18n.format(preset.nome, { detalhe: detalhe ?? "" }).trim()
+        ? PYRO.nomeDaRaca(racial.system.raca, detalhe ?? "")
         : (detalhe ?? "");
       partes.push({
         texto: nome || game.i18n.localize(preset?.label ?? ""),

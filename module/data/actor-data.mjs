@@ -112,6 +112,14 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       bloqueioBonus: num(0),
       esquivaBonus: num(0),
 
+      /*
+       * Degraus somados na escada das línguas (humana → élfica → ...). É o
+       * alvo do efeito "potencial mágico": um Milagre grava +1 aqui e o
+       * humano passa a conjurar como um elfo — fator de mana, multiplicador
+       * de efeito e língua nativa sobem juntos, sem trocar a raça.
+       */
+      potencialBonus: num(0),
+
       atributos: new fields.SchemaField(atributos),
 
       recursos: new fields.SchemaField({
@@ -299,19 +307,26 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       i.type === "habilidade" && i.system.ehTecnica
     );
 
+    /*
+     * Efeito de potencial (o Milagre) sobe cada caminho na escada das
+     * línguas antes de qualquer conta: fator de mana, lista de potenciais e
+     * língua nativa enxergam o degrau já subido.
+     */
+    const potencialDe = c => PYRO.subirPotencial(c.system.potencial, this.potencialBonus);
+
     // Fator mágico: média dos potenciais de todos os caminhos que usam magia.
     // Meio-dragão (4) + meio-elfo (2) = 3; humano mago (1) + elfo mago (2) = 1,5.
     const fatores = magicos
-      .map(c => PYRO.linguas[c.system.potencial]?.fator)
+      .map(c => PYRO.linguas[potencialDe(c)]?.fator)
       .filter(f => typeof f === "number");
     this.fatorLinguistico = fatores.length
       ? fatores.reduce((t, f) => t + f, 0) / fatores.length
-      : (PYRO.linguas[racial?.system.potencial]?.fator ?? 1);
-    this.potenciais = magicos.map(c => c.system.potencial);
+      : (PYRO.linguas[racial ? potencialDe(racial) : "humana"]?.fator ?? 1);
+    this.potenciais = magicos.map(potencialDe);
     // AJUSTE: a língua "nativa" (a que não recebe destaque visual) é a do
     // primeiro caminho mágico da lista.
-    this.linguaNativa = magicos[0]?.system.potencial
-      ?? racial?.system.potencial ?? "humana";
+    this.linguaNativa = magicos[0] ? potencialDe(magicos[0])
+      : racial ? potencialDe(racial) : "humana";
 
     // Afinidades: união das listas de todos os caminhos mágicos. A lista
     // guarda também o elemento que dá a cor do rótulo na ficha (o primeiro
