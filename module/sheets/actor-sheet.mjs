@@ -168,20 +168,30 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const porCategoria = chave =>
       ordenado(actor.items.filter(i => PYRO.itemNaCategoria(i, chave)));
     const loc = k => game.i18n.localize(k);
+    // "1 ação" / "2 ações": as linhas escrevem tudo por extenso.
+    const umOuVarios = (n, um, varios) => loc(Number(n) === 1 ? um : varios);
+    // A linha padrão das listas: nome + uma coluna só de detalhes.
+    const detalheUnico = texto =>
+      [{ texto, classe: "col-detalhes", dica: texto }];
 
     const linhaArma = item => {
       const s = item.system;
       const danos = (s.danos ?? []).filter(d => d.formula?.trim());
       const resumoDano = danos
-        .map(d => `${d.formula} ${loc(PYRO.tiposDano[d.tipo]?.label ?? d.tipo)}`).join(" · ");
+        .map(d => `${d.formula} ${loc(PYRO.tiposDano[d.tipo]?.label ?? d.tipo).toLocaleLowerCase()}`)
+        .join(" + ");
       const alcance = s.alcanceMaximo > 0
         ? `${s.alcanceMenor}/${s.alcanceMaximo}m` : `${s.alcanceMenor}m`;
+      // "6d6 cortante, 2 ações, alcance 1m, peso 9" — igual às habilidades.
+      const detalheTexto = [
+        resumoDano || null,
+        s.acoes ? `${s.acoes} ${umOuVarios(s.acoes, "PYRO.Custos.acao", "PYRO.Custos.acaoPlural")}` : null,
+        `${loc("PYRO.Item.Alcance").toLocaleLowerCase()} ${alcance}`,
+        `${loc("PYRO.PesoAbrev")} ${s.peso}`
+      ].filter(Boolean).join(", ");
       return {
-        detalhes: [{ texto: resumoDano, classe: "col-dano" }],
-        cauda: [
-          { texto: s.acoes, classe: "col-curto" },
-          { texto: alcance, classe: "col-curto" }
-        ],
+        detalhes: detalheUnico(detalheTexto),
+        cauda: [],
         resumo: [
           { label: loc("PYRO.Item.Dano"), valor: resumoDano || "—" },
           { label: loc("PYRO.Acoes"), valor: s.acoes },
@@ -213,14 +223,18 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       if (s.categoria === "arcano" && s.reducaoMana) {
         extra.push({ chave: "PYRO.Item.ReducaoMana", texto: `-${s.reducaoMana}` });
       }
+      // "Costas, carga extra +54, peso 1": parte, o que o item tem de
+      // especial e o peso, tudo numa coluna só.
+      const detalheTexto = [
+        loc(PYRO.partesCorpo[s.parte] ?? "") || null,
+        ...extra.map(e => `${loc(e.chave).toLocaleLowerCase()} ${e.texto}`),
+        `${loc("PYRO.PesoAbrev")} ${s.peso}`
+      ].filter(Boolean).join(", ");
       return {
         equipavel: true,
         equipado: s.equipado,
-        detalhes: [
-          { texto: loc(PYRO.partesCorpo[s.parte] ?? ""), classe: "col-parte" },
-          ...extra.map(e => ({ texto: `${loc(e.chave)} ${e.texto}`, classe: "destaque-lingua" }))
-        ],
-        cauda: [{ texto: s.peso, classe: "col-curto" }],
+        detalhes: detalheUnico(detalheTexto),
+        cauda: [],
         resumo: [
           { label: loc("PYRO.Item.Parte"), valor: loc(PYRO.partesCorpo[s.parte] ?? "") },
           ...extra.map(e => ({ label: loc(e.chave), valor: e.texto })),
@@ -237,30 +251,32 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const linhaConsumivel = item => {
       const s = item.system;
       const tipoDano = loc(PYRO.tiposDano[s.tipoDano]?.label ?? "");
-      const detalhes = [];
-      if (s.municao) {
-        detalhes.push({ texto: loc("PYRO.Item.MunicaoTag"), classe: "destaque-lingua" });
-        detalhes.push({ texto: tipoDano, classe: "col-curto" });
-      }
-      if (s.formula) detalhes.push({ texto: s.formula, classe: "" });
-      // Onde a munição prende, ou o custo em ações de usar, fica no miolo.
-      detalhes.push(s.municao
-        ? { texto: loc(PYRO.partesCorpo[s.parte] ?? "") }
-        : { texto: `${s.acoes} ${loc("PYRO.AcoesAbrev")}` });
+      /*
+       * "munição, perfurante, Costas, 20 unidades, peso 1" ou
+       * "2d4, 1 ação, 3 unidades, peso 2": o que era coluna virou a lista por
+       * extenso. Munição pesa 1 no total, não importa a quantidade nem o
+       * peso digitado; o custo em moedas fica no resumo.
+       */
+      const detalheTexto = [
+        s.municao ? loc("PYRO.Item.MunicaoTag") : null,
+        s.municao ? (tipoDano.toLocaleLowerCase() || null) : null,
+        s.formula || null,
+        s.municao
+          ? (loc(PYRO.partesCorpo[s.parte] ?? "") || null)
+          : (s.acoes ? `${s.acoes} ${umOuVarios(s.acoes, "PYRO.Custos.acao", "PYRO.Custos.acaoPlural")}` : null),
+        s.quantidade
+          ? `${s.quantidade} ${umOuVarios(s.quantidade, "PYRO.Item.Unidade", "PYRO.Item.UnidadePlural")}`
+          : null,
+        `${loc("PYRO.PesoAbrev")} ${s.municao ? 1 : s.peso}`
+      ].filter(Boolean).join(", ");
       return {
         equipavel: s.municao,
-        // Sem botão de equipar, reserva o espaço dele: a cauda alinha igual
+        // Sem botão de equipar, reserva o espaço dele: a linha alinha igual
         // nas linhas com e sem munição.
         espacoEquipar: !s.municao,
         equipado: s.equipado,
-        detalhes,
-        cauda: [
-          { texto: s.quantidade, classe: "col-qtd" },
-          // Munição pesa 1 no total, não importa a quantidade nem o peso
-          // digitado: mostrar outro número aqui só confundiria a conta.
-          { texto: s.municao ? 1 : s.peso, classe: "col-curto" },
-          { texto: s.custo, classe: "col-curto" }
-        ],
+        detalhes: detalheUnico(detalheTexto),
+        cauda: [],
         resumo: [
           { label: loc("PYRO.Item.Formula"), valor: s.formula || "—" },
           ...(s.municao ? [{ label: loc("PYRO.Item.TipoDano"), valor: tipoDano }] : []),
@@ -286,27 +302,33 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         ?? actor.items.find(i => i.type === "caminho" && i.name === s.caminho);
       const caminhoNome = caminho?.name
         ?? (s.caminho === "geral" ? loc("PYRO.CaminhoGeral") : s.caminho);
-      // A vaga de XP no caminho: é a ordem em que a habilidade foi pega.
+      // A vaga de XP no caminho: hoje mora só no resumo, a linha ficou limpa.
       const posicao = s.ehBase ? loc("PYRO.Item.BaseTag") : `#${s.ordem}`;
-      const custos = [
-        s.custoEstamina ? `${s.custoEstamina} ${loc("PYRO.Abrev.estamina")}` : null,
-        s.custoMana ? `${s.custoMana} ${loc("PYRO.Abrev.mana")}` : null,
-        s.custoEnergia ? `${s.custoEnergia} ${loc("PYRO.Abrev.energia")}` : null,
-        s.custoAcoes ? `${s.custoAcoes} ${loc(`PYRO.Item.Abrev.${s.tipoCusto}`)}` : null
-      ].filter(Boolean).join(" · ");
+      // Custos por extenso ("3 estamina, 1 ação"): abreviação era ruim de ler.
+      const custosPartes = [
+        s.custoEstamina ? `${s.custoEstamina} ${loc("PYRO.Recursos.estamina").toLocaleLowerCase()}` : null,
+        s.custoMana ? `${s.custoMana} ${loc("PYRO.Recursos.mana").toLocaleLowerCase()}` : null,
+        s.custoEnergia ? `${s.custoEnergia} ${loc("PYRO.Recursos.energia").toLocaleLowerCase()}` : null,
+        s.custoAcoes
+          ? `${s.custoAcoes} ${umOuVarios(s.custoAcoes, `PYRO.Custos.${s.tipoCusto}`, `PYRO.Custos.${s.tipoCusto}Plural`)}`
+          : null
+      ].filter(Boolean);
+      const custos = custosPartes.join(", ");
+      /*
+       * Uma coluna só depois do nome, tudo por extenso: "Passiva, tier 1",
+       * "Ativável, 3 estamina, 1 ação, tier 1". Nos grupos por caminho o
+       * cabeçalho do grupo já diz de onde a habilidade vem; fora deles
+       * (técnicas, aba do caminho próprio, favoritos) o caminho abre a lista.
+       */
+      const detalheTexto = [
+        agrupada ? null : caminhoNome,
+        loc(PYRO.categoriasHabilidade[s.categoria] ?? ""),
+        ...custosPartes,
+        `${loc("PYRO.Item.Tier").toLocaleLowerCase()} ${s.tier}`
+      ].filter(Boolean).join(", ");
       return {
-        detalhes: [
-          // Agrupada por caminho, o nome dele já está no cabeçalho do grupo:
-          // a coluna vira a posição, que é o que a lista quer evidenciar.
-          agrupada
-            ? { texto: posicao, classe: "col-curto" }
-            : { texto: caminhoNome, classe: "col-caminho" },
-          { texto: custos, classe: "col-custo" }
-        ],
-        cauda: [
-          { texto: loc(PYRO.categoriasHabilidade[s.categoria] ?? ""), classe: "col-categoria" },
-          { texto: `T${s.tier}`, classe: "col-tier" }
-        ],
+        detalhes: detalheUnico(detalheTexto),
+        cauda: [],
         resumo: [
           { label: loc("TYPES.Item.caminho"), valor: caminhoNome },
           { label: loc("PYRO.Item.Posicao"), valor: posicao },
@@ -361,20 +383,17 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     const runas = await this.#linhas(porTipo("runa"), item => {
       const s = item.system;
-      const nativa = actor.system.linguaNativa;
       const subtipo = s.tipoRuna === "elemento"
         ? loc(PYRO.elementos[s.subtipo]?.label ?? "") : "";
+      // "Elemento: raio" quando há elemento; gesto e modificador ficam só com
+      // o nome do tipo. A língua da runa mora no resumo.
+      const tipo = loc(PYRO.tiposRuna[s.tipoRuna] ?? "");
+      const detalheTexto = subtipo ? `${tipo}: ${subtipo.toLocaleLowerCase()}` : tipo;
       return {
         // Marcador lateral com a cor do elemento: ajuda a varrer a lista.
         cor: s.tipoRuna === "elemento" && PYRO.elementos[s.subtipo] ? s.subtipo : null,
-        detalhes: [
-          { texto: loc(PYRO.tiposRuna[s.tipoRuna] ?? ""), classe: "col-curto" },
-          { texto: subtipo, classe: "" }
-        ],
-        cauda: [{
-          texto: loc(PYRO.linguas[s.lingua]?.label ?? ""),
-          classe: s.lingua !== nativa ? "col-curto destaque-lingua" : "col-curto"
-        }],
+        detalhes: detalheUnico(detalheTexto),
+        cauda: [],
         resumo: [
           { label: loc("PYRO.Item.TipoRuna"), valor: loc(PYRO.tiposRuna[s.tipoRuna] ?? "") },
           ...(subtipo ? [{ label: loc("PYRO.Item.Subtipo"), valor: subtipo }] : []),
@@ -483,46 +502,28 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ...extra
     });
 
-    const colsHabilidade = {
-      colNome: loc("PYRO.Col.habilidade"),
-      colunas: [col("caminho", "col-caminho"), col("custo", "col-custo")],
-      cauda: [col("tipo", "col-categoria"), col("tier", "col-tier")],
-      legIcones: "leg-icones-1"
-    };
+    // Habilidades viraram duas colunas (nome + detalhes por extenso), sem
+    // legenda no topo: cabeçalho de coluna ali ficava desconexo da lista.
+    const colsHabilidade = { semLegenda: true };
 
-    // Colunas compartilhadas: os quatro baldes de equipamento leem igual, e
-    // munição lê igual a consumível.
-    const secaoEquip = (chave, itens) => secao(chave, itens, {
-      colNome: loc("PYRO.Col.equipamento"),
-      colunas: [col("parte", "col-parte")],
-      cauda: [col("peso", "col-curto")],
-      legIcones: "leg-icones-2"
-    });
-    const secaoConsumo = (chave, itens) => secao(chave, itens, {
-      colNome: loc("PYRO.Col.consumivel"),
-      cauda: [col("quantidade", "col-qtd"), col("peso", "col-curto"), col("custo", "col-curto")],
-      legIcones: "leg-icones-2"
-    });
+    // Inventário unificado com as habilidades: linha em duas colunas (nome +
+    // detalhes por extenso), sem legenda de colunas no topo. Os quatro baldes
+    // de equipamento leem igual, e munição lê igual a consumível.
+    const secaoEquip = (chave, itens) => secao(chave, itens, { semLegenda: true });
+    const secaoConsumo = secaoEquip;
 
     const secoes = {
       favoritos: secao("favoritos", favoritos, { semLegenda: true }),
       tecnicas: secao("tecnicas", tecnicas, colsHabilidade),
       habilidades: secao("habilidades", habilidades, {
         ...colsHabilidade,
-        // Agrupada, a coluna do caminho vira a posição na vaga de XP.
-        colunas: [col("posicao", "col-curto"), col("custo", "col-custo")],
         grupos: habilidadesGrupos
       }),
       caminhoProprio: secao("caminhoProprio", habilidadesCaminho, {
         titulo: actor.system.abaCaminhoLabel || loc("PYRO.Secao.caminhoProprio"),
         ...colsHabilidade
       }),
-      armas: secao("armas", armas, {
-        colNome: loc("PYRO.Col.arma"),
-        colunas: [col("dano", "col-dano")],
-        cauda: [col("acoes", "col-curto"), col("alcance", "col-curto")],
-        legIcones: "leg-icones-1"
-      }),
+      armas: secaoEquip("armas", armas),
       // Artefato, item arcano e mochila são equipamento por baixo, então
       // repetem as colunas dele; munição repete as de consumível.
       equipamentos: secaoEquip("equipamentos", equipamentos),
@@ -541,11 +542,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         colNome: loc("PYRO.Col.magia"),
         colunas: [col("runas", "")]
       }),
-      runas: secao("runas", runas, {
-        colNome: loc("PYRO.Col.runa"),
-        colunas: [col("tipo", "col-curto"), col("elemento", "")],
-        cauda: [col("lingua", "col-curto")]
-      }),
+      runas: secao("runas", runas, { semLegenda: true }),
       caminhos: secao("caminhos", caminhos, {
         colNome: loc("PYRO.Col.caminho")
       })

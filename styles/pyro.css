@@ -544,6 +544,8 @@
 .pyro .detalhe.col-parte { flex: 0 1 auto; }
 .pyro .detalhe.col-dano { flex: 0 1 auto; }
 .pyro .detalhe.col-custo { flex: 0 1 auto; }
+/* Habilidades: coluna única de detalhes por extenso depois do nome. */
+.pyro .detalhe.col-detalhes { flex: 1 1 auto; }
 /* Coluna curta do miolo com largura fixa: "Tipo" da legenda alinha com a linha. */
 .pyro .detalhes .col-curto { flex: none; width: 4.5rem; }
 
