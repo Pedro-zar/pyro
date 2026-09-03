@@ -314,7 +314,8 @@ export function calcular(actor, escolhas, itemMagia = null) {
     });
   }
 
-  // Efeitos de custo entram por último, sobre o total. Piso zero nos dois.
+  // Efeitos de custo entram por último, sobre o total. As reduções acumulam,
+  // mas com piso 1: desconto nenhum deixa a magia de graça.
   const ajustes = ajustesDeCusto(actor, itemMagia);
 
   return {

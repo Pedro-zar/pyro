@@ -102,9 +102,16 @@ export function ajustesDeCusto(actor, item) {
   return ajustes;
 }
 
-/** Custo já ajustado, sem descer abaixo de zero. */
+/**
+ * Custo já ajustado. Reduções diferentes acumulam (os deltas chegam aqui já
+ * somados), mas nunca zeram um custo que existia: o piso é 1. Um custo que
+ * já era zero segue zero — não há o que reduzir — e ajuste que encarece
+ * continua livre.
+ */
 export function custoAjustado(base, delta) {
-  return Math.max(0, Math.round((base ?? 0) + (delta ?? 0)));
+  const b = Math.round(base ?? 0);
+  const total = Math.max(0, Math.round(b + (delta ?? 0)));
+  return (delta ?? 0) < 0 && b > 0 ? Math.max(1, total) : total;
 }
 
 /**

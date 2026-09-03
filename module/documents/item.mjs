@@ -663,8 +663,8 @@ export class PyroItem extends Item {
 
     /*
      * Custos já ajustados pelos efeitos: um "Conjuração Econômica: -2 mana"
-     * desconta antes de cobrar, e não só no texto do card. Piso zero, para
-     * um desconto grande não virar ganho de recurso.
+     * desconta antes de cobrar, e não só no texto do card. Descontos
+     * acumulam, mas o piso é 1 quando havia custo: nada fica de graça.
      */
     const ajustes = ajustesDeCusto(this.actor, this);
     const cobra = {
