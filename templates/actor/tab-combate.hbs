@@ -47,6 +47,16 @@
         <button type="button" data-action="gastarVontade" data-pontos="3"
                 title="{{localize 'PYRO.Vontade.Uso3'}}">3</button>
       </div>
+
+      <h3 class="titulo-secao">{{localize "PYRO.Exaustao.Nome"}}</h3>
+      <div class="botoes-reacao exaustao" title="{{localize 'PYRO.Exaustao.Dica'}}">
+        <button type="button" data-action="ajustarExaustao" data-delta="-1"
+                title="{{localize 'PYRO.Exaustao.Menos'}}" {{#unless exaustao}}disabled{{/unless}}>
+          <i class="fa-solid fa-minus"></i></button>
+        <span class="exaustao-nivel numero {{#if exaustao}}com-exaustao{{/if}}">{{exaustao}}</span>
+        <button type="button" data-action="ajustarExaustao" data-delta="1"
+                title="{{localize 'PYRO.Exaustao.Mais'}}"><i class="fa-solid fa-plus"></i></button>
+      </div>
     </div>
   </div>
 

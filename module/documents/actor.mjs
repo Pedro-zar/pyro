@@ -1,6 +1,6 @@
 import { PYRO } from "../config.mjs";
 import { formulaTeste, expandirAtributos } from "../dados.mjs";
-import { nivelExaustao } from "../efeitos.mjs";
+import { nivelExaustao, sincronizarSobrepeso } from "../efeitos.mjs";
 import { dialogoDoAtor } from "../tema.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -33,6 +33,36 @@ export class PyroActor extends Actor {
         sight: { enabled: personagem }
       }
     });
+  }
+
+  /*
+   * Sobrepeso é derivado (carga contra capacidade), então qualquer coisa
+   * pode virá-lo: FOR mudou, item entrou, saiu ou foi equipado, um efeito
+   * mexeu na carga. Depois de cada mudança o efeito Exaustão é acertado —
+   * só no cliente de quem editou, senão cada um repetiria a conta.
+   */
+  #acertarSobrepeso(userId) {
+    if (game.user.id === userId) sincronizarSobrepeso(this);
+  }
+
+  _onUpdate(changed, options, userId) {
+    super._onUpdate(changed, options, userId);
+    this.#acertarSobrepeso(userId);
+  }
+
+  _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
+    super._onCreateDescendantDocuments(parent, collection, documents, data, options, userId);
+    this.#acertarSobrepeso(userId);
+  }
+
+  _onUpdateDescendantDocuments(parent, collection, documents, changes, options, userId) {
+    super._onUpdateDescendantDocuments(parent, collection, documents, changes, options, userId);
+    this.#acertarSobrepeso(userId);
+  }
+
+  _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
+    super._onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId);
+    this.#acertarSobrepeso(userId);
   }
 
   /**

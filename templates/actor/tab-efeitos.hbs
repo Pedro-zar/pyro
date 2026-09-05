@@ -17,6 +17,10 @@
           <img src="{{ef.img}}" alt="" />
           <span class="nome-item {{#if ef.disabled}}inativo{{/if}}">{{ef.name}}</span>
           <span class="detalhes">
+            {{#if ef.exaustao}}
+            <span class="detalhe destaque-lingua" title="{{localize 'PYRO.Exaustao.Dica'}}">
+              {{localize "PYRO.Exaustao.Nivel"}} {{ef.exaustao}}</span>
+            {{/if}}
             <span class="detalhe col-parte" title="{{localize 'PYRO.Efeitos.Origem'}}">{{ef.origem}}</span>
             {{#if ef.restrito}}
             <span class="detalhe destaque-lingua" title="{{localize 'PYRO.Efeitos.ApenasEmDica'}}">

@@ -368,6 +368,15 @@
 .pyro .botoes-reacao { display: flex; flex-wrap: wrap; gap: 4px; }
 .pyro .botoes-reacao button { font-size: 0.75rem; padding: 3px 8px; line-height: 1.4; }
 .pyro .botoes-reacao.vontade button { width: 2.2rem; font-weight: 700; }
+/* Exaustão: -1 [nível] +1, na mesma linha dos botões de vontade. */
+.pyro .botoes-reacao.exaustao { align-items: center; }
+.pyro .botoes-reacao.exaustao button { width: 2.2rem; }
+.pyro .botoes-reacao.exaustao button:disabled { opacity: 0.4; cursor: default; }
+.pyro .exaustao-nivel {
+  min-width: 1.8rem; text-align: center; font-weight: 700; font-size: 1rem;
+  color: var(--pyro-texto-2);
+}
+.pyro .exaustao-nivel.com-exaustao { color: var(--pyro-perigo); }
 
 .pyro .stats-passivos { font-size: 0.8rem; }
 .pyro .stats-passivos p { margin: 0.15rem 0; }

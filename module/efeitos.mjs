@@ -249,65 +249,78 @@ export function dadosDoEfeitoAplicado(efeito, vars) {
 /* -------------------------------------------------------------------------- */
 
 /** O efeito carrega a condição "exausto"? statuses é Set no documento vivo. */
-function ehExaustao(efeito) {
+export function ehExaustao(efeito) {
   const st = efeito.statuses;
   return st?.has ? st.has("exausto") : (st ?? []).includes("exausto");
 }
 
 /**
- * A trilha de exaustão gravada em efeitos. O nível mora na flag; um efeito
+ * Níveis que um efeito de exaustão carrega. O número mora na flag; um efeito
  * com o status mas sem a flag (posto pelo HUD do token, por exemplo) conta
  * como 1.
  */
-function exaustaoDosEfeitos(actor) {
+export function niveisDoEfeito(efeito) {
+  const n = Number(efeito?.flags?.pyro?.exaustao);
+  return Number.isFinite(n) && n >= 0 ? n : 1;
+}
+
+/**
+ * Quantos níveis de exaustão valem agora: a soma dos efeitos ativos com a
+ * condição. Cada nível tira 1 de todos os testes (atributo, mira,
+ * sobrecarga). O sobrepeso não entra por fora: ele soma +1 no próprio efeito
+ * (ver sincronizarSobrepeso), então o que a ficha mostra é o que desconta.
+ */
+export function nivelExaustao(actor) {
   let total = 0;
   for (const efeito of efeitosAtivos(actor)) {
-    if (ehExaustao(efeito)) total += efeito.flags?.pyro?.exaustao ?? 1;
+    if (ehExaustao(efeito)) total += niveisDoEfeito(efeito);
   }
   return total;
 }
 
 /**
- * Quantos níveis de exaustão valem agora. Cada nível tira 1 de todos os
- * testes (atributo, mira, sobrecarga).
+ * Soma (ou tira, com delta negativo) níveis de exaustão e devolve o total.
  *
- * Sobrepeso entra aqui como +1 enquanto durar — é estado, não evento: soltar
- * o peso desfaz o nível sozinho, sem efeito gravado para lembrar de apagar.
- * Por isso ele fica fora da trilha de efeitos, que é a que a sobrecarga
- * acumula em definitivo.
+ * A exaustão acumula num efeito só, chamado "Exaustão", com o número na
+ * flag: quem tem 2 e sofre sobrecarga 2 fica com 4, e não com dois efeitos
+ * separados. Chegando a zero o efeito some — nível zero não é exaustão.
  */
-export function nivelExaustao(actor) {
-  return exaustaoDosEfeitos(actor) + (actor?.system?.sobrepeso ? 1 : 0);
-}
-
-/**
- * Soma níveis de exaustão ao ator e devolve o total novo.
- *
- * A exaustão acumula num efeito só: quem tem 2 e sofre sobrecarga 2 fica com
- * um "Exaustão (4)", e não com dois efeitos separados — o nome diz o número e
- * a remoção é uma só quando o personagem descansar.
- */
-export async function aplicarExaustao(actor, niveis) {
-  if (!actor || !(niveis > 0)) return exaustaoDosEfeitos(actor);
-  const loc = (chave, dados) => game.i18n.format(chave, dados);
+export async function aplicarExaustao(actor, delta) {
+  delta = Number(delta) || 0;
+  if (!actor || delta === 0) return nivelExaustao(actor);
+  const loc = k => game.i18n.localize(k);
 
   const existente = actor.effects?.find?.(e => ehExaustao(e) && !e.disabled);
   if (existente) {
-    const novo = (existente.flags?.pyro?.exaustao ?? 1) + niveis;
-    await existente.update({
-      name: loc("PYRO.Exaustao.Nome", { n: novo }),
-      "flags.pyro.exaustao": novo
-    });
-    return exaustaoDosEfeitos(actor);
+    const novo = Math.max(0, niveisDoEfeito(existente) + delta);
+    if (novo === 0) await existente.delete();
+    else await existente.update({ name: loc("PYRO.Exaustao.Nome"), "flags.pyro.exaustao": novo });
+    return nivelExaustao(actor);
   }
+  if (delta < 0) return nivelExaustao(actor);
 
   await ActiveEffect.implementation.create({
-    name: loc("PYRO.Exaustao.Nome", { n: niveis }),
+    name: loc("PYRO.Exaustao.Nome"),
     img: PYRO.condicoes.exausto?.img ?? "icons/svg/sleep.svg",
     origin: actor.uuid,
     statuses: ["exausto"],
-    description: game.i18n.localize("PYRO.Exaustao.Dica"),
-    flags: { pyro: { exaustao: niveis } }
+    description: loc("PYRO.Exaustao.Dica"),
+    flags: { pyro: { exaustao: delta } }
   }, { parent: actor });
-  return exaustaoDosEfeitos(actor);
+  return nivelExaustao(actor);
+}
+
+/**
+ * Sobrepeso vale +1 de exaustão de verdade, no efeito, e não por baixo dos
+ * panos: entrar em sobrepeso soma 1, sair tira 1. A flag no ator lembra se
+ * o +1 já foi dado, então a conta nunca repete — e é gravada antes de mexer
+ * no efeito, porque mexer no efeito dispara esta função de novo.
+ */
+export async function sincronizarSobrepeso(actor) {
+  if (!actor) return;
+  const agora = !!actor.system?.sobrepeso;
+  const marcado = !!actor.getFlag("pyro", "sobrepesoExausto");
+  if (agora === marcado) return;
+  await actor.setFlag("pyro", "sobrepesoExausto", agora);
+  await aplicarExaustao(actor, agora ? 1 : -1);
 }

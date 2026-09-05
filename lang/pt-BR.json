@@ -188,7 +188,7 @@
   "PYRO.Velocidade": "Velocidade",
   "PYRO.Carga": "Carga",
   "PYRO.CargaComMochila": "Capacidade já somada com as mochilas equipadas",
-  "PYRO.Sobrepeso": "Sobrepeso! (+1 exaustão, automática)",
+  "PYRO.Sobrepeso": "Sobrepeso! (+1 de Exaustão)",
   "PYRO.Dinheiro": "Dinheiro",
   "PYRO.Peso": "Peso",
   "PYRO.PesoAbrev": "peso",
@@ -372,8 +372,12 @@
   "PYRO.Efeitos.passivos": "Passivos",
   "PYRO.Efeitos.inativos": "Inativos",
   "PYRO.Efeitos.Novo": "Novo efeito",
-  "PYRO.Exaustao.Nome": "Exaustão ({n})",
+  "PYRO.Exaustao.Nome": "Exaustão",
   "PYRO.Exaustao.Dica": "-1 em todos os testes por nível de exaustão.",
+  "PYRO.Exaustao.Nivel": "nível",
+  "PYRO.Exaustao.Mais": "+1 nível de exaustão",
+  "PYRO.Exaustao.Menos": "-1 nível de exaustão",
+  "PYRO.Efeitos.ExaustoModo": "Níveis: -1 em todos testes que não sejam de dano.",
   "PYRO.Efeitos.Origem": "Origem do efeito",
   "PYRO.Efeitos.Alternar": "Ativar / desativar",
   "PYRO.Recursos.energia": "Energia",
@@ -717,5 +721,5 @@
   "PYRO.Recuperar.Explicacao": "Cena: estamina cheia, +VIG de PV e recuperação de mana. Capítulo: tudo completo. Arco: tudo completo e Força de Vontade restaurada.",
   "PYRO.Alerta.SemEstamina": "Estamina zerada - Gaste todas ações do seu próximo turno em \"Tomar Ar\".",
   "PYRO.Alerta.PvBaixo": "PV crítico",
-  "PYRO.Alerta.Sobrepeso": "Sobrepeso ({atual}/{max}) — +1 de exaustão, já descontado dos testes"
+  "PYRO.Alerta.Sobrepeso": "Sobrepeso ({atual}/{max})"
 }

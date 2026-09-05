@@ -44,7 +44,9 @@ export function estadoDeEfeito(efeito) {
 
   for (const status of efeito.statuses ?? []) {
     if (PYRO.condicoes[status]) {
-      mudancas.push({ categoria: "condicao", alvo: status, modo: "add", valor: "" });
+      // Exaustão carrega os níveis na flag; eles voltam como o valor da linha.
+      const valor = status === "exausto" ? (Number(flags.exaustao) > 0 ? Number(flags.exaustao) : 1) : "";
+      mudancas.push({ categoria: "condicao", alvo: status, modo: "add", valor });
     } else {
       statusPreservados.push(status);
     }
@@ -235,6 +237,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       index: i,
       // Condição não tem modo nem valor: só marca o alvo com o status.
       ehCondicao: m.categoria === "condicao",
+      // Exceto exaustão, que tem níveis: o valor é quantos.
+      ehExausto: m.categoria === "condicao" && m.alvo === "exausto",
       // Dano troca o modo por uma fórmula, e o "alvo" vira o tipo do dano.
       ehDano: m.categoria === "dano",
       // Custo é sempre soma com sinal: sem escolher modo.
@@ -254,12 +258,26 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     // Trocar a categoria refaz a lista de alvos.
     this.element.addEventListener("change", event => {
       const alvo = event.target;
-      if (!alvo.matches("[data-campo=categoria]")) return;
-      const i = Number(alvo.closest("[data-index]").dataset.index);
-      this.#capturar();
-      this.mudancas[i].categoria = alvo.value;
-      this.mudancas[i].alvo = Object.keys(PYRO.alvosEfeito[alvo.value]?.alvos ?? {})[0] ?? "";
-      this.render();
+      if (alvo.matches("[data-campo=categoria]")) {
+        const i = Number(alvo.closest("[data-index]").dataset.index);
+        this.#capturar();
+        this.mudancas[i].categoria = alvo.value;
+        this.mudancas[i].alvo = Object.keys(PYRO.alvosEfeito[alvo.value]?.alvos ?? {})[0] ?? "";
+        this.render();
+        return;
+      }
+      // Numa condição, trocar o alvo para (ou de) Exausto mostra ou esconde
+      // o campo de níveis, então precisa redesenhar a linha.
+      if (alvo.matches("select[name$='.alvo']")) {
+        const i = Number(alvo.closest("[data-index]").dataset.index);
+        this.#capturar();
+        const m = this.mudancas[i];
+        if (m?.categoria === "condicao") {
+          m.alvo = alvo.value;
+          if (m.alvo === "exausto" && !(Number(m.valor) > 0)) m.valor = 1;
+          this.render();
+        }
+      }
     });
   }
 
@@ -372,6 +390,10 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       .map(m => ({ chave: m.alvo, valor: Number(m.valor) }));
     const mudancas = this.mudancas
       .filter(m => !["condicao", "dano", "custo"].includes(m.categoria) && m.alvo);
+    // Níveis de exaustão: o campo numérico da linha Exausto vira a flag que a
+    // ficha lê (e que a sobrecarga e o sobrepeso somam). Sem a linha, nada.
+    const exausto = condicoes.find(m => m.alvo === "exausto");
+    const exaustao = exausto ? Math.max(1, Math.round(Number(exausto.valor) || 1)) : null;
 
     /*
      * A restrição guarda id e nome no item específico (o id resolve nesta
@@ -411,7 +433,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
           rodadasFormula: rodadasEhFormula ? textoRodadas : null,
           danos,
           custos,
-          alvosItem
+          alvosItem,
+          ...(exaustao !== null ? { exaustao } : {})
         }
       },
       // Status que não é condição do construtor (posto pela ficha completa

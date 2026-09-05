@@ -41,7 +41,11 @@
       <select name="mudanca.{{m.index}}.alvo">
         {{selectOptions m.alvos selected=m.alvo localize=true}}
       </select>
-      {{#if m.ehCondicao}}
+      {{#if m.ehExausto}}
+      {{!-- Exaustão é a única condição com número: quantos níveis. --}}
+      <span class="pyro-nota">{{localize "PYRO.Efeitos.ExaustoModo"}}</span>
+      <input type="number" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" min="1" step="1" />
+      {{else if m.ehCondicao}}
       <span class="pyro-nota">{{localize "PYRO.Efeitos.CondicaoDica"}}</span>
       <span></span>
       {{else if m.ehDano}}

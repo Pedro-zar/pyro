@@ -2,7 +2,7 @@ import { PYRO } from "../config.mjs";
 import { ConjuradorApp } from "../apps/conjurador.mjs";
 import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
-import { restricaoDoEfeito } from "../efeitos.mjs";
+import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDoEfeito } from "../efeitos.mjs";
 import { selosDePoder, pintarTema } from "../tema.mjs";
 
 /**
@@ -76,6 +76,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       rolarBloqueio: PyroActorSheet.#rolarBloqueio,
       tomarAr: PyroActorSheet.#tomarAr,
       gastarVontade: PyroActorSheet.#gastarVontade,
+      ajustarExaustao: PyroActorSheet.#ajustarExaustao,
       recuperar: PyroActorSheet.#recuperar,
       abrirRecuperacao: PyroActorSheet.#abrirRecuperacao,
       abrirConjurador: PyroActorSheet.#abrirConjurador,
@@ -574,6 +575,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         actor.system.temFeiticos ? "feitico" : null
       ].filter(Boolean).join(","),
       efeitos: this.#categoriasEfeitos(),
+      // Nível atual de exaustão, com os botões de -1/+1 na aba de combate.
+      exaustao: nivelExaustao(actor),
       recursosVisiveis,
       recursosCols,
       selosPoder,
@@ -643,6 +646,11 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   static async #gastarVontade(event, target) {
     await this.actor.gastarVontade(Number(target.dataset.pontos));
+  }
+
+  /** -1/+1 de exaustão à mão: mesma trilha da sobrecarga e do sobrepeso. */
+  static async #ajustarExaustao(event, target) {
+    await aplicarExaustao(this.actor, Number(target.dataset.delta) || 0);
   }
 
   static async #recuperar(event, target) {
@@ -1124,6 +1132,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         name: ef.name,
         disabled: ef.disabled,
         duracao: ef.duration?.label ?? "",
+        // Exaustão mostra o número de níveis ao lado do nome: ele mora na
+        // flag, não no nome, então a linha precisa dizer.
+        exaustao: ehExaustao(ef) ? niveisDoEfeito(ef) : null,
         restrito: presoA.join(", "),
         origem: ef.parent === this.actor ? "" : ef.parent?.name ?? ""
       };
