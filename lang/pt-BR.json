@@ -287,7 +287,7 @@
   "PYRO.Guia.sacarArma.Desc": "Saca ou guarda uma arma. Grátis se atacar imediatamente após sacar. Soltar uma arma não custa ações.",
   "PYRO.Guia.tomarAr.Nome": "Tomar ar",
   "PYRO.Guia.tomarAr.Custo": "1 ação",
-  "PYRO.Guia.tomarAr.Desc": "Recupera VIG/2 de estamina. Caso a estamina chegue a 0, você deverá gastar todas ações do seu próximo turno em Tomar ar",
+  "PYRO.Guia.tomarAr.Desc": "Recupera VIG/2 de estamina. Caso a estamina chegue a 0, você deverá gastar todas ações restantes em Tomar ar",
   "PYRO.Guia.salto.Nome": "Salto",
   "PYRO.Guia.salto.Custo": "3 ações + 15 estamina",
   "PYRO.Guia.salto.Desc": "Salta FOR/2 metros. Com ao menos 2m de deslocamento antes, salta FOR metros.",
@@ -719,7 +719,7 @@
   "PYRO.Subjulgar.Legenda": "Compare o PV máximo do alvo com os tetos da linha do DET dele.",
   "PYRO.RecuperaPorCena": "+{valor}/cena",
   "PYRO.Recuperar.Explicacao": "Cena: estamina cheia, +VIG de PV e recuperação de mana. Capítulo: tudo completo. Arco: tudo completo e Força de Vontade restaurada.",
-  "PYRO.Alerta.SemEstamina": "Estamina zerada - Gaste todas ações do seu próximo turno em \"Tomar Ar\".",
+  "PYRO.Alerta.SemEstamina": "Estamina zerada - Gaste todas ações restantes em \"Tomar Ar\".",
   "PYRO.Alerta.PvBaixo": "PV crítico",
   "PYRO.Alerta.Sobrepeso": "Sobrepeso ({atual}/{max})"
 }
