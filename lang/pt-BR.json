@@ -130,7 +130,7 @@
   "PYRO.Chat.Consumiu": "Usou {nome} ({acoes} ações)",
   "PYRO.Chat.CustoMagia": "{mana} de mana · {acoes} ações",
   "PYRO.Sobrecarga.Teste": "Sobrecarga {nivel} — teste de SAB (ND {nd}): {total}",
-  "PYRO.Sobrecarga.Exaustao": "+{niveis} de Exaustão (total: {total}). A magia é conjurada mesmo assim.",
+  "PYRO.Sobrecarga.Exaustao": "+{niveis} de Exaustão (total: {total}).",
   "PYRO.Sobrecarga.Resistiu": "Resistiu: sem exaustão.",
   "PYRO.Vontade.Nome": "Força de Vontade",
   "PYRO.Vontade.Uso1": "Rerole uma rolagem sua e fique com o novo resultado.",

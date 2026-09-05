@@ -124,7 +124,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
 
       recursos: new fields.SchemaField({
         pv: recurso(56),        // VIG 8 x 7
-        estamina: recurso(100), // (8/2) x 25
+        estamina: recurso(80),  // VIG 8 x 10
         mana: recurso(40),      // SAB 8 x 5
         energia: recurso(40),   // PRE 8 x 5
         vontade: recurso(5),    // DET 1 x 5
@@ -274,13 +274,12 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     const r = this.recursos;
     const vidaPorVig = PYRO.tamanhos[this.tamanho]?.vidaPorVig ?? 7;
     r.pv.max = arred(a.vig.efetivo * vidaPorVig * this.multi) + r.pv.bonus;
-    r.estamina.max = arred((a.vig.efetivo / 2) * 25 * this.multi) + r.estamina.bonus;
+    r.estamina.max = arred(a.vig.efetivo * 10 * this.multi) + r.estamina.bonus;
     r.mana.max = arred(a.sab.efetivo * 5 * this.multi) + r.mana.bonus;
-    r.mana.recuperacao = Math.ceil(a.int.efetivo * this.multi);
-    // Energia (feitiçaria): mesma conta da mana, com PRE no lugar de SAB.
-    // AJUSTE: recuperação por cena também usa INT até o SRD definir.
+    const recuperacao = arred((a.int.efetivo / 2) * this.multi);
+    r.mana.recuperacao = recuperacao;
     r.energia.max = arred(a.pre.efetivo * 5 * this.multi) + r.energia.bonus;
-    r.energia.recuperacao = Math.ceil(a.int.efetivo * this.multi);
+    r.energia.recuperacao = recuperacao;
     r.vontade.max = det * 5 + r.vontade.bonus;
 
     // Recursos personalizados: (base + atributo x porPonto) +10% por patamar.
@@ -290,7 +289,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       const attr = a[cfg.atributo]?.efetivo ?? 0;
       rec.max = arred((cfg.base + attr * cfg.porPonto) * this.multi) + rec.bonus;
       const attrRec = a[cfg.recAtributo]?.efetivo;
-      rec.recuperacao = attrRec ? Math.ceil(attrRec * (cfg.recPorPonto ?? 0) * this.multi) : 0;
+      rec.recuperacao = attrRec ? arred((attrRec * (cfg.recPorPonto ?? 0) * this.multi) / 2) : 0;
     }
 
     /* --- Caminhos: magia, feitiçaria, afinidades -------------------------- */
