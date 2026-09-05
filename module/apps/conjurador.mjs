@@ -1,5 +1,6 @@
 import { PYRO } from "../config.mjs";
 import { calcular, conjurar, previaRuna } from "../magia.mjs";
+import { pintarTema } from "../tema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -231,6 +232,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   _onRender(context, options) {
     super._onRender?.(context, options);
+    pintarTema(this.element, this.actor ?? null);
     // Restaura o que o jogador já tinha digitado antes da re-renderização.
     const form = this.element;
     const nome = form.querySelector("[name=nomeMagia]");

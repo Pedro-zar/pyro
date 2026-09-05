@@ -2,6 +2,7 @@ import { PYRO } from "../config.mjs";
 import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
 import { scalingsPadrao, valorScaling, SEM_DANO } from "../magia.mjs";
 import { idDoCaminho } from "../data/item-data.mjs";
+import { pintarTema } from "../tema.mjs";
 
 /**
  * Opções de tipo de dano de um elemento. A primeira herda o tipo do próprio
@@ -99,6 +100,12 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   }
 
   /* ---------------------------------------------------------------------- */
+
+  /** A ficha do item veste o tema do ator dono; item solto fica na brasa. */
+  _onRender(context, options) {
+    super._onRender?.(context, options);
+    pintarTema(this.element, this.item.actor ?? null);
+  }
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);

@@ -3,6 +3,7 @@ import { ConjuradorApp } from "../apps/conjurador.mjs";
 import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
 import { restricaoDoEfeito } from "../efeitos.mjs";
+import { selosDePoder, pintarTema } from "../tema.mjs";
 
 /**
  * O que fazer com um drop que caiu em cima de uma linha do inventário.
@@ -788,63 +789,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    * flag "temaCor": o mago de gelo e o de fogo não precisam ter a mesma ficha.
    */
   #selosDePoder() {
-    const actor = this.actor;
-    const sys = actor.system;
-    const loc = k => game.i18n.localize(k);
-    const selos = [];
-    const elementos = sys.afinidadesElementos ?? [];
-
-    if (sys.temMagia) {
-      // Cor escolhida à mão, quando ainda é uma afinidade válida. Senão a
-      // primeira afinidade, e por último o acento padrão do sistema.
-      const escolhida = actor.getFlag("pyro", "temaCor");
-      const elemento = elementos.includes(escolhida)
-        ? escolhida
-        : (sys.afinidadesLista?.[0]?.cor ?? null);
-      selos.push({
-        chave: "mago",
-        cor: elemento ? `var(--pyro-el-${elemento})` : "var(--pyro-brasa)",
-        label: loc("PYRO.Vocacao.mago"),
-        temCores: elementos.length > 0
-      });
-    }
-    if (sys.temFeiticos) {
-      selos.push({ chave: "feiticeiro", cor: "var(--pyro-sangue)", label: loc("PYRO.Vocacao.feiticeiro") });
-    }
-    // Vários recursos próprios ainda rendem um selo só: a marca é a mesma.
-    if ((sys.recursosConcedidos ?? []).some(c => PYRO.recursosCustom?.[c])) {
-      selos.push({ chave: "natural", cor: "var(--pyro-recurso-custom)", label: loc("PYRO.Vocacao.natural") });
-    }
-    if (sys.temTecnicas) {
-      selos.push({ chave: "fisico", cor: "var(--pyro-vontade)", label: loc("PYRO.Vocacao.fisico") });
-    }
-
-    const escolhido = actor.getFlag("pyro", "tema");
-    const principal = selos.find(s => s.chave === escolhido) ?? selos[0] ?? null;
-    for (const selo of selos) {
-      selo.ativo = selo === principal;
-      selo.dica = game.i18n.format(
-        selo.ativo && selo.temCores ? "PYRO.Vocacao.DicaCores" : "PYRO.Vocacao.DicaTema",
-        { nome: selo.label }
-      );
-    }
+    // A conta mora em tema.mjs, porque as fichas de item, o construtor de
+    // efeitos, o conjurador e os diálogos pintam o mesmo tema.
+    const selos = selosDePoder(this.actor);
     // A action lê isto para saber se o clique troca o tema ou abre as cores.
-    this._vocacaoAtiva = principal?.chave ?? null;
-
-    const corAtual = actor.getFlag("pyro", "temaCor");
-    const coresElemento = principal?.chave === "mago"
-      ? elementos.map(chave => ({
-          chave,
-          label: loc(PYRO.elementos[chave]?.label ?? chave),
-          ativo: chave === corAtual,
-          dica: game.i18n.format(
-            chave === corAtual ? "PYRO.Vocacao.CorAutomatica" : "PYRO.Vocacao.CorElemento",
-            { elemento: loc(PYRO.elementos[chave]?.label ?? chave) }
-          )
-        }))
-      : [];
-
-    return { selosPoder: selos, seloPrincipal: principal, coresElemento };
+    this._vocacaoAtiva = selos.seloPrincipal?.chave ?? null;
+    return selos;
   }
 
   /** Clique num selo: troca o tema. No selo já ativo do mago, abre as cores. */
@@ -1015,30 +965,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   /**
    * O selo escolhido tinge a ficha: acento dos ornamentos e marca d'água do
-   * cabeçalho. Sem selos, a ficha fica no acento padrão, sem marca.
-   *
-   * São três variáveis porque a ficha usa três tons do mesmo acento — o cheio
-   * nas barras e botões, o claro nos textos de destaque, o translúcido nos
-   * fundos. Os dois derivados saem por color-mix da cor escolhida, então o
-   * selo só precisa saber a própria cor. Sem selo elas são apagadas e o CSS
-   * volta sozinho para os tons de brasa.
+   * cabeçalho. Sem selos, a ficha fica no acento padrão, sem marca. A pintura
+   * em si está em tema.mjs, compartilhada com as outras janelas do ator.
    */
   _onRender(context, options) {
     super._onRender?.(context, options);
-    const principal = context.seloPrincipal ?? null;
-    const estilo = this.element.style;
-    const cor = principal?.cor ?? null;
-    if (cor) {
-      estilo.setProperty("--pyro-acento-ficha", cor);
-      estilo.setProperty("--pyro-acento-alto", `color-mix(in srgb, ${cor} 72%, #fff)`);
-      estilo.setProperty("--pyro-acento-suave", `color-mix(in srgb, ${cor} 16%, transparent)`);
-    }
-    else for (const v of ["--pyro-acento-ficha", "--pyro-acento-alto", "--pyro-acento-suave"]) {
-      estilo.removeProperty(v);
-    }
-    for (const chave of ["mago", "feiticeiro", "natural", "fisico"]) {
-      this.element.classList.toggle(`marca-${chave}`, principal?.chave === chave);
-    }
+    pintarTema(this.element, this.actor, { selo: context.seloPrincipal ?? null, marca: true });
   }
 
   #criarMenuContexto() {

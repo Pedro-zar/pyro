@@ -7,6 +7,7 @@ import {
 } from "../efeitos.mjs";
 import { formulaPool } from "../dados.mjs";
 import { proximaOrdem, idDoCaminho } from "../data/item-data.mjs";
+import { dialogoDoAtor } from "../tema.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -461,6 +462,7 @@ export class PyroItem extends Item {
         `<option value="${m.id}">${Handlebars.escapeExpression(m.name)} (x${m.system.quantidade})</option>`
       ).join("");
       const res = await foundry.applications.api.DialogV2.prompt({
+        ...dialogoDoAtor(actor),
         window: { title: game.i18n.localize("PYRO.Municao.Titulo") },
         content: `<div class="form-group">
           <label>${game.i18n.localize("TYPES.Item.consumivel")}</label>
@@ -592,6 +594,7 @@ export class PyroItem extends Item {
       : game.i18n.format("PYRO.Mira.SemAlvoLimite", { limite: limiteMira });
 
     const res = await DialogV2.prompt({
+      ...dialogoDoAtor(this.actor),
       window: { title: game.i18n.localize("PYRO.Mira.Titulo") },
       content: `
         <p class="hint">${dica}</p>

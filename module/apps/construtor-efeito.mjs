@@ -1,5 +1,6 @@
 import { PYRO } from "../config.mjs";
 import { variaveisDoItem } from "../magia.mjs";
+import { pintarTema } from "../tema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -264,6 +265,10 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
 
   _onRender(context, options) {
     super._onRender?.(context, options);
+
+    // O construtor veste o tema do ator: direto, ou via item que ele carrega.
+    const doc = this.documento;
+    pintarTema(this.element, doc instanceof Actor ? doc : (doc?.actor ?? null));
 
     // Guarda o último campo de texto tocado, para o botão de variável saber
     // onde escrever (valor de uma mudança ou a duração).

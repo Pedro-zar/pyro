@@ -14,6 +14,22 @@
   --pyro-acento-ficha: var(--pyro-brasa);
   --pyro-acento-alto:  var(--pyro-brasa-alta);
   --pyro-acento-suave: var(--pyro-brasa-suave);
+
+  /*
+   * Os laranjas do próprio Foundry dentro das janelas do sistema — brilho da
+   * aba ativa, halo de hover e foco dos botões e campos, botão padrão dos
+   * diálogos — vêm destas variáveis do núcleo. Apontadas para o acento, elas
+   * seguem a vocação do personagem junto com o resto.
+   */
+  --color-warm-1: var(--pyro-acento-alto);
+  --color-warm-2: var(--pyro-acento-ficha);
+  --color-warm-3: color-mix(in srgb, var(--pyro-acento-ficha) 45%, #000);
+  --color-shadow-primary: var(--pyro-acento-ficha);
+  --color-shadow-highlight: var(--pyro-acento-alto);
+  --color-form-label-hover: var(--pyro-acento-alto);
+  --button-focus-outline-color: var(--pyro-acento-ficha);
+  --button-hover-border-color: var(--pyro-acento-ficha);
+  --input-focus-outline-color: var(--pyro-acento-ficha);
 }
 
 /*
@@ -381,6 +397,8 @@
   background: var(--pyro-painel-alto);
   border-color: var(--pyro-borda);
   box-shadow: inset 0 2px 0 var(--pyro-acento-ficha);
+  /* O núcleo põe um brilho laranja na aba ativa; aqui ele é do acento. */
+  text-shadow: 0 0 10px var(--pyro-acento-suave);
 }
 .pyro nav.tabs i { font-size: 0.9em; }
 
@@ -1043,6 +1061,18 @@
 .pyro .destaque-lingua { color: var(--pyro-acento-ficha); font-weight: 600; opacity: 1; }
 
 .pyro.guia-acoes .window-content { gap: 0.5rem; }
+
+/* --- Diálogos do ator (teste, mira, munição): vestem o tema dele ----------- */
+.pyro.dialogo .window-content { gap: var(--pyro-e-2); }
+.pyro.dialogo .form-group label { color: var(--pyro-texto-2); }
+.pyro.dialogo .form-footer button.default,
+.pyro.dialogo .form-footer button[data-action="ok"] {
+  background: var(--pyro-acento-ficha); border-color: var(--pyro-acento-ficha); color: #fff;
+}
+.pyro.dialogo .form-footer button.default:hover,
+.pyro.dialogo .form-footer button[data-action="ok"]:hover {
+  background: var(--pyro-acento-alto); border-color: var(--pyro-acento-alto);
+}
 .pyro .guia-lista { display: flex; flex-direction: column; gap: 0.5rem; }
 .pyro .guia-acao {
   border: 1px solid var(--pyro-borda); border-radius: 6px; padding: 0.35rem 0.55rem;

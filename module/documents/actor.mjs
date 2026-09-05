@@ -1,6 +1,7 @@
 import { PYRO } from "../config.mjs";
 import { formulaTeste, expandirAtributos } from "../dados.mjs";
 import { nivelExaustao } from "../efeitos.mjs";
+import { dialogoDoAtor } from "../tema.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -163,6 +164,7 @@ export class PyroActor extends Actor {
           <input type="checkbox" name="passarLimites"></div>` : ""}`;
 
       const res = await DialogV2.prompt({
+        ...dialogoDoAtor(this),
         window: { title: game.i18n.format("PYRO.Teste.Titulo", { atributo: label }) },
         content: conteudo,
         ok: {
