@@ -1,6 +1,6 @@
 import { PYRO } from "../config.mjs";
-import { formulaTeste, expandirAtributos } from "../dados.mjs";
-import { nivelExaustao, sincronizarSobrepeso } from "../efeitos.mjs";
+import { formulaTeste, formulaReacao, expandirAtributos } from "../dados.mjs";
+import { penalidadeExaustao, dicaExaustao, sincronizarSobrepeso } from "../efeitos.mjs";
 import { dialogoDoAtor } from "../tema.mjs";
 
 const { DialogV2 } = foundry.applications.api;
@@ -176,11 +176,12 @@ export class PyroActor extends Actor {
     const label = game.i18n.localize(PYRO.atributos[chave]);
 
     let opts = { bonus: 0, vantagem: 0, desvantagem: 0, nd: null, passarLimites: false };
-    const exaustao = nivelExaustao(this);
+    const pen = penalidadeExaustao(this);
 
     if (!rapido) {
+      const dica = dicaExaustao(this);
       const conteudo = `
-        ${exaustao > 0 ? `<p class="hint">${game.i18n.format("PYRO.Teste.ExaustaoDica", { n: exaustao })}</p>` : ""}
+        ${dica ? `<p class="hint">${dica}</p>` : ""}
         <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Bonus")}</label>
           <input type="number" name="bonus" value="0"></div>
         <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Vantagem")}</label>
@@ -207,8 +208,10 @@ export class PyroActor extends Actor {
       opts = { ...opts, ...res, nd: res.nd || null };
     }
 
-    // Cada nível de exaustão tira 1 de todos os testes.
-    opts.bonus = (Number(opts.bonus) || 0) - exaustao;
+    // Exaustão: -1 por nível e uma desvantagem a cada 5 níveis.
+    opts.bonus = (Number(opts.bonus) || 0) + pen.bonus;
+    opts.vantagem = Number(opts.vantagem) || 0;
+    opts.desvantagem = (Number(opts.desvantagem) || 0) + pen.desvantagem;
 
     // Passar seus Limites: usa o atributo cheio; o corpo sofre um rebote [DEFINIR no SRD].
     const valor = opts.passarLimites ? attr.total : attr.efetivo;
@@ -248,30 +251,84 @@ export class PyroActor extends Actor {
   /*  Reações                                                               */
   /* ---------------------------------------------------------------------- */
 
-  /** Dobra a quantidade de dados de uma fórmula ("2d12+1d12" -> "4d12+2d12"). */
-  static #dobrarDados(formula) {
-    return formula.replace(/(\d+)d(\d+)/g, (m, n, f) => `${Number(n) * 2}d${f}`);
+  async rolarEsquiva(opcoes = {}) {
+    return this.#rolarReacao("esquiva", opcoes);
   }
 
-  async rolarEsquiva({ cobertura = false } = {}) {
-    // Tomar cobertura dobra os dados rolados (SRD §5).
-    let formula = this.system.esquiva;
-    if (cobertura) formula = PyroActor.#dobrarDados(formula);
-    const roll = await new Roll(expandirAtributos(formula), this.getRollData()).evaluate();
-    return roll.toMessage({
-      speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: game.i18n.localize(cobertura ? "PYRO.Chat.EsquivaCobertura" : "PYRO.Chat.Esquiva")
-    });
+  async rolarBloqueio(opcoes = {}) {
+    return this.#rolarReacao("bloqueio", opcoes);
   }
 
-  async rolarBloqueio({ cobertura = false } = {}) {
-    let formula = this.system.bloqueio;
-    if (cobertura) formula = PyroActor.#dobrarDados(formula);
+  /**
+   * Esquiva e bloqueio são testes como os de atributo: mesma janela (bônus
+   * fixo, vantagens, desvantagens, ND) mais a cobertura, que dobra os dados
+   * (SRD §5), e a mesma exaustão descontando. Shift na ficha pula a janela.
+   * Vantagem e desvantagem mexem no dado da reação — d12 na esquiva, d4 no
+   * bloqueio — e os dados que o equipamento soma ficam como estão.
+   */
+  async #rolarReacao(tipo, { cobertura = false, rapido = false } = {}) {
+    const cfg = PYRO.reacoes[tipo];
+    const chaves = tipo === "esquiva"
+      ? { titulo: "PYRO.Esquivar", flavor: "PYRO.Chat.Esquiva", flavorCobertura: "PYRO.Chat.EsquivaCobertura" }
+      : { titulo: "PYRO.Bloquear", flavor: "PYRO.Chat.Bloqueio", flavorCobertura: "PYRO.Chat.BloqueioCobertura" };
+    const pen = penalidadeExaustao(this);
+    let opts = { bonus: 0, vantagem: 0, desvantagem: 0, nd: null, cobertura };
+
+    if (!rapido) {
+      const dica = dicaExaustao(this);
+      const conteudo = `
+        ${dica ? `<p class="hint">${dica}</p>` : ""}
+        <p class="hint">${game.i18n.format("PYRO.Reacao.Base", { formula: this.system[tipo] || "0" })}</p>
+        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Bonus")}</label>
+          <input type="number" name="bonus" value="0"></div>
+        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Vantagem")}</label>
+          <input type="number" name="vantagem" value="0" min="0"></div>
+        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Desvantagem")}</label>
+          <input type="number" name="desvantagem" value="0" min="0"></div>
+        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.ND")}</label>
+          <input type="number" name="nd" placeholder="—"></div>
+        <div class="form-group"><label>${game.i18n.localize("PYRO.Reacao.Cobertura")}</label>
+          <input type="checkbox" name="cobertura" ${cobertura ? "checked" : ""}></div>`;
+
+      const res = await DialogV2.prompt({
+        ...dialogoDoAtor(this),
+        window: { title: game.i18n.localize(chaves.titulo) },
+        content: conteudo,
+        ok: {
+          label: game.i18n.localize("PYRO.Rolar"),
+          callback: (event, button) => new foundry.applications.ux.FormDataExtended(button.form).object
+        },
+        rejectClose: false
+      });
+      if (!res) return;
+      opts = { ...opts, ...res, nd: res.nd || null, cobertura: !!res.cobertura };
+    }
+
+    // Exaustão: -1 por nível e uma desvantagem a cada 5, como em todo teste.
+    opts.bonus = (Number(opts.bonus) || 0) + pen.bonus;
+    opts.vantagem = Number(opts.vantagem) || 0;
+    opts.desvantagem = (Number(opts.desvantagem) || 0) + pen.desvantagem;
+
+    const formula = formulaReacao(this.system[tipo], cfg.faces, opts);
+    const flavor = game.i18n.localize(opts.cobertura ? chaves.flavorCobertura : chaves.flavor)
+      + (opts.nd ? ` (ND ${opts.nd})` : "");
+    const speaker = ChatMessage.getSpeaker({ actor: this });
+
+    if (formula === null) {
+      return ChatMessage.create({
+        speaker, flavor,
+        content: `<p class="pyro-falha-auto">${game.i18n.localize("PYRO.Chat.FalhaAutomatica")}</p>`
+      });
+    }
+
     const roll = await new Roll(expandirAtributos(formula), this.getRollData()).evaluate();
-    return roll.toMessage({
-      speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor: game.i18n.localize(cobertura ? "PYRO.Chat.BloqueioCobertura" : "PYRO.Chat.Bloqueio")
-    });
+    let content;
+    if (opts.nd) {
+      const sucesso = roll.total >= Number(opts.nd);
+      content = `<p class="pyro-resultado ${sucesso ? "sucesso" : "falha"}">
+        ${game.i18n.localize(sucesso ? "PYRO.Chat.Sucesso" : "PYRO.Chat.Falha")}</p>`;
+    }
+    return roll.toMessage({ speaker, flavor, content });
   }
 
   /* ---------------------------------------------------------------------- */

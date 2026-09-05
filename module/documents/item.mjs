@@ -3,7 +3,7 @@ import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { formulaTeste, expandirAtributos } from "../dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado,
-  nivelExaustao
+  penalidadeExaustao, dicaExaustao
 } from "../efeitos.mjs";
 import { formulaPool } from "../dados.mjs";
 import { proximaOrdem, idDoCaminho } from "../data/item-data.mjs";
@@ -597,6 +597,7 @@ export class PyroItem extends Item {
       ...dialogoDoAtor(this.actor),
       window: { title: game.i18n.localize("PYRO.Mira.Titulo") },
       content: `
+        ${dicaExaustao(actor) ? `<p class="hint">${dicaExaustao(actor)}</p>` : ""}
         <p class="hint">${dica}</p>
         <div class="form-group"><label>${game.i18n.localize("PYRO.Mira.Distancia")}</label>
           <input type="number" name="distancia" value="${distancia}" min="0"></div>
@@ -616,11 +617,13 @@ export class PyroItem extends Item {
     if (!res) return null;
 
     const des = actor?.system.atributos.des;
-    // A mira é um teste como outro qualquer: a exaustão desconta dela também.
+    // A mira é um teste como outro qualquer: a exaustão desconta dela também,
+    // com a desvantagem extra a cada 5 níveis.
+    const pen = penalidadeExaustao(actor);
     const formula = des ? formulaTeste(des.efetivo, {
       vantagem: Number(res.vantagem) || 0,
-      desvantagem: Number(res.desvantagem) || 0,
-      bonus: -nivelExaustao(actor)
+      desvantagem: (Number(res.desvantagem) || 0) + pen.desvantagem,
+      bonus: pen.bonus
     }) : null;
 
     // Pool zerada por desvantagens: erra sem rolar (mesma regra dos testes).

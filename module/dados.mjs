@@ -34,6 +34,29 @@ export function formulaTeste(valor, { vantagem = 0, desvantagem = 0, bonus = 0 }
 }
 
 /**
+ * Fórmula final de uma reação (esquiva ou bloqueio) a partir da fórmula da
+ * ficha ("4d12 + 2d4"). Vantagem soma dados do dado da reação (d12 na
+ * esquiva, d4 no bloqueio) e desvantagem tira; a cobertura dobra todos os
+ * dados; o bônus fixo entra no fim. Sem dado nenhum sobrando, null: falha
+ * automática, a mesma regra da pool zerada nos testes de atributo.
+ */
+export function formulaReacao(formula, faces, { vantagem = 0, desvantagem = 0, bonus = 0, cobertura = false } = {}) {
+  const termo = new RegExp(`(^|\\s)(\\d+)d${faces}(?!\\d)`);
+  let f = juntarDados([formula]);
+  const m = termo.exec(f);
+  const atual = m ? Number(m[2]) : 0;
+  const novo = atual + vantagem - desvantagem;
+  if (m) f = f.replace(termo, novo > 0 ? `$1${novo}d${faces}` : "$1").trim();
+  else if (novo > 0) f = juntarDados([`${novo}d${faces}`, f]);
+  // Tirar o termo do meio pode deixar "+ 2d4" ou "2d12 + " para trás.
+  f = juntarDados([f]);
+  if (!/\dd\d/.test(f)) return null;
+  if (cobertura) f = f.replace(/(\d+)d(\d+)/g, (x, n, fc) => `${Number(n) * 2}d${fc}`);
+  bonus = Number(bonus) || 0;
+  return !bonus ? f : bonus > 0 ? `${f} + ${bonus}` : `${f} - ${-bonus}`;
+}
+
+/**
  * Atalho de escrita nas fórmulas: [VIG], [FOR]... viram @vig, @for — o MOD
  * (valor efetivo) do atributo entra na conta via getRollData.
  */

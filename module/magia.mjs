@@ -2,7 +2,7 @@ import { PYRO } from "./config.mjs";
 import { formulaTeste } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeCusto, custoAjustado,
-  aplicarExaustao, nivelExaustao
+  aplicarExaustao, penalidadeExaustao
 } from "./efeitos.mjs";
 
 const esc = s => Handlebars.escapeExpression(s);
@@ -362,8 +362,10 @@ export async function conjurar(actor, escolhas, {
   let testeRoll = null;
   let falhou = false;
   if (calc.sobrecarga > 0) {
+    const pen = penalidadeExaustao(actor);
     const formula = formulaTeste(actor.system.atributos.sab.efetivo, {
-      bonus: -nivelExaustao(actor)
+      bonus: pen.bonus,
+      desvantagem: pen.desvantagem
     });
     if (formula === null) {
       falhou = true; // pool zerada: falha automática, sem rolagem
