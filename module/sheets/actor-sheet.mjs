@@ -1,3 +1,7 @@
+/*
+ * Ficha de ator (personagem e NPC): monta as listas de cada aba a partir dos
+ * itens, aplica o tema escolhido e cuida da reordenação por arraste.
+ */
 import { PYRO } from "../config.mjs";
 import { ConjuradorApp } from "../apps/conjurador.mjs";
 import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
@@ -6,17 +10,17 @@ import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDo
 import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
-import { rotuloCurtoDoCaminho } from "../data/item-data.mjs";
 
 /**
  * O que fazer com um drop que caiu em cima de uma linha do inventário.
  *
  * Só a reordenação interna é da ficha. Todo o resto — item de compêndio, item
- * de outra ficha, ator, efeito — volta para o Foundry, que já sabe criar. Com
- * os dois criando, o item entrava duas vezes.
+ * de outra ficha, ator, efeito — fica com o Foundry, que já sabe criar; se a
+ * ficha também criasse, o item entraria duas vezes.
  *
  * A decisão sai do uuid do arrasto porque precisa ser síncrona: depois de um
  * await o evento já foi entregue aos outros ouvintes e não há mais o que barrar.
+ * @returns {{acao: "passar"|"reordenar", id?: string}}
  */
 export function planoDeDrop(dados, atorUuid) {
   if (dados?.type !== "Item" || !atorUuid) return { acao: "passar" };
@@ -91,9 +95,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   };
 
   /*
-   * Seis abas fixas, agrupadas por atividade e não por tipo de dado. Só
-   * Poderes é condicional — as seções internas é que aparecem e somem
-   * conforme o personagem, o que evita a ficha mudar de forma o tempo todo.
+   * Abas fixas, agrupadas por atividade e não por tipo de dado. Só Poderes é
+   * condicional; nas outras são as seções internas que aparecem e somem, para
+   * a ficha não mudar de forma o tempo todo.
    */
   static PARTS = {
     header: { template: caminho("templates/actor/header.hbs") },
@@ -163,122 +167,119 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const porCategoria = chave =>
       ordenado(actor.items.filter(i => PYRO.itemNaCategoria(i, chave)));
     const loc = k => game.i18n.localize(k);
-    // "1 ação" / "2 ações": as linhas escrevem tudo por extenso.
     const umOuVarios = (n, um, varios) => loc(Number(n) === 1 ? um : varios);
-    // A linha padrão das listas: nome + uma coluna só de detalhes.
+    // Linha padrão das listas: nome + uma coluna só de detalhes por extenso.
     const detalheUnico = texto =>
       [{ texto, classe: "col-detalhes", dica: texto }];
 
     const linhaArma = item => {
-      const s = item.system;
-      const danos = (s.danos ?? []).filter(d => d.formula?.trim());
+      const sys = item.system;
+      const danos = (sys.danos ?? []).filter(d => d.formula?.trim());
       const resumoDano = danos
         .map(d => `${d.formula} ${loc(PYRO.tiposDano[d.tipo]?.label ?? d.tipo).toLocaleLowerCase()}`)
         .join(" + ");
-      const alcance = s.alcanceMaximo > 0
-        ? `${s.alcanceMenor}/${s.alcanceMaximo}m` : `${s.alcanceMenor}m`;
-      // "6d6 cortante, 2 ações, alcance 1m, peso 9" — igual às habilidades.
+      const alcance = sys.alcanceMaximo > 0
+        ? `${sys.alcanceMenor}/${sys.alcanceMaximo}m` : `${sys.alcanceMenor}m`;
+      // "6d6 cortante, 2 ações, alcance 1m, peso 9"
       const detalheTexto = [
         resumoDano || null,
-        s.acoes ? `${s.acoes} ${umOuVarios(s.acoes, "PYRO.Custos.acao", "PYRO.Custos.acaoPlural")}` : null,
+        sys.acoes ? `${sys.acoes} ${umOuVarios(sys.acoes, "PYRO.Custos.acao", "PYRO.Custos.acaoPlural")}` : null,
         `${loc("PYRO.Item.Alcance").toLocaleLowerCase()} ${alcance}`,
-        `${loc("PYRO.PesoAbrev")} ${s.peso}`
+        `${loc("PYRO.PesoAbrev")} ${sys.peso}`
       ].filter(Boolean).join(", ");
       return {
         detalhes: detalheUnico(detalheTexto),
         cauda: [],
         resumo: [
           { label: loc("PYRO.Item.Dano"), valor: resumoDano || "—" },
-          { label: loc("PYRO.Acoes"), valor: s.acoes },
-          { label: loc("PYRO.Item.Maos"), valor: s.maos },
+          { label: loc("PYRO.Acoes"), valor: sys.acoes },
+          { label: loc("PYRO.Item.Maos"), valor: sys.maos },
           { label: loc("PYRO.Item.Alcance"), valor: alcance },
-          { label: loc("PYRO.Item.UsaMunicao"), valor: loc(s.usaMunicao ? "PYRO.Sim" : "PYRO.Nao") },
-          { label: loc("PYRO.Peso"), valor: s.peso },
-          { label: loc("PYRO.Item.Custo"), valor: s.custo },
-          { label: loc("PYRO.Quantidade"), valor: s.quantidade }
+          { label: loc("PYRO.Item.UsaMunicao"), valor: loc(sys.usaMunicao ? "PYRO.Sim" : "PYRO.Nao") },
+          { label: loc("PYRO.Peso"), valor: sys.peso },
+          { label: loc("PYRO.Item.Custo"), valor: sys.custo },
+          { label: loc("PYRO.Quantidade"), valor: sys.quantidade }
         ]
       };
     };
 
     const linhaEquipamento = item => {
-      const s = item.system;
+      const sys = item.system;
       const defesas = [];
-      for (const [cat, val] of Object.entries(s.defesas.categorias)) {
+      for (const [cat, val] of Object.entries(sys.defesas.categorias)) {
         if (val) defesas.push(`${loc(PYRO.categoriasDano[cat])} +${val}`);
       }
-      for (const [tipo, val] of Object.entries(s.defesas.tipos)) {
+      for (const [tipo, val] of Object.entries(sys.defesas.tipos)) {
         if (val) defesas.push(`${loc(PYRO.tiposDano[tipo].label)} +${val}`);
       }
       // Mochila e item arcano carregam um número que só eles têm: ele vai
       // junto na linha, senão a lista deles não diria nada de útil.
       const extra = [];
-      if (s.categoria === "mochila" && s.cargaBonus) {
-        extra.push({ chave: "PYRO.Item.CargaBonus", texto: `+${s.cargaBonus}` });
+      if (sys.categoria === "mochila" && sys.cargaBonus) {
+        extra.push({ chave: "PYRO.Item.CargaBonus", texto: `+${sys.cargaBonus}` });
       }
-      if (s.categoria === "arcano" && s.reducaoMana) {
-        extra.push({ chave: "PYRO.Item.ReducaoMana", texto: `-${s.reducaoMana}` });
+      if (sys.categoria === "arcano" && sys.reducaoMana) {
+        extra.push({ chave: "PYRO.Item.ReducaoMana", texto: `-${sys.reducaoMana}` });
       }
-      // "Costas, carga extra +54, peso 1": parte, o que o item tem de
-      // especial e o peso, tudo numa coluna só.
+      // "Costas, carga extra +54, peso 1"
       const detalheTexto = [
-        loc(PYRO.partesCorpo[s.parte] ?? "") || null,
+        loc(PYRO.partesCorpo[sys.parte] ?? "") || null,
         ...extra.map(e => `${loc(e.chave).toLocaleLowerCase()} ${e.texto}`),
-        `${loc("PYRO.PesoAbrev")} ${s.peso}`
+        `${loc("PYRO.PesoAbrev")} ${sys.peso}`
       ].filter(Boolean).join(", ");
       return {
         equipavel: true,
-        equipado: s.equipado,
+        equipado: sys.equipado,
         detalhes: detalheUnico(detalheTexto),
         cauda: [],
         resumo: [
-          { label: loc("PYRO.Item.Parte"), valor: loc(PYRO.partesCorpo[s.parte] ?? "") },
+          { label: loc("PYRO.Item.Parte"), valor: loc(PYRO.partesCorpo[sys.parte] ?? "") },
           ...extra.map(e => ({ label: loc(e.chave), valor: e.texto })),
           { label: loc("PYRO.Defesas"), valor: defesas.join(" · ") || "—" },
-          { label: loc("PYRO.Bloquear"), valor: s.bloqueio || "—" },
-          { label: loc("PYRO.Esquivar"), valor: s.esquiva || "—" },
-          { label: loc("PYRO.Peso"), valor: s.peso },
-          { label: loc("PYRO.Item.Custo"), valor: s.custo },
-          { label: loc("PYRO.Quantidade"), valor: s.quantidade }
+          { label: loc("PYRO.Bloquear"), valor: sys.bloqueio || "—" },
+          { label: loc("PYRO.Esquivar"), valor: sys.esquiva || "—" },
+          { label: loc("PYRO.Peso"), valor: sys.peso },
+          { label: loc("PYRO.Item.Custo"), valor: sys.custo },
+          { label: loc("PYRO.Quantidade"), valor: sys.quantidade }
         ]
       };
     };
 
     const linhaConsumivel = item => {
-      const s = item.system;
-      const tipoDano = loc(PYRO.tiposDano[s.tipoDano]?.label ?? "");
+      const sys = item.system;
+      const tipoDano = loc(PYRO.tiposDano[sys.tipoDano]?.label ?? "");
       /*
        * "munição, perfurante, Costas, 20 unidades, peso 1" ou
-       * "2d4, 1 ação, 3 unidades, peso 2": o que era coluna virou a lista por
-       * extenso. Munição pesa 1 no total, não importa a quantidade nem o
-       * peso digitado; o custo em moedas fica no resumo.
+       * "2d4, 1 ação, 3 unidades, peso 2". Munição pesa 1 no total, não
+       * importa a quantidade nem o peso digitado; o custo fica no resumo.
        */
       const detalheTexto = [
-        s.municao ? loc("PYRO.Item.MunicaoTag") : null,
-        s.municao ? (tipoDano.toLocaleLowerCase() || null) : null,
-        s.formula || null,
-        s.municao
-          ? (loc(PYRO.partesCorpo[s.parte] ?? "") || null)
-          : (s.acoes ? `${s.acoes} ${umOuVarios(s.acoes, "PYRO.Custos.acao", "PYRO.Custos.acaoPlural")}` : null),
-        s.quantidade
-          ? `${s.quantidade} ${umOuVarios(s.quantidade, "PYRO.Item.Unidade", "PYRO.Item.UnidadePlural")}`
+        sys.municao ? loc("PYRO.Item.MunicaoTag") : null,
+        sys.municao ? (tipoDano.toLocaleLowerCase() || null) : null,
+        sys.formula || null,
+        sys.municao
+          ? (loc(PYRO.partesCorpo[sys.parte] ?? "") || null)
+          : (sys.acoes ? `${sys.acoes} ${umOuVarios(sys.acoes, "PYRO.Custos.acao", "PYRO.Custos.acaoPlural")}` : null),
+        sys.quantidade
+          ? `${sys.quantidade} ${umOuVarios(sys.quantidade, "PYRO.Item.Unidade", "PYRO.Item.UnidadePlural")}`
           : null,
-        `${loc("PYRO.PesoAbrev")} ${s.municao ? 1 : s.peso}`
+        `${loc("PYRO.PesoAbrev")} ${sys.municao ? 1 : sys.peso}`
       ].filter(Boolean).join(", ");
       return {
-        equipavel: s.municao,
-        // Sem botão de equipar, reserva o espaço dele: a linha alinha igual
-        // nas linhas com e sem munição.
-        espacoEquipar: !s.municao,
-        equipado: s.equipado,
+        equipavel: sys.municao,
+        // Sem botão de equipar, reserva o espaço dele: as linhas com e sem
+        // munição alinham igual.
+        espacoEquipar: !sys.municao,
+        equipado: sys.equipado,
         detalhes: detalheUnico(detalheTexto),
         cauda: [],
         resumo: [
-          { label: loc("PYRO.Item.Formula"), valor: s.formula || "—" },
-          ...(s.municao ? [{ label: loc("PYRO.Item.TipoDano"), valor: tipoDano }] : []),
-          { label: loc("PYRO.Quantidade"), valor: s.quantidade },
+          { label: loc("PYRO.Item.Formula"), valor: sys.formula || "—" },
+          ...(sys.municao ? [{ label: loc("PYRO.Item.TipoDano"), valor: tipoDano }] : []),
+          { label: loc("PYRO.Quantidade"), valor: sys.quantidade },
           { label: loc("PYRO.Peso"),
-            valor: s.municao ? `1 (${loc("PYRO.Item.PesoLote")})` : s.peso },
-          { label: loc("PYRO.Item.Custo"), valor: s.custo }
+            valor: sys.municao ? `1 (${loc("PYRO.Item.PesoLote")})` : sys.peso },
+          { label: loc("PYRO.Item.Custo"), valor: sys.custo }
         ]
       };
     };
@@ -292,32 +293,30 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const consumiveis = await this.#linhas(porCategoria("consumivel"), linhaConsumivel);
 
     const habilidade = (item, agrupada = false) => {
-      const s = item.system;
-      const caminhoNome = actor.items.get(s.caminho)?.name
-        ?? loc(s.caminho === "geral" ? "PYRO.CaminhoGeral" : "PYRO.CaminhoRemovido");
-      // A vaga de XP no caminho: hoje mora só no resumo, a linha ficou limpa.
-      const posicao = s.ehBase ? loc("PYRO.Item.BaseTag") : `#${s.ordem}`;
-      // Custos por extenso ("3 estamina, 1 ação"): abreviação era ruim de ler.
+      const sys = item.system;
+      const caminhoNome = actor.items.get(sys.caminho)?.name
+        ?? loc(sys.caminho === "geral" ? "PYRO.CaminhoGeral" : "PYRO.CaminhoRemovido");
+      const posicao = sys.ehBase ? loc("PYRO.Item.BaseTag") : `#${sys.ordem}`;
       const custosPartes = [
-        s.custoEstamina ? `${s.custoEstamina} ${loc("PYRO.Recursos.estamina").toLocaleLowerCase()}` : null,
-        s.custoMana ? `${s.custoMana} ${loc("PYRO.Recursos.mana").toLocaleLowerCase()}` : null,
-        s.custoEnergia ? `${s.custoEnergia} ${loc("PYRO.Recursos.energia").toLocaleLowerCase()}` : null,
-        s.custoAcoes
-          ? `${s.custoAcoes} ${umOuVarios(s.custoAcoes, `PYRO.Custos.${s.tipoCusto}`, `PYRO.Custos.${s.tipoCusto}Plural`)}`
+        sys.custoEstamina ? `${sys.custoEstamina} ${loc("PYRO.Recursos.estamina").toLocaleLowerCase()}` : null,
+        sys.custoMana ? `${sys.custoMana} ${loc("PYRO.Recursos.mana").toLocaleLowerCase()}` : null,
+        sys.custoEnergia ? `${sys.custoEnergia} ${loc("PYRO.Recursos.energia").toLocaleLowerCase()}` : null,
+        sys.custoAcoes
+          ? `${sys.custoAcoes} ${umOuVarios(sys.custoAcoes, `PYRO.Custos.${sys.tipoCusto}`, `PYRO.Custos.${sys.tipoCusto}Plural`)}`
           : null
       ].filter(Boolean);
       const custos = custosPartes.join(", ");
       /*
-       * Uma coluna só depois do nome, tudo por extenso: "Passiva, tier 1",
-       * "Ativável, 3 estamina, 1 ação, tier 1". Nos grupos por caminho o
-       * cabeçalho do grupo já diz de onde a habilidade vem; fora deles
-       * (técnicas, aba do caminho próprio, favoritos) o caminho abre a lista.
+       * "Passiva, tier 1", "Ativável, 3 estamina, 1 ação, tier 1". Nos grupos
+       * por caminho o cabeçalho do grupo já diz de onde a habilidade vem; fora
+       * deles (técnicas, aba do caminho próprio, favoritos) o caminho abre a
+       * lista.
        */
       const detalheTexto = [
         agrupada ? null : caminhoNome,
-        loc(PYRO.categoriasHabilidade[s.categoria] ?? ""),
+        loc(PYRO.categoriasHabilidade[sys.categoria] ?? ""),
         ...custosPartes,
-        `${loc("PYRO.Item.Tier").toLocaleLowerCase()} ${s.tier}`
+        `${loc("PYRO.Item.Tier").toLocaleLowerCase()} ${sys.tier}`
       ].filter(Boolean).join(", ");
       return {
         detalhes: detalheUnico(detalheTexto),
@@ -325,25 +324,22 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         resumo: [
           { label: loc("TYPES.Item.caminho"), valor: caminhoNome },
           { label: loc("PYRO.Item.Posicao"), valor: posicao },
-          { label: loc("PYRO.Item.Categoria"), valor: loc(PYRO.categoriasHabilidade[s.categoria] ?? "") },
-          { label: loc("PYRO.Item.Tier"), valor: s.tier },
-          { label: loc("PYRO.Item.CustoXp"), valor: s.ehBase ? loc("PYRO.Item.BaseTag") : s.custoXp },
+          { label: loc("PYRO.Item.Categoria"), valor: loc(PYRO.categoriasHabilidade[sys.categoria] ?? "") },
+          { label: loc("PYRO.Item.Tier"), valor: sys.tier },
+          { label: loc("PYRO.Item.CustoXp"), valor: sys.ehBase ? loc("PYRO.Item.BaseTag") : sys.custoXp },
           { label: loc("PYRO.Item.Custos"), valor: custos || "—" },
-          { label: loc("PYRO.Item.Formula"), valor: s.formula || "—" },
+          { label: loc("PYRO.Item.Formula"), valor: sys.formula || "—" },
           // Ligações da árvore: de onde esta veio e em que ela foi consumida.
-          ...(s.requisitosNomes
-            ? [{ label: loc("PYRO.Item.Requisitos"), valor: s.requisitosNomes }] : []),
-          ...(s.usadaEm ? [{ label: loc("PYRO.Item.UsadaEm"), valor: s.usadaEm }] : [])
+          ...(sys.requisitosNomes
+            ? [{ label: loc("PYRO.Item.Requisitos"), valor: sys.requisitosNomes }] : []),
+          ...(sys.usadaEm ? [{ label: loc("PYRO.Item.UsadaEm"), valor: sys.usadaEm }] : [])
         ]
       };
     };
 
     const todasHabilidades = porTipo("habilidade");
-    /*
-     * A lista de habilidades sai agrupada por caminho, cada grupo na ordem
-     * das vagas de XP. As linhas continuam nascendo do mesmo montador; o
-     * flat (habilidades) segue existindo para contagem e favoritos.
-     */
+    // Agrupada por caminho para a lista; a versão plana (habilidades) serve
+    // à contagem e aos favoritos.
     const gruposHab = gruposDeHabilidades(porTipo("caminho"),
       todasHabilidades.filter(i => !i.system.ehTecnica && !i.system.abaCaminho));
     const habilidadesGrupos = [];
@@ -360,38 +356,38 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       todasHabilidades.filter(i => i.system.abaCaminho), habilidade);
 
     const feiticos = await this.#linhas(porTipo("feitico"), item => {
-      const s = item.system;
+      const sys = item.system;
       return {
-        detalhes: [{ texto: s.formula, classe: "" }],
+        detalhes: [{ texto: sys.formula, classe: "" }],
         cauda: [{
-          texto: s.custoAcoes || "",
+          texto: sys.custoAcoes || "",
           classe: "col-curto"
         }],
         resumo: [
-          { label: loc("PYRO.Acoes"), valor: s.custoAcoes },
-          { label: loc("PYRO.Item.Formula"), valor: s.formula || "—" }
+          { label: loc("PYRO.Acoes"), valor: sys.custoAcoes },
+          { label: loc("PYRO.Item.Formula"), valor: sys.formula || "—" }
         ]
       };
     });
 
     const runas = await this.#linhas(porTipo("runa"), item => {
-      const s = item.system;
-      const subtipo = s.tipoRuna === "elemento"
-        ? loc(PYRO.elementos[s.subtipo]?.label ?? "") : "";
+      const sys = item.system;
+      const subtipo = sys.tipoRuna === "elemento"
+        ? loc(PYRO.elementos[sys.subtipo]?.label ?? "") : "";
       // "Elemento: raio" quando há elemento; gesto e modificador ficam só com
-      // o nome do tipo. A língua da runa mora no resumo.
-      const tipo = loc(PYRO.tiposRuna[s.tipoRuna] ?? "");
+      // o nome do tipo.
+      const tipo = loc(PYRO.tiposRuna[sys.tipoRuna] ?? "");
       const detalheTexto = subtipo ? `${tipo}: ${subtipo.toLocaleLowerCase()}` : tipo;
       return {
         // Marcador lateral com a cor do elemento: ajuda a varrer a lista.
-        cor: s.tipoRuna === "elemento" && PYRO.elementos[s.subtipo] ? s.subtipo : null,
+        cor: sys.tipoRuna === "elemento" && PYRO.elementos[sys.subtipo] ? sys.subtipo : null,
         detalhes: detalheUnico(detalheTexto),
         cauda: [],
         resumo: [
-          { label: loc("PYRO.Item.TipoRuna"), valor: loc(PYRO.tiposRuna[s.tipoRuna] ?? "") },
+          { label: loc("PYRO.Item.TipoRuna"), valor: loc(PYRO.tiposRuna[sys.tipoRuna] ?? "") },
           ...(subtipo ? [{ label: loc("PYRO.Item.Subtipo"), valor: subtipo }] : []),
-          { label: loc("PYRO.Item.Palavra"), valor: s.palavra || "—" },
-          { label: loc("PYRO.Item.Lingua"), valor: loc(PYRO.linguas[s.lingua]?.label ?? "") }
+          { label: loc("PYRO.Item.Palavra"), valor: sys.palavra || "—" },
+          { label: loc("PYRO.Item.Lingua"), valor: loc(PYRO.linguas[sys.lingua]?.label ?? "") }
         ]
       };
     });
@@ -426,25 +422,25 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     });
 
     const caminhos = await this.#linhas(porTipo("caminho"), item => {
-      const s = item.system;
-      const afinidades = (s.afinidades ?? [])
+      const sys = item.system;
+      const afinidades = (sys.afinidades ?? [])
         .map(a => a.tipo === "outro" ? a.outro : PYRO.afinidades[a.tipo]?.label)
         .filter(Boolean).join(", ");
-      const recursos = (s.recursos ?? [])
+      const recursos = (sys.recursos ?? [])
         .map(r => loc(PYRO.recursosCustom[r]?.label ?? r)).join(", ");
       return {
         detalhes: [],
         cauda: [
           {
-            texto: `${loc("PYRO.Abrev.xp")} ${s.xpDisponivel}`,
+            texto: `${loc("PYRO.Abrev.xp")} ${sys.xpDisponivel}`,
             classe: "col-xp", dica: loc("PYRO.XpDisponivel")
           },
           {
-            texto: `${loc("PYRO.Abrev.gasta")} ${s.xpGasta}`,
+            texto: `${loc("PYRO.Abrev.gasta")} ${sys.xpGasta}`,
             classe: "col-xp", dica: loc("PYRO.Item.XpGasta")
           },
           {
-            texto: `${loc("PYRO.Abrev.prox")} ${s.proximoCusto}`,
+            texto: `${loc("PYRO.Abrev.prox")} ${sys.proximoCusto}`,
             classe: "col-xp", dica: loc("PYRO.ProximoCustoTooltip")
           }
         ],
@@ -455,9 +451,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
          * personagem. Sobra o que muda de ficha para ficha.
          */
         resumo: [
-          ...(s.ehRacial ? [{ label: "", valor: loc("PYRO.Item.EhRacial") }] : []),
-          { label: loc("PYRO.Item.Xp"), valor: `${s.xpDisponivel} / ${s.xp}` },
-          ...(s.usaMagia
+          ...(sys.ehRacial ? [{ label: "", valor: loc("PYRO.Item.EhRacial") }] : []),
+          { label: loc("PYRO.Item.Xp"), valor: `${sys.xpDisponivel} / ${sys.xp}` },
+          ...(sys.usaMagia
             ? [{ label: loc("PYRO.Item.Afinidades"), valor: afinidades || "—" }]
             : []),
           ...(recursos ? [{ label: loc("PYRO.Item.Concede"), valor: recursos }] : [])
@@ -494,15 +490,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ...extra
     });
 
-    // Habilidades viraram duas colunas (nome + detalhes por extenso), sem
-    // legenda no topo: cabeçalho de coluna ali ficava desconexo da lista.
+    // Listas de duas colunas (nome + detalhes por extenso) não levam legenda
+    // de colunas: um cabeçalho ali fica desconexo da lista.
     const colsHabilidade = { semLegenda: true };
-
-    // Inventário unificado com as habilidades: linha em duas colunas (nome +
-    // detalhes por extenso), sem legenda de colunas no topo. Os quatro baldes
-    // de equipamento leem igual, e munição lê igual a consumível.
-    const secaoEquip = (chave, itens) => secao(chave, itens, { semLegenda: true });
-    const secaoConsumo = secaoEquip;
+    const secaoSemLegenda = (chave, itens) => secao(chave, itens, { semLegenda: true });
 
     const secoes = {
       favoritos: secao("favoritos", favoritos, { semLegenda: true }),
@@ -515,15 +506,13 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         titulo: actor.system.abaCaminhoLabel || loc("PYRO.Secao.caminhoProprio"),
         ...colsHabilidade
       }),
-      armas: secaoEquip("armas", armas),
-      // Artefato, item arcano e mochila são equipamento por baixo, então
-      // repetem as colunas dele; munição repete as de consumível.
-      equipamentos: secaoEquip("equipamentos", equipamentos),
-      artefatos: secaoEquip("artefatos", artefatos),
-      arcanos: secaoEquip("arcanos", arcanos),
-      mochilas: secaoEquip("mochilas", mochilas),
-      municoes: secaoConsumo("municoes", municoes),
-      consumiveis: secaoConsumo("consumiveis", consumiveis),
+      armas: secaoSemLegenda("armas", armas),
+      equipamentos: secaoSemLegenda("equipamentos", equipamentos),
+      artefatos: secaoSemLegenda("artefatos", artefatos),
+      arcanos: secaoSemLegenda("arcanos", arcanos),
+      mochilas: secaoSemLegenda("mochilas", mochilas),
+      municoes: secaoSemLegenda("municoes", municoes),
+      consumiveis: secaoSemLegenda("consumiveis", consumiveis),
       feiticos: secao("feiticos", feiticos, {
         colNome: loc("PYRO.Col.feitico"),
         colunas: [col("formula", "")],
@@ -540,7 +529,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })
     };
 
-    const sys = actor.system;
     const { selosPoder, seloPrincipal, coresElemento } = this.#selosDePoder();
 
     /*
@@ -565,7 +553,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         actor.system.temFeiticos ? "feitico" : null
       ].filter(Boolean).join(","),
       efeitos: this.#categoriasEfeitos(),
-      // Nível atual de exaustão, com os botões de -1/+1 na aba de combate.
       exaustao: nivelExaustao(actor),
       recursosVisiveis,
       recursosCols,
@@ -595,7 +582,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         }))
       })),
       biografiaHTML: await enriquecer(actor.system.biografia, actor),
-      // Campos da aba Notas, todos enriquecidos de uma vez.
       notas: await this.#notasEnriquecidas(),
       notasHTML: actor.type === "npc" ? await enriquecer(actor.system.notas, actor) : ""
     });
@@ -728,15 +714,15 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** Enriquece os campos de texto da aba Notas. */
   async #notasEnriquecidas() {
     const actor = this.actor;
-    const s = actor.system;
+    const sys = actor.system;
     const enrich = texto => enriquecer(texto, actor);
     return {
-      biografia: await enrich(s.biografia),
-      pessoas: await enrich(s.pessoas),
-      anotacoes: await enrich(s.anotacoes),
-      livre1: await enrich(s.livre1?.texto),
-      livre2: await enrich(s.livre2?.texto),
-      mestre: actor.type === "npc" ? await enrich(s.notas) : ""
+      biografia: await enrich(sys.biografia),
+      pessoas: await enrich(sys.pessoas),
+      anotacoes: await enrich(sys.anotacoes),
+      livre1: await enrich(sys.livre1?.texto),
+      livre2: await enrich(sys.livre2?.texto),
+      mestre: actor.type === "npc" ? await enrich(sys.notas) : ""
     };
   }
 
@@ -752,7 +738,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // Recursos personalizados só aparecem pra quem tem o caminho que concede.
       if (custom && !concedidos.includes(chave)) continue;
 
-      // Recuperação por cena vira nota ao lado do rótulo, onde existir.
       const nota = rec.recuperacao
         ? game.i18n.format("PYRO.RecuperaPorCena", { valor: rec.recuperacao })
         : null;
@@ -852,16 +837,16 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** Estados que precisam de aviso imediato, com ícone além da cor. */
   #alertas() {
     const sys = this.actor.system;
-    const r = sys.recursos;
+    const recursos = sys.recursos;
     const lista = [];
 
-    if (r.estamina.value <= 0) {
+    if (recursos.estamina.value <= 0) {
       lista.push({
         texto: game.i18n.localize("PYRO.Alerta.SemEstamina"),
         icone: "fa-lungs", tom: "perigo"
       });
     }
-    if (r.pv.max > 0 && r.pv.value / r.pv.max <= 0.25) {
+    if (recursos.pv.max > 0 && recursos.pv.value / recursos.pv.max <= 0.25) {
       lista.push({
         texto: game.i18n.localize("PYRO.Alerta.PvBaixo"),
         icone: "fa-heart-crack", tom: "perigo"
@@ -884,7 +869,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return lista;
   }
 
-  /** Menu único de recuperação, no lugar dos três botões fixos no cabeçalho. */
+  /** Menu único de recuperação: cena, capítulo ou arco. */
   static async #abrirRecuperacao() {
     const loc = k => game.i18n.localize(k);
     const escolha = await foundry.applications.api.DialogV2.wait({
@@ -1044,18 +1029,14 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     });
 
     /*
-     * Reordenar é nosso; trazer item de fora continua sendo do Foundry.
+     * Reordenar é da ficha; trazer item de fora é do Foundry.
      *
-     * O ActorSheetV2 escuta "drop" neste mesmo elemento e já cria o item que
-     * vem de compêndio ou de outra ficha. Enquanto este ouvinte também criava,
-     * o item entrava duas vezes — e stopPropagation não resolvia, porque ele
-     * não silencia outro ouvinte do mesmo elemento, só os dos elementos acima.
-     *
-     * Daí a fase de captura: ela roda antes de qualquer ouvinte de bolha,
-     * independentemente da ordem de registro, e aí stopImmediatePropagation
-     * derruba o do Foundry. Só que o evento é engolido no caso que é nosso —
-     * arrastar uma linha para outro lugar da mesma ficha. Todo o resto passa
-     * intacto e chega a quem sabe tratar.
+     * O ActorSheetV2 escuta "drop" neste mesmo elemento e cria o item que vem
+     * de compêndio ou de outra ficha. Um stopPropagation aqui não o silencia
+     * (só cala ouvintes dos elementos acima), então o ouvinte vai na fase de
+     * captura, que roda antes de qualquer ouvinte de bolha, e usa
+     * stopImmediatePropagation — apenas no caso nosso, arrastar uma linha para
+     * outro lugar da mesma ficha. Todo o resto passa intacto ao Foundry.
      */
     raiz.addEventListener("drop", event => {
       const li = event.target.closest?.(".linha-item");

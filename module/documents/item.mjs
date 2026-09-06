@@ -1,3 +1,7 @@
+/**
+ * Documento de item: nomes derivados, consistência de caminho/habilidade/runa
+ * nos hooks de criação e edição, e o "usar" de cada tipo (cards do chat).
+ */
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { formulaTeste, formulaPool, expandirAtributos } from "../dados.mjs";
@@ -7,7 +11,7 @@ import {
 } from "../efeitos.mjs";
 import { proximaOrdem } from "../data/item-data.mjs";
 import { esc, enriquecer, formularioDoAtor } from "../ui.mjs";
-import { flagsDe, flagsDoSistema } from "../sistema.mjs";
+import { flagsDoSistema } from "../sistema.mjs";
 
 /**
  * Distância em metros entre o token do ator e o alvo marcado (se houver).
@@ -53,7 +57,6 @@ export function nomeDaRuna(sys) {
 }
 
 export class PyroItem extends Item {
-  /** Efeitos marcados como "de uso": vão para o alvo, não para quem carrega. */
   /** Cabeçalho padrão dos cards do chat: ícone, nome e linha de contexto. */
   #topoHTML(meta) {
     return `<header class="pyro-item-topo">
@@ -160,11 +163,11 @@ export class PyroItem extends Item {
     const permitido = await super._preUpdate(changed, options, user);
     if (permitido === false) return false;
 
-    const s = changed.system ?? {};
+    const sys = changed.system ?? {};
 
     // Runa: o nome acompanha a palavra/gesto.
-    if (this.type === "runa" && ("palavra" in s || "tipoRuna" in s || "subtipo" in s)) {
-      const projecao = foundry.utils.mergeObject(this.system.toObject(), s, { inplace: false });
+    if (this.type === "runa" && ("palavra" in sys || "tipoRuna" in sys || "subtipo" in sys)) {
+      const projecao = foundry.utils.mergeObject(this.system.toObject(), sys, { inplace: false });
       changed.name = nomeDaRuna(projecao);
       /*
        * Trocar o elemento ou o tipo troca o que a runa produz: os
@@ -173,14 +176,14 @@ export class PyroItem extends Item {
        * antigos junto da troca — e eles pertencem ao elemento anterior.
        * O modo Subjulgar também segue o padrão do elemento novo.
        */
-      const mudouNatureza = ("tipoRuna" in s && s.tipoRuna !== this.system.tipoRuna)
-        || ("subtipo" in s && s.subtipo !== this.system.subtipo);
+      const mudouNatureza = ("tipoRuna" in sys && sys.tipoRuna !== this.system.tipoRuna)
+        || ("subtipo" in sys && sys.subtipo !== this.system.subtipo);
       if (mudouNatureza) {
         const projetado = { type: "runa", system: projecao };
-        s.scalings = scalingsPadrao(projetado);
-        s.subjulgar = !!(projecao.tipoRuna === "elemento"
+        sys.scalings = scalingsPadrao(projetado);
+        sys.subjulgar = !!(projecao.tipoRuna === "elemento"
           && PYRO.elementos[projecao.subtipo]?.subjulgar);
-        changed.system = s;
+        changed.system = sys;
       }
     }
 
@@ -190,29 +193,30 @@ export class PyroItem extends Item {
      * a 1m) — a correção não vale para esse caso, senão toda arma de mão
      * viraria arma de arremesso ao ser editada.
      */
-    if (this.type === "arma" && ("alcanceMenor" in s || "alcanceMaximo" in s)) {
-      const menor = s.alcanceMenor ?? this.system.alcanceMenor;
-      const maximo = s.alcanceMaximo ?? this.system.alcanceMaximo;
-      if (maximo > 0 && menor > maximo) s.alcanceMaximo = menor + 1;
-      changed.system = s;
+    if (this.type === "arma" && ("alcanceMenor" in sys || "alcanceMaximo" in sys)) {
+      const menor = sys.alcanceMenor ?? this.system.alcanceMenor;
+      const maximo = sys.alcanceMaximo ?? this.system.alcanceMaximo;
+      if (maximo > 0 && menor > maximo) sys.alcanceMaximo = menor + 1;
+      changed.system = sys;
     }
 
     /*
      * Baixar o tier reduz os pontos de aumento: o excesso é aparado do fim
      * para o começo, para a habilidade nunca dar mais do que concede.
      */
-    if (this.type === "habilidade" && "tier" in s && !("aumentos" in s)) {
-      const teto = Math.max(0, s.tier - 1);
+    if (this.type === "habilidade" && "tier" in sys && !("aumentos" in sys)) {
+      const teto = Math.max(0, sys.tier - 1);
       const atuais = this.system.toObject().aumentos ?? [];
       let gasto = atuais.reduce((t, a) => t + a.pontos, 0);
       if (gasto > teto) {
         const podados = [];
-        for (const a of atuais) {
-          const cabe = Math.min(a.pontos, Math.max(0, teto - podados.reduce((t, x) => t + x.pontos, 0)));
-          if (cabe > 0) podados.push({ ...a, pontos: cabe });
+        for (const aumento of atuais) {
+          const jaUsado = podados.reduce((t, x) => t + x.pontos, 0);
+          const cabe = Math.min(aumento.pontos, Math.max(0, teto - jaUsado));
+          if (cabe > 0) podados.push({ ...aumento, pontos: cabe });
         }
-        s.aumentos = podados;
-        changed.system = s;
+        sys.aumentos = podados;
+        changed.system = sys;
       }
     }
 
@@ -230,10 +234,10 @@ export class PyroItem extends Item {
      * ingrediente de ninguém, e não precisa de ingredientes para subir de tier.
      */
     if (this.type === "habilidade" && this.actor) {
-      const tier = s.tier ?? this.system.tier;
-      const ehBase = s.ehBase ?? this.system.ehBase;
-      const caminho = s.caminho ?? this.system.caminho;
-      const lista = s.requisitos ?? this.system.requisitos ?? [];
+      const tier = sys.tier ?? this.system.tier;
+      const ehBase = sys.ehBase ?? this.system.ehBase;
+      const caminho = sys.caminho ?? this.system.caminho;
+      const lista = sys.requisitos ?? this.system.requisitos ?? [];
       const validos = (tier >= 2 && !ehBase)
         ? lista.filter(r => {
             const base = this.actor.items.get(r.id);
@@ -242,8 +246,8 @@ export class PyroItem extends Item {
           })
         : [];
       if (validos.length !== lista.length) {
-        s.requisitos = validos.map(r => ({ id: r.id, nome: r.nome }));
-        changed.system = s;
+        sys.requisitos = validos.map(r => ({ id: r.id, nome: r.nome }));
+        changed.system = sys;
       }
     }
 
@@ -253,25 +257,24 @@ export class PyroItem extends Item {
      * habilidade de lugar não encarece ela sem motivo. Vaga digitada à mão
      * pelo jogador tem prioridade e passa direto.
      */
-    if (this.type === "habilidade" && ("caminho" in s || "ehBase" in s)) {
-      const ehBase = s.ehBase ?? this.system.ehBase;
-      // A ficha reenvia o formulário inteiro a cada mudança, então "ordem"
-      // chega junto mesmo quando o jogador só trocou o caminho. Só conta como
-      // escolha dele quando o número de fato mudou.
-      const digitada = "ordem" in s && s.ordem !== this.system.ordem;
-      if (ehBase) s.ordem = 0;
+    if (this.type === "habilidade" && ("caminho" in sys || "ehBase" in sys)) {
+      const ehBase = sys.ehBase ?? this.system.ehBase;
+      // submitOnChange reenvia o formulário inteiro, então "ordem" chega junto
+      // mesmo quando o jogador só trocou o caminho. Só conta como escolha
+      // dele quando o número de fato mudou.
+      const digitada = "ordem" in sys && sys.ordem !== this.system.ordem;
+      if (ehBase) sys.ordem = 0;
       else if (!digitada) {
-        s.ordem = proximaOrdem(this.actor, s.caminho ?? this.system.caminho, {
+        sys.ordem = proximaOrdem(this.actor, sys.caminho ?? this.system.caminho, {
           excluirId: this.id,
           preferida: this.system.ordem
         });
       }
-      changed.system = s;
+      changed.system = sys;
     }
 
     if (this.type !== "caminho") return;
 
-    const sys = s;
     if (sys.raca && sys.raca !== this.system.raca) {
       const preset = PYRO.racas[sys.raca];
       if (preset) {
@@ -404,13 +407,13 @@ export class PyroItem extends Item {
   /* ---------------------------------------------------------------------- */
 
   async #atacar() {
-    const s = this.system;
+    const sys = this.system;
     const actor = this.actor;
     const speaker = ChatMessage.getSpeaker({ actor });
 
     /* --- Munição: escolhe agora, desconta depois da mira ------------------ */
     let municao = null;
-    if (s.usaMunicao && actor) {
+    if (sys.usaMunicao && actor) {
       const opcoes = actor.items.filter(i =>
         i.type === "consumivel" && i.system.municao && i.system.quantidade > 0
       );
@@ -445,7 +448,7 @@ export class PyroItem extends Item {
     const limiteMira = actor?.system.miraLivre ?? 2;
     const rolls = [];
     let mira = null;
-    if (s.alcanceMaximo > limiteMira) {
+    if (sys.alcanceMaximo > limiteMira) {
       const distanciaAlvo = distanciaAteAlvo(actor);
       if (distanciaAlvo === null || distanciaAlvo > limiteMira) {
         mira = await this.#testeDeMira(limiteMira);
@@ -457,10 +460,10 @@ export class PyroItem extends Item {
     // Munição some ao disparar, acertando ou errando.
     if (municao) await municao.update({ "system.quantidade": municao.system.quantidade - 1 });
 
-    const alcanceTexto = s.alcanceMaximo > 0
-      ? `${s.alcanceMenor}/${s.alcanceMaximo}m` : `${s.alcanceMenor}m`;
+    const alcanceTexto = sys.alcanceMaximo > 0
+      ? `${sys.alcanceMenor}/${sys.alcanceMaximo}m` : `${sys.alcanceMenor}m`;
     // Efeito de custo pode baratear ou encarecer o ataque em ações.
-    const acoes = custoAjustado(s.acoes, ajustesDeCusto(actor, this).acoes);
+    const acoes = custoAjustado(sys.acoes, ajustesDeCusto(actor, this).acoes);
     const detalhes = [
       game.i18n.format("PYRO.Chat.CustoAcoes", { acoes }),
       alcanceTexto
@@ -490,17 +493,17 @@ export class PyroItem extends Item {
     // Cada entrada de dano rola separado, com seu próprio tipo — o menu do
     // chat precisa disso pra descontar a defesa certa de cada parcela.
     const danos = [];
-    for (const d of s.danos ?? []) {
-      if (!d.formula?.trim()) continue;
-      const roll = await new Roll(expandirAtributos(d.formula), this.getRollData()).evaluate();
+    for (const dano of sys.danos ?? []) {
+      if (!dano.formula?.trim()) continue;
+      const roll = await new Roll(expandirAtributos(dano.formula), this.getRollData()).evaluate();
       rolls.push(roll);
-      danos.push({ tipo: d.tipo, total: roll.total });
-      const tipo = game.i18n.localize(PYRO.tiposDano[d.tipo]?.label ?? d.tipo ?? "");
-      partes.push(`<p class="pyro-linha-dano dano-${d.tipo}">${tipo}</p>`, await roll.render());
+      danos.push({ tipo: dano.tipo, total: roll.total });
+      const tipo = game.i18n.localize(PYRO.tiposDano[dano.tipo]?.label ?? dano.tipo ?? "");
+      partes.push(`<p class="pyro-linha-dano dano-${dano.tipo}">${tipo}</p>`, await roll.render());
     }
 
     // Bônus de efeito ("Maestria com Katana: 2d6") entram como parcelas extras.
-    const bonus = await this.#bonusDeDanoHTML(s.danos?.[0]?.tipo);
+    const bonus = await this.#bonusDeDanoHTML(sys.danos?.[0]?.tipo);
     partes.push(...bonus.partes);
     danos.push(...bonus.danos);
     rolls.push(...bonus.rolls);
@@ -535,12 +538,12 @@ export class PyroItem extends Item {
    * alcance menor soma uma desvantagem automaticamente (SRD §5).
    */
   async #testeDeMira(limiteMira = 2) {
-    const s = this.system;
+    const sys = this.system;
     const actor = this.actor;
     const medida = distanciaAteAlvo(actor);
     // Sem alvo marcado, começa no primeiro metro que já pede teste.
-    const distancia = medida ?? Math.max(limiteMira + 1, s.alcanceMenor);
-    const desvInicial = distancia > s.alcanceMenor ? 1 : 0;
+    const distancia = medida ?? Math.max(limiteMira + 1, sys.alcanceMenor);
+    const desvInicial = distancia > sys.alcanceMenor ? 1 : 0;
 
     const dica = medida !== null
       ? game.i18n.format("PYRO.Mira.AlvoMarcado", { distancia: medida })
@@ -586,20 +589,20 @@ export class PyroItem extends Item {
   }
 
   async #consumir() {
-    const s = this.system;
-    if (s.quantidade < 1) {
+    const sys = this.system;
+    if (sys.quantidade < 1) {
       return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemQuantidade"));
     }
-    await this.update({ "system.quantidade": s.quantidade - 1 });
+    await this.update({ "system.quantidade": sys.quantidade - 1 });
 
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
-    if (!s.formula) return this.#postar();
-    const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();
+    if (!sys.formula) return this.#postar();
+    const roll = await new Roll(expandirAtributos(sys.formula), this.getRollData()).evaluate();
     return ChatMessage.create({
       speaker,
       content: `<div class="pyro-chat">
         ${this.#topoHTML(game.i18n.format("PYRO.Chat.CustoAcoes", {
-          acoes: custoAjustado(s.acoes, ajustesDeCusto(this.actor, this).acoes)
+          acoes: custoAjustado(sys.acoes, ajustesDeCusto(this.actor, this).acoes)
         }))}
         ${await roll.render()}
         ${htmlEfeitosDeUso(this)}
@@ -612,7 +615,7 @@ export class PyroItem extends Item {
   }
 
   async #usarHabilidade() {
-    const s = this.system;
+    const sys = this.system;
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
 
     /*
@@ -622,11 +625,11 @@ export class PyroItem extends Item {
      */
     const ajustes = ajustesDeCusto(this.actor, this);
     const cobra = {
-      estamina: custoAjustado(s.custoEstamina, ajustes.estamina),
-      mana: custoAjustado(s.custoMana, ajustes.mana),
-      energia: custoAjustado(s.custoEnergia, ajustes.energia)
+      estamina: custoAjustado(sys.custoEstamina, ajustes.estamina),
+      mana: custoAjustado(sys.custoMana, ajustes.mana),
+      energia: custoAjustado(sys.custoEnergia, ajustes.energia)
     };
-    const custoAcoes = custoAjustado(s.custoAcoes, ajustes.acoes);
+    const custoAcoes = custoAjustado(sys.custoAcoes, ajustes.acoes);
 
     const custos = [];
     if (this.actor && (cobra.estamina || cobra.mana || cobra.energia)) {
@@ -639,14 +642,14 @@ export class PyroItem extends Item {
       if (pago.energia) custos.push(game.i18n.format("PYRO.Chat.CustoEnergia", { valor: pago.energia }));
     }
 
-    const chaveCusto = s.tipoCusto === "reacao" ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";
+    const chaveCusto = sys.tipoCusto === "reacao" ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";
     const cab = [
       custoAcoes ? game.i18n.format(chaveCusto, { acoes: custoAcoes }) : null,
       ...custos
     ].filter(Boolean).join(" · ");
 
-    if (s.formula) {
-      const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();
+    if (sys.formula) {
+      const roll = await new Roll(expandirAtributos(sys.formula), this.getRollData()).evaluate();
       return ChatMessage.create({
         speaker,
         content: `<div class="pyro-chat">
@@ -671,15 +674,15 @@ export class PyroItem extends Item {
   }
 
   async #usarFeitico() {
-    const s = this.system;
+    const sys = this.system;
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
-    const cab = s.custoAcoes
+    const cab = sys.custoAcoes
       ? game.i18n.format("PYRO.Chat.CustoAcoes", {
-          acoes: custoAjustado(s.custoAcoes, ajustesDeCusto(this.actor, this).acoes)
+          acoes: custoAjustado(sys.custoAcoes, ajustesDeCusto(this.actor, this).acoes)
         }) : "";
 
-    if (s.formula) {
-      const roll = await new Roll(expandirAtributos(s.formula), this.getRollData()).evaluate();
+    if (sys.formula) {
+      const roll = await new Roll(expandirAtributos(sys.formula), this.getRollData()).evaluate();
       return ChatMessage.create({
         speaker,
         content: `<div class="pyro-chat">
@@ -696,7 +699,7 @@ export class PyroItem extends Item {
       speaker,
       content: `<div class="pyro-chat">
         ${this.#topoHTML(cab)}
-        ${s.descricao ?? ""}
+        ${sys.descricao ?? ""}
         ${htmlEfeitosDeUso(this)}
       </div>`
     });

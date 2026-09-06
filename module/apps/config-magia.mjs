@@ -7,10 +7,9 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
  * Tabela de elementos (só para o mestre): dados de dano, tipo, grupo de
  * afinidade e o texto de efeito de cada um.
  *
- * Línguas, raças e recursos moravam aqui e foram para a tela de Caminhos
- * Raciais, que é onde eles fazem sentido. O arquivo mantém o nome antigo
- * porque atualizar o sistema não apaga arquivos, e um `config-magia.mjs`
- * órfão no disco seria pior que um nome menos preciso.
+ * O arquivo se chama config-magia (e não config-elementos) porque atualizar
+ * o sistema não apaga arquivos: um `config-magia.mjs` órfão no disco seria
+ * pior que um nome menos preciso.
  */
 export class ConfigElementosApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
@@ -68,15 +67,16 @@ export class ConfigElementosApp extends HandlebarsApplicationMixin(ApplicationV2
     );
     const elementos = this.#carregar();
 
-    for (const [chave, v] of Object.entries(elementos)) {
-      v.label = dados[`elemento.${chave}.label`] ?? v.label;
-      v.grupo = dados[`elemento.${chave}.grupo`] ?? v.grupo;
-      v.tipoDano = dados[`elemento.${chave}.tipoDano`] ?? v.tipoDano;
-      v.base = Number(dados[`elemento.${chave}.base`] ?? v.base) || 0;
-      v.porIntencao = Number(dados[`elemento.${chave}.porIntencao`] ?? v.porIntencao) || 0;
-      v.faces = Number(dados[`elemento.${chave}.faces`] ?? v.faces) || 0;
-      v.efeito = dados[`elemento.${chave}.efeito`] ?? v.efeito;
-      v.subjulgar = !!dados[`elemento.${chave}.subjulgar`];
+    for (const [chave, elemento] of Object.entries(elementos)) {
+      elemento.label = dados[`elemento.${chave}.label`] ?? elemento.label;
+      elemento.grupo = dados[`elemento.${chave}.grupo`] ?? elemento.grupo;
+      elemento.tipoDano = dados[`elemento.${chave}.tipoDano`] ?? elemento.tipoDano;
+      elemento.base = Number(dados[`elemento.${chave}.base`] ?? elemento.base) || 0;
+      elemento.porIntencao =
+        Number(dados[`elemento.${chave}.porIntencao`] ?? elemento.porIntencao) || 0;
+      elemento.faces = Number(dados[`elemento.${chave}.faces`] ?? elemento.faces) || 0;
+      elemento.efeito = dados[`elemento.${chave}.efeito`] ?? elemento.efeito;
+      elemento.subjulgar = !!dados[`elemento.${chave}.subjulgar`];
     }
     return elementos;
   }

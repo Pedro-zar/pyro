@@ -1,3 +1,7 @@
+/**
+ * Data models dos itens (arma, equipamento, consumível, habilidade, feitiço,
+ * runa, magia, caminho) e a contabilidade de XP das habilidades por Caminho.
+ */
 import { PYRO } from "../config.mjs";
 
 const fields = foundry.data.fields;
@@ -57,9 +61,9 @@ export function progressaoDoCaminho(actor, caminho) {
  * 3, 4. Com passo 2 vira 1, 1, 2, 2, 3, 3. A habilidade base do Caminho vem
  * junto dele e não custa nada.
  *
- * A posição é gravada na criação e não se mexe mais. Antes o custo era
- * recalculado por contagem, então editar a primeira habilidade de um caminho
- * com duas fazia ela custar o dobro: ela contava a irmã e ia para o fim da fila.
+ * Lê a posição gravada na criação (sys.ordem), e não uma contagem das
+ * habilidades irmãs: contar faria uma habilidade antiga encarecer quando
+ * outras fossem compradas depois.
  */
 export function custoDaHabilidade(sys, progressao = null) {
   if (sys?.ehBase) return 0;
@@ -274,7 +278,7 @@ export class HabilidadeData extends BaseItemData {
 
 /* ---------------------------- Feitiço --------------------------------------- */
 
-/** Magia demoníaca (Humano Feiticeiro). Cru por enquanto, efeitos virão. */
+/** Magia demoníaca (Humano Feiticeiro). Sem regra no SRD ainda; só custo e fórmula até lá. */
 export class FeiticoData extends BaseItemData {
   static defineSchema() {
     return {
@@ -431,23 +435,22 @@ export class CaminhoData extends BaseItemData {
     }
 
     const actor = this.parent?.actor;
-    // XP gasta é a soma do custo das habilidades deste caminho.
     const habilidades = actor?.items.filter(i =>
       i.type === "habilidade" && i.system.caminho === this.parent.id
     ) ?? [];
     /*
-     * Lê a posição gravada em vez do custo derivado da habilidade: os itens
-     * são preparados em ordem, e um caminho preparado antes das habilidades
-     * dele veria o custo ainda não calculado.
+     * XP gasta recalcula o custo a partir da posição gravada, em vez de ler o
+     * custoXp derivado da habilidade: os itens são preparados em ordem, e um
+     * caminho preparado antes das habilidades dele veria o custo ainda não
+     * calculado.
      */
     this.progressao = progressaoDoCaminho(actor, this.parent.id);
     this.xpGasta = habilidades.reduce(
       (t, i) => t + custoDaHabilidade(i.system, this.progressao), 0);
     this.xpDisponivel = this.xp - this.xpGasta;
-    // A próxima habilidade ocupa a primeira vaga livre da fila.
     this.proximaOrdem = proximaOrdem(actor, this.parent.id);
-    // O próprio "Próx." já denuncia a curva: com passo 2 ele repete o mesmo
-    // número por duas vagas seguidas. Não precisa de aviso escrito na ficha.
+    // Com passo 2 o "Próx." repete o mesmo custo por duas vagas seguidas; é
+    // assim que a ficha mostra a curva, sem aviso escrito.
     this.proximoCusto = custoDaHabilidade({ ordem: this.proximaOrdem }, this.progressao);
   }
 }

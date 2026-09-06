@@ -83,14 +83,14 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     /* --- Fichas da frase montada ----------------------------------------- */
     const fichas = calc.porRuna.map((pr, indice) => {
-      const s = pr.item.system;
+      const sys = pr.item.system;
       return {
         indice,
         // Em magia salva, só o que foi adicionado agora pode ser tirado.
         removivel: !this.fixa || !this.frase[indice]?.original,
-        nome: s.palavra || pr.item.name,
-        tipo: loc(PYRO.tiposRuna[s.tipoRuna] ?? ""),
-        cor: s.tipoRuna === "elemento" && PYRO.elementos[s.subtipo] ? s.subtipo : null,
+        nome: sys.palavra || pr.item.name,
+        tipo: loc(PYRO.tiposRuna[sys.tipoRuna] ?? ""),
+        cor: sys.tipoRuna === "elemento" && PYRO.elementos[sys.subtipo] ? sys.subtipo : null,
         intencao: pr.intencao,
         custo: pr.custo,
         limite: pr.limite,
@@ -98,7 +98,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         limiteTexto: game.i18n.format("PYRO.Conjurador.LimiteRuna", { n: pr.limite }),
         // O que esta runa produz na Intenção escolhida (cópia da magia, se houver).
         previa: previaRuna(pr.item, pr.intencao, pr.efeitoMult, pr.scalings, pr.tipoDano),
-        lingua: s.lingua !== nativa ? loc(PYRO.linguas[s.lingua]?.label ?? "") : null
+        lingua: sys.lingua !== nativa ? loc(PYRO.linguas[sys.lingua]?.label ?? "") : null
       };
     });
 
@@ -108,19 +108,19 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const grupo = tipo => actor.items
       .filter(i => i.type === "runa" && i.system.tipoRuna === tipo)
       .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-      .map(r => ({
-        id: r.id,
-        nome: r.system.palavra || r.name,
-        cor: tipo === "elemento" && PYRO.elementos[r.system.subtipo] ? r.system.subtipo : null,
-        lingua: r.system.lingua !== nativa
-          ? loc(PYRO.linguas[r.system.lingua]?.label ?? "") : null,
+      .map(runa => ({
+        id: runa.id,
+        nome: runa.system.palavra || runa.name,
+        cor: tipo === "elemento" && PYRO.elementos[runa.system.subtipo] ? runa.system.subtipo : null,
+        lingua: runa.system.lingua !== nativa
+          ? loc(PYRO.linguas[runa.system.lingua]?.label ?? "") : null,
         // Cada runa entra uma vez só na frase.
-        usada: naFrase.has(r.id),
+        usada: naFrase.has(runa.id),
         // Gesto sem mão livre não entra: o botão explica o porquê.
-        bloqueada: tipo !== "elemento" && !naFrase.has(r.id)
-          && calc.maos + (r.system.maos ?? 1) > maosDisponiveis,
-        limite: this.#limiteDaRuna(r),
-        limiteTexto: game.i18n.format("PYRO.Conjurador.LimiteRuna", { n: this.#limiteDaRuna(r) })
+        bloqueada: tipo !== "elemento" && !naFrase.has(runa.id)
+          && calc.maos + (runa.system.maos ?? 1) > maosDisponiveis,
+        limite: this.#limiteDaRuna(runa),
+        limiteTexto: game.i18n.format("PYRO.Conjurador.LimiteRuna", { n: this.#limiteDaRuna(runa) })
       }));
 
     /* --- Medidores -------------------------------------------------------- */

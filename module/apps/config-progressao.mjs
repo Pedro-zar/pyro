@@ -66,12 +66,13 @@ export class ConfigProgressaoApp extends HandlebarsApplicationMixin(ApplicationV
       new foundry.applications.ux.FormDataExtended(this.element).object
     );
     const regras = this.#carregar();
-    for (const [chave, v] of Object.entries(regras)) {
-      v.label = dados[`regra.${chave}.label`] ?? v.label;
-      v.nomes = dados[`regra.${chave}.nomes`] ?? v.nomes;
-      v.passo = Math.max(1, Math.round(Number(dados[`regra.${chave}.passo`] ?? v.passo)) || 1);
-      v.multiplicador = Number(dados[`regra.${chave}.multiplicador`] ?? v.multiplicador);
-      if (!Number.isFinite(v.multiplicador)) v.multiplicador = 1;
+    for (const [chave, regra] of Object.entries(regras)) {
+      regra.label = dados[`regra.${chave}.label`] ?? regra.label;
+      regra.nomes = dados[`regra.${chave}.nomes`] ?? regra.nomes;
+      regra.passo =
+        Math.max(1, Math.round(Number(dados[`regra.${chave}.passo`] ?? regra.passo)) || 1);
+      regra.multiplicador = Number(dados[`regra.${chave}.multiplicador`] ?? regra.multiplicador);
+      if (!Number.isFinite(regra.multiplicador)) regra.multiplicador = 1;
     }
     return regras;
   }

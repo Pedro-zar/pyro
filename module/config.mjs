@@ -349,10 +349,10 @@ PYRO.racas = foundry.utils.deepClone(PYRO.racasPadrao);
 /**
  * Nome de uma raça com o {detalhe} preenchido: elfo + "Corvo" => "Elfo (Corvo)".
  * A troca é feita à mão porque o padrão nem sempre é chave de tradução: a
- * configuração de raças do mundo salva o texto já resolvido, e o
- * game.i18n.format do v14 só interpola chaves registradas no catálogo — um
- * padrão literal voltava com o "{detalhe}" por preencher. Detalhe vazio também
- * não deixa um "Elfo ()" para trás.
+ * configuração de raças do mundo salva o texto já resolvido, e
+ * game.i18n.format só interpola chaves registradas no catálogo — num padrão
+ * literal o "{detalhe}" ficaria por preencher. Detalhe vazio também não deixa
+ * um "Elfo ()" para trás.
  */
 PYRO.nomeDaRaca = (raca, detalhe) => {
   const preset = PYRO.racas?.[raca];
@@ -369,8 +369,8 @@ PYRO.nomeDaRaca = (raca, detalhe) => {
  * alimenta o dropdown na ficha do caminho racial: um humano não aparece com
  * a opção Gigante, então não dá para escolher por engano.
  *
- * Raça fora da tabela (criada pelo mestre sem faixa, ou apagada depois) volta
- * à lista inteira, que é o comportamento de antes desta trava existir.
+ * Raça fora da tabela (criada pelo mestre sem faixa, ou apagada depois) libera
+ * a lista inteira.
  */
 PYRO.faixaTamanho = raca => {
   const ordem = Object.keys(PYRO.tamanhos);
@@ -486,8 +486,8 @@ PYRO.tiposCusto = {
  * pontos de DET acima ou mais a magia não faz nada, e a partir de cinco pontos
  * abaixo o multiplicador para de crescer.
  *
- * Multiplicador e linha moram juntos de propósito — enquanto eram duas listas,
- * mexer numa e esquecer a outra era um erro que ninguém veria na mesa.
+ * Multiplicador e linha moram juntos de propósito: em duas listas, mexer numa
+ * e esquecer a outra seria um erro que ninguém veria na mesa.
  */
 PYRO.faixasSubjulgar = [
   { dif: -2, mult: 0,    faixa: "acima" },
@@ -629,9 +629,9 @@ PYRO.alvosEfeito = {
 };
 
 /**
- * Tipos de mudança dos efeitos (espelham os tipos do núcleo no v14, que
- * trocou o modo numérico por texto). "upgrade" é o piso ("no mínimo X") e
- * "downgrade" o teto — os rótulos traduzem isso, não o nome interno.
+ * Tipos de mudança dos efeitos; as chaves são as do núcleo (texto, não modo
+ * numérico). "upgrade" é o piso ("no mínimo X") e "downgrade" o teto — os
+ * rótulos traduzem isso, não o nome interno.
  */
 PYRO.modosEfeito = {
   add: "PYRO.Efeitos.Modo.somar",

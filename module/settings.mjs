@@ -5,8 +5,9 @@ import { ConfigProgressaoApp } from "./apps/config-progressao.mjs";
 import { SYSTEM_ID } from "./sistema.mjs";
 
 /**
- * Configurações do mundo que alteram as tabelas de magia. Ficam em settings
- * pra cada mesa poder ajustar sem editar o código do sistema.
+ * Configurações do mundo: as tabelas de regras que o mestre edita (línguas,
+ * elementos, raças, recursos, progressões) e os menus que as abrem. Ficam em
+ * settings pra cada mesa poder ajustar sem editar o código do sistema.
  */
 export function registrarSettings() {
   game.settings.register(SYSTEM_ID, "linguas", {
@@ -90,8 +91,8 @@ export function registrarSettings() {
 /**
  * Junta o que o mestre salvou com a tabela padrão do sistema.
  * O salvo manda nos campos que ele editou, mas campos novos que chegam numa
- * atualização (a corrente do raio, por exemplo) continuam valendo — sem isso,
- * uma configuração salva antes congelaria as tabelas na versão antiga.
+ * atualização (a corrente do raio, por exemplo) continuam valendo — senão uma
+ * configuração salva congelaria as tabelas na versão em que foi salva.
  * Entradas que o mestre apagou seguem apagadas; as que ele criou entram como estão.
  */
 function mesclar(padrao, salvo) {

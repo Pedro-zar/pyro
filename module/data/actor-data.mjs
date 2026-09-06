@@ -1,3 +1,7 @@
+/**
+ * Data models dos atores (criatura, personagem, NPC): schema e valores
+ * derivados — atributos efetivos, recursos, tamanho, carga, defesas e reações.
+ */
 import { PYRO } from "../config.mjs";
 import { formulaPool, juntarDados } from "../dados.mjs";
 import { rotuloCurtoDoCaminho } from "./item-data.mjs";
@@ -202,8 +206,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       attr.poolCheia = formulaPool(attr.total); // usada em "Passar seus Limites"
     }
 
-    const a = this.atributos;
-    const arred = v => Math.floor(v);
+    const atributos = this.atributos;
 
     /* --- Caminhos e tamanho ----------------------------------------------- */
     /*
@@ -214,8 +217,8 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       .filter(i => i.type === "caminho")
       .sort((x, y) => (x.sort - y.sort) || x.id.localeCompare(y.id));
     // O racial "primeiro" é o criado primeiro, não o primeiro da lista:
-    // adicionar outra raça depois não rouba a definição de tamanho (itens
-    // novos nascem com sort 0 e furavam a fila).
+    // itens novos nascem com sort 0 e furariam a fila, e adicionar outra raça
+    // depois não pode roubar a definição de tamanho.
     const raciais = caminhos.filter(i => i.system.ehRacial)
       .sort((x, y) => (x._stats?.createdTime ?? 0) - (y._stats?.createdTime ?? 0));
     const racial = raciais[0];
@@ -246,29 +249,33 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.miraLivre = PYRO.miraLivre(this.tamanho, this.tamanhoExato);
 
     /* --- Recursos --------------------------------------------------------- */
-    const r = this.recursos;
+    const recursos = this.recursos;
     const vidaPorVig = PYRO.tamanhos[this.tamanho]?.vidaPorVig ?? 7;
-    r.pv.max = arred(a.vig.efetivo * vidaPorVig * this.multi) + r.pv.bonus;
-    r.estamina.max = arred(a.vig.efetivo * 10 * this.multi) + r.estamina.bonus;
-    r.mana.max = arred(a.sab.efetivo * 5 * this.multi) + r.mana.bonus;
-    const recuperacao = arred((a.int.efetivo / 2) * this.multi);
-    r.mana.recuperacao = recuperacao;
-    r.energia.max = arred(a.pre.efetivo * 5 * this.multi) + r.energia.bonus;
-    r.energia.recuperacao = recuperacao;
-    r.vontade.max = det * 5 + r.vontade.bonus;
+    recursos.pv.max = Math.floor(atributos.vig.efetivo * vidaPorVig * this.multi)
+      + recursos.pv.bonus;
+    recursos.estamina.max = Math.floor(atributos.vig.efetivo * 10 * this.multi)
+      + recursos.estamina.bonus;
+    recursos.mana.max = Math.floor(atributos.sab.efetivo * 5 * this.multi)
+      + recursos.mana.bonus;
+    const recuperacao = Math.floor((atributos.int.efetivo / 2) * this.multi);
+    recursos.mana.recuperacao = recuperacao;
+    recursos.energia.max = Math.floor(atributos.pre.efetivo * 5 * this.multi)
+      + recursos.energia.bonus;
+    recursos.energia.recuperacao = recuperacao;
+    recursos.vontade.max = det * 5 + recursos.vontade.bonus;
 
     // Recursos personalizados: (base + atributo x porPonto) +10% por patamar.
     for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
-      const rec = r[chave];
+      const rec = recursos[chave];
       if (!rec) continue;
-      const attr = a[cfg.atributo]?.efetivo ?? 0;
-      rec.max = arred((cfg.base + attr * cfg.porPonto) * this.multi) + rec.bonus;
-      const attrRec = a[cfg.recAtributo]?.efetivo;
-      rec.recuperacao = attrRec ? arred((attrRec * (cfg.recPorPonto ?? 0) * this.multi) / 2) : 0;
+      const attr = atributos[cfg.atributo]?.efetivo ?? 0;
+      rec.max = Math.floor((cfg.base + attr * cfg.porPonto) * this.multi) + rec.bonus;
+      const attrRec = atributos[cfg.recAtributo]?.efetivo;
+      rec.recuperacao = attrRec
+        ? Math.floor((attrRec * (cfg.recPorPonto ?? 0) * this.multi) / 2) : 0;
     }
 
     /* --- Caminhos: magia, feitiçaria, afinidades -------------------------- */
-    /* Raça e tamanho já saíram acima, antes dos recursos. */
     const magicos = caminhos.filter(i => i.system.usaMagia);
     const feiticeiros = caminhos.filter(i => i.system.usaFeiticaria);
 
@@ -356,13 +363,13 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     /* --- Deslocamento e carga --------------------------------------------- */
     // Metros por ação de Mover, sem meio metro. Bônus entra antes do
     // multiplicador, então "+3m" e "metade" resultam em (base + 3) / 2.
-    this.velocidadeBase = Math.floor(a.agi.efetivo / 2);
+    this.velocidadeBase = Math.floor(atributos.agi.efetivo / 2);
     this.velocidade = Math.max(0, Math.floor(
       (this.velocidadeBase + (this.velocidadeBonus ?? 0)) * (this.velocidadeMult ?? 1)
     ));
     const multCarga = PYRO.tamanhos[this.tamanho]?.multCarga ?? 2;
     // Minúsculo carrega meia FOR, e meio quilo de capacidade não existe.
-    this.carga = { max: Math.floor(a.for.efetivo * multCarga), atual: 0 };
+    this.carga = { max: Math.floor(atributos.for.efetivo * multCarga), atual: 0 };
 
     /* --- Soma de itens carregados/equipados ------------------------------- */
     const equipBonus = { fisico: 0, energetico: 0, mental: 0 };
@@ -376,29 +383,27 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     let cargaExtra = 0;
 
     for (const item of this.parent.items) {
-      const s = item.system;
+      const sys = item.system;
       if (["arma", "equipamento", "consumivel"].includes(item.type)) {
-        /*
-         * Munição pesa 1 no total, quantas quer que sejam: uma aljava é uma
-         * aljava. O peso do item é ignorado de propósito, é regra do sistema.
-         */
-        this.carga.atual += s.municao
-          ? ((s.quantidade ?? 0) > 0 ? 1 : 0)
-          : (s.peso ?? 0) * (s.quantidade ?? 1);
+        // Munição pesa 1 no total, quantas quer que sejam: uma aljava é uma
+        // aljava. O peso do item é ignorado de propósito (regra do sistema).
+        this.carga.atual += sys.municao
+          ? ((sys.quantidade ?? 0) > 0 ? 1 : 0)
+          : (sys.peso ?? 0) * (sys.quantidade ?? 1);
       }
       // Mochila equipada aumenta o quanto o personagem aguenta carregar.
-      if (item.type === "equipamento" && s.equipado && s.categoria === "mochila") {
-        cargaExtra += s.cargaBonus ?? 0;
+      if (item.type === "equipamento" && sys.equipado && sys.categoria === "mochila") {
+        cargaExtra += sys.cargaBonus ?? 0;
       }
-      if (item.type === "equipamento" && s.equipado) {
+      if (item.type === "equipamento" && sys.equipado) {
         for (const cat of Object.keys(equipBonus)) {
-          equipBonus[cat] += s.defesas?.categorias?.[cat] ?? 0;
+          equipBonus[cat] += sys.defesas?.categorias?.[cat] ?? 0;
         }
         for (const tipo of Object.keys(equipTipos)) {
-          equipTipos[tipo] += s.defesas?.tipos?.[tipo] ?? 0;
+          equipTipos[tipo] += sys.defesas?.tipos?.[tipo] ?? 0;
         }
-        if (s.bloqueio) bloqueioExtra.push(s.bloqueio);
-        if (s.esquiva) esquivaExtra.push(s.esquiva);
+        if (sys.bloqueio) bloqueioExtra.push(sys.bloqueio);
+        if (sys.esquiva) esquivaExtra.push(sys.esquiva);
       }
     }
 
@@ -409,15 +414,16 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.sobrepeso = this.carga.atual > this.carga.max;
 
     /* --- Defesas totais: base + equipamento ------------------------------- */
-    const d = this.defesas;
-    d.categoriasTotais = {};
-    for (const cat of Object.keys(d.categorias)) {
-      d.categoriasTotais[cat] = d.categorias[cat] + equipBonus[cat];
+    const defesas = this.defesas;
+    defesas.categoriasTotais = {};
+    for (const cat of Object.keys(defesas.categorias)) {
+      defesas.categoriasTotais[cat] = defesas.categorias[cat] + equipBonus[cat];
     }
     // Total por tipo = categoria correspondente + defesa do tipo + equipamento (SRD §6).
-    d.totais = {};
+    defesas.totais = {};
     for (const [tipo, cfg] of Object.entries(PYRO.tiposDano)) {
-      d.totais[tipo] = d.categoriasTotais[cfg.categoria] + d.tipos[tipo] + equipTipos[tipo];
+      defesas.totais[tipo] = defesas.categoriasTotais[cfg.categoria]
+        + defesas.tipos[tipo] + equipTipos[tipo];
     }
 
     /* --- Fórmulas de reação ------------------------------------------------ */

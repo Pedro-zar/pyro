@@ -73,11 +73,11 @@ export function formulaPool(valor) {
 /**
  * Junta várias fórmulas numa só, somando os dados de mesmas faces.
  *
- * Um bloqueio com escudo e brincos virava "2d4 + 2d4 + 2d4" no botão, e com
- * mais uma peça não cabia mais na ficha. A rolagem é a mesma, então o que
- * aparece é o total: "6d4". Dados de faces diferentes continuam separados,
- * porque 1d4 e 1d12 não viram um dado só, e o que não for dado nem número
- * ([FOR], @sab) passa intacto para o Roll resolver.
+ * Um bloqueio com escudo e brincos seria "2d4 + 2d4 + 2d4" no botão, que não
+ * cabe na ficha; a rolagem é a mesma, então o que aparece é o total: "6d4".
+ * Dados de faces diferentes continuam separados, porque 1d4 e 1d12 não viram
+ * um dado só, e o que não for dado nem número ([FOR], @sab) passa intacto
+ * para o Roll resolver.
  */
 export function juntarDados(partes) {
   const porFaces = new Map();
@@ -86,7 +86,6 @@ export function juntarDados(partes) {
 
   for (const parte of partes) {
     if (!parte) continue;
-    // Separa os sinais dos termos: "2d4-1" vira ["2d4", "-", "1"].
     const termos = String(parte).replace(/([+-])/g, " $1 ").split(/\s+/).filter(Boolean);
     let sinal = 1;
     for (const termo of termos) {

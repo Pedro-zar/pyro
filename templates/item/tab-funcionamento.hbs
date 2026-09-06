@@ -48,7 +48,6 @@
         <select name="system.categoria">{{selectOptions config.categoriasEquipamento selected=system.categoria localize=true}}</select></label>
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Parte"}}</span>
         <select name="system.parte">{{selectOptions config.partesCorpo selected=system.parte localize=true}}</select></label>
-      {{!-- Números que só a mochila e o item arcano têm. --}}
       {{#if ehMochila}}
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.CargaBonus"}}</span>
         <input type="number" name="system.cargaBonus" value="{{system.cargaBonus}}" min="0" /></label>

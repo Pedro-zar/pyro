@@ -1,3 +1,8 @@
+/**
+ * Ponto de entrada do sistema: registra documentos, data models, fichas,
+ * settings, helpers e os hooks globais.
+ */
+
 import { PYRO } from "./config.mjs";
 import { PersonagemData, NpcData } from "./data/actor-data.mjs";
 import {
@@ -16,14 +21,13 @@ import { SYSTEM_ID, caminho } from "./sistema.mjs";
 Hooks.once("init", () => {
   console.log(`PYRO | Inicializando sistema (id: ${SYSTEM_ID})`);
 
-  // Tabelas de magia editáveis pelo mestre (Configurações > Sistema).
+  // Tabelas de regras editáveis pelo mestre (Configurações > Sistema).
   registrarSettings();
   aplicarSettings();
 
-  // Efeitos de itens aplicam dinamicamente no ator (sem cópia legada).
+  // Efeitos de itens aplicam direto no ator, sem cópia no documento do ator.
   CONFIG.ActiveEffect.legacyTransferral = false;
 
-  // Helper usado na ficha de item (afinidade "outro" mostra o campo de texto).
   Handlebars.registerHelper("pyroEhOutro", v => v === "outro");
   Handlebars.registerHelper("pyroInclui", (lista, valor) => Array.isArray(lista) && lista.includes(valor));
   // Ternário inline: {{localize (pyroSe editando "A" "B")}}.
@@ -97,15 +101,16 @@ Hooks.once("i18nInit", () => PYRO.construirAfinidades());
  * que evita laço com o próprio updateActor que ele mesmo dispara.
  */
 const sincronizarTamanho = actor => actor?.aplicarMudancaDeTamanho?.();
-const donoDoItem = doc => (doc?.parent instanceof Actor ? doc.parent : doc?.parent?.parent);
+/** Ator dono de um item ou de um efeito (o efeito pode estar num item do ator). */
+const atorDoDocumento = doc => (doc?.parent instanceof Actor ? doc.parent : doc?.parent?.parent);
 
 Hooks.on("updateActor", sincronizarTamanho);
-Hooks.on("createItem", doc => sincronizarTamanho(donoDoItem(doc)));
-Hooks.on("updateItem", doc => sincronizarTamanho(donoDoItem(doc)));
-Hooks.on("deleteItem", doc => sincronizarTamanho(donoDoItem(doc)));
-Hooks.on("createActiveEffect", doc => sincronizarTamanho(donoDoItem(doc)));
-Hooks.on("updateActiveEffect", doc => sincronizarTamanho(donoDoItem(doc)));
-Hooks.on("deleteActiveEffect", doc => sincronizarTamanho(donoDoItem(doc)));
+Hooks.on("createItem", doc => sincronizarTamanho(atorDoDocumento(doc)));
+Hooks.on("updateItem", doc => sincronizarTamanho(atorDoDocumento(doc)));
+Hooks.on("deleteItem", doc => sincronizarTamanho(atorDoDocumento(doc)));
+Hooks.on("createActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
+Hooks.on("updateActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
+Hooks.on("deleteActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
 
 /**
  * Diagnóstico: se as chaves não resolverem, o arquivo de idioma não foi

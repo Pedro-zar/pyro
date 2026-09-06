@@ -310,7 +310,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.mudancas = this.mudancas.map((m, i) => ({
       categoria: dados[`mudanca.${i}.categoria`] ?? m.categoria,
       alvo: dados[`mudanca.${i}.alvo`] ?? m.alvo,
-      // v14: o tipo da mudança é texto ("add"), não mais um número.
+      // O tipo da mudança é texto ("add"), não número.
       modo: String(dados[`mudanca.${i}.modo`] ?? m.modo),
       valor: dados[`mudanca.${i}.valor`] ?? m.valor
     }));
@@ -433,7 +433,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       // Status que não é condição do construtor (posto pela ficha completa
       // ou por outro módulo) sobrevive à edição.
       statuses: [...new Set([...condicoes.map(m => m.alvo), ...(this.statusPreservados ?? [])])],
-      // v14: as mudanças moram no system do efeito, com o tipo em texto.
+      // As mudanças moram em system.changes do efeito, com o tipo em texto.
       // As avançadas — chaves fora das tabelas do construtor — voltam intactas.
       system: {
         changes: [

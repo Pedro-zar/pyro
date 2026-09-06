@@ -96,9 +96,9 @@ export function ajustesDeCusto(actor, item) {
    * desconto vale para qualquer conjuração, ele não olha o item em uso.
    */
   for (const equip of actor?.items ?? []) {
-    const s = equip.system;
-    if (equip.type !== "equipamento" || !s.equipado || s.categoria !== "arcano") continue;
-    if (s.reducaoMana) ajustes.mana = (ajustes.mana ?? 0) - s.reducaoMana;
+    const sys = equip.system;
+    if (equip.type !== "equipamento" || !sys.equipado || sys.categoria !== "arcano") continue;
+    if (sys.reducaoMana) ajustes.mana = (ajustes.mana ?? 0) - sys.reducaoMana;
   }
   return ajustes;
 }
@@ -127,7 +127,7 @@ export function ajustesDeAtributo(actor, item) {
   const ALVO = /^system\.atributos\.(\w+)\.(?:valor|bonus)$/;
   const ajustes = {};
   for (const efeito of efeitosAtivos(actor)) {
-    if (!restricaoDoEfeito(efeito).length) continue; // já aplicado na ficha
+    if (!restricaoDoEfeito(efeito).length) continue; // sem restrição já entrou na ficha
     if (!efeitoValeParaItem(efeito, item)) continue;
     for (const mudanca of efeito.system?.changes ?? []) {
       if (mudanca.type !== "add") continue;
@@ -224,7 +224,7 @@ export function dadosDoEfeitoAplicado(efeito, vars) {
   dados.origin = efeito.uuid;
   dados.transfer = false;
   dados.disabled = false;
-  // v14: as mudanças vivem em system.changes.
+  // No núcleo as mudanças do efeito vivem em system.changes.
   dados.system = {
     ...(dados.system ?? {}),
     changes: (dados.system?.changes ?? []).map(m => ({

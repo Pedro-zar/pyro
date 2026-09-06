@@ -49,19 +49,19 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
-    const d = this.#carregar();
+    const config = this.#carregar();
 
-    context.linguas = Object.entries(d.linguas).map(([chave, v]) => ({
+    context.linguas = Object.entries(config.linguas).map(([chave, v]) => ({
       chave, ...v,
       label: game.i18n.localize(v.label),
       povo: game.i18n.localize(v.povo ?? v.label)
     }));
-    context.racas = Object.entries(d.racas).map(([chave, v]) => ({
+    context.racas = Object.entries(config.racas).map(([chave, v]) => ({
       chave, ...v,
       label: game.i18n.localize(v.label),
       nome: game.i18n.localize(v.nome ?? v.label)
     }));
-    context.recursos = Object.entries(d.recursos).map(([chave, v]) => ({
+    context.recursos = Object.entries(config.recursos).map(([chave, v]) => ({
       chave, ...v, label: game.i18n.localize(v.label)
     }));
     context.atributos = Object.fromEntries(
@@ -72,7 +72,7 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
       ...context.atributos
     };
     context.potenciais = Object.fromEntries(
-      Object.entries(d.linguas).map(([k, v]) => [k, game.i18n.localize(v.povo ?? v.label)])
+      Object.entries(config.linguas).map(([k, v]) => [k, game.i18n.localize(v.povo ?? v.label)])
     );
     context.tamanhos = Object.fromEntries(
       Object.entries(PYRO.tamanhos).map(([k, v]) => [k, game.i18n.localize(v.label)])
@@ -89,63 +89,64 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
     const dados = foundry.utils.flattenObject(
       new foundry.applications.ux.FormDataExtended(this.element).object
     );
-    const d = this.#carregar();
+    const config = this.#carregar();
 
-    for (const [chave, v] of Object.entries(d.linguas)) {
-      v.label = dados[`lingua.${chave}.label`] ?? v.label;
-      v.povo = dados[`lingua.${chave}.povo`] ?? v.povo;
-      v.fator = Number(dados[`lingua.${chave}.fator`] ?? v.fator) || 1;
-      v.efeito = Number(dados[`lingua.${chave}.efeito`] ?? v.efeito) || 1;
+    for (const [chave, lingua] of Object.entries(config.linguas)) {
+      lingua.label = dados[`lingua.${chave}.label`] ?? lingua.label;
+      lingua.povo = dados[`lingua.${chave}.povo`] ?? lingua.povo;
+      lingua.fator = Number(dados[`lingua.${chave}.fator`] ?? lingua.fator) || 1;
+      lingua.efeito = Number(dados[`lingua.${chave}.efeito`] ?? lingua.efeito) || 1;
     }
-    for (const [chave, v] of Object.entries(d.recursos)) {
-      v.label = dados[`recurso.${chave}.label`] ?? v.label;
-      v.atributo = dados[`recurso.${chave}.atributo`] ?? v.atributo;
-      v.porPonto = Number(dados[`recurso.${chave}.porPonto`] ?? v.porPonto) || 0;
-      v.base = Number(dados[`recurso.${chave}.base`] ?? v.base) || 0;
-      v.recAtributo = dados[`recurso.${chave}.recAtributo`] ?? v.recAtributo;
-      v.recPorPonto = Number(dados[`recurso.${chave}.recPorPonto`] ?? v.recPorPonto) || 0;
+    for (const [chave, recurso] of Object.entries(config.recursos)) {
+      recurso.label = dados[`recurso.${chave}.label`] ?? recurso.label;
+      recurso.atributo = dados[`recurso.${chave}.atributo`] ?? recurso.atributo;
+      recurso.porPonto = Number(dados[`recurso.${chave}.porPonto`] ?? recurso.porPonto) || 0;
+      recurso.base = Number(dados[`recurso.${chave}.base`] ?? recurso.base) || 0;
+      recurso.recAtributo = dados[`recurso.${chave}.recAtributo`] ?? recurso.recAtributo;
+      recurso.recPorPonto =
+        Number(dados[`recurso.${chave}.recPorPonto`] ?? recurso.recPorPonto) || 0;
     }
-    for (const [chave, v] of Object.entries(d.racas)) {
-      v.label = dados[`raca.${chave}.label`] ?? v.label;
-      v.nome = dados[`raca.${chave}.nome`] ?? v.nome;
-      v.potencial = dados[`raca.${chave}.potencial`] ?? v.potencial;
+    for (const [chave, raca] of Object.entries(config.racas)) {
+      raca.label = dados[`raca.${chave}.label`] ?? raca.label;
+      raca.nome = dados[`raca.${chave}.nome`] ?? raca.nome;
+      raca.potencial = dados[`raca.${chave}.potencial`] ?? raca.potencial;
       // Faixa de tamanho: guardada crua, inclusive se o mestre inverter as
       // pontas. Quem lê (PYRO.faixaTamanho) sabe desentortar.
-      v.tamanhoMin = dados[`raca.${chave}.tamanhoMin`] ?? v.tamanhoMin;
-      v.tamanhoMax = dados[`raca.${chave}.tamanhoMax`] ?? v.tamanhoMax;
-      v.magia = !!dados[`raca.${chave}.magia`];
-      v.feiticos = !!dados[`raca.${chave}.feiticos`];
-      v.detalhe = !!dados[`raca.${chave}.detalhe`];
-      v.custom = !!dados[`raca.${chave}.custom`];
-      const concedidos = Object.keys(d.recursos)
+      raca.tamanhoMin = dados[`raca.${chave}.tamanhoMin`] ?? raca.tamanhoMin;
+      raca.tamanhoMax = dados[`raca.${chave}.tamanhoMax`] ?? raca.tamanhoMax;
+      raca.magia = !!dados[`raca.${chave}.magia`];
+      raca.feiticos = !!dados[`raca.${chave}.feiticos`];
+      raca.detalhe = !!dados[`raca.${chave}.detalhe`];
+      raca.custom = !!dados[`raca.${chave}.custom`];
+      const concedidos = Object.keys(config.recursos)
         .filter(rk => dados[`raca.${chave}.recursos.${rk}`]);
-      if (Object.keys(d.recursos).length) v.recursos = concedidos;
+      if (Object.keys(config.recursos).length) raca.recursos = concedidos;
     }
-    return d;
+    return config;
   }
 
   static #adicionarLingua() {
-    const d = this.#capturar();
-    let n = Object.keys(d.linguas).length + 1;
-    while (d.linguas[`lingua${n}`]) n++;
-    d.linguas[`lingua${n}`] = { label: `lingua${n}`, povo: `lingua${n}`, fator: 1, efeito: 1 };
+    const config = this.#capturar();
+    let n = Object.keys(config.linguas).length + 1;
+    while (config.linguas[`lingua${n}`]) n++;
+    config.linguas[`lingua${n}`] = { label: `lingua${n}`, povo: `lingua${n}`, fator: 1, efeito: 1 };
     this.render();
   }
 
   static #removerLingua(event, target) {
-    const d = this.#capturar();
-    delete d.linguas[target.dataset.chave];
+    const config = this.#capturar();
+    delete config.linguas[target.dataset.chave];
     this.render();
   }
 
   static #adicionarRaca() {
-    const d = this.#capturar();
-    let n = Object.keys(d.racas).length + 1;
-    while (d.racas[`raca${n}`]) n++;
+    const config = this.#capturar();
+    let n = Object.keys(config.racas).length + 1;
+    while (config.racas[`raca${n}`]) n++;
     const rotulo = game.i18n.localize("PYRO.Config.RacaNova");
     const ordem = Object.keys(PYRO.tamanhos);
-    d.racas[`raca${n}`] = {
-      label: rotulo, nome: rotulo, potencial: Object.keys(d.linguas)[0] ?? "humana",
+    config.racas[`raca${n}`] = {
+      label: rotulo, nome: rotulo, potencial: Object.keys(config.linguas)[0] ?? "humana",
       magia: false, feiticos: false, detalhe: false, custom: true,
       // Raça nova nasce sem trava: o mestre estreita a faixa se quiser.
       tamanhoMin: ordem[0], tamanhoMax: ordem[ordem.length - 1]
@@ -154,16 +155,16 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
   }
 
   static #removerRaca(event, target) {
-    const d = this.#capturar();
-    delete d.racas[target.dataset.chave];
+    const config = this.#capturar();
+    delete config.racas[target.dataset.chave];
     this.render();
   }
 
   static #adicionarRecurso() {
-    const d = this.#capturar();
-    let n = Object.keys(d.recursos).length + 1;
-    while (d.recursos[`recurso${n}`]) n++;
-    d.recursos[`recurso${n}`] = {
+    const config = this.#capturar();
+    let n = Object.keys(config.recursos).length + 1;
+    while (config.recursos[`recurso${n}`]) n++;
+    config.recursos[`recurso${n}`] = {
       label: game.i18n.localize("PYRO.Config.RecursoNovo"),
       atributo: "sab", porPonto: 5, base: 0, recAtributo: "int", recPorPonto: 1
     };
@@ -171,8 +172,8 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
   }
 
   static #removerRecurso(event, target) {
-    const d = this.#capturar();
-    delete d.recursos[target.dataset.chave];
+    const config = this.#capturar();
+    delete config.recursos[target.dataset.chave];
     this.render();
   }
 
@@ -191,10 +192,10 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
   }
 
   static async #salvar() {
-    const d = this.#capturar();
-    await game.settings.set(SYSTEM_ID, "linguas", d.linguas);
-    await game.settings.set(SYSTEM_ID, "racas", d.racas);
-    await game.settings.set(SYSTEM_ID, "recursosCustom", d.recursos);
+    const config = this.#capturar();
+    await game.settings.set(SYSTEM_ID, "linguas", config.linguas);
+    await game.settings.set(SYSTEM_ID, "racas", config.racas);
+    await game.settings.set(SYSTEM_ID, "recursosCustom", config.recursos);
     ui.notifications.info(game.i18n.localize("PYRO.Config.Salvo"));
   }
 }

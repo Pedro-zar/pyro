@@ -1,3 +1,7 @@
+/**
+ * Documento de ator: token inicial, testes de atributo e reação, pagamento
+ * de recursos, dano/cura vindos do chat e recuperação por passagem de tempo.
+ */
 import { PYRO } from "../config.mjs";
 import { formulaTeste, formulaReacao, expandirAtributos } from "../dados.mjs";
 import { penalidadeExaustao, dicaExaustao, sincronizarSobrepeso } from "../efeitos.mjs";
@@ -229,8 +233,8 @@ export class PyroActor extends Actor {
     }
     aplicarExaustaoNoTeste(this, opts);
 
-    // Passar seus Limites: usa o atributo cheio. O rebote (1 exaustão por
-    // rolagem, SRD Atributos) ainda não é aplicado aqui.
+    // Passar seus Limites usa o atributo cheio, sem o desconto do limite de
+    // DET. O rebote (1 exaustão por rolagem, SRD Atributos) não é aplicado aqui.
     const valor = opts.passarLimites ? attr.total : attr.efetivo;
     const formula = formulaTeste(valor, opts);
     const flavor = game.i18n.format("PYRO.Chat.TesteDe", { atributo: label }) + sufixoND(opts.nd);
@@ -314,11 +318,11 @@ export class PyroActor extends Actor {
   /* ---------------------------------------------------------------------- */
 
   async gastarVontade(pontos) {
-    const v = this.system.recursos.vontade;
-    if (v.value < pontos) {
+    const vontade = this.system.recursos.vontade;
+    if (vontade.value < pontos) {
       return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemVontade"));
     }
-    await this.update({ "system.recursos.vontade.value": v.value - pontos });
+    await this.update({ "system.recursos.vontade.value": vontade.value - pontos });
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<p><strong>${game.i18n.localize("PYRO.Vontade.Nome")} (${pontos})</strong>:
@@ -332,12 +336,12 @@ export class PyroActor extends Actor {
 
   /** Paga um custo de estamina; o que faltar sai dos PV. Retorna o que foi pago. */
   async pagarEstamina(custo) {
-    const r = this.system.recursos;
-    const daEstamina = Math.min(r.estamina.value, custo);
+    const recursos = this.system.recursos;
+    const daEstamina = Math.min(recursos.estamina.value, custo);
     const dosPv = custo - daEstamina;
     await this.update({
-      "system.recursos.estamina.value": r.estamina.value - daEstamina,
-      "system.recursos.pv.value": Math.max(0, r.pv.value - dosPv)
+      "system.recursos.estamina.value": recursos.estamina.value - daEstamina,
+      "system.recursos.pv.value": Math.max(0, recursos.pv.value - dosPv)
     });
     return { daEstamina, dosPv };
   }
@@ -348,32 +352,35 @@ export class PyroActor extends Actor {
    * Retorna null se faltar recurso.
    */
   async pagarCustos({ estamina = 0, mana = 0, energia = 0 } = {}) {
-    const r = this.system.recursos;
-    if (mana > r.mana.value) {
-      ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemMana", { custo: mana, mana: r.mana.value }));
+    const recursos = this.system.recursos;
+    if (mana > recursos.mana.value) {
+      ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemMana",
+        { custo: mana, mana: recursos.mana.value }));
       return null;
     }
-    if (energia > r.energia.value) {
-      ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemEnergia", { custo: energia, energia: r.energia.value }));
+    if (energia > recursos.energia.value) {
+      ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemEnergia",
+        { custo: energia, energia: recursos.energia.value }));
       return null;
     }
 
-    const daEstamina = Math.min(r.estamina.value, estamina);
+    const daEstamina = Math.min(recursos.estamina.value, estamina);
     const dosPv = estamina - daEstamina;
     await this.update({
-      "system.recursos.estamina.value": r.estamina.value - daEstamina,
-      "system.recursos.pv.value": Math.max(0, r.pv.value - dosPv),
-      "system.recursos.mana.value": r.mana.value - mana,
-      "system.recursos.energia.value": r.energia.value - energia
+      "system.recursos.estamina.value": recursos.estamina.value - daEstamina,
+      "system.recursos.pv.value": Math.max(0, recursos.pv.value - dosPv),
+      "system.recursos.mana.value": recursos.mana.value - mana,
+      "system.recursos.energia.value": recursos.energia.value - energia
     });
     return { daEstamina, dosPv, mana, energia };
   }
 
+  /** Tomar Ar: recupera VIG/2 de estamina, até o máximo. */
   async tomarAr() {
-    const r = this.system.recursos;
+    const estamina = this.system.recursos.estamina;
     const rec = Math.floor(this.system.atributos.vig.efetivo / 2);
     await this.update({
-      "system.recursos.estamina.value": Math.min(r.estamina.max, r.estamina.value + rec)
+      "system.recursos.estamina.value": Math.min(estamina.max, estamina.value + rec)
     });
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
@@ -399,7 +406,7 @@ export class PyroActor extends Actor {
    * @returns {Promise<string>} resumo com a conta feita
    */
   async aplicarDano(entradas, { multiplicador = 1, ignorarDefesa = false, mental = false } = {}) {
-    const r = this.system.recursos;
+    const recursos = this.system.recursos;
     const totais = this.system.defesas.totais;
     let emPv = 0;
     let emMana = 0;
@@ -421,8 +428,8 @@ export class PyroActor extends Actor {
         : `${rotulo} ${liquido}`.trim());
     }
 
-    const pvNovo = Math.max(0, r.pv.value - emPv);
-    const manaNovo = Math.max(0, r.mana.value - emMana);
+    const pvNovo = Math.max(0, recursos.pv.value - emPv);
+    const manaNovo = Math.max(0, recursos.mana.value - emMana);
     await this.update({
       "system.recursos.pv.value": pvNovo,
       "system.recursos.mana.value": manaNovo
@@ -438,18 +445,18 @@ export class PyroActor extends Actor {
 
   /** Cura PV até o máximo. */
   async aplicarCura(valor) {
-    const r = this.system.recursos;
-    const novo = Math.min(r.pv.max, r.pv.value + Math.max(0, Math.floor(valor)));
+    const pv = this.system.recursos.pv;
+    const novo = Math.min(pv.max, pv.value + Math.max(0, Math.floor(valor)));
     await this.update({ "system.recursos.pv.value": novo });
-    return `${this.name}: ${game.i18n.format("PYRO.Chat.AplicouCura", { valor: novo - r.pv.value, pv: novo })}`;
+    return `${this.name}: ${game.i18n.format("PYRO.Chat.AplicouCura", { valor: novo - pv.value, pv: novo })}`;
   }
 
   /** Devolve estamina (efeitos de fôlego, itens). */
   async aplicarEstamina(valor) {
-    const r = this.system.recursos;
-    const novo = Math.clamp(r.estamina.value + Math.floor(valor), 0, r.estamina.max);
+    const estamina = this.system.recursos.estamina;
+    const novo = Math.clamp(estamina.value + Math.floor(valor), 0, estamina.max);
     await this.update({ "system.recursos.estamina.value": novo });
-    return `${this.name}: ${game.i18n.format("PYRO.Chat.AplicouEstamina", { valor: novo - r.estamina.value })}`;
+    return `${this.name}: ${game.i18n.format("PYRO.Chat.AplicouEstamina", { valor: novo - estamina.value })}`;
   }
 
   /* ---------------------------------------------------------------------- */
@@ -463,20 +470,22 @@ export class PyroActor extends Actor {
 
   /** Início de cena: estamina cheia, +VIG de PV, +recuperação de mana. */
   async recuperarCena() {
-    const r = this.system.recursos;
-    const a = this.system.atributos;
+    const recursos = this.system.recursos;
+    const vig = this.system.atributos.vig.efetivo;
     const extras = {};
     for (const chave of this.#recursosExtras()) {
-      const rec = r[chave];
+      const rec = recursos[chave];
       extras[`system.recursos.${chave}.value`] =
         Math.min(rec.max, rec.value + (rec.recuperacao ?? 0));
     }
     await this.update({
       ...extras,
-      "system.recursos.estamina.value": r.estamina.max,
-      "system.recursos.pv.value": Math.min(r.pv.max, r.pv.value + a.vig.efetivo),
-      "system.recursos.mana.value": Math.min(r.mana.max, r.mana.value + r.mana.recuperacao),
-      "system.recursos.energia.value": Math.min(r.energia.max, r.energia.value + r.energia.recuperacao)
+      "system.recursos.estamina.value": recursos.estamina.max,
+      "system.recursos.pv.value": Math.min(recursos.pv.max, recursos.pv.value + vig),
+      "system.recursos.mana.value":
+        Math.min(recursos.mana.max, recursos.mana.value + recursos.mana.recuperacao),
+      "system.recursos.energia.value":
+        Math.min(recursos.energia.max, recursos.energia.value + recursos.energia.recuperacao)
     });
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
@@ -486,17 +495,17 @@ export class PyroActor extends Actor {
 
   /** Início de capítulo: vida e mana completas. */
   async recuperarCapitulo() {
-    const r = this.system.recursos;
+    const recursos = this.system.recursos;
     const extras = {};
     for (const chave of this.#recursosExtras()) {
-      extras[`system.recursos.${chave}.value`] = r[chave].max;
+      extras[`system.recursos.${chave}.value`] = recursos[chave].max;
     }
     await this.update({
       ...extras,
-      "system.recursos.pv.value": r.pv.max,
-      "system.recursos.mana.value": r.mana.max,
-      "system.recursos.energia.value": r.energia.max,
-      "system.recursos.estamina.value": r.estamina.max
+      "system.recursos.pv.value": recursos.pv.max,
+      "system.recursos.mana.value": recursos.mana.max,
+      "system.recursos.energia.value": recursos.energia.max,
+      "system.recursos.estamina.value": recursos.estamina.max
     });
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),

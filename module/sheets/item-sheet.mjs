@@ -1,3 +1,7 @@
+/*
+ * Ficha de item: contexto de cada tipo (runa, magia, caminho, habilidade…) e
+ * a reconstrução dos arrays do formulário antes do update.
+ */
 import { PYRO } from "../config.mjs";
 import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
 import { scalingsPadrao, valorScaling, SEM_DANO } from "../magia.mjs";
@@ -111,17 +115,17 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const context = await super._prepareContext(options);
     const item = this.item;
     const actor = item.actor;
-    const s = item.system;
+    const sys = item.system;
 
     /* --- Runas: elementos têm subtipo (limitado pelas afinidades do mago); */
     /* --- formas e modificadores são gestos de texto livre.                  */
-    const ehElemento = item.type === "runa" && s.tipoRuna === "elemento";
+    const ehElemento = item.type === "runa" && sys.tipoRuna === "elemento";
     let subtipos = null;
     if (ehElemento) {
       subtipos = Object.fromEntries(Object.entries(PYRO.elementos).map(([k, v]) => [k, v.label]));
       const permitidos = new Set(actor?.system.afinidadesElementos ?? []);
       if (permitidos.size) {
-        permitidos.add(s.subtipo); // mantém o valor atual visível
+        permitidos.add(sys.subtipo); // mantém o valor atual visível
         subtipos = Object.fromEntries(
           Object.entries(subtipos).filter(([k]) => permitidos.has(k))
         );
@@ -140,22 +144,22 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     // Habilidade de caminho com recurso próprio pode morar na aba dele.
     let rotuloAbaCaminho = null;
     if (item.type === "habilidade" && actor) {
-      const dono = actor.items.get(s.caminho);
+      const dono = actor.items.get(sys.caminho);
       const temRecurso = (dono?.system.recursos ?? []).some(r => PYRO.recursosCustom?.[r]);
       if (temRecurso) rotuloAbaCaminho = rotuloCurtoDoCaminho(dono);
     }
 
     /* --- Caminho racial: só o primeiro define o tamanho ------------------- */
-    const ehRacial = item.type === "caminho" && s.ehRacial;
+    const ehRacial = item.type === "caminho" && sys.ehRacial;
     // null em caminho de profissão/classe: lá o tamanho não vem de raça.
-    const faixaTamanho = ehRacial ? PYRO.faixaTamanho(s.raca) : null;
+    const faixaTamanho = ehRacial ? PYRO.faixaTamanho(sys.raca) : null;
     const ehPrimeiroRacial = ehRacial
       && (!actor || actor.system.primeiroRacialId === item.id || actor.system.primeiroRacialId === null);
 
     Object.assign(context, {
       item,
-      system: s,
-      systemFields: s.schema.fields,
+      system: sys,
+      systemFields: sys.schema.fields,
       config: PYRO,
       subtipos,
       caminhoOpts,
@@ -165,7 +169,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // Checkboxes de magia/feitiçaria só em caminhos de profissão/classe e
       // em raças abertas — nas raças fechadas o preset já define.
       mostrarChecksMagia: item.type === "caminho"
-        && (!s.ehRacial || (PYRO.racas[s.raca]?.custom ?? true)),
+        && (!sys.ehRacial || (PYRO.racas[sys.raca]?.custom ?? true)),
       /*
        * Em caminho racial o dropdown mostra só a faixa da raça, então não dá
        * para gravar um humano gigante sem querer. Um valor já salvo fora da
@@ -174,7 +178,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
        */
       tamanhoOpts: Object.fromEntries(
         Object.entries(PYRO.tamanhos)
-          .filter(([k]) => !faixaTamanho || k === s.tamanho || faixaTamanho.includes(k))
+          .filter(([k]) => !faixaTamanho || k === sys.tamanho || faixaTamanho.includes(k))
           .map(([k, v]) => [k, v.label])
       ),
       ehRacial,
@@ -184,9 +188,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
        * Massivo e colossal são faixas, não um tamanho só, então pedem o número
        * de espaços — e é ele que vira o alcance da criatura.
        */
-      pedeTamanhoExato: PYRO.pedeTamanhoExato(s.tamanho),
-      tamanhoExatoMin: PYRO.tamanhos[s.tamanho]?.exato?.[0] ?? 0,
-      tamanhoExatoMax: PYRO.tamanhos[s.tamanho]?.exato?.[1] ?? null,
+      pedeTamanhoExato: PYRO.pedeTamanhoExato(sys.tamanho),
+      tamanhoExatoMin: PYRO.tamanhos[sys.tamanho]?.exato?.[0] ?? 0,
+      tamanhoExatoMax: PYRO.tamanhos[sys.tamanho]?.exato?.[1] ?? null,
       /*
        * O lembrete só aparece quando há o que lembrar. Arma média e arma
        * pequena multiplicam por 1, e um aviso de "multiplique por 1" é ruído
@@ -194,7 +198,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
        */
       dadosArmaDica: (() => {
         if (item.type !== "arma") return null;
-        const cfg = PYRO.tamanhos[s.tamanho];
+        const cfg = PYRO.tamanhos[sys.tamanho];
         if (!cfg || cfg.dadosArma === 1) return null;
         return game.i18n.format("PYRO.Item.DadosArmaDica", {
           tamanho: game.i18n.localize(cfg.label), mult: cfg.dadosArma
@@ -202,17 +206,16 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       })(),
       // O modo Subjulgar é coisa do elemento Morte (ou de runa já marcada).
       mostrarSubjulgar: ehElemento
-        && !!(PYRO.elementos[s.subtipo]?.subjulgar || s.subjulgar),
+        && !!(PYRO.elementos[sys.subtipo]?.subjulgar || sys.subjulgar),
       /*
        * A lista de tipos aparece sempre que a runa rola dados, seja ela
        * elemento ou não: quem pôs um d6 num gesto precisa dizer de que dano
        * ele é. Só o elemento tem tipo herdado para oferecer como padrão.
        */
-      mostrarTipoDano: item.type === "runa" && rolaDados(s),
-      tipoDanoOpts: opcoesTipoDano(ehElemento ? PYRO.elementos[s.subtipo]?.tipoDano : null),
-      // Runas da magia com a informação de quem pode subjulgar.
+      mostrarTipoDano: item.type === "runa" && rolaDados(sys),
+      tipoDanoOpts: opcoesTipoDano(ehElemento ? PYRO.elementos[sys.subtipo]?.tipoDano : null),
       runasMagia: item.type === "magia"
-        ? (s.runas ?? []).map(r => {
+        ? (sys.runas ?? []).map(r => {
             const runa = actor?.items.get(r.itemId);
             const cfg = runa?.system.tipoRuna === "elemento"
               ? PYRO.elementos[runa.system.subtipo] : null;
@@ -237,29 +240,28 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
        * uma configuração que o jogador não decide. Sobra para caminho de
        * profissão/classe e para raça que o mestre tirou da tabela.
        */
-      mostrarPotencial: item.type === "caminho" && s.usaMagia
-        && !(s.ehRacial && !!PYRO.racas[s.raca]),
-      // Recursos personalizados que este caminho pode conceder.
+      mostrarPotencial: item.type === "caminho" && sys.usaMagia
+        && !(sys.ehRacial && !!PYRO.racas[sys.raca]),
       rotuloAbaCaminho,
       // Em raças fechadas o preset define os recursos: nada de checkbox.
       mostrarChecksRecursos: item.type === "caminho"
-        && (!s.ehRacial || (PYRO.racas[s.raca]?.custom ?? true)),
+        && (!sys.ehRacial || (PYRO.racas[sys.raca]?.custom ?? true)),
       recursosOpts: Object.entries(PYRO.recursosCustom ?? {}).map(([chave, cfg]) => ({
         chave,
         label: game.i18n.localize(cfg.label),
-        marcado: (s.recursos ?? []).includes(chave)
+        marcado: (sys.recursos ?? []).includes(chave)
       })),
       tipoCustoOpts: PYRO.tiposCusto,
       // Passiva e perícia não gastam ação nem recurso: sem bloco de Custos.
-      temCustos: item.type === "habilidade" && s.categoria === "ativavel",
+      temCustos: item.type === "habilidade" && sys.categoria === "ativavel",
       ...(item.type === "habilidade" ? this.#contextoAumentos() : {}),
       ...(item.type === "habilidade" ? this.#contextoRequisitos() : {}),
       // Caminhos e runas têm nome derivado: só leitura no formulário.
       nomeAutomatico: item.type === "caminho" || item.type === "runa",
       // Mochila e item arcano ganham um campo próprio; os demais sabores de
       // equipamento não têm o que mostrar além do que já é comum a todos.
-      ehMochila: item.type === "equipamento" && s.categoria === "mochila",
-      ehArcano: item.type === "equipamento" && s.categoria === "arcano",
+      ehMochila: item.type === "equipamento" && sys.categoria === "mochila",
+      ehArcano: item.type === "equipamento" && sys.categoria === "arcano",
       // Munição só pode ser presa nas costas ou na cintura.
       parteMunicaoOpts: Object.fromEntries(
         PYRO.partesMunicao.map(k => [k, PYRO.partesCorpo[k]])
@@ -268,17 +270,16 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       efeitosDeUso: item.effects.filter(e => flagsDe(e)?.deUso),
       subtitulo: this.#subtitulo(),
       valoresRapidos: this.#valoresRapidos(),
-      // Itens físicos compartilham peso, custo e quantidade.
       temPropriedadesFisicas: ["arma", "equipamento", "consumivel"].includes(item.type),
       // Prévia do que a runa produz nas primeiras Intenções, já com o
       // multiplicador de efeito da língua (a mesma conta da conjuração).
       previaIntencoes: [1, 2, 3, 4, 5],
-      previaMult: item.type === "runa" && (PYRO.linguas[s.lingua]?.efeito ?? 1) !== 1
-        ? PYRO.linguas[s.lingua].efeito : null,
+      previaMult: item.type === "runa" && (PYRO.linguas[sys.lingua]?.efeito ?? 1) !== 1
+        ? PYRO.linguas[sys.lingua].efeito : null,
       previaScalings: item.type === "runa"
         // Marcada como "não causa dano", a runa não rola: some da prévia.
-        ? (s.scalings ?? []).filter(sc => !(sc.faces > 0 && s.tipoDano === SEM_DANO)).map(sc => {
-            const mult = PYRO.linguas[s.lingua]?.efeito ?? 1;
+        ? (sys.scalings ?? []).filter(sc => !(sc.faces > 0 && sys.tipoDano === SEM_DANO)).map(sc => {
+            const mult = PYRO.linguas[sys.lingua]?.efeito ?? 1;
             return {
               nome: sc.nome || game.i18n.localize("PYRO.Scaling.Efeito"),
               valores: [1, 2, 3, 4, 5].map(n => {
@@ -290,9 +291,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
           })
         : [],
       tipoLabel: game.i18n.localize(`TYPES.Item.${item.type}`),
-      pedeDetalhe: item.type === "caminho" && (PYRO.racas[s.raca]?.detalhe ?? false),
+      pedeDetalhe: item.type === "caminho" && (PYRO.racas[sys.raca]?.detalhe ?? false),
       ["is" + item.type.charAt(0).toUpperCase() + item.type.slice(1)]: true,
-      descricaoHTML: await enriquecer(s.descricao, item)
+      descricaoHTML: await enriquecer(sys.descricao, item)
     });
     return context;
   }
@@ -318,12 +319,12 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   #contextoRequisitos() {
     const item = this.item;
     const actor = item.actor;
-    const s = item.system;
-    if (!actor || s.ehBase || (s.tier ?? 1) < 2) return { temRequisitos: false };
+    const sys = item.system;
+    if (!actor || sys.ehBase || (sys.tier ?? 1) < 2) return { temRequisitos: false };
 
-    const tierBase = s.tier - 1;
-    const mistoPermitido = s.tier >= 3;
-    const caminhoAlvo = s.caminho;
+    const tierBase = sys.tier - 1;
+    const mistoPermitido = sys.tier >= 3;
+    const caminhoAlvo = sys.caminho;
 
     const consumidas = new Set();
     for (const hab of actor.items) {
@@ -331,7 +332,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       for (const r of hab.system.requisitos ?? []) if (r.id) consumidas.add(r.id);
     }
 
-    const escolhidas = (s.requisitos ?? []).map(r => r.id).filter(Boolean);
+    const escolhidas = (sys.requisitos ?? []).map(r => r.id).filter(Boolean);
     const nomeDoCaminho = hab => actor.items.get(hab.system.caminho)?.name ?? "";
 
     const livres = actor.items.filter(hab =>
@@ -346,8 +347,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         if (escolhidas.includes(hab.id) && hab.id !== atual) continue;
         // O caminho no rótulo só ajuda quando a fusão pode misturar; no
         // tier 2 seria a mesma palavra repetida em todas as linhas.
-        const caminho = mistoPermitido ? nomeDoCaminho(hab) : "";
-        opcoes[hab.id] = caminho ? `${hab.name} (${caminho})` : hab.name;
+        const rotuloCaminho = mistoPermitido ? nomeDoCaminho(hab) : "";
+        opcoes[hab.id] = rotuloCaminho ? `${hab.name} (${rotuloCaminho})` : hab.name;
       }
       return { indice, atual, opcoes, rotulo: game.i18n.format("PYRO.Item.BaseN", { n: indice + 1 }) };
     });
@@ -368,11 +369,11 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
    * que a habilidade concede.
    */
   #contextoAumentos() {
-    const s = this.item.system;
-    const total = s.pontosAumento ?? 0;
-    const usados = s.pontosUsados ?? 0;
-    const restantes = s.pontosRestantes ?? 0;
-    const escolhidos = (s.aumentos ?? []).map(a => a.atributo);
+    const sys = this.item.system;
+    const total = sys.pontosAumento ?? 0;
+    const usados = sys.pontosUsados ?? 0;
+    const restantes = sys.pontosRestantes ?? 0;
+    const escolhidos = (sys.aumentos ?? []).map(a => a.atributo);
 
     const opcoesPara = atual => Object.fromEntries(
       Object.entries(PYRO.atributos)
@@ -380,7 +381,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         .map(([k, label]) => [k, game.i18n.localize(label)])
     );
 
-    const linhas = (s.aumentos ?? []).map((a, i) => ({
+    const linhas = (sys.aumentos ?? []).map((a, i) => ({
       index: i,
       atributo: a.atributo,
       pontos: a.pontos,
@@ -412,88 +413,88 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
   /** Linha sob o nome: o essencial do item numa frase ("2d8 cortante · 15/30m"). */
   #subtitulo() {
-    const s = this.item.system;
+    const sys = this.item.system;
     const loc = k => game.i18n.localize(k);
     const partes = [];
 
     switch (this.item.type) {
       case "arma": {
-        const danos = (s.danos ?? []).filter(d => d.formula?.trim())
+        const danos = (sys.danos ?? []).filter(d => d.formula?.trim())
           .map(d => `${d.formula} ${loc(PYRO.tiposDano[d.tipo]?.label ?? d.tipo)}`);
         partes.push(...danos);
-        partes.push(s.alcanceMaximo > 0
-          ? `${s.alcanceMenor}/${s.alcanceMaximo}m` : `${s.alcanceMenor}m`);
-        partes.push(`${s.acoes} ${loc("PYRO.AcoesAbrev")}`);
+        partes.push(sys.alcanceMaximo > 0
+          ? `${sys.alcanceMenor}/${sys.alcanceMaximo}m` : `${sys.alcanceMenor}m`);
+        partes.push(`${sys.acoes} ${loc("PYRO.AcoesAbrev")}`);
         break;
       }
       case "equipamento": {
         // O sabor vem primeiro quando não é equipamento comum: é o que
         // distingue uma mochila de uma armadura no cabeçalho.
-        if (s.categoria && s.categoria !== "equipamento") {
-          partes.push(loc(PYRO.categoriasEquipamento[s.categoria] ?? ""));
+        if (sys.categoria && sys.categoria !== "equipamento") {
+          partes.push(loc(PYRO.categoriasEquipamento[sys.categoria] ?? ""));
         }
-        partes.push(loc(PYRO.partesCorpo[s.parte] ?? ""));
-        if (s.categoria === "mochila" && s.cargaBonus) {
-          partes.push(`${loc("PYRO.Item.CargaBonus")} +${s.cargaBonus}`);
+        partes.push(loc(PYRO.partesCorpo[sys.parte] ?? ""));
+        if (sys.categoria === "mochila" && sys.cargaBonus) {
+          partes.push(`${loc("PYRO.Item.CargaBonus")} +${sys.cargaBonus}`);
         }
-        if (s.categoria === "arcano" && s.reducaoMana) {
-          partes.push(`${loc("PYRO.Item.ReducaoMana")} -${s.reducaoMana}`);
+        if (sys.categoria === "arcano" && sys.reducaoMana) {
+          partes.push(`${loc("PYRO.Item.ReducaoMana")} -${sys.reducaoMana}`);
         }
-        for (const [cat, val] of Object.entries(s.defesas?.categorias ?? {})) {
+        for (const [cat, val] of Object.entries(sys.defesas?.categorias ?? {})) {
           if (val) partes.push(`${loc(PYRO.categoriasDano[cat])} +${val}`);
         }
-        for (const [tipo, val] of Object.entries(s.defesas?.tipos ?? {})) {
+        for (const [tipo, val] of Object.entries(sys.defesas?.tipos ?? {})) {
           if (val) partes.push(`${loc(PYRO.tiposDano[tipo].label)} +${val}`);
         }
         break;
       }
       case "consumivel": {
-        if (s.municao) partes.push(loc("PYRO.Item.MunicaoTag"));
-        if (s.formula) {
-          partes.push(s.municao
-            ? `${s.formula} ${loc(PYRO.tiposDano[s.tipoDano]?.label ?? "")}`
-            : s.formula);
+        if (sys.municao) partes.push(loc("PYRO.Item.MunicaoTag"));
+        if (sys.formula) {
+          partes.push(sys.municao
+            ? `${sys.formula} ${loc(PYRO.tiposDano[sys.tipoDano]?.label ?? "")}`
+            : sys.formula);
         }
         break;
       }
       case "habilidade": {
-        partes.push(loc(PYRO.categoriasHabilidade[s.categoria] ?? ""));
-        partes.push(`${loc("PYRO.Item.Tier")} ${s.tier}`);
-        if (s.custoAcoes) {
-          partes.push(`${s.custoAcoes} ${loc(`PYRO.Item.Abrev.${s.tipoCusto}`)}`);
+        partes.push(loc(PYRO.categoriasHabilidade[sys.categoria] ?? ""));
+        partes.push(`${loc("PYRO.Item.Tier")} ${sys.tier}`);
+        if (sys.custoAcoes) {
+          partes.push(`${sys.custoAcoes} ${loc(`PYRO.Item.Abrev.${sys.tipoCusto}`)}`);
         }
-        if (s.custoEstamina) partes.push(`${s.custoEstamina} ${loc("PYRO.Abrev.estamina")}`);
-        if (s.custoMana) partes.push(`${s.custoMana} ${loc("PYRO.Abrev.mana")}`);
-        if (s.custoEnergia) partes.push(`${s.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
-        for (const a of s.aumentos ?? []) {
+        if (sys.custoEstamina) partes.push(`${sys.custoEstamina} ${loc("PYRO.Abrev.estamina")}`);
+        if (sys.custoMana) partes.push(`${sys.custoMana} ${loc("PYRO.Abrev.mana")}`);
+        if (sys.custoEnergia) partes.push(`${sys.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
+        for (const a of sys.aumentos ?? []) {
           partes.push(`+${a.pontos} ${loc(PYRO.atributos[a.atributo] ?? a.atributo)}`);
         }
         break;
       }
       case "feitico": {
-        if (s.custoAcoes) partes.push(`${s.custoAcoes} ${loc("PYRO.AcoesAbrev")}`);
-        if (s.formula) partes.push(s.formula);
+        if (sys.custoAcoes) partes.push(`${sys.custoAcoes} ${loc("PYRO.AcoesAbrev")}`);
+        if (sys.formula) partes.push(sys.formula);
         break;
       }
       case "runa": {
-        partes.push(loc(PYRO.tiposRuna[s.tipoRuna] ?? ""));
-        if (s.tipoRuna === "elemento") {
-          partes.push(loc(PYRO.elementos[s.subtipo]?.label ?? ""));
-          if (s.tipoDano === SEM_DANO) partes.push(loc("PYRO.Dano.nenhum"));
-          if (s.subjulgar) partes.push(loc("PYRO.Item.SubjulgarCurto"));
+        partes.push(loc(PYRO.tiposRuna[sys.tipoRuna] ?? ""));
+        if (sys.tipoRuna === "elemento") {
+          partes.push(loc(PYRO.elementos[sys.subtipo]?.label ?? ""));
+          if (sys.tipoDano === SEM_DANO) partes.push(loc("PYRO.Dano.nenhum"));
+          if (sys.subjulgar) partes.push(loc("PYRO.Item.SubjulgarCurto"));
         }
-        partes.push(loc(PYRO.linguas[s.lingua]?.label ?? ""));
+        partes.push(loc(PYRO.linguas[sys.lingua]?.label ?? ""));
         break;
       }
       case "magia": {
-        partes.push(...(s.runas ?? []).map(r => r.nome));
+        partes.push(...(sys.runas ?? []).map(r => r.nome));
         break;
       }
       case "caminho": {
-        partes.push(loc(s.ehRacial ? "PYRO.Item.EhRacial" : "PYRO.Caminhos.profissaoClasse"));
+        partes.push(loc(sys.ehRacial ? "PYRO.Item.EhRacial" : "PYRO.Caminhos.profissaoClasse"));
         // No resumo o rótulo é a vocação, não a pergunta do checkbox.
-        if (s.usaMagia) partes.push(loc("PYRO.Item.Mago"));
-        if (s.usaFeiticaria) partes.push(loc("PYRO.Item.Feiticeiro"));
+        if (sys.usaMagia) partes.push(loc("PYRO.Item.Mago"));
+        if (sys.usaFeiticaria) partes.push(loc("PYRO.Item.Feiticeiro"));
         break;
       }
     }
@@ -502,30 +503,30 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
   /** Coluna estreita ao lado da descrição: o que se consulta sem editar. */
   #valoresRapidos() {
-    const s = this.item.system;
+    const sys = this.item.system;
     const loc = k => game.i18n.localize(k);
     const linhas = [];
     const add = (label, valor) => linhas.push({ label: loc(label), valor });
 
-    if ("quantidade" in s) add("PYRO.Quantidade", s.quantidade);
-    if ("peso" in s) {
-      add("PYRO.Peso", s.municao ? `${s.peso} (${loc("PYRO.Item.PesoLote")})` : s.peso);
+    if ("quantidade" in sys) add("PYRO.Quantidade", sys.quantidade);
+    if ("peso" in sys) {
+      add("PYRO.Peso", sys.municao ? `${sys.peso} (${loc("PYRO.Item.PesoLote")})` : sys.peso);
     }
-    if ("custo" in s) add("PYRO.Item.Custo", s.custo);
-    if ("equipado" in s) {
-      add("PYRO.Item.Equipado", loc(s.equipado ? "PYRO.Sim" : "PYRO.Nao"));
+    if ("custo" in sys) add("PYRO.Item.Custo", sys.custo);
+    if ("equipado" in sys) {
+      add("PYRO.Item.Equipado", loc(sys.equipado ? "PYRO.Sim" : "PYRO.Nao"));
     }
     if (this.item.type === "arma") {
-      add("PYRO.Item.Maos", s.maos);
-      add("PYRO.Item.UsaMunicao", loc(s.usaMunicao ? "PYRO.Sim" : "PYRO.Nao"));
+      add("PYRO.Item.Maos", sys.maos);
+      add("PYRO.Item.UsaMunicao", loc(sys.usaMunicao ? "PYRO.Sim" : "PYRO.Nao"));
     }
     if (this.item.type === "habilidade") {
-      add("PYRO.Item.CustoXp", s.ehBase ? loc("PYRO.Item.BaseTag") : s.custoXp);
+      add("PYRO.Item.CustoXp", sys.ehBase ? loc("PYRO.Item.BaseTag") : sys.custoXp);
     }
     if (this.item.type === "caminho") {
-      add("PYRO.Item.Xp", `${s.xpDisponivel} / ${s.xp}`);
-      add("PYRO.Item.XpGasta", s.xpGasta);
-      add("PYRO.ProximoCusto", s.proximoCusto);
+      add("PYRO.Item.Xp", `${sys.xpDisponivel} / ${sys.xp}`);
+      add("PYRO.Item.XpGasta", sys.xpGasta);
+      add("PYRO.ProximoCusto", sys.proximoCusto);
     }
     return linhas;
   }
@@ -603,9 +604,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     if (this.item.type === "magia" && sys.runas && !Array.isArray(sys.runas)) {
       const atuais = this.item.system.toObject().runas;
-      const form = sys.runas;
+      const runasForm = sys.runas;
       sys.runas = atuais.map((base, i) => {
-        const r = form[i] ?? {};
+        const r = runasForm[i] ?? {};
         let scalings = base.scalings ?? [];
         if (r.scalings && !Array.isArray(r.scalings)) {
           scalings = Object.values(r.scalings).map((sc, j) => ({ ...(scalings[j] ?? {}), ...sc }));

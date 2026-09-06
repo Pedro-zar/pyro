@@ -1,8 +1,7 @@
 /**
  * Chat do PYRO: menu de contexto das mensagens e o rodapé dos cards do
  * sistema — fichas de dano por tipo e botões de aplicar dano/cura direto no
- * card. O menu de contexto continua existindo (metade, dobro, mental...),
- * mas o caminho principal está visível no próprio card.
+ * card. Menu e rodapé aplicam a mesma coisa; o rodapé é o caminho principal.
  */
 
 import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
@@ -56,7 +55,7 @@ function temRolagem(li) {
 /** Aplica em todos os alvos e resume num único aviso. */
 async function aplicarEm(msg, tipo, multiplicador = 1) {
   if (!msg) return;
-  const t = totais(msg);
+  const { danos, cura } = totais(msg);
   const destinos = alvos();
 
   if (!destinos.length) {
@@ -69,12 +68,12 @@ async function aplicarEm(msg, tipo, multiplicador = 1) {
       ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemPermissao", { nome: actor.name }));
       continue;
     }
-    const somaBruta = t.danos.reduce((soma, d) => soma + d.total, 0);
-    if (tipo === "cura") resumos.push(await actor.aplicarCura(t.cura * multiplicador));
+    const somaBruta = danos.reduce((soma, d) => soma + d.total, 0);
+    if (tipo === "cura") resumos.push(await actor.aplicarCura(cura * multiplicador));
     else if (tipo === "estamina") resumos.push(await actor.aplicarEstamina(somaBruta * multiplicador));
-    else if (tipo === "mental") resumos.push(await actor.aplicarDano(t.danos, { multiplicador, mental: true }));
-    else if (tipo === "cheio") resumos.push(await actor.aplicarDano(t.danos, { multiplicador, ignorarDefesa: true }));
-    else resumos.push(await actor.aplicarDano(t.danos, { multiplicador }));
+    else if (tipo === "mental") resumos.push(await actor.aplicarDano(danos, { multiplicador, mental: true }));
+    else if (tipo === "cheio") resumos.push(await actor.aplicarDano(danos, { multiplicador, ignorarDefesa: true }));
+    else resumos.push(await actor.aplicarDano(danos, { multiplicador }));
   }
   if (resumos.length) ui.notifications.info(resumos.join(" · "));
 }
@@ -136,9 +135,9 @@ function opcoes() {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Monta e injeta o rodapé nos cards do sistema (mensagens com as flags do sistema).
- * As fichas somam o dano por tipo, com a cor do tipo; os botões aplicam nos
- * tokens selecionados, igual ao menu de contexto.
+ * Rodapé dos cards do sistema (mensagens com as flags do sistema): fichas
+ * com o dano somado por tipo e botões que aplicam nos tokens selecionados,
+ * igual ao menu de contexto.
  */
 function injetarRodape(message, element) {
   const flags = flagsDe(message);
@@ -169,23 +168,23 @@ function injetarRodape(message, element) {
   }
 
   /* --- Botões ------------------------------------------------------------ */
-  const bot = (modo, mult, titulo, conteudo) =>
+  const montarBotao = (modo, mult, titulo, conteudo) =>
     `<button type="button" class="pyro-aplicar" data-modo="${modo}" data-mult="${mult}"
              title="${loc(titulo)}">${conteudo}</button>`;
   const botoes = [];
   if (danos.length) {
-    botoes.push(bot("dano", 1, "PYRO.Chat.AplicarDano",
+    botoes.push(montarBotao("dano", 1, "PYRO.Chat.AplicarDano",
       `<i class="fa-solid fa-heart-crack"></i> ${loc("PYRO.Chat.BotAplicar")}`));
-    botoes.push(bot("dano", 0.5, "PYRO.Chat.AplicarMetade", "&frac12;"));
-    botoes.push(bot("dano", 2, "PYRO.Chat.AplicarDobro", "2&times;"));
+    botoes.push(montarBotao("dano", 0.5, "PYRO.Chat.AplicarMetade", "&frac12;"));
+    botoes.push(montarBotao("dano", 2, "PYRO.Chat.AplicarDobro", "2&times;"));
     if (!generico) {
-      botoes.push(bot("cheio", 1, "PYRO.Chat.AplicarCheio", '<i class="fa-solid fa-shield-slash"></i>'));
+      botoes.push(montarBotao("cheio", 1, "PYRO.Chat.AplicarCheio", '<i class="fa-solid fa-shield-slash"></i>'));
     }
   }
   if (cura) {
-    botoes.push(bot("cura", 1, "PYRO.Chat.AplicarCura",
+    botoes.push(montarBotao("cura", 1, "PYRO.Chat.AplicarCura",
       `<i class="fa-solid fa-heart"></i> ${loc("PYRO.Chat.BotCurar")}`));
-    botoes.push(bot("estamina", 1, "PYRO.Chat.AplicarEstamina", '<i class="fa-solid fa-wind"></i>'));
+    botoes.push(montarBotao("estamina", 1, "PYRO.Chat.AplicarEstamina", '<i class="fa-solid fa-wind"></i>'));
   }
 
   const rodape = document.createElement("footer");
