@@ -1,5 +1,6 @@
 import { PYRO } from "../config.mjs";
-import { poolDoAtributo, formulaPool, juntarDados } from "../dados.mjs";
+import { formulaPool, juntarDados } from "../dados.mjs";
+import { rotuloCurtoDoCaminho } from "./item-data.mjs";
 
 const fields = foundry.data.fields;
 
@@ -28,27 +29,12 @@ const comSinal = n => (n > 0 ? `+${n}` : String(n));
 /** Aceita a chave interna ("grande") ou o rótulo traduzido ("Grande"). */
 function chaveTamanho(valor) {
   if (!valor) return null;
-  const limpo = String(valor).toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const limpo = PYRO.normalizarTexto(valor);
   if (limpo in PYRO.tamanhos) return limpo;
   for (const [chave, cfg] of Object.entries(PYRO.tamanhos)) {
-    const rotulo = game.i18n.localize(cfg.label)
-      .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    if (rotulo === limpo) return chave;
+    if (PYRO.normalizarTexto(game.i18n.localize(cfg.label)) === limpo) return chave;
   }
   return null;
-}
-
-/**
- * Rótulo da aba de um caminho com recurso próprio: usa a variação (raciais)
- * ou o nome da profissão/classe, nunca o nome completo do caminho.
- */
-function rotuloDoCaminho(caminho) {
-  const s = caminho.system;
-  const base = (s.ehRacial ? s.racaDetalhe : s.nomeCaminho)?.trim();
-  return base
-    ? game.i18n.format("PYRO.CaminhoNome", { nome: base })
-    : caminho.name;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -56,17 +42,6 @@ function rotuloDoCaminho(caminho) {
 /* -------------------------------------------------------------------------- */
 
 export class CriaturaData extends foundry.abstract.TypeDataModel {
-  /** Fichas antigas guardavam o valor atual em "valor". */
-  static migrateData(source) {
-    for (const rec of Object.values(source.recursos ?? {})) {
-      if (rec && rec.valor !== undefined && rec.value === undefined) {
-        rec.value = rec.valor;
-        delete rec.valor;
-      }
-    }
-    return super.migrateData(source);
-  }
-
   static defineSchema() {
     const atributos = {};
     for (const chave of Object.keys(PYRO.atributos)) {
@@ -322,8 +297,8 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       ? fatores.reduce((t, f) => t + f, 0) / fatores.length
       : (PYRO.linguas[racial ? potencialDe(racial) : "humana"]?.fator ?? 1);
     this.potenciais = magicos.map(potencialDe);
-    // AJUSTE: a língua "nativa" (a que não recebe destaque visual) é a do
-    // primeiro caminho mágico da lista.
+    // A língua "nativa" (a que não recebe destaque visual) é a do primeiro
+    // caminho mágico da lista.
     this.linguaNativa = magicos[0] ? potencialDe(magicos[0])
       : racial ? potencialDe(racial) : "humana";
 
@@ -368,7 +343,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.caminhosProprios = comRecurso.map(c => c.id);
     this.temAbaCaminho = comRecurso.length > 0;
     this.abaCaminhoLabel = comRecurso.length === 1
-      ? rotuloDoCaminho(comRecurso[0])
+      ? rotuloCurtoDoCaminho(comRecurso[0])
       : game.i18n.localize("PYRO.Tabs.caminhoProprio");
 
     this.afinidadesElementos = [...els];

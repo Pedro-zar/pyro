@@ -6,7 +6,19 @@
  */
 
 import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
+import { esc } from "./ui.mjs";
 import { flagsDe } from "./sistema.mjs";
+
+/** Linha de sucesso ou falha contra um ND, nos cards de teste. */
+export function htmlResultadoND(sucesso) {
+  return `<p class="pyro-resultado ${sucesso ? "sucesso" : "falha"}">
+    ${game.i18n.localize(sucesso ? "PYRO.Chat.Sucesso" : "PYRO.Chat.Falha")}</p>`;
+}
+
+/** Card de pool zerada por desvantagens. */
+export function htmlFalhaAutomatica() {
+  return `<p class="pyro-falha-auto">${game.i18n.localize("PYRO.Chat.FalhaAutomatica")}</p>`;
+}
 
 /** Atores alvo da aplicação: tokens selecionados, ou o personagem do usuário. */
 function alvos() {
@@ -31,10 +43,6 @@ function totais(message) {
   const flags = flagsDe(message);
   if (flags?.danos || flags?.cura !== undefined) {
     return { danos: flags.danos ?? [], cura: flags.cura ?? 0 };
-  }
-  // Card antigo, de antes da separação por tipo.
-  if (flags?.dano !== undefined) {
-    return { danos: [{ tipo: "", total: flags.dano }], cura: flags.cura ?? 0 };
   }
   const soma = (message?.rolls ?? []).reduce((t, r) => t + (r.total ?? 0), 0);
   return { danos: [{ tipo: "", total: soma }], cura: soma };
@@ -140,7 +148,6 @@ function injetarRodape(message, element) {
   if (!danos.length && !cura) return;
 
   const loc = k => game.i18n.localize(k);
-  const esc = s => Handlebars.escapeExpression(s ?? "");
 
   // Rolagem genérica (habilidade/feitiço sem tipo): um valor só, que pode
   // virar dano, cura ou estamina — sem ficha duplicada.
@@ -194,10 +201,7 @@ function injetarRodape(message, element) {
 }
 
 export function registrarMenuChat() {
-  // v13 usa getChatMessageContextOptions; o nome antigo fica como rede de
-  // segurança caso a interface de chat legada esteja em uso.
   Hooks.on("getChatMessageContextOptions", (html, options) => options.push(...opcoes()));
-  Hooks.on("getChatLogEntryContext", (html, options) => options.push(...opcoes()));
 
   Hooks.on("renderChatMessageHTML", (message, element) => {
     // Botões de efeito de uso nos cards: quem clica escolhe em quem aplicar.

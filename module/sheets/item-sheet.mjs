@@ -1,9 +1,10 @@
 import { PYRO } from "../config.mjs";
 import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
 import { scalingsPadrao, valorScaling, SEM_DANO } from "../magia.mjs";
-import { idDoCaminho } from "../data/item-data.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho, flagsDe } from "../sistema.mjs";
+import { enriquecer } from "../ui.mjs";
+import { rotuloCurtoDoCaminho } from "../data/item-data.mjs";
 
 /**
  * Opções de tipo de dano de um elemento. A primeira herda o tipo do próprio
@@ -32,15 +33,13 @@ function opcoesTipoDano(padrao) {
 
 /**
  * A runa rola dados? Elemento sempre pode, pela tabela do próprio elemento.
- * Gesto e modificador só quando alguém deu um escalonamento com faces a eles —
+ * Gesto e modificador só quando alguém deu um escalonamento com faces a eles,
  * e é aí que a escolha do tipo de dano passa a fazer sentido.
- *
- * A cópia dentro de uma magia salva tem escalonamento próprio, então quem
- * pergunta por ela passa a lista da cópia em `scalings`.
+ * @param {object[]} [scalings] a cópia de uma magia salva, no lugar dos da runa.
  */
-export function rolaDados(sys, scalings = null) {
+export function rolaDados(sys, scalings = sys?.scalings) {
   if (sys?.tipoRuna === "elemento") return true;
-  return (scalings?.length ? scalings : sys?.scalings ?? []).some(sc => (sc?.faces ?? 0) > 0);
+  return (scalings ?? []).some(sc => (sc?.faces ?? 0) > 0);
 }
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -136,23 +135,14 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       for (const c of actor.items.filter(i => i.type === "caminho")) {
         caminhoOpts[c.id] = c.name;
       }
-      // Fichas antigas guardavam o nome do caminho; mantém a opção visível.
-      if (s.caminho && !(s.caminho in caminhoOpts)) caminhoOpts[s.caminho] = s.caminho;
     }
 
     // Habilidade de caminho com recurso próprio pode morar na aba dele.
     let rotuloAbaCaminho = null;
     if (item.type === "habilidade" && actor) {
-      const dono = actor.items.get(s.caminho)
-        ?? actor.items.find(i => i.type === "caminho" && i.name === s.caminho);
+      const dono = actor.items.get(s.caminho);
       const temRecurso = (dono?.system.recursos ?? []).some(r => PYRO.recursosCustom?.[r]);
-      if (temRecurso) {
-        const base = (dono.system.ehRacial
-          ? dono.system.racaDetalhe : dono.system.nomeCaminho)?.trim();
-        rotuloAbaCaminho = base
-          ? game.i18n.format("PYRO.CaminhoNome", { nome: base })
-          : dono.name;
-      }
+      if (temRecurso) rotuloAbaCaminho = rotuloCurtoDoCaminho(dono);
     }
 
     /* --- Caminho racial: só o primeiro define o tamanho ------------------- */
@@ -223,8 +213,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // Runas da magia com a informação de quem pode subjulgar.
       runasMagia: item.type === "magia"
         ? (s.runas ?? []).map(r => {
-            const runa = actor?.items.get(r.itemId)
-              ?? actor?.items.find(i => i.type === "runa" && i.name === r.nome);
+            const runa = actor?.items.get(r.itemId);
             const cfg = runa?.system.tipoRuna === "elemento"
               ? PYRO.elementos[runa.system.subtipo] : null;
             const padrao = runa?.system.tipoDano || cfg?.tipoDano || "";
@@ -303,9 +292,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       tipoLabel: game.i18n.localize(`TYPES.Item.${item.type}`),
       pedeDetalhe: item.type === "caminho" && (PYRO.racas[s.raca]?.detalhe ?? false),
       ["is" + item.type.charAt(0).toUpperCase() + item.type.slice(1)]: true,
-      descricaoHTML: await foundry.applications.ux.TextEditor.implementation.enrichHTML(
-        s.descricao, { relativeTo: item, secrets: item.isOwner }
-      )
+      descricaoHTML: await enriquecer(s.descricao, item)
     });
     return context;
   }
@@ -336,7 +323,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     const tierBase = s.tier - 1;
     const mistoPermitido = s.tier >= 3;
-    const caminhoAlvo = idDoCaminho(actor, s.caminho);
+    const caminhoAlvo = s.caminho;
 
     const consumidas = new Set();
     for (const hab of actor.items) {
@@ -345,16 +332,12 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     }
 
     const escolhidas = (s.requisitos ?? []).map(r => r.id).filter(Boolean);
-    const nomeDoCaminho = hab => {
-      const caminho = actor.items.get(hab.system.caminho)
-        ?? actor.items.find(i => i.type === "caminho" && i.name === hab.system.caminho);
-      return caminho?.name ?? "";
-    };
+    const nomeDoCaminho = hab => actor.items.get(hab.system.caminho)?.name ?? "";
 
     const livres = actor.items.filter(hab =>
       hab.type === "habilidade" && hab.id !== item.id && !hab.system.ehBase
       && (hab.system.tier ?? 1) === tierBase && !consumidas.has(hab.id)
-      && (mistoPermitido || idDoCaminho(actor, hab.system.caminho) === caminhoAlvo));
+      && (mistoPermitido || hab.system.caminho === caminhoAlvo));
 
     const linhas = [0, 1].map(indice => {
       const atual = escolhidas[indice] ?? "";
@@ -671,20 +654,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     await this.item.update({ "system.scalings": arr });
   }
 
-  /**
-   * Linha nova nos efeitos de uma runa da magia. Se a runa ainda não tinha
-   * cópia própria, os escalonamentos atuais dela entram primeiro — adicionar
-   * uma linha não pode apagar o comportamento que já valia.
-   */
   static async #adicionarScalingMagia(event, target) {
     const runas = this.item.system.toObject().runas;
     const r = runas[Number(target.dataset.runa)];
     if (!r) return;
-    if (!r.scalings.length) {
-      const runa = this.item.actor?.items.get(r.itemId)
-        ?? this.item.actor?.items.find(i => i.type === "runa" && i.name === r.nome);
-      r.scalings = foundry.utils.deepClone(runa?.system.toObject().scalings ?? []);
-    }
     r.scalings.push({ nome: "", base: 0, porIntencao: 0, faces: 0 });
     await this.item.update({ "system.runas": runas });
   }

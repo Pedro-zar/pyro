@@ -1,10 +1,9 @@
 import { PYRO } from "./config.mjs";
 
 /**
- * Converte um valor de atributo na pool da Tabela de Dados.
- * Retorna { n, faces } — faces 0 representa o valor fixo "1" (atributo 1).
- * AJUSTE: a tabela vai até 50; acima disso o valor é grampeado em 50
- * até o SRD definir a extensão.
+ * Converte um valor de atributo na pool da Tabela de Dados (SRD Atributos).
+ * A tabela termina em 50; acima disso vale a última linha.
+ * @returns {{n: number, faces: number}} faces 0 é o valor fixo "1" do atributo 1.
  */
 export function poolDoAtributo(valor) {
   const v = Math.clamp(Math.round(valor), 1, 50);

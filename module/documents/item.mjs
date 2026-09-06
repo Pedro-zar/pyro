@@ -1,16 +1,13 @@
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
-import { formulaTeste, expandirAtributos } from "../dados.mjs";
+import { formulaTeste, formulaPool, expandirAtributos } from "../dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado,
   penalidadeExaustao, dicaExaustao
 } from "../efeitos.mjs";
-import { formulaPool } from "../dados.mjs";
-import { proximaOrdem, idDoCaminho } from "../data/item-data.mjs";
-import { dialogoDoAtor } from "../tema.mjs";
+import { proximaOrdem } from "../data/item-data.mjs";
+import { esc, enriquecer, formularioDoAtor } from "../ui.mjs";
 import { flagsDe, flagsDoSistema } from "../sistema.mjs";
-
-const { DialogV2 } = foundry.applications.api;
 
 /**
  * Distância em metros entre o token do ator e o alvo marcado (se houver).
@@ -56,33 +53,9 @@ export function nomeDaRuna(sys) {
 }
 
 export class PyroItem extends Item {
-  /**
-   * Autocura de nomes gravados com o molde por preencher. Na troca para o
-   * v14 o "{detalhe}" ficou sem interpolar e nomes como "Elfo ({detalhe})"
-   * foram parar no banco. Aqui o nome certo é refeito em memória a cada
-   * preparação; a próxima edição do caminho grava de vez, pelo recálculo
-   * que o _preUpdate já faz.
-   */
-  prepareDerivedData() {
-    super.prepareDerivedData();
-    if (this.type === "caminho" && game.i18n && /\{(detalhe|nome)\}/.test(this.name ?? "")) {
-      try { this.name = nomeDoCaminho(this.system); } catch { /* fica o gravado */ }
-    }
-  }
-
   /** Efeitos marcados como "de uso": vão para o alvo, não para quem carrega. */
-  get efeitosDeUso() {
-    return this.effects.filter(e => flagsDe(e)?.deUso && !e.disabled);
-  }
-
-  /** Bloco de botões de efeito de uso no card do chat. */
-  #efeitosHTML() {
-    return htmlEfeitosDeUso(this);
-  }
-
   /** Cabeçalho padrão dos cards do chat: ícone, nome e linha de contexto. */
   #topoHTML(meta) {
-    const esc = Handlebars.escapeExpression;
     return `<header class="pyro-item-topo">
       <img src="${this.img}" alt="" />
       <div>
@@ -211,12 +184,6 @@ export class PyroItem extends Item {
       }
     }
 
-    // O nome antigo viaja nas options: o _onUpdate usa para achar, nas magias
-    // salvas, referências antigas desta runa que ainda não têm itemId.
-    if (this.type === "runa" && changed.name !== undefined && changed.name !== this.name) {
-      options.pyroRunaRenomeada = this.name;
-    }
-
     /*
      * Arma à distância: o alcance máximo nunca fica abaixo do menor. Máximo
      * zero é corpo a corpo, e aí o menor é o alcance da arma (um bastão chega
@@ -265,13 +232,13 @@ export class PyroItem extends Item {
     if (this.type === "habilidade" && this.actor) {
       const tier = s.tier ?? this.system.tier;
       const ehBase = s.ehBase ?? this.system.ehBase;
-      const caminho = idDoCaminho(this.actor, s.caminho ?? this.system.caminho);
+      const caminho = s.caminho ?? this.system.caminho;
       const lista = s.requisitos ?? this.system.requisitos ?? [];
       const validos = (tier >= 2 && !ehBase)
         ? lista.filter(r => {
             const base = this.actor.items.get(r.id);
             if (base?.system.tier !== tier - 1 || base.system.ehBase) return false;
-            return tier >= 3 || idDoCaminho(this.actor, base.system.caminho) === caminho;
+            return tier >= 3 || base.system.caminho === caminho;
           })
         : [];
       if (validos.length !== lista.length) {
@@ -361,30 +328,22 @@ export class PyroItem extends Item {
 
   /**
    * Renomear uma runa regrava o retrato dela nas magias salvas do mesmo
-   * ator. A conjuração já resolvia pelo itemId, mas a lista do grimório e a
-   * ficha da magia mostravam o nome gravado no dia em que ela foi salva —
-   * parecia desvinculada. Referência antiga, gravada só pelo nome, também é
-   * religada pelo id aqui.
+   * ator: a referência guarda o nome para a lista do grimório não depender
+   * de resolver o item a cada leitura.
    */
   _onUpdate(changed, options, userId) {
     super._onUpdate(changed, options, userId);
     if (this.type !== "runa" || changed.name === undefined) return;
     // Só quem editou dispara a regravação, senão cada cliente repetiria.
     if (game.user.id !== userId || !this.actor) return;
-    const antigo = options.pyroRunaRenomeada;
     const updates = [];
     for (const magia of this.actor.items) {
       if (magia.type !== "magia") continue;
       const runas = magia.system.toObject().runas ?? [];
-      let mexeu = false;
-      for (const ref of runas) {
-        const minha = ref.itemId === this.id
-          || (!ref.itemId && antigo && ref.nome === antigo);
-        if (!minha) continue;
-        if (ref.nome !== this.name) { ref.nome = this.name; mexeu = true; }
-        if (!ref.itemId) { ref.itemId = this.id; mexeu = true; }
-      }
-      if (mexeu) updates.push({ _id: magia.id, "system.runas": runas });
+      const minhas = runas.filter(ref => ref.itemId === this.id && ref.nome !== this.name);
+      if (!minhas.length) continue;
+      for (const ref of minhas) ref.nome = this.name;
+      updates.push({ _id: magia.id, "system.runas": runas });
     }
     if (updates.length) this.actor.updateEmbeddedDocuments("Item", updates);
   }
@@ -411,7 +370,6 @@ export class PyroItem extends Item {
    * defesa no chat continuar batendo tipo a tipo.
    */
   async #bonusDeDanoHTML(tipoPadrao) {
-    const esc = Handlebars.escapeExpression;
     const partes = [];
     const danos = [];
     const rolls = [];
@@ -460,20 +418,14 @@ export class PyroItem extends Item {
         return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemMunicao"));
       }
       const selects = opcoes.map(m =>
-        `<option value="${m.id}">${Handlebars.escapeExpression(m.name)} (x${m.system.quantidade})</option>`
+        `<option value="${m.id}">${esc(m.name)} (x${m.system.quantidade})</option>`
       ).join("");
-      const res = await foundry.applications.api.DialogV2.prompt({
-        ...dialogoDoAtor(actor),
-        window: { title: game.i18n.localize("PYRO.Municao.Titulo") },
-        content: `<div class="form-group">
+      const res = await formularioDoAtor(actor, {
+        titulo: game.i18n.localize("PYRO.Municao.Titulo"),
+        conteudo: `<div class="form-group">
           <label>${game.i18n.localize("TYPES.Item.consumivel")}</label>
           <select name="municao">${selects}</select>
-        </div>`,
-        ok: {
-          label: game.i18n.localize("PYRO.Rolar"),
-          callback: (event, button) => new foundry.applications.ux.FormDataExtended(button.form).object
-        },
-        rejectClose: false
+        </div>`
       });
       if (!res) return;
       municao = actor.items.get(res.municao);
@@ -524,7 +476,7 @@ export class PyroItem extends Item {
       </div>`);
       if (!mira.acertou) {
         if (municao) {
-          partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: Handlebars.escapeExpression(municao.name) })}</p>`);
+          partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: esc(municao.name) })}</p>`);
         }
         return ChatMessage.create({
           speaker,
@@ -554,18 +506,18 @@ export class PyroItem extends Item {
     rolls.push(...bonus.rolls);
 
     if (municao) {
-      partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: Handlebars.escapeExpression(municao.name) })}</p>`);
+      partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: esc(municao.name) })}</p>`);
       // Munição com fórmula (ex.: Flechas de Raio) rola o dano adicional.
       if (municao.system.formula) {
         const extra = await new Roll(expandirAtributos(municao.system.formula), this.getRollData()).evaluate();
         rolls.push(extra);
         danos.push({ tipo: municao.system.tipoDano, total: extra.total });
         const tipoMun = game.i18n.localize(PYRO.tiposDano[municao.system.tipoDano]?.label ?? "");
-        partes.push(`<p><strong>${Handlebars.escapeExpression(municao.name)}</strong> — ${game.i18n.localize("PYRO.Municao.DanoExtra")}${tipoMun ? ` (${tipoMun})` : ""}</p>`, await extra.render());
+        partes.push(`<p><strong>${esc(municao.name)}</strong> — ${game.i18n.localize("PYRO.Municao.DanoExtra")}${tipoMun ? ` (${tipoMun})` : ""}</p>`, await extra.render());
       }
     }
 
-    partes.push(this.#efeitosHTML());
+    partes.push(htmlEfeitosDeUso(this));
 
     return ChatMessage.create({
       speaker,
@@ -594,11 +546,11 @@ export class PyroItem extends Item {
       ? game.i18n.format("PYRO.Mira.AlvoMarcado", { distancia: medida })
       : game.i18n.format("PYRO.Mira.SemAlvoLimite", { limite: limiteMira });
 
-    const res = await DialogV2.prompt({
-      ...dialogoDoAtor(this.actor),
-      window: { title: game.i18n.localize("PYRO.Mira.Titulo") },
-      content: `
-        ${dicaExaustao(actor) ? `<p class="hint">${dicaExaustao(actor)}</p>` : ""}
+    const avisoExaustao = dicaExaustao(actor);
+    const res = await formularioDoAtor(actor, {
+      titulo: game.i18n.localize("PYRO.Mira.Titulo"),
+      conteudo: `
+        ${avisoExaustao ? `<p class="hint">${avisoExaustao}</p>` : ""}
         <p class="hint">${dica}</p>
         <div class="form-group"><label>${game.i18n.localize("PYRO.Mira.Distancia")}</label>
           <input type="number" name="distancia" value="${distancia}" min="0"></div>
@@ -608,12 +560,7 @@ export class PyroItem extends Item {
           <input type="number" name="vantagem" value="0" min="0"></div>
         <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Desvantagem")}</label>
           <input type="number" name="desvantagem" value="${desvInicial}" min="0"></div>
-        <p class="hint">${game.i18n.localize("PYRO.Mira.Dica")}</p>`,
-      ok: {
-        label: game.i18n.localize("PYRO.Rolar"),
-        callback: (event, button) => new foundry.applications.ux.FormDataExtended(button.form).object
-      },
-      rejectClose: false
+        <p class="hint">${game.i18n.localize("PYRO.Mira.Dica")}</p>`
     });
     if (!res) return null;
 
@@ -655,7 +602,7 @@ export class PyroItem extends Item {
           acoes: custoAjustado(s.acoes, ajustesDeCusto(this.actor, this).acoes)
         }))}
         ${await roll.render()}
-        ${this.#efeitosHTML()}
+        ${htmlEfeitosDeUso(this)}
       </div>`,
       rolls: [roll],
       // O rodapé do card decide: o valor pode virar cura ou estamina.
@@ -705,7 +652,7 @@ export class PyroItem extends Item {
         content: `<div class="pyro-chat">
           ${this.#topoHTML(cab)}
           ${await roll.render()}
-          ${this.#efeitosHTML()}
+          ${htmlEfeitosDeUso(this)}
         </div>`,
         rolls: [roll],
         // Sem tipo definido: o rodapé oferece dano (sem defesa), cura e estamina.
@@ -718,7 +665,7 @@ export class PyroItem extends Item {
       content: `<div class="pyro-chat">
         ${this.#topoHTML(cab)}
         ${this.system.descricao ?? ""}
-        ${this.#efeitosHTML()}
+        ${htmlEfeitosDeUso(this)}
       </div>`
     });
   }
@@ -738,7 +685,7 @@ export class PyroItem extends Item {
         content: `<div class="pyro-chat">
           ${this.#topoHTML(cab)}
           ${await roll.render()}
-          ${this.#efeitosHTML()}
+          ${htmlEfeitosDeUso(this)}
         </div>`,
         rolls: [roll],
         flags: flagsDoSistema({ danos: [{ tipo: "", total: roll.total }], cura: roll.total }),
@@ -750,18 +697,14 @@ export class PyroItem extends Item {
       content: `<div class="pyro-chat">
         ${this.#topoHTML(cab)}
         ${s.descricao ?? ""}
-        ${this.#efeitosHTML()}
+        ${htmlEfeitosDeUso(this)}
       </div>`
     });
   }
 
   /** Card de consulta no chat: nome, resumo mecânico e descrição. */
   async mostrarNoChat() {
-    const enrich = foundry.applications.ux.TextEditor.implementation.enrichHTML;
-    const descricao = await enrich(this.system.descricao ?? "", {
-      relativeTo: this, secrets: this.isOwner
-    });
-    const esc = Handlebars.escapeExpression;
+    const descricao = await enriquecer(this.system.descricao, this);
 
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this.actor }),
@@ -774,7 +717,7 @@ export class PyroItem extends Item {
           </div>
         </header>
         ${descricao || `<p class="pyro-nota">${game.i18n.localize("PYRO.SemDescricao")}</p>`}
-        ${this.#efeitosHTML()}
+        ${htmlEfeitosDeUso(this)}
       </div>`
     });
   }

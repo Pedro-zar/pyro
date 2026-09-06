@@ -197,8 +197,7 @@ PYRO.itemNaCategoria = (item, chave) => {
   const cfg = PYRO.categoriasItem[chave];
   if (!cfg || item.type !== cfg.tipo) return false;
   if (cfg.municao !== undefined) return !!item.system.municao === cfg.municao;
-  // Equipamento antigo, sem categoria gravada, conta como equipamento comum.
-  if (cfg.categoria !== undefined) return (item.system.categoria || "equipamento") === cfg.categoria;
+  if (cfg.categoria !== undefined) return item.system.categoria === cfg.categoria;
   return true;
 };
 
@@ -230,12 +229,6 @@ PYRO.elementosPadrao = {
 };
 
 PYRO.elementos = foundry.utils.deepClone(PYRO.elementosPadrao);
-
-/** Nº de dados de um elemento na Intenção N. */
-PYRO.dadosElemento = (cfg, N) => ({
-  n: Math.max(0, Math.floor(cfg.base + cfg.porIntencao * (N - 1))),
-  faces: cfg.faces
-});
 
 /**
  * Línguas rúnicas e potenciais mágicos — a mesma escala.
@@ -293,23 +286,19 @@ PYRO.construirAfinidades = () => {
 
 PYRO.afinidades = {};
 
-/** Texto da Forma na Intenção N (gestos reconhecidos pelo nome). */
+/**
+ * Formas reconhecidas pelo nome do gesto (SRD Magia, Tabela de Formas). O
+ * rótulo serve para casar a palavra que o jogador escreveu; os números de
+ * cada forma moram em scalingsPadrao (magia.mjs).
+ */
 PYRO.formas = {
-  projetil: { label: "PYRO.Formas.projetil", desc: N => ({ key: "PYRO.Formas.Desc.projetil", data: { alcance: 6 + 4 * (N - 1) } }) },
-  explosao: { label: "PYRO.Formas.explosao", desc: N => ({ key: "PYRO.Formas.Desc.explosao", data: { raio: N } }) },
-  cone:     { label: "PYRO.Formas.cone",     desc: N => ({ key: "PYRO.Formas.Desc.cone",     data: { alcance: 3 + 2 * (N - 1) } }) },
-  linha:    { label: "PYRO.Formas.linha",    desc: N => ({ key: "PYRO.Formas.Desc.linha",    data: { alcance: 6 + 4 * (N - 1) } }) },
-  muro:     { label: "PYRO.Formas.muro",     desc: N => ({ key: "PYRO.Formas.Desc.muro",     data: { ext: 3 + 2 * (N - 1), pv: 5 * N } }) },
-  aura:     { label: "PYRO.Formas.aura",     desc: N => ({ key: "PYRO.Formas.Desc.aura",     data: { rodadas: N } }) },
-  toque:    { label: "PYRO.Formas.toque",    desc: N => ({ key: "PYRO.Formas.Desc.toque",    data: { bonus: N } }) }
-};
-
-PYRO.modificadores = {
-  amplo:       "PYRO.Modificadores.amplo",
-  longo:       "PYRO.Modificadores.longo",
-  persistente: "PYRO.Modificadores.persistente",
-  preciso:     "PYRO.Modificadores.preciso",
-  dividir:     "PYRO.Modificadores.dividir"
+  projetil: { label: "PYRO.Formas.projetil" },
+  explosao: { label: "PYRO.Formas.explosao" },
+  cone:     { label: "PYRO.Formas.cone" },
+  linha:    { label: "PYRO.Formas.linha" },
+  muro:     { label: "PYRO.Formas.muro" },
+  aura:     { label: "PYRO.Formas.aura" },
+  toque:    { label: "PYRO.Formas.toque" }
 };
 
 PYRO.tiposRuna = {
@@ -329,8 +318,7 @@ PYRO.custoIntencao = N => (N * (N + 1)) / 2;
  * Recursos personalizados de raça/classe, além de PV, Estamina, Mana,
  * Energia e Vontade. Máximo = (base + atributo x porPonto) +10% por patamar.
  * recAtributo/recPorPonto definem a recuperação por cena (vazio = não recupera).
- * AJUSTE: a Energia Natural do elfo não-mago entrou com SAB x 5, espelhando a
- * mana; ajuste na tela de configurações se a conjuração natural escalar diferente.
+ * A Energia Natural ainda não tem regra no SRD; SAB x 5 espelha a mana até lá.
  */
 PYRO.recursosCustomPadrao = {
   energiaNatural: {
@@ -440,8 +428,8 @@ PYRO.progressoesPadrao = {};
 
 PYRO.progressoes = foundry.utils.deepClone(PYRO.progressoesPadrao);
 
-/** Nome de habilidade normalizado: sem acento, sem caixa, sem espaço sobrando. */
-PYRO.normalizarNome = texto => String(texto ?? "")
+/** Texto comparável: sem acento, sem caixa, sem espaço sobrando. */
+PYRO.normalizarTexto = texto => String(texto ?? "")
   .toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
   .replace(/\s+/g, " ").trim();
 
@@ -455,7 +443,7 @@ PYRO.indexarProgressoes = () => {
   let posicao = 0;
   for (const [chave, regra] of Object.entries(PYRO.progressoes ?? {})) {
     for (const nome of String(regra.nomes ?? "").split(",")) {
-      const limpo = PYRO.normalizarNome(nome);
+      const limpo = PYRO.normalizarTexto(nome);
       if (!limpo || indice.has(limpo)) continue;
       indice.set(limpo, {
         chave,

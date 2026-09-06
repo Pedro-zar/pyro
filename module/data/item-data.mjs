@@ -20,25 +20,6 @@ class BaseItemData extends foundry.abstract.TypeDataModel {
 /* ---------------------- Vínculo habilidade <-> caminho --------------------- */
 
 /**
- * O campo `caminho` da habilidade guarda o id do Caminho, mas fichas antigas
- * guardavam o nome. Resolve os dois para o id, senão a mesma fila de XP se
- * parte em duas quando um item usa uma forma e outro usa a outra.
- */
-export function idDoCaminho(actor, chave) {
-  if (!chave) return "";
-  if (actor?.items.get(chave)) return chave;
-  const caminho = actor?.items.find(i => i.type === "caminho" && i.name === chave);
-  return caminho?.id ?? chave;
-}
-
-/**
- * Quanto vale cada vaga na fila de habilidades. A escala já foi 10 (10, 20,
- * 30...) e hoje é 1 (1, 2, 3...). Fica isolado aqui para uma troca dessas ser
- * uma linha, e não uma caçada por multiplicações espalhadas.
- */
-export const XP_POR_VAGA = 1;
-
-/**
  * Curva de um Caminho: qual regra de progressão ele está usando.
  *
  * A regra é disparada pelo nome de uma habilidade do próprio Caminho, e a
@@ -49,11 +30,8 @@ export const XP_POR_VAGA = 1;
  */
 export function progressaoDoCaminho(actor, caminho) {
   const indice = PYRO.progressaoPorNome;
-  const padrao = { ...PYRO.progressaoPadrao, multiplicador: XP_POR_VAGA };
-  if (!actor || !indice?.size) return padrao;
-
-  const alvo = idDoCaminho(actor, caminho);
-  if (!alvo) return padrao;
+  const padrao = PYRO.progressaoPadrao;
+  if (!actor || !caminho || !indice?.size) return padrao;
 
   // Quando mais de uma habilidade dispara regras diferentes, vale a que vem
   // antes na lista de configuração, e não a que estiver antes na ficha: a
@@ -61,8 +39,8 @@ export function progressaoDoCaminho(actor, caminho) {
   let escolhida = null;
   for (const item of actor.items) {
     if (item.type !== "habilidade") continue;
-    if (idDoCaminho(actor, item.system.caminho) !== alvo) continue;
-    const regra = indice.get(PYRO.normalizarNome(item.name));
+    if (item.system.caminho !== caminho) continue;
+    const regra = indice.get(PYRO.normalizarTexto(item.name));
     if (!regra) continue;
     if (regra.posicao === 0) return regra;
     if (!escolhida || regra.posicao < escolhida.posicao) escolhida = regra;
@@ -88,7 +66,7 @@ export function custoDaHabilidade(sys, progressao = null) {
   const ordem = Math.max(0, sys?.ordem ?? 0);
   if (!ordem) return 0;
   const passo = Math.max(1, progressao?.passo ?? 1);
-  const mult = Number(progressao?.multiplicador ?? XP_POR_VAGA);
+  const mult = Number(progressao?.multiplicador ?? PYRO.progressaoPadrao.multiplicador);
   // Arredondado porque o multiplicador aceita fração (meio preço) e XP é
   // sempre inteiro na ficha. Arredonda por habilidade, e não no total, para o
   // que a ficha mostra bater com o que ela soma.
@@ -97,12 +75,11 @@ export function custoDaHabilidade(sys, progressao = null) {
 
 /** Posições já ocupadas por habilidades pagas de um Caminho. */
 function ordensUsadas(actor, caminho, excluirId = null) {
-  const alvo = idDoCaminho(actor, caminho);
   return new Set((actor?.items ?? [])
     .filter(i => i.type === "habilidade"
       && i.id !== excluirId
       && !i.system.ehBase
-      && idDoCaminho(actor, i.system.caminho) === alvo)
+      && i.system.caminho === caminho)
     .map(i => i.system.ordem)
     .filter(n => Number.isInteger(n) && n > 0));
 }
@@ -153,27 +130,6 @@ export class ArmaData extends BaseItemData {
       quantidade: num(1, { min: 0 })
     };
   }
-
-  /** Migra dano/tipoDano/tiposDano antigos e o alcance em texto. */
-  static migrateData(source) {
-    if (typeof source.alcance === "string" && source.alcanceMenor === undefined) {
-      const nums = source.alcance.match(/\d+/g)?.map(Number) ?? [0];
-      source.alcanceMenor = nums[0] ?? 0;
-      source.alcanceMaximo = nums[1] ?? nums[0] ?? 0;
-      delete source.alcance;
-    }
-    if (source.danos === undefined && (source.dano !== undefined || source.tiposDano)) {
-      const tipos = source.tiposDano ?? [source.tipoDano ?? "impacto"];
-      source.danos = tipos.map((t, i) => ({
-        formula: i === 0 ? (source.dano ?? "2d6") : "",
-        tipo: t
-      }));
-      delete source.dano;
-      delete source.tipoDano;
-      delete source.tiposDano;
-    }
-    return super.migrateData(source);
-  }
 }
 
 /* ---------------------------- Equipamento ---------------------------------- */
@@ -209,23 +165,6 @@ export class EquipamentoData extends BaseItemData {
       custo: num(0, { min: 0 }),
       quantidade: num(1, { min: 0 })
     };
-  }
-
-  /** Migra defesas antigas e a parte "escudo", que virou mãos. */
-  static migrateData(source) {
-    if (source.parte === "escudo") source.parte = "maos";
-    const d = source.defesas;
-    if (d && !("categorias" in d)) {
-      source.defesas = {
-        categorias: {
-          fisico: d.fisico ?? 0,
-          energetico: d.energetico ?? 0,
-          mental: d.mental ?? 0
-        },
-        tipos: {}
-      };
-    }
-    return super.migrateData(source);
   }
 }
 
@@ -286,9 +225,6 @@ export class HabilidadeData extends BaseItemData {
         id: new fields.StringField({ required: true, initial: "" }),
         nome: new fields.StringField({ required: true, initial: "" })
       }), { initial: [] }),
-      // Vestigial: só a migração ainda lê este campo, para converter fichas
-      // anteriores à posição fixa. O custo em jogo vem de custoDaHabilidade.
-      custoXp: num(1, { min: 0 }),
       custoEstamina: num(0, { min: 0 }),
       custoMana: num(0, { min: 0 }),
       custoEnergia: num(0, { min: 0 }),
@@ -308,29 +244,12 @@ export class HabilidadeData extends BaseItemData {
     };
   }
 
-  /**
-   * Fichas anteriores à posição fixa: a vaga sai do custo já gravado. O
-   * divisor é 10 porque é a escala em que aquele custo foi escrito, e não a
-   * escala de hoje — uma habilidade que custava 30 era a terceira da fila,
-   * e passa a custar 3.
-   */
-  static migrateData(source) {
-    const ESCALA_ANTIGA = 10;
-    if (source.ordem === undefined) {
-      source.ordem = source.ehBase ? 0
-        : Math.max(1, Math.round((source.custoXp ?? ESCALA_ANTIGA) / ESCALA_ANTIGA));
-    }
-    return super.migrateData(source);
-  }
-
   prepareDerivedData() {
     this.pontosAumento = Math.max(0, (this.tier ?? 1) - 1);
     this.pontosUsados = (this.aumentos ?? []).reduce((t, a) => t + (a.pontos ?? 0), 0);
     this.pontosRestantes = Math.max(0, this.pontosAumento - this.pontosUsados);
-    // O custo é sempre derivado da posição e da curva do Caminho: o campo
-    // gravado só serve de memória para fichas antigas, que a migração já
-    // converteu. A curva é lida aqui, e não herdada do item de Caminho, porque
-    // os itens são preparados em ordem e o Caminho pode vir depois.
+    // A curva é lida aqui, e não herdada do item de Caminho, porque os itens
+    // são preparados em ordem e o Caminho pode vir depois.
     this.progressao = progressaoDoCaminho(this.parent?.actor, this.caminho);
     this.custoXp = custoDaHabilidade(this, this.progressao);
 
@@ -403,15 +322,6 @@ export class RunaData extends BaseItemData {
     };
   }
 
-  /** Runas de Morte antigas subjulgavam por definição do elemento. */
-  static migrateData(source) {
-    if (source.subjulgar === undefined && source.tipoRuna === "elemento"
-      && (PYRO.elementos?.[source.subtipo]?.subjulgar ?? source.subtipo === "morte")) {
-      source.subjulgar = true;
-    }
-    return super.migrateData(source);
-  }
-
   /** Elementos são verbais; formas e modificadores são gestos (somáticos). */
   get somatica() {
     return this.tipoRuna !== "elemento";
@@ -424,7 +334,6 @@ export class RunaData extends BaseItemData {
  * Uma frase rúnica salva. As Intenções são escolhidas a cada conjuração; os
  * escalonamentos entram como uma CÓPIA dos da runa no momento de salvar, e
  * ficam editáveis aqui — esta magia pode se comportar diferente da runa solta.
- * Magia salva sem cópia (antiga) continua lendo direto da runa.
  */
 export class MagiaData extends BaseItemData {
   static defineSchema() {
@@ -448,20 +357,29 @@ export class MagiaData extends BaseItemData {
   prepareDerivedData() {
     /*
      * O nome na referência é um retrato de quando a magia foi salva. Em
-     * memória ele acompanha a runa atual: renomear a runa reflete na lista
-     * do grimório e na ficha da magia na hora, mesmo em magia salva antes
-     * desta correção — e o _onUpdate da runa regrava o retrato no banco.
+     * memória ele acompanha a runa atual, para renomear a runa refletir na
+     * lista do grimório na hora; o _onUpdate da runa regrava o retrato.
      */
     const actor = this.parent?.actor;
     if (!actor) return;
     for (const ref of this.runas ?? []) {
-      const runa = ref.itemId ? actor.items.get(ref.itemId) : null;
+      const runa = actor.items.get(ref.itemId);
       if (runa?.name && ref.nome !== runa.name) ref.nome = runa.name;
     }
   }
 }
 
 /* ---------------------------- Caminho ---------------------------------------- */
+
+/**
+ * Rótulo curto de um caminho, para abas e cabeçalhos: a variação (raciais)
+ * ou o nome da profissão/classe, nunca o nome completo "Caminho do X".
+ */
+export function rotuloCurtoDoCaminho(caminho) {
+  const s = caminho.system;
+  const base = (s.ehRacial ? s.racaDetalhe : s.nomeCaminho)?.trim();
+  return base ? game.i18n.format("PYRO.CaminhoNome", { nome: base }) : caminho.name;
+}
 
 export class CaminhoData extends BaseItemData {
   static defineSchema() {
@@ -501,56 +419,11 @@ export class CaminhoData extends BaseItemData {
     };
   }
 
-  /** Migra tipos antigos (profissao/classe) e afinidades em texto livre. */
-  static migrateData(source) {
-    if (source.tipoCaminho !== undefined) {
-      source.ehRacial = source.tipoCaminho === "racial";
-      delete source.tipoCaminho;
-    }
-    // Elfo (Mago) e Elfo (especificar) viraram um preset só.
-    if (["elfoMago", "elfoOutro"].includes(source.raca)) source.raca = "elfo";
-    // Humano (Mago) e Humano (Feiticeiro) também: a escolha virou checkbox,
-    // então a capacidade que a raça dava é preservada aqui.
-    if (source.raca === "humanoMago") {
-      source.raca = "humano";
-      if (!source.usaMagia) source.usaMagia = true;
-    }
-    if (source.raca === "humanoFeiticeiro") {
-      source.raca = "humano";
-      if (!source.usaFeiticaria) source.usaFeiticaria = true;
-    }
-    if (source.raca && source.usaMagia === undefined) {
-      const preset = PYRO.racas[source.raca];
-      if (preset) {
-        source.usaMagia = preset.magia;
-        source.usaFeiticaria = preset.feiticos;
-        source.potencial = preset.potencial;
-      }
-    }
-    if (typeof source.afinidades === "string") {
-      const mapa = {
-        fogo: "fogo", agua: "aguaGelo", gelo: "aguaGelo", ar: "arVento",
-        vento: "arVento", pedra: "pedraTerra", terra: "pedraTerra",
-        raio: "raio", vida: "vida", morte: "morte", espaco: "espaco", mente: "mente"
-      };
-      source.afinidades = source.afinidades.split(",")
-        .map(t => t.trim()).filter(Boolean)
-        .map(t => {
-          const chave = mapa[t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")];
-          return chave ? { tipo: chave, outro: "" } : { tipo: "outro", outro: t };
-        });
-    }
-    return super.migrateData(source);
-  }
-
   prepareDerivedData() {
     /*
      * Em raça fechada o preset manda nos recursos, como já manda em magia e
-     * feitiçaria — não há checkbox para o jogador decidir. Derivar aqui
-     * também conserta ficha antiga, de antes do carimbo gravar a lista no
-     * item: o elfo de ontem volta a conceder Energia Natural sem precisar
-     * reescolher a raça. Raça aberta e caminho de classe seguem com o que
-     * está gravado.
+     * feitiçaria: não há checkbox para o jogador decidir. Raça aberta e
+     * caminho de classe seguem com o que está gravado.
      */
     if (this.ehRacial) {
       const preset = PYRO.racas?.[this.raca];
@@ -558,11 +431,9 @@ export class CaminhoData extends BaseItemData {
     }
 
     const actor = this.parent?.actor;
-    // XP gasta é a soma do custo das habilidades deste caminho. O vínculo
-    // aceita o id ou o nome, pra não quebrar fichas antigas.
+    // XP gasta é a soma do custo das habilidades deste caminho.
     const habilidades = actor?.items.filter(i =>
-      i.type === "habilidade"
-      && idDoCaminho(actor, i.system.caminho) === this.parent.id
+      i.type === "habilidade" && i.system.caminho === this.parent.id
     ) ?? [];
     /*
      * Lê a posição gravada em vez do custo derivado da habilidade: os itens

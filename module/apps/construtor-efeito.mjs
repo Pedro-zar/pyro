@@ -23,9 +23,6 @@ const TIPOS_DE_USO = ["magia", "runa", "feitico", "consumivel"];
 /** Tipos que podem receber um efeito preso ("só vale com a katana"). */
 const TIPOS_RESTRINGIVEIS = ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia", "runa"];
 
-/** Aumento antigo mirando a base digitada: na tela ele já aparece como bônus. */
-const ALVO_ANTIGO = /^system\.atributos\.(\w+)\.valor$/;
-
 /**
  * Lê um efeito gravado de volta para o estado do construtor — é o caminho da
  * edição. Cada pedaço volta para a linha que o criou: status vira Condição,
@@ -59,10 +56,7 @@ export function estadoDeEfeito(efeito) {
     mudancas.push({ categoria: "custo", alvo: c.chave, modo: "add", valor: String(c.valor) });
   }
   for (const ch of efeito.system?.changes ?? []) {
-    // Efeito antigo mirando .valor entra como .bonus, igual à aplicação.
-    const chave = ch.type === "add" && ALVO_ANTIGO.test(ch.key)
-      ? ch.key.replace(ALVO_ANTIGO, "system.atributos.$1.bonus")
-      : ch.key;
+    const chave = ch.key;
     const categoria = Object.entries(PYRO.alvosEfeito).find(([k, cfg]) =>
       !["condicao", "dano", "custo"].includes(k) && chave in (cfg.alvos ?? {}))?.[0];
     if (categoria) {

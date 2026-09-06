@@ -28,7 +28,7 @@
       <span class="secao-contagem numero">{{grupo.itens.length}}</span></h4>
     <ol class="lista-itens">
       {{#each grupo.itens as |item|}}
-      {{> "systems/pyro/templates/actor/partials/item-linha.hbs" linha=item}}
+      {{> "pyro.item-linha" linha=item}}
       {{/each}}
     </ol>
   </div>
@@ -36,7 +36,7 @@
   {{else}}
   <ol class="lista-itens">
     {{#each secao.itens as |item|}}
-    {{> "systems/pyro/templates/actor/partials/item-linha.hbs" linha=item}}
+    {{> "pyro.item-linha" linha=item}}
     {{/each}}
   </ol>
   {{/if}}

@@ -36,15 +36,15 @@
   {{/if}}
 
   {{#if system.temMagia}}
-  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.magias}}
-  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.runas}}
+  {{> "pyro.secao" secao=secoes.magias}}
+  {{> "pyro.secao" secao=secoes.runas}}
   {{/if}}
 
   {{#if system.temFeiticos}}
-  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.feiticos}}
+  {{> "pyro.secao" secao=secoes.feiticos}}
   {{/if}}
 
   {{#if system.temAbaCaminho}}
-  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.caminhoProprio}}
+  {{> "pyro.secao" secao=secoes.caminhoProprio}}
   {{/if}}
 </section>

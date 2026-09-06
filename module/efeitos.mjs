@@ -9,9 +9,9 @@
  */
 
 import { PYRO } from "./config.mjs";
+import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema } from "./sistema.mjs";
 
-const esc = s => Handlebars.escapeExpression(s ?? "");
 
 /* -------------------------------------------------------------------------- */
 /*  Efeitos restritos a itens                                                 */
@@ -38,10 +38,10 @@ export function efeitoValeParaItem(efeito, item) {
   const alvos = restricaoDoEfeito(efeito);
   if (!alvos.length) return true;
   if (!item) return false;
-  const nome = PYRO.normalizarNome(item.name);
+  const nome = PYRO.normalizarTexto(item.name);
   return alvos.some(a => a.tipo
     ? a.tipo === item.type
-    : (a.id === item.id || (!!a.nome && PYRO.normalizarNome(a.nome) === nome)));
+    : (a.id === item.id || (!!a.nome && PYRO.normalizarTexto(a.nome) === nome)));
 }
 
 /** Efeitos ativos do ator, incluindo os que estão presos a algum item. */

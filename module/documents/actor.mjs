@@ -1,10 +1,50 @@
 import { PYRO } from "../config.mjs";
 import { formulaTeste, formulaReacao, expandirAtributos } from "../dados.mjs";
 import { penalidadeExaustao, dicaExaustao, sincronizarSobrepeso } from "../efeitos.mjs";
-import { dialogoDoAtor } from "../tema.mjs";
+import { formularioDoAtor } from "../ui.mjs";
+import { htmlFalhaAutomatica, htmlResultadoND } from "../chat.mjs";
 import { SYSTEM_ID, flagsDoSistema } from "../sistema.mjs";
 
-const { DialogV2 } = foundry.applications.api;
+/* -------------------------------------------------------------------------- */
+/*  Diálogo de teste                                                          */
+/* -------------------------------------------------------------------------- */
+
+const campoNumero = (nome, chave, valor = 0, min = null) => `
+  <div class="form-group"><label>${game.i18n.localize(chave)}</label>
+    <input type="number" name="${nome}" value="${valor}"${min === null ? "" : ` min="${min}"`}></div>`;
+
+const campoCheckbox = (nome, chave, marcado = false) => `
+  <div class="form-group"><label>${game.i18n.localize(chave)}</label>
+    <input type="checkbox" name="${nome}"${marcado ? " checked" : ""}></div>`;
+
+/**
+ * Campos comuns a todo teste (bônus, vantagens, desvantagens, ND), com o
+ * aviso de exaustão no topo quando houver.
+ * @param {string} [opcoes.dica] linha de contexto antes dos campos.
+ * @param {string} [opcoes.extras] campos próprios do teste, no fim.
+ */
+function camposDeTeste(actor, { dica = "", extras = "" } = {}) {
+  const avisoExaustao = dicaExaustao(actor);
+  return `
+    ${avisoExaustao ? `<p class="hint">${avisoExaustao}</p>` : ""}
+    ${dica ? `<p class="hint">${dica}</p>` : ""}
+    ${campoNumero("bonus", "PYRO.Teste.Bonus")}
+    ${campoNumero("vantagem", "PYRO.Teste.Vantagem", 0, 0)}
+    ${campoNumero("desvantagem", "PYRO.Teste.Desvantagem", 0, 0)}
+    <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.ND")}</label>
+      <input type="number" name="nd" placeholder="—"></div>
+    ${extras}`;
+}
+
+/** Normaliza os números do formulário e desconta a exaustão do ator (SRD Atributos). */
+function aplicarExaustaoNoTeste(actor, opts) {
+  const pen = penalidadeExaustao(actor);
+  opts.bonus = (Number(opts.bonus) || 0) + pen.bonus;
+  opts.vantagem = Number(opts.vantagem) || 0;
+  opts.desvantagem = (Number(opts.desvantagem) || 0) + pen.desvantagem;
+}
+
+const sufixoND = nd => (nd ? ` (ND ${nd})` : "");
 
 export class PyroActor extends Actor {
   /**
@@ -177,70 +217,30 @@ export class PyroActor extends Actor {
     const label = game.i18n.localize(PYRO.atributos[chave]);
 
     let opts = { bonus: 0, vantagem: 0, desvantagem: 0, nd: null, passarLimites: false };
-    const pen = penalidadeExaustao(this);
-
     if (!rapido) {
-      const dica = dicaExaustao(this);
-      const conteudo = `
-        ${dica ? `<p class="hint">${dica}</p>` : ""}
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Bonus")}</label>
-          <input type="number" name="bonus" value="0"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Vantagem")}</label>
-          <input type="number" name="vantagem" value="0" min="0"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Desvantagem")}</label>
-          <input type="number" name="desvantagem" value="0" min="0"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.ND")}</label>
-          <input type="number" name="nd" placeholder="—"></div>
-        ${attr.acimaDoLimite ? `
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.PassarLimites")}</label>
-          <input type="checkbox" name="passarLimites"></div>` : ""}`;
-
-      const res = await DialogV2.prompt({
-        ...dialogoDoAtor(this),
-        window: { title: game.i18n.format("PYRO.Teste.Titulo", { atributo: label }) },
-        content: conteudo,
-        ok: {
-          label: game.i18n.localize("PYRO.Rolar"),
-          callback: (event, button) => new foundry.applications.ux.FormDataExtended(button.form).object
-        },
-        rejectClose: false
+      const extras = attr.acimaDoLimite
+        ? campoCheckbox("passarLimites", "PYRO.Teste.PassarLimites") : "";
+      const res = await formularioDoAtor(this, {
+        titulo: game.i18n.format("PYRO.Teste.Titulo", { atributo: label }),
+        conteudo: camposDeTeste(this, { extras })
       });
       if (!res) return;
       opts = { ...opts, ...res, nd: res.nd || null };
     }
+    aplicarExaustaoNoTeste(this, opts);
 
-    // Exaustão: -1 por nível e uma desvantagem a cada 5 níveis.
-    opts.bonus = (Number(opts.bonus) || 0) + pen.bonus;
-    opts.vantagem = Number(opts.vantagem) || 0;
-    opts.desvantagem = (Number(opts.desvantagem) || 0) + pen.desvantagem;
-
-    // Passar seus Limites: usa o atributo cheio; o corpo sofre um rebote [DEFINIR no SRD].
+    // Passar seus Limites: usa o atributo cheio. O rebote (1 exaustão por
+    // rolagem, SRD Atributos) ainda não é aplicado aqui.
     const valor = opts.passarLimites ? attr.total : attr.efetivo;
     const formula = formulaTeste(valor, opts);
-
-    const flavorNd = opts.nd ? ` (ND ${opts.nd})` : "";
-    const flavor = game.i18n.format("PYRO.Chat.TesteDe", { atributo: label }) + flavorNd;
-
-    // Pool reduzida a 0 dados por desvantagem: falha automática (SRD §6).
-    if (formula === null) {
-      return ChatMessage.create({
-        speaker: ChatMessage.getSpeaker({ actor: this }),
-        flavor,
-        content: `<p class="pyro-falha-auto">${game.i18n.localize("PYRO.Chat.FalhaAutomatica")}</p>`
-      });
-    }
+    const flavor = game.i18n.format("PYRO.Chat.TesteDe", { atributo: label }) + sufixoND(opts.nd);
+    if (formula === null) return this.#falhaAutomatica(flavor);
 
     const roll = await new Roll(formula).evaluate();
-    let content = "";
-    if (opts.nd) {
-      const sucesso = roll.total >= Number(opts.nd);
-      content = `<p class="pyro-resultado ${sucesso ? "sucesso" : "falha"}">
-        ${game.i18n.localize(sucesso ? "PYRO.Chat.Sucesso" : "PYRO.Chat.Falha")}</p>`;
-    }
+    let content = opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : "";
     if (opts.passarLimites) {
       content += `<p class="pyro-aviso">${game.i18n.localize("PYRO.Chat.PassouLimites")}</p>`;
     }
-
     return roll.toMessage({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor,
@@ -272,64 +272,41 @@ export class PyroActor extends Actor {
     const chaves = tipo === "esquiva"
       ? { titulo: "PYRO.Esquivar", flavor: "PYRO.Chat.Esquiva", flavorCobertura: "PYRO.Chat.EsquivaCobertura" }
       : { titulo: "PYRO.Bloquear", flavor: "PYRO.Chat.Bloqueio", flavorCobertura: "PYRO.Chat.BloqueioCobertura" };
-    const pen = penalidadeExaustao(this);
     let opts = { bonus: 0, vantagem: 0, desvantagem: 0, nd: null, cobertura };
 
     if (!rapido) {
-      const dica = dicaExaustao(this);
-      const conteudo = `
-        ${dica ? `<p class="hint">${dica}</p>` : ""}
-        <p class="hint">${game.i18n.format("PYRO.Reacao.Base", { formula: this.system[tipo] || "0" })}</p>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Bonus")}</label>
-          <input type="number" name="bonus" value="0"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Vantagem")}</label>
-          <input type="number" name="vantagem" value="0" min="0"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Desvantagem")}</label>
-          <input type="number" name="desvantagem" value="0" min="0"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.ND")}</label>
-          <input type="number" name="nd" placeholder="—"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Reacao.Cobertura")}</label>
-          <input type="checkbox" name="cobertura" ${cobertura ? "checked" : ""}></div>`;
-
-      const res = await DialogV2.prompt({
-        ...dialogoDoAtor(this),
-        window: { title: game.i18n.localize(chaves.titulo) },
-        content: conteudo,
-        ok: {
-          label: game.i18n.localize("PYRO.Rolar"),
-          callback: (event, button) => new foundry.applications.ux.FormDataExtended(button.form).object
-        },
-        rejectClose: false
+      const res = await formularioDoAtor(this, {
+        titulo: game.i18n.localize(chaves.titulo),
+        conteudo: camposDeTeste(this, {
+          dica: game.i18n.format("PYRO.Reacao.Base", { formula: this.system[tipo] || "0" }),
+          extras: campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura)
+        })
       });
       if (!res) return;
       opts = { ...opts, ...res, nd: res.nd || null, cobertura: !!res.cobertura };
     }
-
-    // Exaustão: -1 por nível e uma desvantagem a cada 5, como em todo teste.
-    opts.bonus = (Number(opts.bonus) || 0) + pen.bonus;
-    opts.vantagem = Number(opts.vantagem) || 0;
-    opts.desvantagem = (Number(opts.desvantagem) || 0) + pen.desvantagem;
+    aplicarExaustaoNoTeste(this, opts);
 
     const formula = formulaReacao(this.system[tipo], cfg.faces, opts);
     const flavor = game.i18n.localize(opts.cobertura ? chaves.flavorCobertura : chaves.flavor)
-      + (opts.nd ? ` (ND ${opts.nd})` : "");
-    const speaker = ChatMessage.getSpeaker({ actor: this });
-
-    if (formula === null) {
-      return ChatMessage.create({
-        speaker, flavor,
-        content: `<p class="pyro-falha-auto">${game.i18n.localize("PYRO.Chat.FalhaAutomatica")}</p>`
-      });
-    }
+      + sufixoND(opts.nd);
+    if (formula === null) return this.#falhaAutomatica(flavor);
 
     const roll = await new Roll(expandirAtributos(formula), this.getRollData()).evaluate();
-    let content;
-    if (opts.nd) {
-      const sucesso = roll.total >= Number(opts.nd);
-      content = `<p class="pyro-resultado ${sucesso ? "sucesso" : "falha"}">
-        ${game.i18n.localize(sucesso ? "PYRO.Chat.Sucesso" : "PYRO.Chat.Falha")}</p>`;
-    }
-    return roll.toMessage({ speaker, flavor, content });
+    return roll.toMessage({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      flavor,
+      content: opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : undefined
+    });
+  }
+
+  /** Pool reduzida a zero dados por desvantagem: falha sem rolar (SRD §6). */
+  #falhaAutomatica(flavor) {
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      flavor,
+      content: htmlFalhaAutomatica()
+    });
   }
 
   /* ---------------------------------------------------------------------- */

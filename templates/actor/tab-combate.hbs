@@ -60,9 +60,9 @@
     </div>
   </div>
 
-  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.favoritos}}
+  {{> "pyro.secao" secao=secoes.favoritos}}
 
   {{#if system.temTecnicas}}
-  {{> "systems/pyro/templates/actor/partials/secao.hbs" secao=secoes.tecnicas}}
+  {{> "pyro.secao" secao=secoes.tecnicas}}
   {{/if}}
 </section>

@@ -5,6 +5,8 @@ import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
 import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDoEfeito } from "../efeitos.mjs";
 import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
+import { enriquecer } from "../ui.mjs";
+import { rotuloCurtoDoCaminho } from "../data/item-data.mjs";
 
 /**
  * O que fazer com um drop que caiu em cima de uma linha do inventário.
@@ -27,37 +29,27 @@ export function planoDeDrop(dados, atorUuid) {
  * Agrupa as habilidades por caminho, para a lista da ficha.
  *
  * Os grupos saem na ordem da lista de caminhos, e dentro de cada um as
- * habilidades seguem a posição no caminho — a vaga de XP: base (vaga 0)
- * primeiro, depois 1, 2, 3... que é a ordem em que foram pegas. "Geral" e
- * habilidades de caminho apagado (agrupadas pelo nome que ficou gravado)
- * fecham a lista. Caminho sem habilidade não vira cabeçalho vazio.
+ * habilidades seguem a vaga de XP: base (vaga 0) primeiro, depois 1, 2, 3.
+ * Habilidades gerais e as que ficaram sem caminho (o item foi apagado) fecham
+ * a lista, cada grupo com o próprio título. Caminho sem habilidade não vira
+ * cabeçalho vazio.
  */
 export function gruposDeHabilidades(caminhos, habilidades) {
   const porVaga = (a, b) => (a.system.ordem ?? 0) - (b.system.ordem ?? 0)
     || a.name.localeCompare(b.name);
-  const donoDe = h => caminhos.find(c => c.id === h.system.caminho)
-    ?? caminhos.find(c => c.name === h.system.caminho);
 
-  const grupos = caminhos.map(c => ({ chave: c.id, titulo: c.name, ehGeral: false, itens: [] }));
-  const geral = { chave: "geral", titulo: null, ehGeral: true, itens: [] };
-  const orfaos = new Map();
+  const grupos = caminhos.map(c => ({ chave: c.id, titulo: c.name, itens: [] }));
+  const geral = { chave: "geral", titulo: "PYRO.CaminhoGeral", itens: [] };
+  const semCaminho = { chave: "semCaminho", titulo: "PYRO.CaminhoRemovido", itens: [] };
 
   for (const h of habilidades) {
-    const dono = donoDe(h);
-    if (dono) {
-      grupos.find(g => g.chave === dono.id).itens.push(h);
-    } else if (!h.system.caminho || h.system.caminho === "geral") {
-      geral.itens.push(h);
-    } else {
-      if (!orfaos.has(h.system.caminho)) {
-        orfaos.set(h.system.caminho,
-          { chave: h.system.caminho, titulo: h.system.caminho, ehGeral: false, itens: [] });
-      }
-      orfaos.get(h.system.caminho).itens.push(h);
-    }
+    const dono = grupos.find(g => g.chave === h.system.caminho);
+    if (dono) dono.itens.push(h);
+    else if (!h.system.caminho || h.system.caminho === "geral") geral.itens.push(h);
+    else semCaminho.itens.push(h);
   }
 
-  const todos = [...grupos, ...orfaos.values(), geral];
+  const todos = [...grupos, semCaminho, geral];
   for (const g of todos) g.itens.sort(porVaga);
   return todos.filter(g => g.itens.length);
 }
@@ -301,10 +293,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
     const habilidade = (item, agrupada = false) => {
       const s = item.system;
-      const caminho = actor.items.get(s.caminho)
-        ?? actor.items.find(i => i.type === "caminho" && i.name === s.caminho);
-      const caminhoNome = caminho?.name
-        ?? (s.caminho === "geral" ? loc("PYRO.CaminhoGeral") : s.caminho);
+      const caminhoNome = actor.items.get(s.caminho)?.name
+        ?? loc(s.caminho === "geral" ? "PYRO.CaminhoGeral" : "PYRO.CaminhoRemovido");
       // A vaga de XP no caminho: hoje mora só no resumo, a linha ficou limpa.
       const posicao = s.ehBase ? loc("PYRO.Item.BaseTag") : `#${s.ordem}`;
       // Custos por extenso ("3 estamina, 1 ação"): abreviação era ruim de ler.
@@ -359,7 +349,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const habilidadesGrupos = [];
     for (const g of gruposHab) {
       habilidadesGrupos.push({
-        titulo: g.ehGeral ? loc("PYRO.CaminhoGeral") : g.titulo,
+        titulo: loc(g.titulo),
         itens: await this.#linhas(g.itens, i => habilidade(i, true))
       });
     }
@@ -411,8 +401,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // Cores dos elementos das runas: uma vira friso, várias viram gradiente.
       const cores = [];
       for (const ref of item.system.runas) {
-        const runa = actor.items.get(ref.itemId)
-          ?? actor.items.find(i => i.type === "runa" && i.name === ref.nome);
+        const runa = actor.items.get(ref.itemId);
         const sub = runa?.system.tipoRuna === "elemento" ? runa.system.subtipo : null;
         if (sub && PYRO.elementos[sub] && !cores.includes(sub)) cores.push(sub);
       }
@@ -605,16 +594,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           total: actor.system.defesas.totais[t]
         }))
       })),
-      biografiaHTML: await foundry.applications.ux.TextEditor.implementation.enrichHTML(
-        actor.system.biografia, { relativeTo: actor, secrets: actor.isOwner }
-      ),
+      biografiaHTML: await enriquecer(actor.system.biografia, actor),
       // Campos da aba Notas, todos enriquecidos de uma vez.
       notas: await this.#notasEnriquecidas(),
-      notasHTML: actor.type === "npc"
-        ? await foundry.applications.ux.TextEditor.implementation.enrichHTML(
-            actor.system.notas, { relativeTo: actor, secrets: actor.isOwner }
-          )
-        : ""
+      notasHTML: actor.type === "npc" ? await enriquecer(actor.system.notas, actor) : ""
     });
     return context;
   }
@@ -746,9 +729,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   async #notasEnriquecidas() {
     const actor = this.actor;
     const s = actor.system;
-    const enrich = t => foundry.applications.ux.TextEditor.implementation.enrichHTML(
-      t ?? "", { relativeTo: actor, secrets: actor.isOwner }
-    );
+    const enrich = texto => enriquecer(texto, actor);
     return {
       biografia: await enrich(s.biografia),
       pessoas: await enrich(s.pessoas),
@@ -937,7 +918,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    * detalhes (colunas), linha2, resumo (pares label/valor) e flags de equipar.
    */
   async #linhas(itens, montar) {
-    const enrich = foundry.applications.ux.TextEditor.implementation.enrichHTML;
     const usaveis = ["arma", "consumivel", "habilidade", "feitico", "magia", "runa"];
     return Promise.all(itens.map(async item => ({
       id: item.id,
@@ -951,9 +931,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       favoritavel: ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia"]
         .includes(item.type),
       favorito: !!item.getFlag(SYSTEM_ID, "favorito"),
-      descricaoHTML: await enrich(item.system.descricao ?? "", {
-        relativeTo: item, secrets: item.isOwner
-      }),
+      descricaoHTML: await enriquecer(item.system.descricao, item),
       ...montar(item)
     })));
   }

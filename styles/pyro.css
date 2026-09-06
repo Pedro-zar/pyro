@@ -263,20 +263,6 @@
 .pyro .alerta.perigo { color: var(--pyro-perigo); background: color-mix(in srgb, var(--pyro-perigo) 12%, transparent); }
 .pyro .alerta.aviso { color: var(--pyro-aviso); background: color-mix(in srgb, var(--pyro-aviso) 12%, transparent); }
 
-/* ---------- Rodapé fixo ----------------------------------------------------- */
-
-.pyro .ficha-rodape {
-  display: flex; align-items: center; gap: var(--pyro-e-4);
-  padding: var(--pyro-e-2) var(--pyro-e-3);
-  margin-top: auto;
-  font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
-  background: var(--pyro-painel); border: 1px solid var(--pyro-borda);
-  border-radius: var(--pyro-r-md);
-}
-.pyro .ficha-rodape .valor { color: var(--pyro-texto); font-weight: 600; }
-.pyro .ficha-rodape .perigo { color: var(--pyro-perigo); }
-.pyro .ficha-rodape .rodape-dir { margin-left: auto; }
-
 /* ---------- Atributos (faixa fixa, fora das abas) -------------------------- */
 
 .pyro .painel-atributos {
@@ -364,7 +350,6 @@
 .pyro .colunas .lateral { flex: 2; }
 .pyro .painel h3 { margin: 0; border: none; font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.05em; }
 
-
 .pyro .botoes-reacao { display: flex; flex-wrap: wrap; gap: 4px; }
 .pyro .botoes-reacao button { font-size: 0.75rem; padding: 3px 8px; line-height: 1.4; }
 .pyro .botoes-reacao.vontade button { width: 2.2rem; font-weight: 700; }
@@ -376,12 +361,7 @@
   min-width: 1.8rem; text-align: center; font-weight: 700; font-size: 1rem;
   color: var(--pyro-texto-2);
 }
-.pyro .exaustao-nivel.com-exaustao { color: var(--pyro-perigo); }
-
-.pyro .stats-passivos { font-size: 0.8rem; }
-.pyro .stats-passivos p { margin: 0.15rem 0; }
-
-.pyro .perigo { color: var(--pyro-perigo); font-weight: 600; }
+.pyro .exaustao-nivel.com-exaustao { color: var(--pyro-perigo); }.pyro .perigo { color: var(--pyro-perigo); font-weight: 600; }
 
 /* ---------- Abas ----------------------------------------------------------- */
 
@@ -560,17 +540,11 @@
 .pyro .detalhes {
   min-width: 0; display: flex; align-items: center; gap: 0.5rem;
 }
-.pyro .acoes-item { flex: none; display: flex; align-items: center; }
-
 .pyro .detalhe {
   font-size: 0.72rem; opacity: 0.75;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0;
-}
-/* Caminho mostra o nome inteiro e empurra o resto; corta só no aperto */
-.pyro .detalhe.col-caminho { flex: 0 1 auto; }
-.pyro .detalhe.col-parte { flex: 0 1 auto; }
-.pyro .detalhe.col-dano { flex: 0 1 auto; }
-.pyro .detalhe.col-custo { flex: 0 1 auto; }
+}.pyro .detalhe.col-parte { flex: 0 1 auto; }
+
 /* Habilidades: coluna única de detalhes por extenso depois do nome. */
 .pyro .detalhe.col-detalhes { flex: 1 1 auto; }
 /* Coluna curta do miolo com largura fixa: "Tipo" da legenda alinha com a linha. */
@@ -580,18 +554,13 @@
 .pyro .cauda {
   display: grid; grid-auto-flow: column; align-items: center; gap: 0.5rem;
 }
-.pyro .cauda .detalhe { text-align: right; }
-.pyro .cauda .col-categoria { width: 4.6rem; }
-.pyro .cauda .col-tier { width: 1.8rem; }
-.pyro .cauda .col-curto { width: 4.5rem; }
+.pyro .cauda .detalhe { text-align: right; }.pyro .cauda .col-curto { width: 4.5rem; }
 .pyro .cauda .col-xp { width: 4.6rem; }
 /* Espaçador da legenda: reserva a largura dos ícones (estrela, equipar). */
 .pyro .cauda .leg-icones-1 { width: 1.9rem; }
-.pyro .cauda .leg-icones-2 { width: 4.3rem; }
+
 /* Linha sem botão de equipar numa lista que tem: o espaço fica reservado. */
 .pyro .cauda .icone-vazio { width: 1.9rem; }
-.pyro .cauda .col-qtd { width: 5.5rem; }
-
 .pyro .linha-item .linha-2 {
   display: flex; gap: 0.9rem; padding-left: 2rem; opacity: 0.85;
 }
@@ -657,9 +626,6 @@
   padding: 4px 12px; font-weight: 600;
 }
 .pyro button.destaque:disabled { opacity: 0.4; cursor: not-allowed; }
-
-.pyro .campos-item { display: flex; gap: 0.6rem; flex-wrap: wrap; align-items: flex-end; }
-.pyro .runas-magia { margin: 0.2rem 0 0; padding-left: 1rem; font-size: 0.8rem; text-transform: none; }
 
 /* ---------- Conjurador ------------------------------------------------------ */
 
@@ -1045,15 +1011,6 @@
 .pyro-resultado.sucesso { color: var(--pyro-sucesso); font-weight: 700; }
 .pyro-resultado.falha, .pyro-falha-auto { color: var(--pyro-perigo); font-weight: 700; }
 .pyro-aviso { color: var(--pyro-aviso); font-size: 0.85rem; }
-
-/* ---------- Ajustes: raça, defesas em colunas, guia de ações --------------- */
-
-.pyro .raca-tag {
-  font-size: 0.75rem; opacity: 0.75; white-space: nowrap;
-  padding: 2px 8px; border: 1px solid var(--pyro-borda); border-radius: 999px;
-  align-self: center;
-}
-
 .pyro .defesas-colunas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
 .pyro .def-col { display: flex; flex-direction: column; gap: 0.3rem; }
 .pyro .def {
@@ -1092,15 +1049,7 @@
 
 /* ---------- Ajustes: tipos de dano, scalings, tamanho fixo ------------------ */
 
-.pyro .valor-texto { font-size: 0.95rem; font-weight: 600; padding: 2px 0; }
-
-.pyro .tipos-dano .lista-tipos { display: flex; flex-direction: column; gap: 2px; }
-.pyro .tipos-dano .linha-tipo { display: flex; align-items: center; gap: 2px; }
-.pyro .tipos-dano select { width: 8rem; }
-.pyro .tipos-dano > span { display: flex; align-items: center; gap: 4px; }
-
-.pyro .bloco-defesas { flex-basis: 100%; }
-.pyro .grade-def-equip {
+.pyro .valor-texto { font-size: 0.95rem; font-weight: 600; padding: 2px 0; }.pyro .grade-def-equip {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.3rem 0.6rem;
 }
 .pyro .grade-def-equip label {
@@ -1132,23 +1081,10 @@
   display: grid; grid-template-columns: 10rem 1fr 1.9rem;
   gap: 4px; align-items: center; margin-top: 2px;
 }
-.pyro .linha-afinidade input[hidden] { display: none; }
-
-.pyro .efeitos-grupo + .efeitos-grupo, .pyro .efeitos-item { margin-top: 0.5rem; }
-.pyro li.efeito-inativo { opacity: 0.55; }
-.pyro .efeitos-item .nome-item { cursor: default; }
-
-/* ---------- Ajustes: danos múltiplos, checkboxes, configurações ------------- */
-
-.pyro .campos-item > .campo { min-width: 0; }
-.pyro .nome-auto {
+.pyro .linha-afinidade input[hidden] { display: none; }.pyro .nome-auto {
   flex: 1; font-size: 1.3rem; font-weight: 600;
   border-bottom: 2px solid var(--pyro-borda); padding-bottom: 2px;
-}
-
-.pyro .lista-danos { flex-basis: 100%; }
-.pyro .lista-danos > span { display: flex; align-items: center; gap: 4px; }
-.pyro .linha-dano {
+}.pyro .linha-dano {
   display: grid; grid-template-columns: 1fr 9rem 1.9rem;
   gap: 4px; align-items: center; margin-top: 2px;
 }
@@ -1366,7 +1302,6 @@
 .pyro-chat .sub-nulo { font-size: 0.72rem; opacity: 0.55; }
 .pyro-chat .sub-legenda { margin: 0.35rem 0 0; font-size: 0.68rem; opacity: 0.7; }
 
-
 /* ==========================================================================
    Ponto de quebra: a ficha abre em 740px, mas precisa continuar utilizável
    encostada ao lado do mapa. Abaixo de 580px o layout se reorganiza.
@@ -1396,8 +1331,6 @@
   .pyro nav.tabs > * { padding: var(--pyro-e-2); }
   .pyro nav.tabs > *:not(.active) span { display: none; }
 
-  .pyro .ficha-rodape { flex-wrap: wrap; gap: var(--pyro-e-2); }
-
   /* Notas em coluna única. */
   .pyro .notas-grade { grid-template-columns: 1fr; }
 }
@@ -1407,12 +1340,7 @@
   background: var(--pyro-realce); border: 1px solid var(--pyro-borda);
   border-radius: var(--pyro-r-sm); color: var(--pyro-texto);
   font-size: var(--pyro-t-xs); text-align: right;
-}
-
-/* ---------- Botão principal de seção --------------------------------------- */
-
-.pyro .acao-secao { display: flex; }
-.pyro .botao-principal {
+}.pyro .botao-principal {
   display: inline-flex; align-items: center; gap: var(--pyro-e-2);
   padding: var(--pyro-e-2) var(--pyro-e-4);
   font-family: var(--pyro-fonte-display); font-size: var(--pyro-t-sm);
@@ -1423,7 +1351,6 @@
 }
 .pyro .botao-principal:hover { background: var(--pyro-acento-alto); }
 .pyro .botao-principal:disabled { opacity: 0.45; cursor: not-allowed; }
-
 
 /* ==========================================================================
    Detalhes rúnicos — a camada de identidade da ficha.
