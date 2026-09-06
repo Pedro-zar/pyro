@@ -4,6 +4,7 @@ import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeCusto, custoAjustado,
   aplicarExaustao, penalidadeExaustao
 } from "./efeitos.mjs";
+import { flagsDoSistema } from "./sistema.mjs";
 
 const esc = s => Handlebars.escapeExpression(s);
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
@@ -597,7 +598,7 @@ export async function conjurar(actor, escolhas, {
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<div class="pyro-chat">${partes.join("")}</div>`,
     rolls,
-    flags: { pyro: { danos, cura: totalCura, variaveis } },
+    flags: flagsDoSistema({ danos, cura: totalCura, variaveis }),
     sound: CONFIG.sounds.dice
   });
 }

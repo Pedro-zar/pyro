@@ -4,6 +4,7 @@ import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
 import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDoEfeito } from "../efeitos.mjs";
 import { selosDePoder, pintarTema } from "../tema.mjs";
+import { SYSTEM_ID, caminho } from "../sistema.mjs";
 
 /**
  * O que fazer com um drop que caiu em cima de uma linha do inventário.
@@ -103,15 +104,15 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    * conforme o personagem, o que evita a ficha mudar de forma o tempo todo.
    */
   static PARTS = {
-    header: { template: "systems/pyro/templates/actor/header.hbs" },
-    atributos: { template: "systems/pyro/templates/actor/atributos.hbs" },
+    header: { template: caminho("templates/actor/header.hbs") },
+    atributos: { template: caminho("templates/actor/atributos.hbs") },
     tabs: { template: "templates/generic/tab-navigation.hbs" },
-    combate: { template: "systems/pyro/templates/actor/tab-combate.hbs" },
-    poderes: { template: "systems/pyro/templates/actor/tab-poderes.hbs" },
-    inventario: { template: "systems/pyro/templates/actor/tab-inventario.hbs" },
-    progressao: { template: "systems/pyro/templates/actor/tab-progressao.hbs" },
-    notas: { template: "systems/pyro/templates/actor/tab-notas.hbs" },
-    efeitos: { template: "systems/pyro/templates/actor/tab-efeitos.hbs" }
+    combate: { template: caminho("templates/actor/tab-combate.hbs") },
+    poderes: { template: caminho("templates/actor/tab-poderes.hbs") },
+    inventario: { template: caminho("templates/actor/tab-inventario.hbs") },
+    progressao: { template: caminho("templates/actor/tab-progressao.hbs") },
+    notas: { template: caminho("templates/actor/tab-notas.hbs") },
+    efeitos: { template: caminho("templates/actor/tab-efeitos.hbs") }
   };
 
   static TABS = {
@@ -481,7 +482,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
      */
     const favoritaveis = ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia"];
     const favIds = new Set(actor.items
-      .filter(i => favoritaveis.includes(i.type) && i.getFlag("pyro", "favorito"))
+      .filter(i => favoritaveis.includes(i.type) && i.getFlag(SYSTEM_ID, "favorito"))
       .map(i => i.id));
     const favoritos = [
       ...tecnicas, ...habilidades, ...habilidadesCaminho, ...feiticos, ...magias,
@@ -738,7 +739,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** Favorito: o item passa a aparecer também na seção Favoritos, em Combate. */
   static async #alternarFavorito(event, target) {
     const item = this.#getItem(target);
-    if (item) await item.setFlag("pyro", "favorito", !item.getFlag("pyro", "favorito"));
+    if (item) await item.setFlag(SYSTEM_ID, "favorito", !item.getFlag(SYSTEM_ID, "favorito"));
   }
 
   /** Enriquece os campos de texto da aba Notas. */
@@ -809,7 +810,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** Clique num selo: troca o tema. No selo já ativo do mago, abre as cores. */
   static async #escolherVocacao(event, target) {
     const chave = target.dataset.vocacao;
-    if (chave !== this._vocacaoAtiva) return this.actor.setFlag("pyro", "tema", chave);
+    if (chave !== this._vocacaoAtiva) return this.actor.setFlag(SYSTEM_ID, "tema", chave);
     // Segundo clique no mago: uma amostra por elemento de afinidade. Abrir e
     // fechar é só uma classe, sem re-renderizar a ficha inteira.
     const cores = this.element.querySelector(".cores-vocacao");
@@ -819,10 +820,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** Amostra de elemento: define a cor do selo do mago, ou volta à automática. */
   static async #escolherCorElemento(event, target) {
     const elemento = target.dataset.elemento;
-    if (elemento === this.actor.getFlag("pyro", "temaCor")) {
-      return this.actor.unsetFlag("pyro", "temaCor");
+    if (elemento === this.actor.getFlag(SYSTEM_ID, "temaCor")) {
+      return this.actor.unsetFlag(SYSTEM_ID, "temaCor");
     }
-    await this.actor.setFlag("pyro", "temaCor", elemento);
+    await this.actor.setFlag(SYSTEM_ID, "temaCor", elemento);
   }
 
   /**
@@ -949,7 +950,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // Favoritável = o que se usa ou equipa em combate (runa e caminho não).
       favoritavel: ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia"]
         .includes(item.type),
-      favorito: !!item.getFlag("pyro", "favorito"),
+      favorito: !!item.getFlag(SYSTEM_ID, "favorito"),
       descricaoHTML: await enrich(item.system.descricao ?? "", {
         relativeTo: item, secrets: item.isOwner
       }),

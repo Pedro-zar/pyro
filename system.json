@@ -1,7 +1,7 @@
 {
-  "id": "pyro",
-  "title": "PYRO",
-  "description": "Sistema PYRO",
+  "id": "pyro-dev",
+  "title": "PYRO Dev",
+  "description": "Sistema PYRO (desenvolvimento)",
   "version": "0.3.0",
   "compatibility": {
     "minimum": "14",
@@ -53,7 +53,7 @@
       "label": "Itens",
       "path": "packs/itens",
       "type": "Item",
-      "system": "pyro",
+      "system": "pyro-dev",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"

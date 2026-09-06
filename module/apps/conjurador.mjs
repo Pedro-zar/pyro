@@ -1,6 +1,7 @@
 import { PYRO } from "../config.mjs";
 import { calcular, conjurar, previaRuna } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
+import { caminho } from "../sistema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -46,7 +47,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   };
 
   static PARTS = {
-    form: { template: "systems/pyro/templates/apps/conjurador.hbs" }
+    form: { template: caminho("templates/apps/conjurador.hbs") }
   };
 
   /* ---------------------------------------------------------------------- */

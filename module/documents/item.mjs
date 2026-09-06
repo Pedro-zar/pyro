@@ -8,6 +8,7 @@ import {
 import { formulaPool } from "../dados.mjs";
 import { proximaOrdem, idDoCaminho } from "../data/item-data.mjs";
 import { dialogoDoAtor } from "../tema.mjs";
+import { flagsDe, flagsDoSistema } from "../sistema.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -71,7 +72,7 @@ export class PyroItem extends Item {
 
   /** Efeitos marcados como "de uso": vão para o alvo, não para quem carrega. */
   get efeitosDeUso() {
-    return this.effects.filter(e => e.flags?.pyro?.deUso && !e.disabled);
+    return this.effects.filter(e => flagsDe(e)?.deUso && !e.disabled);
   }
 
   /** Bloco de botões de efeito de uso no card do chat. */
@@ -571,7 +572,7 @@ export class PyroItem extends Item {
       content: `<div class="pyro-chat">${partes.join("")}</div>`,
       rolls,
       // O menu do chat usa estas flags: dano separado por tipo, sem o teste de mira.
-      flags: { pyro: { danos, cura: 0 } },
+      flags: flagsDoSistema({ danos, cura: 0 }),
       sound: CONFIG.sounds.dice
     });
   }
@@ -658,7 +659,7 @@ export class PyroItem extends Item {
       </div>`,
       rolls: [roll],
       // O rodapé do card decide: o valor pode virar cura ou estamina.
-      flags: { pyro: { danos: [], cura: roll.total } },
+      flags: flagsDoSistema({ danos: [], cura: roll.total }),
       sound: CONFIG.sounds.dice
     });
   }
@@ -708,7 +709,7 @@ export class PyroItem extends Item {
         </div>`,
         rolls: [roll],
         // Sem tipo definido: o rodapé oferece dano (sem defesa), cura e estamina.
-        flags: { pyro: { danos: [{ tipo: "", total: roll.total }], cura: roll.total } },
+        flags: flagsDoSistema({ danos: [{ tipo: "", total: roll.total }], cura: roll.total }),
         sound: CONFIG.sounds.dice
       });
     }
@@ -740,7 +741,7 @@ export class PyroItem extends Item {
           ${this.#efeitosHTML()}
         </div>`,
         rolls: [roll],
-        flags: { pyro: { danos: [{ tipo: "", total: roll.total }], cura: roll.total } },
+        flags: flagsDoSistema({ danos: [{ tipo: "", total: roll.total }], cura: roll.total }),
         sound: CONFIG.sounds.dice
       });
     }

@@ -1,4 +1,5 @@
 import { PYRO } from "../config.mjs";
+import { SYSTEM_ID, caminho } from "../sistema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -27,14 +28,14 @@ export class ConfigElementosApp extends HandlebarsApplicationMixin(ApplicationV2
   };
 
   static PARTS = {
-    form: { template: "systems/pyro/templates/apps/config-magia.hbs" }
+    form: { template: caminho("templates/apps/config-magia.hbs") }
   };
 
   /** Cópia de trabalho: só grava no submit. */
   #dados = null;
 
   #carregar() {
-    this.#dados ??= foundry.utils.deepClone(game.settings.get("pyro", "elementos"));
+    this.#dados ??= foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "elementos"));
     return this.#dados;
   }
 
@@ -108,7 +109,7 @@ export class ConfigElementosApp extends HandlebarsApplicationMixin(ApplicationV2
   }
 
   static async #salvar() {
-    await game.settings.set("pyro", "elementos", this.#capturar());
+    await game.settings.set(SYSTEM_ID, "elementos", this.#capturar());
     ui.notifications.info(game.i18n.localize("PYRO.Config.Salvo"));
   }
 }

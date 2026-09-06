@@ -1,4 +1,5 @@
 import { PYRO } from "./config.mjs";
+import { SYSTEM_ID } from "./sistema.mjs";
 
 /**
  * O tema da ficha num lugar só, para a ficha do ator, as fichas dos itens
@@ -23,7 +24,7 @@ export function selosDePoder(actor) {
   if (sys.temMagia) {
     // Cor escolhida à mão, quando ainda é uma afinidade válida. Senão a
     // primeira afinidade, e por último o acento padrão do sistema.
-    const escolhida = actor.getFlag("pyro", "temaCor");
+    const escolhida = actor.getFlag(SYSTEM_ID, "temaCor");
     const elemento = elementos.includes(escolhida)
       ? escolhida
       : (sys.afinidadesLista?.[0]?.cor ?? null);
@@ -45,7 +46,7 @@ export function selosDePoder(actor) {
     selos.push({ chave: "fisico", cor: "var(--pyro-vontade)", label: loc("PYRO.Vocacao.fisico") });
   }
 
-  const escolhido = actor.getFlag("pyro", "tema");
+  const escolhido = actor.getFlag(SYSTEM_ID, "tema");
   const principal = selos.find(s => s.chave === escolhido) ?? selos[0] ?? null;
   for (const selo of selos) {
     selo.ativo = selo === principal;
@@ -55,7 +56,7 @@ export function selosDePoder(actor) {
     );
   }
 
-  const corAtual = actor.getFlag("pyro", "temaCor");
+  const corAtual = actor.getFlag(SYSTEM_ID, "temaCor");
   const coresElemento = principal?.chave === "mago"
     ? elementos.map(chave => ({
         chave,

@@ -1,6 +1,7 @@
 import { PYRO } from "../config.mjs";
 import { variaveisDoItem } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
+import { caminho, flagsDe, flagsDoSistema } from "../sistema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -37,7 +38,7 @@ const ALVO_ANTIGO = /^system\.atributos\.(\w+)\.valor$/;
  * alguém ajustou na ficha completa não apaga o ajuste.
  */
 export function estadoDeEfeito(efeito) {
-  const flags = efeito.flags?.pyro ?? {};
+  const flags = flagsDe(efeito) ?? {};
   const mudancas = [];
   const avancadas = [];
   const statusPreservados = [];
@@ -156,7 +157,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
   };
 
   static PARTS = {
-    form: { template: "systems/pyro/templates/apps/construtor-efeito.hbs" }
+    form: { template: caminho("templates/apps/construtor-efeito.hbs") }
   };
 
   /* ---------------------------------------------------------------------- */
@@ -427,16 +428,14 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
        * edição que removeu o dano, um { danos: [] } de verdade apaga a flag
        * antiga — só espalhar o que existe deixaria o dano removido no ar.
        */
-      flags: {
-        pyro: {
-          deUso,
-          rodadasFormula: rodadasEhFormula ? textoRodadas : null,
-          danos,
-          custos,
-          alvosItem,
-          ...(exaustao !== null ? { exaustao } : {})
-        }
-      },
+      flags: flagsDoSistema({
+        deUso,
+        rodadasFormula: rodadasEhFormula ? textoRodadas : null,
+        danos,
+        custos,
+        alvosItem,
+        ...(exaustao !== null ? { exaustao } : {})
+      }),
       // Status que não é condição do construtor (posto pela ficha completa
       // ou por outro módulo) sobrevive à edição.
       statuses: [...new Set([...condicoes.map(m => m.alvo), ...(this.statusPreservados ?? [])])],

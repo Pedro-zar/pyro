@@ -2,6 +2,7 @@ import { PYRO } from "../config.mjs";
 import { formulaTeste, formulaReacao, expandirAtributos } from "../dados.mjs";
 import { penalidadeExaustao, dicaExaustao, sincronizarSobrepeso } from "../efeitos.mjs";
 import { dialogoDoAtor } from "../tema.mjs";
+import { SYSTEM_ID, flagsDoSistema } from "../sistema.mjs";
 
 const { DialogV2 } = foundry.applications.api;
 
@@ -24,8 +25,8 @@ export class PyroActor extends Actor {
         ...PyroActor.formaDoToken(escala),
         // Ficha nova já nasce assinada, então a primeira troca de tamanho
         // dela redesenha o token normalmente.
-        flags: { pyro: { tamanho: this.system.tamanhoExato
-          ? `${this.system.tamanho}:${this.system.tamanhoExato}` : this.system.tamanho } },
+        flags: flagsDoSistema({ tamanho: this.system.tamanhoExato
+          ? `${this.system.tamanho}:${this.system.tamanhoExato}` : this.system.tamanho }),
         actorLink: personagem,
         disposition: personagem
           ? CONST.TOKEN_DISPOSITIONS.FRIENDLY
@@ -95,12 +96,12 @@ export class PyroActor extends Actor {
    */
   async aplicarMudancaDeTamanho() {
     const marca = PyroActor.#marcaDeTamanho(this.system);
-    const anterior = this.prototypeToken.getFlag("pyro", "tamanho");
+    const anterior = this.prototypeToken.getFlag(SYSTEM_ID, "tamanho");
     if (anterior === marca) return;
     // Um cliente só faz a atualização, senão todos disparam a mesma coisa.
     if (!(game.users.activeGM?.isSelf ?? game.user.isGM)) return;
 
-    const mudancas = { "prototypeToken.flags.pyro.tamanho": marca };
+    const mudancas = { [`prototypeToken.flags.${SYSTEM_ID}.tamanho`]: marca };
     const escala = this.system.escalaTamanho;
     const larguraAntiga = this.prototypeToken.width;
 

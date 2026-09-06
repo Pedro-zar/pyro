@@ -6,6 +6,7 @@
  */
 
 import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
+import { flagsDe } from "./sistema.mjs";
 
 /** Atores alvo da aplicação: tokens selecionados, ou o personagem do usuário. */
 function alvos() {
@@ -27,7 +28,7 @@ function mensagemDe(li) {
  * caem na soma das rolagens, sem tipo — nesse caso não há defesa a aplicar.
  */
 function totais(message) {
-  const flags = message?.flags?.pyro;
+  const flags = flagsDe(message);
   if (flags?.danos || flags?.cura !== undefined) {
     return { danos: flags.danos ?? [], cura: flags.cura ?? 0 };
   }
@@ -41,7 +42,7 @@ function totais(message) {
 
 function temRolagem(li) {
   const msg = mensagemDe(li);
-  return !!msg && ((msg.rolls?.length > 0) || !!msg.flags?.pyro);
+  return !!msg && ((msg.rolls?.length > 0) || !!flagsDe(msg));
 }
 
 /** Aplica em todos os alvos e resume num único aviso. */
@@ -127,12 +128,12 @@ function opcoes() {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Monta e injeta o rodapé nos cards do sistema (mensagens com flags.pyro).
+ * Monta e injeta o rodapé nos cards do sistema (mensagens com as flags do sistema).
  * As fichas somam o dano por tipo, com a cor do tipo; os botões aplicam nos
  * tokens selecionados, igual ao menu de contexto.
  */
 function injetarRodape(message, element) {
-  const flags = message.flags?.pyro;
+  const flags = flagsDe(message);
   if (!flags) return;
   const danos = flags.danos ?? [];
   const cura = flags.cura ?? 0;

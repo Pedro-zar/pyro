@@ -11,9 +11,10 @@ import { PyroActorSheet } from "./sheets/actor-sheet.mjs";
 import { PyroItemSheet } from "./sheets/item-sheet.mjs";
 import { registrarSettings, aplicarSettings } from "./settings.mjs";
 import { registrarMenuChat } from "./chat.mjs";
+import { SYSTEM_ID, caminho } from "./sistema.mjs";
 
 Hooks.once("init", () => {
-  console.log("PYRO | Inicializando sistema");
+  console.log(`PYRO | Inicializando sistema (id: ${SYSTEM_ID})`);
 
   // Tabelas de magia editáveis pelo mestre (Configurações > Sistema).
   registrarSettings();
@@ -64,24 +65,26 @@ Hooks.once("init", () => {
   // Fontes do sistema, também disponíveis nos editores de texto.
   CONFIG.fontDefinitions["PyroDisplay"] = {
     editor: true,
-    fonts: [{ urls: ["systems/pyro/fonts/Cinzel.woff2"], weight: "400 900" }]
+    fonts: [{ urls: [caminho("fonts/Cinzel.woff2")], weight: "400 900" }]
   };
   CONFIG.fontDefinitions["PyroTexto"] = {
     editor: true,
-    fonts: [{ urls: ["systems/pyro/fonts/Inter.woff2"], weight: "100 900" }]
+    fonts: [{ urls: [caminho("fonts/Inter.woff2")], weight: "100 900" }]
   };
 
   // Partials usados por todas as listas da ficha.
-  foundry.applications.handlebars.loadTemplates([
-    "systems/pyro/templates/actor/partials/item-linha.hbs",
-    "systems/pyro/templates/actor/partials/secao.hbs"
-  ]);
+  // Registrados por nome curto: os .hbs chamam {{> "pyro.secao"}} sem
+  // depender do id da pasta (ver sistema.mjs).
+  foundry.applications.handlebars.loadTemplates({
+    "pyro.item-linha": caminho("templates/actor/partials/item-linha.hbs"),
+    "pyro.secao": caminho("templates/actor/partials/secao.hbs")
+  });
 
   const { Actors, Items } = foundry.documents.collections;
   Actors.unregisterSheet("core", foundry.appv1.sheets.ActorSheet);
-  Actors.registerSheet("pyro", PyroActorSheet, { makeDefault: true, label: "PYRO.FichaAtor" });
+  Actors.registerSheet(SYSTEM_ID, PyroActorSheet, { makeDefault: true, label: "PYRO.FichaAtor" });
   Items.unregisterSheet("core", foundry.appv1.sheets.ItemSheet);
-  Items.registerSheet("pyro", PyroItemSheet, { makeDefault: true, label: "PYRO.FichaItem" });
+  Items.registerSheet(SYSTEM_ID, PyroItemSheet, { makeDefault: true, label: "PYRO.FichaItem" });
 });
 
 // As afinidades derivam dos elementos e usam rótulos traduzidos.

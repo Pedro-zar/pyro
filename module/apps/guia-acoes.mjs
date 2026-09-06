@@ -1,4 +1,5 @@
 import { PYRO } from "../config.mjs";
+import { caminho } from "../sistema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -12,7 +13,7 @@ export class GuiaAcoesApp extends HandlebarsApplicationMixin(ApplicationV2) {
   };
 
   static PARTS = {
-    lista: { template: "systems/pyro/templates/apps/guia-acoes.hbs" }
+    lista: { template: caminho("templates/apps/guia-acoes.hbs") }
   };
 
   async _prepareContext(options) {

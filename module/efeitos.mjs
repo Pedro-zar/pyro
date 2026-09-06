@@ -9,6 +9,7 @@
  */
 
 import { PYRO } from "./config.mjs";
+import { SYSTEM_ID, flagsDe, flagsDoSistema } from "./sistema.mjs";
 
 const esc = s => Handlebars.escapeExpression(s ?? "");
 
@@ -23,7 +24,7 @@ const esc = s => Handlebars.escapeExpression(s ?? "");
  * item é recriado.
  */
 export function restricaoDoEfeito(efeito) {
-  return efeito?.flags?.pyro?.alvosItem ?? [];
+  return flagsDe(efeito)?.alvosItem ?? [];
 }
 
 /**
@@ -62,7 +63,7 @@ export function bonusDeDano(actor, item) {
   const saida = [];
   for (const efeito of efeitosAtivos(actor)) {
     if (!efeitoValeParaItem(efeito, item)) continue;
-    for (const dano of efeito.flags?.pyro?.danos ?? []) {
+    for (const dano of flagsDe(efeito)?.danos ?? []) {
       if (dano.formula?.trim()) saida.push({ ...dano, nome: efeito.name });
     }
   }
@@ -81,7 +82,7 @@ export function ajustesDeCusto(actor, item) {
   const ajustes = {};
   for (const efeito of efeitosAtivos(actor)) {
     if (!efeitoValeParaItem(efeito, item)) continue;
-    for (const custo of efeito.flags?.pyro?.custos ?? []) {
+    for (const custo of flagsDe(efeito)?.custos ?? []) {
       const valor = Number(custo.valor);
       if (custo.chave && Number.isFinite(valor)) {
         ajustes[custo.chave] = (ajustes[custo.chave] ?? 0) + valor;
@@ -144,7 +145,7 @@ export function efeitosDeUso(...itens) {
   const saida = [];
   for (const item of itens.flat().filter(Boolean)) {
     for (const efeito of item.effects ?? []) {
-      if (!efeito.flags?.pyro?.deUso || efeito.disabled) continue;
+      if (!flagsDe(efeito)?.deUso || efeito.disabled) continue;
       if (vistos.has(efeito.uuid)) continue;
       vistos.add(efeito.uuid);
       saida.push(efeito);
@@ -183,7 +184,7 @@ export function htmlEfeitosDeUso(...itens) {
  * dano somado e a cura, que já vêm nas flags para o menu de aplicar.
  */
 export function variaveisDaMensagem(message) {
-  const flags = message?.flags?.pyro ?? {};
+  const flags = flagsDe(message) ?? {};
   const vars = { ...(flags.variaveis ?? {}) };
   if (vars.danoTotal === undefined) {
     vars.danoTotal = (flags.danos ?? []).reduce((t, d) => t + (d.total ?? 0), 0);
@@ -234,7 +235,7 @@ export function dadosDoEfeitoAplicado(efeito, vars) {
 
   // Duração escrita como fórmula ("@rodadas") só vira número aqui, porque só
   // agora se sabe com que Intenção a magia foi conjurada.
-  const formula = efeito.flags?.pyro?.rodadasFormula;
+  const formula = flagsDe(efeito)?.rodadasFormula;
   if (formula) {
     const rodadas = Number(resolverValorEfeito(formula, vars));
     if (Number.isFinite(rodadas) && rodadas > 0) {
@@ -260,7 +261,7 @@ export function ehExaustao(efeito) {
  * como 1.
  */
 export function niveisDoEfeito(efeito) {
-  const n = Number(efeito?.flags?.pyro?.exaustao);
+  const n = Number(flagsDe(efeito)?.exaustao);
   return Number.isFinite(n) && n >= 0 ? n : 1;
 }
 
@@ -314,7 +315,7 @@ export async function aplicarExaustao(actor, delta) {
   if (existente) {
     const novo = Math.max(0, niveisDoEfeito(existente) + delta);
     if (novo === 0) await existente.delete();
-    else await existente.update({ name: loc("PYRO.Exaustao.Nome"), "flags.pyro.exaustao": novo });
+    else await existente.update({ name: loc("PYRO.Exaustao.Nome"), [`flags.${SYSTEM_ID}.exaustao`]: novo });
     return nivelExaustao(actor);
   }
   if (delta < 0) return nivelExaustao(actor);
@@ -325,7 +326,7 @@ export async function aplicarExaustao(actor, delta) {
     origin: actor.uuid,
     statuses: ["exausto"],
     description: loc("PYRO.Exaustao.Dica"),
-    flags: { pyro: { exaustao: delta } }
+    flags: flagsDoSistema({ exaustao: delta })
   }, { parent: actor });
   return nivelExaustao(actor);
 }
@@ -339,8 +340,8 @@ export async function aplicarExaustao(actor, delta) {
 export async function sincronizarSobrepeso(actor) {
   if (!actor) return;
   const agora = !!actor.system?.sobrepeso;
-  const marcado = !!actor.getFlag("pyro", "sobrepesoExausto");
+  const marcado = !!actor.getFlag(SYSTEM_ID, "sobrepesoExausto");
   if (agora === marcado) return;
-  await actor.setFlag("pyro", "sobrepesoExausto", agora);
+  await actor.setFlag(SYSTEM_ID, "sobrepesoExausto", agora);
   await aplicarExaustao(actor, agora ? 1 : -1);
 }

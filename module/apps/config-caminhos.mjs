@@ -1,4 +1,5 @@
 import { PYRO } from "../config.mjs";
+import { SYSTEM_ID, caminho } from "../sistema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -31,7 +32,7 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
   };
 
   static PARTS = {
-    form: { template: "systems/pyro/templates/apps/config-caminhos.hbs" }
+    form: { template: caminho("templates/apps/config-caminhos.hbs") }
   };
 
   /** Cópia de trabalho: só grava no submit. */
@@ -39,9 +40,9 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
 
   #carregar() {
     this.#dados ??= {
-      linguas: foundry.utils.deepClone(game.settings.get("pyro", "linguas")),
-      racas: foundry.utils.deepClone(game.settings.get("pyro", "racas")),
-      recursos: foundry.utils.deepClone(game.settings.get("pyro", "recursosCustom"))
+      linguas: foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "linguas")),
+      racas: foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "racas")),
+      recursos: foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "recursosCustom"))
     };
     return this.#dados;
   }
@@ -191,9 +192,9 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
 
   static async #salvar() {
     const d = this.#capturar();
-    await game.settings.set("pyro", "linguas", d.linguas);
-    await game.settings.set("pyro", "racas", d.racas);
-    await game.settings.set("pyro", "recursosCustom", d.recursos);
+    await game.settings.set(SYSTEM_ID, "linguas", d.linguas);
+    await game.settings.set(SYSTEM_ID, "racas", d.racas);
+    await game.settings.set(SYSTEM_ID, "recursosCustom", d.recursos);
     ui.notifications.info(game.i18n.localize("PYRO.Config.Salvo"));
   }
 }

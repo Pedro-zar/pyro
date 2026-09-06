@@ -3,6 +3,7 @@ import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
 import { scalingsPadrao, valorScaling, SEM_DANO } from "../magia.mjs";
 import { idDoCaminho } from "../data/item-data.mjs";
 import { pintarTema } from "../tema.mjs";
+import { caminho, flagsDe } from "../sistema.mjs";
 
 /**
  * Opções de tipo de dano de um elemento. A primeira herda o tipo do próprio
@@ -75,11 +76,11 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
    * por bloco, e Efeitos é a lista de Active Effects.
    */
   static PARTS = {
-    cabecalho: { template: "systems/pyro/templates/item/cabecalho.hbs" },
+    cabecalho: { template: caminho("templates/item/cabecalho.hbs") },
     tabs: { template: "templates/generic/tab-navigation.hbs" },
-    descricao: { template: "systems/pyro/templates/item/tab-descricao.hbs" },
-    funcionamento: { template: "systems/pyro/templates/item/tab-funcionamento.hbs" },
-    efeitos: { template: "systems/pyro/templates/item/tab-efeitos.hbs" }
+    descricao: { template: caminho("templates/item/tab-descricao.hbs") },
+    funcionamento: { template: caminho("templates/item/tab-funcionamento.hbs") },
+    efeitos: { template: caminho("templates/item/tab-efeitos.hbs") }
   };
 
   static TABS = {
@@ -274,8 +275,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       parteMunicaoOpts: Object.fromEntries(
         PYRO.partesMunicao.map(k => [k, PYRO.partesCorpo[k]])
       ),
-      efeitos: item.effects.filter(e => !e.flags?.pyro?.deUso),
-      efeitosDeUso: item.effects.filter(e => e.flags?.pyro?.deUso),
+      efeitos: item.effects.filter(e => !flagsDe(e)?.deUso),
+      efeitosDeUso: item.effects.filter(e => flagsDe(e)?.deUso),
       subtitulo: this.#subtitulo(),
       valoresRapidos: this.#valoresRapidos(),
       // Itens físicos compartilham peso, custo e quantidade.

@@ -1,3 +1,4 @@
+import { flagsDe } from "../sistema.mjs";
 /**
  * Efeitos do PYRO — versão para o Foundry v14.
  *
@@ -17,13 +18,13 @@ export class PyroActiveEffect extends ActiveEffect {
    * com a katana" valeria também de mãos vazias.
    */
   get isSuppressed() {
-    if ((this.flags?.pyro?.alvosItem ?? []).length) return true;
+    if ((flagsDe(this)?.alvosItem ?? []).length) return true;
     return super.isSuppressed ?? false;
   }
 
   /** O mesmo travamento, no portão que a pipeline nova consulta por mudança. */
   shouldApplyChange(change, options) {
-    if ((this.flags?.pyro?.alvosItem ?? []).length) return false;
+    if ((flagsDe(this)?.alvosItem ?? []).length) return false;
     return super.shouldApplyChange?.(change, options) ?? true;
   }
 

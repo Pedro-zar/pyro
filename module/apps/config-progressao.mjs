@@ -1,4 +1,5 @@
 import { PYRO } from "../config.mjs";
+import { SYSTEM_ID, caminho } from "../sistema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -25,14 +26,14 @@ export class ConfigProgressaoApp extends HandlebarsApplicationMixin(ApplicationV
   };
 
   static PARTS = {
-    form: { template: "systems/pyro/templates/apps/config-progressao.hbs" }
+    form: { template: caminho("templates/apps/config-progressao.hbs") }
   };
 
   /** Cópia de trabalho: só grava no submit. */
   #dados = null;
 
   #carregar() {
-    this.#dados ??= foundry.utils.deepClone(game.settings.get("pyro", "progressoes") ?? {});
+    this.#dados ??= foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "progressoes") ?? {});
     return this.#dados;
   }
 
@@ -97,7 +98,7 @@ export class ConfigProgressaoApp extends HandlebarsApplicationMixin(ApplicationV
 
   static async #salvar() {
     const regras = this.#capturar();
-    await game.settings.set("pyro", "progressoes", regras);
+    await game.settings.set(SYSTEM_ID, "progressoes", regras);
     ui.notifications.info(game.i18n.localize("PYRO.Config.Salvo"));
   }
 }

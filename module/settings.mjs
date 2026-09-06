@@ -2,13 +2,14 @@ import { PYRO } from "./config.mjs";
 import { ConfigElementosApp } from "./apps/config-magia.mjs";
 import { ConfigCaminhosApp } from "./apps/config-caminhos.mjs";
 import { ConfigProgressaoApp } from "./apps/config-progressao.mjs";
+import { SYSTEM_ID } from "./sistema.mjs";
 
 /**
  * Configurações do mundo que alteram as tabelas de magia. Ficam em settings
  * pra cada mesa poder ajustar sem editar o código do sistema.
  */
 export function registrarSettings() {
-  game.settings.register("pyro", "linguas", {
+  game.settings.register(SYSTEM_ID, "linguas", {
     scope: "world",
     config: false,
     type: Object,
@@ -16,7 +17,7 @@ export function registrarSettings() {
     requiresReload: true
   });
 
-  game.settings.register("pyro", "elementos", {
+  game.settings.register(SYSTEM_ID, "elementos", {
     scope: "world",
     config: false,
     type: Object,
@@ -24,7 +25,7 @@ export function registrarSettings() {
     requiresReload: true
   });
 
-  game.settings.register("pyro", "racas", {
+  game.settings.register(SYSTEM_ID, "racas", {
     scope: "world",
     config: false,
     type: Object,
@@ -32,7 +33,7 @@ export function registrarSettings() {
     requiresReload: true
   });
 
-  game.settings.register("pyro", "recursosCustom", {
+  game.settings.register(SYSTEM_ID, "recursosCustom", {
     scope: "world",
     config: false,
     type: Object,
@@ -45,7 +46,7 @@ export function registrarSettings() {
    * custo do Caminho inteiro. Fica em setting próprio, e não junto das tabelas
    * de magia, porque não tem nada a ver com conjuração.
    */
-  game.settings.register("pyro", "progressoes", {
+  game.settings.register(SYSTEM_ID, "progressoes", {
     scope: "world",
     config: false,
     type: Object,
@@ -58,7 +59,7 @@ export function registrarSettings() {
    * Caminhos Raciais junta raças, potenciais e recursos, que se referenciam
    * entre si; Progressão é a curva de XP.
    */
-  game.settings.registerMenu("pyro", "configMagia", {
+  game.settings.registerMenu(SYSTEM_ID, "configMagia", {
     name: "PYRO.Config.Nome",
     label: "PYRO.Config.Botao",
     hint: "PYRO.Config.Dica",
@@ -67,7 +68,7 @@ export function registrarSettings() {
     restricted: true
   });
 
-  game.settings.registerMenu("pyro", "configCaminhos", {
+  game.settings.registerMenu(SYSTEM_ID, "configCaminhos", {
     name: "PYRO.ConfigCaminhos.Nome",
     label: "PYRO.ConfigCaminhos.Botao",
     hint: "PYRO.ConfigCaminhos.Dica",
@@ -76,7 +77,7 @@ export function registrarSettings() {
     restricted: true
   });
 
-  game.settings.registerMenu("pyro", "configProgressao", {
+  game.settings.registerMenu(SYSTEM_ID, "configProgressao", {
     name: "PYRO.Progressao.Nome",
     label: "PYRO.Progressao.Botao",
     hint: "PYRO.Progressao.Dica",
@@ -106,11 +107,11 @@ function mesclar(padrao, salvo) {
 
 /** Aplica o que estiver salvo por cima das tabelas padrão. */
 export function aplicarSettings() {
-  PYRO.linguas = mesclar(PYRO.linguasPadrao, game.settings.get("pyro", "linguas"));
-  PYRO.elementos = mesclar(PYRO.elementosPadrao, game.settings.get("pyro", "elementos"));
-  PYRO.racas = mesclar(PYRO.racasPadrao, game.settings.get("pyro", "racas"));
-  PYRO.recursosCustom = mesclar(PYRO.recursosCustomPadrao, game.settings.get("pyro", "recursosCustom"));
+  PYRO.linguas = mesclar(PYRO.linguasPadrao, game.settings.get(SYSTEM_ID, "linguas"));
+  PYRO.elementos = mesclar(PYRO.elementosPadrao, game.settings.get(SYSTEM_ID, "elementos"));
+  PYRO.racas = mesclar(PYRO.racasPadrao, game.settings.get(SYSTEM_ID, "racas"));
+  PYRO.recursosCustom = mesclar(PYRO.recursosCustomPadrao, game.settings.get(SYSTEM_ID, "recursosCustom"));
   // A lista de progressões nasce vazia, então vale o que o mestre salvou.
-  PYRO.progressoes = foundry.utils.deepClone(game.settings.get("pyro", "progressoes") ?? {});
+  PYRO.progressoes = foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "progressoes") ?? {});
   PYRO.indexarProgressoes();
 }
