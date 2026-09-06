@@ -16,4 +16,4 @@ node_modules/
 # build`. Se um dia você publicar o sistema por manifesto, é preciso compilar
 # antes de empacotar o zip.
 /packs/*
-!/packs/_source/
+#!/packs/_source/  # Só caso vá publicar por manifesto
