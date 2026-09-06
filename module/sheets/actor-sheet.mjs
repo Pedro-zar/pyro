@@ -10,6 +10,7 @@ import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDo
 import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
+import { descreverRequisito } from "../progressao.mjs";
 
 /**
  * O que fazer com um drop que caiu em cima de uma linha do inventário.
@@ -84,6 +85,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       editarItem: PyroActorSheet.#editarItem,
       excluirItem: PyroActorSheet.#excluirItem,
       usarItem: PyroActorSheet.#usarItem,
+      ajudarPericia: PyroActorSheet.#ajudarPericia,
       alternarResumo: PyroActorSheet.#alternarResumo,
       alternarEquipado: PyroActorSheet.#alternarEquipado,
       alternarFavorito: PyroActorSheet.#alternarFavorito,
@@ -106,6 +108,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     atributos: { template: caminho("templates/actor/atributos.hbs") },
     tabs: { template: "templates/generic/tab-navigation.hbs" },
     combate: { template: caminho("templates/actor/tab-combate.hbs") },
+    pericias: { template: caminho("templates/actor/tab-pericias.hbs") },
     poderes: { template: caminho("templates/actor/tab-poderes.hbs") },
     inventario: { template: caminho("templates/actor/tab-inventario.hbs") },
     progressao: { template: caminho("templates/actor/tab-progressao.hbs") },
@@ -117,6 +120,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     primary: {
       tabs: [
         { id: "combate", icon: "fa-solid fa-hand-fist" },
+        { id: "pericias", icon: "fa-solid fa-graduation-cap" },
         { id: "poderes", icon: "fa-solid fa-wand-sparkles" },
         { id: "inventario", icon: "fa-solid fa-box-open" },
         { id: "progressao", icon: "fa-solid fa-route" },
@@ -371,6 +375,39 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       };
     });
 
+    const pericias = await this.#linhas(porTipo("pericia"), item => {
+      const sys = item.system;
+      const atributos = sys.atributos.map(k => loc(PYRO.atributos[k])).join("/");
+      const c = sys.progresso.contadores;
+      const acumulado = [
+        `${c.rotineiras} ${loc("PYRO.Rolagem.rotineiras").toLocaleLowerCase()}`,
+        `${c.dificeis} ${loc("PYRO.Rolagem.dificeis").toLocaleLowerCase()}`,
+        `${c.muitoDificeis} ${loc("PYRO.Rolagem.muitoDificeis").toLocaleLowerCase()}`
+      ].join(", ");
+      const requisito = descreverRequisito(item);
+      const marcas = [
+        sys.exigeFerramentas ? loc("PYRO.Pericia.FerramentasTag") : null,
+        sys.contaSoSucesso ? loc("PYRO.Pericia.SoSucessoTag") : null
+      ].filter(Boolean);
+      return {
+        ajudavel: true,
+        detalhes: detalheUnico([atributos, ...marcas].join(", ")),
+        cauda: [
+          { texto: `${loc("PYRO.Uso.NivelAbrev")} ${sys.progresso.nivel}`, classe: "col-curto", dica: loc("PYRO.Uso.Nivel") }
+        ],
+        resumo: [
+          { label: loc("PYRO.Pericia.Atributos"), valor: atributos || "—" },
+          { label: loc("PYRO.Uso.Nivel"), valor: `${sys.progresso.nivel} / ${sys.progresso.nivelMax}` },
+          { label: loc("PYRO.Pericia.Progresso"), valor: acumulado },
+          ...(requisito ? [{
+            label: requisito.noMaximo ? "" : game.i18n.format("PYRO.Uso.ParaONivel", { nivel: requisito.nivel }),
+            valor: requisito.texto
+          }] : []),
+          ...(marcas.length ? [{ label: "", valor: marcas.join(", ") }] : [])
+        ]
+      };
+    });
+
     const runas = await this.#linhas(porTipo("runa"), item => {
       const sys = item.system;
       const subtipo = sys.tipoRuna === "elemento"
@@ -470,12 +507,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
      * Favoritos: reaproveita as linhas já montadas — o mesmo item aparece na
      * lista de origem e na seção Favoritos da aba Combate.
      */
-    const favoritaveis = ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia"];
+    const favoritaveis = ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia", "pericia"];
     const favIds = new Set(actor.items
       .filter(i => favoritaveis.includes(i.type) && i.getFlag(SYSTEM_ID, "favorito"))
       .map(i => i.id));
     const favoritos = [
-      ...tecnicas, ...habilidades, ...habilidadesCaminho, ...feiticos, ...magias,
+      ...pericias, ...tecnicas, ...habilidades, ...habilidadesCaminho, ...feiticos, ...magias,
       ...armas, ...equipamentos, ...municoes, ...artefatos, ...arcanos,
       ...mochilas, ...consumiveis
     ].filter(l => favIds.has(l.id));
@@ -531,6 +568,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         legIcones: "leg-icones-1"
       }),
       runas: secao("runas", runas, { semLegenda: true }),
+      pericias: secao("pericias", pericias, { semLegenda: true }),
       caminhos: secao("caminhos", caminhos, {
         colNome: loc("PYRO.Col.caminho")
       })
@@ -705,6 +743,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   static async #usarItem(event, target) {
     await this.#getItem(target)?.usar();
+  }
+
+  static async #ajudarPericia(event, target) {
+    await this.#getItem(target)?.ajudar();
   }
 
   static async #alternarEquipado(event, target) {
@@ -910,7 +952,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    * detalhes (colunas), linha2, resumo (pares label/valor) e flags de equipar.
    */
   async #linhas(itens, montar) {
-    const usaveis = ["arma", "consumivel", "habilidade", "feitico", "magia", "runa"];
+    const usaveis = ["arma", "consumivel", "habilidade", "feitico", "magia", "runa", "pericia"];
     return Promise.all(itens.map(async item => ({
       id: item.id,
       img: item.img,
@@ -920,7 +962,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // Ícone de d20 que aparece no hover e dispara o mesmo "usar" do menu.
       usavel: usaveis.includes(item.type),
       // Favoritável = o que se usa ou equipa em combate (runa e caminho não).
-      favoritavel: ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia"]
+      favoritavel: ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia", "pericia"]
         .includes(item.type),
       favorito: !!item.getFlag(SYSTEM_ID, "favorito"),
       descricaoHTML: await enriquecer(item.system.descricao, item),
@@ -962,9 +1004,15 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       {
         name: "PYRO.Menu.Usar",
         icon: '<i class="fa-solid fa-dice-d20"></i>',
-        condition: li => ["arma", "consumivel", "habilidade", "feitico", "magia", "runa"]
+        condition: li => ["arma", "consumivel", "habilidade", "feitico", "magia", "runa", "pericia"]
           .includes(item(li)?.type),
         callback: li => item(li)?.usar()
+      },
+      {
+        name: "PYRO.Pericia.Ajudar",
+        icon: '<i class="fa-solid fa-hands-helping"></i>',
+        condition: li => item(li)?.type === "pericia",
+        callback: li => item(li)?.ajudar()
       },
       {
         name: "PYRO.Despertar.Nome",

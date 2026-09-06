@@ -7,7 +7,7 @@ import { PYRO } from "./config.mjs";
 import { PersonagemData, NpcData } from "./data/actor-data.mjs";
 import {
   ArmaData, EquipamentoData, ConsumivelData, HabilidadeData,
-  FeiticoData, RunaData, MagiaData, CaminhoData
+  FeiticoData, RunaData, MagiaData, CaminhoData, PericiaData
 } from "./data/item-data.mjs";
 import { PyroActor } from "./documents/actor.mjs";
 import { PyroItem } from "./documents/item.mjs";
@@ -55,6 +55,7 @@ Hooks.once("init", () => {
     consumivel: ConsumivelData,
     habilidade: HabilidadeData,
     feitico: FeiticoData,
+    pericia: PericiaData,
     runa: RunaData,
     magia: MagiaData,
     caminho: CaminhoData

@@ -4,7 +4,9 @@
  */
 import { PYRO } from "../config.mjs";
 import { formulaTeste, formulaReacao, expandirAtributos, poolDoAtributo } from "../dados.mjs";
-import { classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse } from "../progressao.mjs";
+import {
+  classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse, bonusPorNivel, ndAjustado
+} from "../progressao.mjs";
 import { penalidadeExaustao, dicaExaustao, sincronizarSobrepeso } from "../efeitos.mjs";
 import { formularioDoAtor } from "../ui.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND } from "../chat.mjs";
@@ -17,6 +19,11 @@ import { SYSTEM_ID, flagsDoSistema } from "../sistema.mjs";
 const campoNumero = (nome, chave, valor = 0, min = null) => `
   <div class="form-group"><label>${game.i18n.localize(chave)}</label>
     <input type="number" name="${nome}" value="${valor}"${min === null ? "" : ` min="${min}"`}></div>`;
+
+const campoSelect = (nome, chave, opcoes, selecionado) => `
+  <div class="form-group"><label>${game.i18n.localize(chave)}</label>
+    <select name="${nome}">${Object.entries(opcoes).map(([valor, rotulo]) =>
+      `<option value="${valor}"${valor === selecionado ? " selected" : ""}>${rotulo}</option>`).join("")}</select></div>`;
 
 const campoCheckbox = (nome, chave, marcado = false) => `
   <div class="form-group"><label>${game.i18n.localize(chave)}</label>
@@ -253,11 +260,97 @@ export class PyroActor extends Actor {
     if (opts.passarLimites) {
       content += `<p class="pyro-aviso">${game.i18n.localize("PYRO.Chat.PassouLimites")}</p>`;
     }
-    return roll.toMessage({
+    return this.#cardDeTeste(roll, { flavor, html: content, flags: classe ? flagsDaClasse(classe) : null });
+  }
+
+
+  /* ---------------------------------------------------------------------- */
+  /*  Perícias                                                              */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Teste de perícia (SRD 3b): o jogador escolhe o atributo entre os que a
+   * perícia aceita; o nível soma +1 e +1 vantagem a cada 5; sem treino e sem
+   * ferramentas o ND acima de 10 dobra. A classe da rolagem é medida contra o
+   * ND original, com a pool já com os bônus da perícia.
+   * @param {Item} pericia
+   * @param {object} [opcoes]
+   * @param {boolean} [opcoes.ajudar] só calcula a ajuda a um aliado, sem rolar.
+   */
+  async rolarPericia(pericia, { ajudar = false } = {}) {
+    const sys = pericia.system;
+    const nivel = sys.progresso.nivel;
+    const porNivel = bonusPorNivel(nivel);
+    const loc = k => game.i18n.localize(k);
+
+    const aceitos = sys.atributos.length ? sys.atributos : Object.keys(PYRO.atributos);
+    const atributoOpts = Object.fromEntries(aceitos.map(k => [k, loc(PYRO.atributos[k])]));
+    const dicaNivel = nivel
+      ? game.i18n.format("PYRO.Pericia.DicaNivel", { nivel, bonus: porNivel.bonus, vantagens: porNivel.vantagens })
+      : loc("PYRO.Pericia.DicaSemTreino");
+    const extras = sys.exigeFerramentas ? campoCheckbox("semFerramentas", "PYRO.Pericia.SemFerramentas") : "";
+
+    const res = await formularioDoAtor(this, {
+      titulo: game.i18n.format(ajudar ? "PYRO.Pericia.TituloAjuda" : "PYRO.Pericia.Titulo", { nome: pericia.name }),
+      conteudo: campoSelect("atributo", "PYRO.Pericia.Atributo", atributoOpts, aceitos[0])
+        + camposDeTeste(this, { dica: dicaNivel, extras }),
+      rotuloOk: ajudar ? "PYRO.Pericia.Ajudar" : "PYRO.Rolar"
+    });
+    if (!res) return;
+
+    const chave = atributoOpts[res.atributo] ? res.atributo : aceitos[0];
+    const attr = this.system.atributos[chave];
+    const opts = { bonus: res.bonus, vantagem: res.vantagem, desvantagem: res.desvantagem };
+    aplicarExaustaoNoTeste(this, opts);
+    opts.bonus += porNivel.bonus;
+    opts.vantagem += porNivel.vantagens;
+
+    const ndOriginal = Number(res.nd) || 0;
+    const semFerramentas = sys.exigeFerramentas && !!res.semFerramentas;
+    const nd = ndAjustado(ndOriginal, { semTreino: !sys.aprendida, semFerramentas });
+    const classe = ndOriginal
+      ? classificarRolagem({ ...poolDoTeste(poolDoAtributo(attr.efetivo), opts), nd: ndOriginal })
+      : null;
+    const rotuloAtributo = loc(PYRO.atributos[chave]);
+    const ajustes = [
+      !sys.aprendida ? loc("PYRO.Pericia.SemTreinoTag") : null,
+      semFerramentas ? loc("PYRO.Pericia.SemFerramentasTag") : null
+    ].filter(Boolean).join(", ");
+    const textoND = !ndOriginal ? ""
+      : nd !== ndOriginal ? ` (ND ${ndOriginal} → ${nd}, ${ajustes})` : ` (ND ${nd})`;
+
+    if (ajudar) return this.#cardDeAjuda(pericia, rotuloAtributo, porNivel, classe, textoND);
+
+    const flavor = game.i18n.format("PYRO.Pericia.TesteDe", { nome: pericia.name, atributo: rotuloAtributo }) + textoND;
+    const formula = formulaTeste(attr.efetivo, opts);
+    if (formula === null) return this.#falhaAutomatica(flavor);
+
+    const roll = await new Roll(formula).evaluate();
+    let content = "";
+    if (ndOriginal) {
+      const sucesso = roll.total >= nd;
+      // Percepção só progride com sucesso: sem ele, a classe aparece mas o botão não.
+      const conta = !sys.contaSoSucesso || sucesso;
+      content = htmlResultadoND(sucesso) + htmlClasseDaRolagem(classe, conta ? pericia : null);
+    }
+    return this.#cardDeTeste(roll, { flavor, html: content, flags: classe ? flagsDaClasse(classe, pericia) : null });
+  }
+
+  /**
+   * Ajudar (SRD §5): 1 vantagem ao aliado, mais 1 a cada 5 níveis da perícia.
+   * O ajudante progride como se tivesse rolado, então o card traz a classe
+   * da pool dele contra o ND e o botão de contar.
+   */
+  #cardDeAjuda(pericia, rotuloAtributo, porNivel, classe, textoND) {
+    const vantagens = 1 + porNivel.vantagens;
+    return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      flavor,
-      content: content || undefined,
-      ...(classe ? { flags: flagsDoSistema(flagsDaClasse(classe)) } : {})
+      flavor: game.i18n.format("PYRO.Pericia.AjudaCom", { nome: pericia.name, atributo: rotuloAtributo }) + textoND,
+      content: `<div class="pyro-chat">
+        <p class="pyro-ajuda">${game.i18n.format("PYRO.Pericia.AjudaTexto", { vantagens })}</p>
+        ${htmlClasseDaRolagem(classe, pericia)}
+      </div>`,
+      ...(classe ? { flags: flagsDoSistema(flagsDaClasse(classe, pericia)) } : {})
     });
   }
 
@@ -306,10 +399,25 @@ export class PyroActor extends Actor {
     if (formula === null) return this.#falhaAutomatica(flavor);
 
     const roll = await new Roll(expandirAtributos(formula), this.getRollData()).evaluate();
-    return roll.toMessage({
+    return this.#cardDeTeste(roll, {
+      flavor,
+      html: opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : ""
+    });
+  }
+
+  /**
+   * Card de um teste: a rolagem renderizada e, abaixo dela, o resultado contra
+   * o ND e a classe. Monta o conteúdo à mão porque `content` em toMessage
+   * substituiria a rolagem em vez de acompanhá-la.
+   */
+  async #cardDeTeste(roll, { flavor, html = "", flags = null }) {
+    return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor,
-      content: opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : undefined
+      content: `<div class="pyro-chat pyro-teste">${await roll.render()}${html}</div>`,
+      rolls: [roll],
+      sound: CONFIG.sounds.dice,
+      ...(flags ? { flags: flagsDoSistema(flags) } : {})
     });
   }
 

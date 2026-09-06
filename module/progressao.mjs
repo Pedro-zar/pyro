@@ -138,6 +138,21 @@ export function bonusPorNivel(nivel) {
   return { bonus: nivel, vantagens: Math.floor(nivel / 5) };
 }
 
+/** O que passa de 10 dobra: 11 vira 12, 15 vira 20, 30 vira 50 (SRD 3b). */
+const dobrarAcimaDe10 = nd => (nd <= 10 ? nd : 10 + 2 * (nd - 10));
+
+/**
+ * ND que o teste de perícia precisa alcançar. Sem a perícia aprendida (nível
+ * 0) o que passa de 10 dobra; sem as ferramentas que ela exige, dobra de novo
+ * por cima. A classe da rolagem continua medida pelo ND original.
+ */
+export function ndAjustado(nd, { semTreino = false, semFerramentas = false } = {}) {
+  let ajustado = Number(nd) || 0;
+  if (semTreino) ajustado = dobrarAcimaDe10(ajustado);
+  if (semFerramentas) ajustado = dobrarAcimaDe10(ajustado);
+  return ajustado;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Integração com documentos                                                 */
 /* -------------------------------------------------------------------------- */
@@ -172,6 +187,35 @@ export async function registrarUso(item, classe) {
     });
   }
   return resultado;
+}
+
+/**
+ * O requisito do próximo nível em palavras, para a ficha e o resumo. Separa
+ * as rotineiras das outras duas classes e diz se estas são "uma destas" ou
+ * "todas estas", porque a leitura inline "2 RR e (1 RD ou 1 RMD)" passava a
+ * impressão de que as três eram obrigatórias.
+ * @returns {null|{nivel, rotineiras: string, exclusivo: boolean, outras: string[], texto: string}}
+ */
+export function descreverRequisito(item) {
+  const progresso = item?.system?.progresso;
+  const tabela = tabelaDoItem(item);
+  if (!progresso || !tabela) return null;
+  const nivel = progresso.nivel + 1;
+  if (nivel > progresso.nivelMax) return { nivel, noMaximo: true, texto: game.i18n.localize("PYRO.Uso.NoMaximo") };
+  const req = requisitoDoNivel(tabela, nivel);
+  const loc = k => game.i18n.localize(k);
+  const plural = (n, um, varios) => `${n} ${loc(n === 1 ? um : varios)}`;
+  const rotineiras = req.rr ? plural(req.rr, "PYRO.Rolagem.rotineiraUma", "PYRO.Rolagem.rotineiras") : "";
+  const outras = [
+    plural(req.rd, "PYRO.Rolagem.dificilUma", "PYRO.Rolagem.dificeis"),
+    plural(req.rmd, "PYRO.Rolagem.muitoDificilUma", "PYRO.Rolagem.muitoDificeis")
+  ];
+  const exclusivo = req.modo !== "e";
+  const grupo = exclusivo ? `(${outras.join(` ${loc("PYRO.Uso.Ou")} `)})` : outras.join(` ${loc("PYRO.Uso.E")} `);
+  return {
+    nivel, rotineiras, exclusivo, outras,
+    texto: [rotineiras, grupo].filter(Boolean).join(` ${loc("PYRO.Uso.E")} `)
+  };
 }
 
 /** Rótulo curto da classe para os cards. */

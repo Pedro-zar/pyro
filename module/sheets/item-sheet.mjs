@@ -8,7 +8,7 @@ import { scalingsPadrao, valorScaling, SEM_DANO } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho, flagsDe } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
-import { tabelaDoItem, requisitoDoNivel } from "../progressao.mjs";
+import { descreverRequisito } from "../progressao.mjs";
 import { rotuloCurtoDoCaminho } from "../data/item-data.mjs";
 
 /**
@@ -272,7 +272,13 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       efeitos: item.effects.filter(e => !flagsDe(e)?.deUso),
       efeitosDeUso: item.effects.filter(e => flagsDe(e)?.deUso),
       subtitulo: this.#subtitulo(),
-      requisitoTexto: this.#requisitoTexto(),
+      // Perícia: uma caixa por atributo que ela aceita.
+      atributosPericia: item.type === "pericia"
+        ? Object.entries(PYRO.atributos).map(([chave, label]) => ({
+            chave, label: game.i18n.localize(label), marcado: sys.atributos.includes(chave)
+          }))
+        : null,
+      requisito: descreverRequisito(item),
       valoresRapidos: this.#valoresRapidos(),
       temPropriedadesFisicas: ["arma", "equipamento", "consumivel"].includes(item.type),
       // Prévia do que a runa produz nas primeiras Intenções, já com o
@@ -303,27 +309,6 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   }
 
   /* ---------------------------------------------------------------------- */
-
-  /**
-   * O que falta para o próximo nível, no cabeçalho do bloco de progresso:
-   * "Nível 3: 2 RR e (1 RD ou 1 RMD)". Vazio quando o item não progride.
-   */
-  #requisitoTexto() {
-    const progresso = this.item.system.progresso;
-    const tabela = tabelaDoItem(this.item);
-    if (!progresso || !tabela) return "";
-    const alvo = progresso.nivel + 1;
-    if (alvo > progresso.nivelMax) return game.i18n.localize("PYRO.Uso.NoMaximo");
-    const req = requisitoDoNivel(tabela, alvo);
-    const loc = k => game.i18n.localize(k);
-    const rr = req.rr ? `${req.rr} ${loc("PYRO.Rolagem.abrevRR")}` : "";
-    const rd = `${req.rd} ${loc("PYRO.Rolagem.abrevRD")}`;
-    const rmd = `${req.rmd} ${loc("PYRO.Rolagem.abrevRMD")}`;
-    const resto = req.modo === "e" ? `${rd} ${loc("PYRO.Uso.E")} ${rmd}` : `(${rd} ${loc("PYRO.Uso.Ou")} ${rmd})`;
-    return game.i18n.format("PYRO.Uso.Requisito", {
-      nivel: alvo, requisito: [rr, resto].filter(Boolean).join(` ${loc("PYRO.Uso.E")} `)
-    });
-  }
 
   /* ---------------------------------------------------------------------- */
   /*  Resumo mecânico do item                                              */
@@ -386,6 +371,12 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         if (sys.custoMana) partes.push(`${sys.custoMana} ${loc("PYRO.Abrev.mana")}`);
         if (sys.custoEnergia) partes.push(`${sys.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
         if (sys.adormecidaAtiva) partes.push(loc("PYRO.Despertar.Tag"));
+        break;
+      }
+      case "pericia": {
+        partes.push(sys.atributos.map(k => loc(PYRO.atributos[k])).join("/"));
+        partes.push(`${loc("PYRO.Uso.Nivel")} ${sys.progresso.nivel}`);
+        if (!sys.aprendida) partes.push(loc("PYRO.Pericia.SemTreinoTag"));
         break;
       }
       case "feitico": {
@@ -468,6 +459,11 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     if (this.item.type === "caminho" && sys.recursos && !Array.isArray(sys.recursos)) {
       // Checkboxes chegam como { chave: true/false }.
       sys.recursos = Object.entries(sys.recursos).filter(([, v]) => v).map(([k]) => k);
+    }
+
+    if (this.item.type === "pericia" && sys.atributos && !Array.isArray(sys.atributos)) {
+      // Checkboxes chegam como { chave: true/false }.
+      sys.atributos = Object.entries(sys.atributos).filter(([, v]) => v).map(([k]) => k);
     }
 
     if (this.item.type === "caminho" && sys.afinidades && !Array.isArray(sys.afinidades)) {

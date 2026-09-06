@@ -23,6 +23,12 @@
       {{#each linha.cauda as |d|}}
       <span class="detalhe {{d.classe}}" title="{{d.dica}}">{{d.texto}}</span>
       {{/each}}
+      {{#if linha.ajudavel}}
+      <button type="button" class="icone ajudar" data-action="ajudarPericia"
+              title="{{localize 'PYRO.Pericia.AjudarDica'}}">
+        <i class="fa-solid fa-hands-helping"></i>
+      </button>
+      {{/if}}
       {{#if linha.favoritavel}}
       <button type="button" class="icone favorito {{#if linha.favorito}}ativo{{/if}}"
               data-action="alternarFavorito" title="{{localize 'PYRO.Favoritar'}}">

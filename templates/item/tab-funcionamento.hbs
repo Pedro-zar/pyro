@@ -170,6 +170,31 @@
   </div>
 {{/if}}
 
+{{#if isPericia}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Pericia.Atributos"}}</h4>
+    <p class="pyro-nota">{{localize "PYRO.Pericia.AtributosDica"}}</p>
+    <div class="campos-check">
+      {{#each atributosPericia as |a|}}
+      <label class="check-linha"><input type="checkbox" name="system.atributos.{{a.chave}}" {{checked a.marcado}} />
+        <span>{{a.label}}</span></label>
+      {{/each}}
+    </div>
+  </div>
+  {{> "pyro.progresso"}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Regras"}}</h4>
+    <div class="campos-check">
+      <label class="check-linha" title="{{localize 'PYRO.Pericia.FerramentasDica'}}">
+        <input type="checkbox" name="system.exigeFerramentas" {{checked system.exigeFerramentas}} />
+        <span>{{localize "PYRO.Pericia.ExigeFerramentas"}}</span></label>
+      <label class="check-linha" title="{{localize 'PYRO.Pericia.SoSucessoDica'}}">
+        <input type="checkbox" name="system.contaSoSucesso" {{checked system.contaSoSucesso}} />
+        <span>{{localize "PYRO.Pericia.ContaSoSucesso"}}</span></label>
+    </div>
+  </div>
+{{/if}}
+
 {{#if isFeitico}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Uso"}}</h4>

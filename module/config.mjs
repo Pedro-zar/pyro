@@ -534,7 +534,6 @@ PYRO.regraAtiva = chave => !!PYRO.regrasAtivas?.[chave];
 
 /** Como a habilidade se comporta na ficha. */
 PYRO.categoriasHabilidade = {
-  pericia: "PYRO.Item.Cat.pericia",
   passiva: "PYRO.Item.Cat.passiva",
   ativavel: "PYRO.Item.Cat.ativavel"
 };

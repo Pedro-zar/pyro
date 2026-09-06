@@ -296,6 +296,7 @@ export class PyroItem extends Item {
       case "arma": return this.#atacar();
       case "consumivel": return this.#consumir();
       case "habilidade": return this.#usarHabilidade();
+      case "pericia": return this.actor?.rolarPericia(this);
       case "feitico": return this.#usarFeitico();
       case "magia": return conjurarMagiaSalva(this.actor, this);
       default: return this.#postar();
@@ -601,6 +602,12 @@ export class PyroItem extends Item {
         ${htmlEfeitosDeUso(this)}
       </div>`
     });
+  }
+
+  /** Ajudar um aliado com esta perícia (SRD §5). */
+  async ajudar() {
+    if (this.type !== "pericia" || !this.actor) return;
+    return this.actor.rolarPericia(this, { ajudar: true });
   }
 
   /** Despertar (regra opcional, SRD §3): a habilidade adormecida floresce. */

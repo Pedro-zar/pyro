@@ -196,6 +196,39 @@ export class HabilidadeData extends BaseItemData {
 
 /* ---------------------------- Feitiço --------------------------------------- */
 
+/* ---------------------------- Perícia ---------------------------------------- */
+
+/**
+ * Perícia (SRD 3b): trilha separada das habilidades, treinada pelos testes.
+ * Nasce no nível 0, sem bônus, e passa a valer +1 por nível (+1 vantagem a
+ * cada 5) a partir do primeiro avanço.
+ */
+export class PericiaData extends BaseItemData {
+  static TRILHA_AVANCO = "pericia";
+
+  static defineSchema() {
+    return {
+      ...super.defineSchema(),
+      // Atributos que a perícia aceita; o jogador escolhe um a cada teste.
+      atributos: new fields.ArrayField(
+        new fields.StringField({ required: true, choices: Object.keys(PYRO.atributos) }),
+        { initial: ["des"] }
+      ),
+      // Sem as ferramentas, o ND acima de 10 dobra (acumula com o de não treinada).
+      exigeFerramentas: new fields.BooleanField({ initial: false }),
+      // Percepção: só rolagem bem-sucedida conta para o avanço.
+      contaSoSucesso: new fields.BooleanField({ initial: false }),
+      progresso: nivelPorUso(0)
+    };
+  }
+
+  prepareDerivedData() {
+    this.aprendida = this.progresso.nivel > 0;
+  }
+}
+
+/* ---------------------------- Feitiço --------------------------------------- */
+
 /** Magia demoníaca (Humano Feiticeiro). Sem regra no SRD ainda; só custo e fórmula até lá. */
 export class FeiticoData extends BaseItemData {
   static defineSchema() {
