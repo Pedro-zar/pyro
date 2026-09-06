@@ -1,0 +1,61 @@
+<div class="config-corpo">
+  <section>
+    <header class="lista-cabecalho">
+      <h3>{{localize "PYRO.Tracos.Lista"}}</h3>
+      <button type="button" class="icone" data-action="adicionarTraco"
+              title="{{localize 'PYRO.Criar'}}"><i class="fa-solid fa-plus"></i></button>
+      <button type="button" class="icone" data-action="restaurar"
+              title="{{localize 'PYRO.Config.Restaurar'}}"><i class="fa-solid fa-rotate-left"></i></button>
+    </header>
+    <p class="pyro-nota">{{localize "PYRO.Tracos.Dica"}}</p>
+
+    <div class="config-cab tracos">
+      <span>{{localize "PYRO.Tracos.Nome1"}}</span>
+      <span>{{localize "PYRO.Tracos.Grupo"}}</span>
+      <span>{{localize "PYRO.Tracos.Base"}}</span>
+      <span>{{localize "PYRO.Tracos.PorGrau"}}</span>
+      <span>{{localize "PYRO.Tracos.Unidade"}}</span>
+      <span>{{localize "PYRO.Tracos.Bases"}}</span>
+      <span></span>
+    </div>
+
+    {{#each tracos as |t|}}
+    <div class="config-linha tracos">
+      <input type="text" name="traco.{{t.chave}}.label" value="{{t.label}}" />
+      <select name="traco.{{t.chave}}.grupo">{{selectOptions @root.grupos selected=t.grupo}}</select>
+      <input type="number" step="any" name="traco.{{t.chave}}.base" value="{{t.base}}" />
+      <input type="number" step="any" name="traco.{{t.chave}}.porGrau" value="{{t.porGrau}}" />
+      <input type="text" name="traco.{{t.chave}}.unidade" value="{{t.unidade}}" />
+      <input type="text" name="traco.{{t.chave}}.bases" value="{{t.bases}}"
+             placeholder="{{localize 'PYRO.Tracos.BasesPlaceholder'}}"
+             title="{{localize 'PYRO.Tracos.BasesDica'}}" />
+      <span class="config-acoes">
+        {{#if t.regra}}
+        <i class="fa-solid fa-gear" title="{{localize 'PYRO.Tracos.TemRegra'}}"></i>
+        {{/if}}
+        <button type="button" class="icone perigo" data-action="removerTraco" data-chave="{{t.chave}}"
+                title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+      </span>
+    </div>
+    {{/each}}
+  </section>
+
+  {{!-- Pontos fracos: só o quanto cada um devolve é ajustável; a lista em si é
+        do SRD, e cada entrada tem sentido próprio nas regras. --}}
+  <section>
+    <h3>{{localize "PYRO.Tracos.Onus"}}</h3>
+    <p class="pyro-nota">{{localize "PYRO.Tracos.OnusDica"}}</p>
+    {{#each onus as |o|}}
+    <div class="config-linha onus">
+      <span>{{o.label}}</span>
+      <input type="number" name="onus.{{o.chave}}.pontos" value="{{o.pontos}}" min="0" step="1" />
+    </div>
+    {{/each}}
+  </section>
+
+  <footer class="config-rodape">
+    <button type="submit" class="destaque">
+      <i class="fa-solid fa-floppy-disk"></i> {{localize "PYRO.Config.Salvar"}}
+    </button>
+  </footer>
+</div>

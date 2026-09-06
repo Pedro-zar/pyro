@@ -1,0 +1,114 @@
+<div class="conjurador-corpo">
+
+  <section class="frase-area">
+    <header class="secao-topo">
+      <h3 class="titulo-secao">{{localize "PYRO.Executor.Tracos"}}</h3>
+      <span class="pyro-item-meta">{{baseTexto}} · {{acoesTexto}}{{#if condicao}} · {{condicao}}{{/if}}</span>
+      {{#if temTracos}}
+      <button type="button" class="botao-secao" data-action="zerarEsforcos">
+        <i class="fa-solid fa-eraser"></i> {{localize "PYRO.Executor.Zerar"}}
+      </button>
+      {{/if}}
+    </header>
+
+    {{#if temTracos}}
+    <ol class="frase">
+      {{#each fichas as |f|}}
+      <li class="ficha-runa{{#if f.alem}} excedida{{/if}}">
+        <div class="runa-topo">
+          <span class="ficha-nome">{{f.nome}}</span>
+        </div>
+
+        <div class="ficha-meta">
+          <span>{{f.grupo}}</span>
+          <span>{{localize "PYRO.Tecnica.GrauAbrev"}} {{f.grau}}</span>
+        </div>
+
+        <div class="intencao-ctrl">
+          <button type="button" class="icone" data-action="descerEsforco" data-chave="{{f.chave}}"
+                  title="{{localize 'PYRO.Executor.MenosEsforco'}}"><i class="fa-solid fa-minus"></i></button>
+          <span class="intencao-valor numero" title="{{localize 'PYRO.Tecnica.Esforco'}}">{{f.esforco}}</span>
+          <button type="button" class="icone" data-action="subirEsforco" data-chave="{{f.chave}}"
+                  title="{{localize 'PYRO.Executor.MaisEsforco'}}"><i class="fa-solid fa-plus"></i></button>
+        </div>
+
+        <p class="ficha-previa">{{f.efeito}}</p>
+
+        <p class="ficha-custo numero">
+          {{f.custo}} {{localize "PYRO.Recursos.estamina"}}
+          {{#if f.alem}}
+          <span class="perigo" title="{{localize 'PYRO.Executor.AcimaDoLimite'}}">
+            <i class="fa-solid fa-triangle-exclamation"></i> +{{f.alem}}
+          </span>
+          {{/if}}
+        </p>
+      </li>
+      {{/each}}
+    </ol>
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Executor.SemTracos"}}</p>
+    {{/if}}
+  </section>
+
+  {{!-- A técnica pergunta o ataque toda vez, entre os que a condição aceita:
+        a mesma técnica muda de arma de um turno para o outro. --}}
+  {{#if pedeAtaque}}
+  <section class="medidores">
+    {{#if semAtaque}}
+    <p class="pyro-aviso"><i class="fa-solid fa-triangle-exclamation"></i>
+      {{localize "PYRO.Executor.SemAtaque"}}</p>
+    {{else}}
+    <label class="campo largo"><span class="rotulo">{{localize "PYRO.Executor.Ataque"}}</span>
+      <select name="ataque">
+        {{#each ataques as |a|}}
+        <option value="{{a.id}}" {{#if a.ativo}}selected{{/if}}>{{a.nome}}</option>
+        {{/each}}
+      </select>
+    </label>
+    {{/if}}
+  </section>
+  {{/if}}
+
+  <section class="medidores">
+    <div class="medidor">
+      <div class="medidor-topo">
+        <span class="rotulo">{{localize "PYRO.Executor.GastoTotal"}}</span>
+        <span class="medidor-valor numero {{#if faltaEstamina}}perigo{{/if}}">
+          {{custoTotal}} / {{estaminaAtual}}
+        </span>
+      </div>
+      <div class="barra barra-estamina">
+        <div class="barra-preenchida" style="width: {{pctUsada}}%"></div>
+        <div class="barra-custo {{#if faltaEstamina}}perigo{{/if}}" style="width: {{pctCusto}}%"></div>
+      </div>
+      <p class="medidor-nota">
+        {{#if faltaEstamina}}
+        <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
+          {{localize "PYRO.Executor.EstaminaInsuficiente"}}</span>
+        {{else}}
+        {{localize "PYRO.Executor.Restante"}} {{restante}}
+        {{/if}}
+      </p>
+    </div>
+
+    <div class="medidor {{#if excesso}}alerta{{/if}}">
+      <div class="medidor-topo">
+        <span class="rotulo">{{localize "PYRO.Executor.LimiteSeguro"}}</span>
+        <span class="medidor-valor numero">{{limite}}</span>
+      </div>
+      <p class="medidor-nota">
+        {{#if excesso}}
+        <span class="perigo"><i class="fa-solid fa-fire"></i> {{excessoTexto}}</span>
+        {{else}}
+        <i class="fa-solid fa-check"></i> {{localize "PYRO.Executor.DentroDoLimite"}}
+        {{/if}}
+      </p>
+    </div>
+  </section>
+
+  <footer class="conjurador-rodape">
+    <button type="submit" class="botao-principal" {{#unless podeExecutar}}disabled{{/unless}}>
+      <i class="fa-solid fa-hand-fist"></i> {{localize "PYRO.Executor.Executar"}}
+    </button>
+  </footer>
+</div>

@@ -266,7 +266,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.temFeiticos = feiticeiros.length > 0
       || this.parent.items.some(i => i.type === "feitico");
     this.temTecnicas = this.parent.items.some(i =>
-      i.type === "habilidade" && i.system.ehTecnica
+      i.type === "tecnica" || (i.type === "habilidade" && i.system.ehPostura)
     );
 
     /*

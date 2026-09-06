@@ -492,6 +492,38 @@ export class PyroActor extends Actor {
     return { daEstamina, dosPv, mana, energia };
   }
 
+  /* ---------------------------------------------------------------------- */
+  /*  Posturas (SRD Técnicas)                                               */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Postura ativa, ou null. A escolha é uma flag do ator e não um campo da
+   * habilidade: só uma vale por vez, e guardá-la no ator torna impossível
+   * ficar com duas ligadas.
+   */
+  get posturaAtiva() {
+    const id = this.getFlag(SYSTEM_ID, "postura");
+    const item = id ? this.items.get(id) : null;
+    return item?.system?.ehPostura ? item : null;
+  }
+
+  /**
+   * Entra numa postura, ou sai dela ao repetir a que já está ativa. Custa 1
+   * ação em combate (SRD Técnicas); o card serve de aviso à mesa, o gasto da
+   * ação continua na contagem do turno.
+   */
+  async alternarPostura(item) {
+    if (item && !item.system?.ehPostura) return;
+    const saindo = !item || this.posturaAtiva?.id === item.id;
+    await this.setFlag(SYSTEM_ID, "postura", saindo ? "" : item.id);
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      content: `<p class="pyro-postura">${saindo
+        ? game.i18n.localize("PYRO.Postura.Saiu")
+        : game.i18n.format("PYRO.Postura.Entrou", { nome: Handlebars.escapeExpression(item.name) })}</p>`
+    });
+  }
+
   /** Tomar Ar: recupera VIG/2 de estamina, até o máximo. */
   async tomarAr() {
     const estamina = this.system.recursos.estamina;

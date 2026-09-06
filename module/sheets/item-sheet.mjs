@@ -10,6 +10,7 @@ import { caminho, flagsDe } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
 import { descreverRequisito } from "../progressao.mjs";
 import { rotuloCurtoDoCaminho } from "../data/item-data.mjs";
+import { tracosCompativeis, valorDoTraco, ataquesDoAtor, posturasDoAtor, opcoesDoFiltro } from "../tecnica.mjs";
 
 /**
  * Opções de tipo de dano de um elemento. A primeira herda o tipo do próprio
@@ -66,6 +67,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       removerScalingMagia: PyroItemSheet.#removerScalingMagia,
       adicionarAfinidade: PyroItemSheet.#adicionarAfinidade,
       removerAfinidade: PyroItemSheet.#removerAfinidade,
+      adicionarTraco: PyroItemSheet.#adicionarTraco,
+      removerTraco: PyroItemSheet.#removerTraco,
       criarEfeito: PyroItemSheet.#criarEfeito,
       editarEfeito: PyroItemSheet.#editarEfeito,
       excluirEfeito: PyroItemSheet.#excluirEfeito,
@@ -285,9 +288,14 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
             chave, label: game.i18n.localize(label), marcado: sys.atributos.includes(chave)
           }))
         : null,
+      ...this.#contextoTecnica(),
       requisito: descreverRequisito(item),
       valoresRapidos: this.#valoresRapidos(),
       temPropriedadesFisicas: ["arma", "equipamento", "consumivel"].includes(item.type),
+      // O bloco final junta peso/custo/quantidade com as marcas de cada tipo.
+      // Magia e técnica não têm nem uma coisa nem outra, e o bloco vazio só
+      // ocuparia espaço no fim da aba.
+      mostrarPropriedades: !["magia", "tecnica"].includes(item.type),
       // Prévia do que a runa produz nas primeiras Intenções, já com o
       // multiplicador de efeito da língua (a mesma conta da conjuração).
       previaIntencoes: [1, 2, 3, 4, 5],
@@ -316,6 +324,86 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   }
 
   /* ---------------------------------------------------------------------- */
+  /*  Técnica                                                               */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * Campos da técnica: pontos de criação, traços comprados, filtro da
+   * especificidade e uma linha de variação por postura que o dono conhece.
+   * Devolve um objeto vazio nos outros tipos, para o Object.assign do contexto
+   * não carregar chaves que ninguém vai ler.
+   */
+  #contextoTecnica() {
+    const item = this.item;
+    if (item.type !== "tecnica") return {};
+    const sys = item.system;
+    const actor = item.actor;
+    const loc = k => game.i18n.localize(k);
+
+    const espec = PYRO.especificidades[sys.especificidade];
+    const compativeis = tracosCompativeis(sys.acaoBase);
+    // Um traço entra uma vez só: repetir a linha não soma nada, quem sobe é o grau.
+    const jaUsados = new Set((sys.tracos ?? []).map(t => t.chave));
+
+    const opcoesFiltro = opcoesDoFiltro(sys.especificidade);
+
+    const ataques = espec?.filtro === "ataque" && actor
+      ? ataquesDoAtor(actor).map(a => ({ id: a.id, nome: a.nome }))
+      : null;
+
+    return {
+      pontos: sys.pontos,
+      // O aviso é só aviso: a técnica com pontos sobrando ainda está sendo
+      // montada, e a que passou do teto é uma conversa com o mestre.
+      pontosSobrando: sys.pontos.restantes > 0,
+      pontosExcedidos: sys.pontos.restantes < 0,
+      acoesBaseOpts: Object.fromEntries(
+        Object.entries(PYRO.acoesBaseTecnica).map(([k, v]) => [k, v.label])),
+      acoesDaBase: PYRO.acoesBaseTecnica[sys.acaoBase]?.acoes ?? 1,
+      especificidadeOpts: Object.fromEntries(Object.entries(PYRO.especificidades)
+        .map(([k, v]) => [k, `${loc(v.label)} (+${v.pontos})`])),
+      filtroOpts: opcoesFiltro
+        ? Object.fromEntries(Object.entries(opcoesFiltro).map(([k, v]) => [k, loc(v)]))
+        : null,
+      ataquesOpts: ataques
+        ? Object.fromEntries(ataques.map(a => [a.id, a.nome]))
+        : null,
+      tracosDaTecnica: (sys.tracos ?? []).map((t, indice) => {
+        const cfg = PYRO.tracosTecnica[t.chave];
+        return {
+          indice,
+          chave: t.chave,
+          grau: t.grau,
+          custo: PYRO.custoDoGrau(t.grau),
+          desconhecido: !cfg,
+          // O que o grau comprado rende com Esforço 1, que é a leitura útil
+          // na hora de montar: o Esforço é escolha da execução.
+          efeito: cfg ? `${valorDoTraco(cfg, t.grau, 1)} ${loc(cfg.unidade)}` : "",
+          // A lista de cada linha traz os traços livres mais o próprio, senão
+          // o select mostraria vazio no traço já escolhido.
+          opcoes: Object.fromEntries(compativeis
+            .filter(c => c.chave === t.chave || !jaUsados.has(c.chave))
+            .map(c => [c.chave, loc(c.label)]))
+        };
+      }),
+      podeAdicionarTraco: compativeis.some(c => !jaUsados.has(c.chave)),
+      onusOpts: Object.entries(PYRO.onusTecnica).map(([chave, cfg]) => ({
+        chave,
+        label: `${loc(cfg.label)} (+${cfg.pontos})`,
+        marcado: (sys.onus ?? []).includes(chave)
+      })),
+      /*
+       * Uma variação por postura conhecida, montada a partir das posturas do
+       * ator: a lista não é editada à mão porque ela é consequência de quais
+       * posturas o personagem tem, e some junto com elas.
+       */
+      variacoesPostura: (posturasDoAtor(actor) ?? []).map(p => ({
+        id: p.id,
+        nome: p.name,
+        texto: (sys.variacoes ?? []).find(v => v.posturaId === p.id)?.texto ?? ""
+      }))
+    };
+  }
 
   /* ---------------------------------------------------------------------- */
   /*  Resumo mecânico do item                                              */
@@ -380,6 +468,13 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         if (sys.adormecidaAtiva) partes.push(loc("PYRO.Despertar.Tag"));
         break;
       }
+      case "tecnica": {
+        partes.push(loc(PYRO.acoesBaseTecnica[sys.acaoBase]?.label ?? ""));
+        partes.push(`${loc("PYRO.Item.Tier")} ${sys.tier}`);
+        partes.push(`${loc("PYRO.Uso.Nivel")} ${sys.progresso.nivel}`);
+        partes.push(`${sys.acoes} ${loc("PYRO.AcoesAbrev")}`);
+        break;
+      }
       case "pericia": {
         partes.push(sys.atributos.map(k => loc(PYRO.atributos[k])).join("/"));
         partes.push(`${loc("PYRO.Uso.Nivel")} ${sys.progresso.nivel}`);
@@ -439,6 +534,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       add("PYRO.Item.CustoXp", sys.ehBase ? loc("PYRO.Item.BaseTag") : sys.custoXp);
       add("PYRO.Uso.Nivel", `${sys.nivel} / ${sys.nivelMax}`);
     }
+    if (this.item.type === "tecnica") {
+      add("PYRO.Tecnica.Pontos", `${sys.pontos.gastos} / ${sys.pontos.disponiveis}`);
+      add("PYRO.Uso.Nivel", `${sys.progresso.nivel} / ${sys.progresso.nivelMax}`);
+    }
     if (this.item.type === "caminho") {
       add("PYRO.Item.Xp", `${sys.xpDisponivel} / ${sys.xp}`);
       add("PYRO.Item.XpGasta", sys.xpGasta);
@@ -478,6 +577,42 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         tipo: a.tipo ?? "fogo",
         outro: a.outro ?? ""
       }));
+    }
+
+    if (this.item.type === "tecnica") {
+      if (sys.tracos && !Array.isArray(sys.tracos)) {
+        sys.tracos = Object.values(sys.tracos)
+          .map(t => ({ chave: t.chave ?? "", grau: Math.max(1, Number(t.grau) || 1) }))
+          .filter(t => t.chave);
+      }
+      // Checkboxes chegam como { chave: true/false }.
+      if (sys.onus && !Array.isArray(sys.onus)) {
+        sys.onus = Object.entries(sys.onus).filter(([, v]) => v).map(([k]) => k);
+      }
+      /*
+       * As variações chegam indexadas pelo id da postura, e não por posição:
+       * a lista da ficha é montada das posturas do ator, então a ordem dela
+       * muda quando o personagem aprende outra. Só as escritas são guardadas.
+       */
+      if (sys.variacoes && !Array.isArray(sys.variacoes)) {
+        sys.variacoes = Object.entries(sys.variacoes)
+          .map(([posturaId, texto]) => ({ posturaId, texto: String(texto ?? "") }))
+          .filter(v => v.texto.trim());
+      }
+      // A condição imposta pertence à especificidade escolhida: trocar de
+      // especificidade sem limpar deixaria um "cortante" preso num filtro de
+      // alcance, que nenhum ataque atenderia.
+      if (sys.especificidade && sys.especificidade !== this.item.system.especificidade) {
+        // O filtro nasce na primeira opção da condição nova, e não vazio: uma
+        // técnica de "armas médias" com filtro em branco não aceitaria arma
+        // nenhuma, e o select mostraria uma opção que não é a gravada.
+        sys.filtro = Object.keys(opcoesDoFiltro(sys.especificidade) ?? {})[0] ?? "";
+        sys.ataque = { id: "", nome: "" };
+      }
+      if (sys.ataque?.id && this.item.actor) {
+        const escolhido = ataquesDoAtor(this.item.actor).find(a => a.id === sys.ataque.id);
+        sys.ataque = { id: sys.ataque.id, nome: escolhido?.nome ?? "" };
+      }
     }
 
     if (this.item.type === "runa" && sys.scalings && !Array.isArray(sys.scalings)) {
@@ -554,6 +689,22 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     if (!r) return;
     r.scalings.splice(Number(target.dataset.index), 1);
     await this.item.update({ "system.runas": runas });
+  }
+
+  static async #adicionarTraco() {
+    const sys = this.item.system;
+    const arr = sys.toObject().tracos;
+    const usados = new Set(arr.map(t => t.chave));
+    const livre = tracosCompativeis(sys.acaoBase).find(c => !usados.has(c.chave));
+    if (!livre) return;
+    arr.push({ chave: livre.chave, grau: 1 });
+    await this.item.update({ "system.tracos": arr });
+  }
+
+  static async #removerTraco(event, target) {
+    const arr = this.item.system.toObject().tracos;
+    arr.splice(Number(target.dataset.index), 1);
+    await this.item.update({ "system.tracos": arr });
   }
 
   static async #adicionarAfinidade() {

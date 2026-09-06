@@ -1532,3 +1532,64 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 
 /* Bônus ao lado da base do atributo: aumentos de tier e efeitos, somados.
    Verde quando somam, vermelho quando descontam. */
+
+/* -------------------------------------------------------------------------- */
+/*  Técnicas                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/* Barra de posturas: a ativa em destaque, e só uma pode estar. */
+.pyro .painel.posturas { margin-top: var(--pyro-e-3); }
+.pyro .barra-posturas { display: flex; flex-wrap: wrap; gap: var(--pyro-e-2); }
+.pyro .barra-posturas .postura {
+  display: flex; align-items: center; gap: var(--pyro-e-2);
+  padding: 0.25rem 0.6rem 0.25rem 0.25rem;
+  background: var(--pyro-painel);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
+  font-size: var(--pyro-t-sm); line-height: 1.1; width: auto;
+}
+.pyro .barra-posturas .postura img {
+  width: 1.6rem; height: 1.6rem; border: none; border-radius: 4px; object-fit: cover;
+}
+.pyro .barra-posturas .postura.ativa {
+  border-color: var(--pyro-acento-ficha); font-weight: 700;
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pyro-acento-ficha) 40%, transparent);
+}
+
+/* Executor: mesma barra em duas camadas do conjurador, na cor da estamina. */
+.pyro .barra-estamina { height: 0.9rem; }
+.pyro .barra-estamina .barra-preenchida {
+  background: color-mix(in srgb, var(--pyro-estamina) 55%, black 25%);
+}
+
+/* Card do chat: um traço por linha, com o Esforço e o que ele rendeu. */
+.pyro-tracos { list-style: none; margin: 0.4rem 0; padding: 0; }
+.pyro-tracos li {
+  display: grid; grid-template-columns: 1fr auto; gap: 0 0.5rem;
+  padding: 0.25rem 0; border-top: 1px solid var(--pyro-borda);
+}
+.pyro-tracos li.alem-limite { border-left: 3px solid var(--pyro-perigo); padding-left: 0.4rem; }
+.pyro-tracos .pyro-traco-meta {
+  grid-column: 1 / -1; font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
+}
+.pyro-tracos .pyro-traco-valor { grid-row: 1; grid-column: 2; font-weight: 700; }
+.pyro-postura-variacao { margin: 0.3rem 0; font-size: var(--pyro-t-sm); }
+
+/* Contador de pontos na ficha da técnica: alerta sobrando, perigo estourado. */
+.pyro .pyro-pontos { margin-left: auto; font-size: var(--pyro-t-xs); opacity: 0.8; }
+.pyro .pyro-pontos.alerta { color: var(--pyro-vontade); opacity: 1; }
+.pyro .pyro-pontos.perigo { color: var(--pyro-perigo); opacity: 1; }
+
+/* Traços comprados na ficha: traço, grau, custo e o que rende. */
+.pyro .config-cab.tracos-item, .pyro .config-linha.tracos-item {
+  grid-template-columns: 1fr 4rem 4rem 1.2fr 1.9rem;
+}
+/* Configuração dos traços: nome, grupo, grau 1, por grau, unidade e bases. */
+.pyro .config-cab.tracos, .pyro .config-linha.tracos {
+  grid-template-columns: 1fr 1fr 4.5rem 4.5rem 1.2fr 1fr 3rem;
+}
+.pyro .config-linha.tracos .config-acoes {
+  display: flex; align-items: center; justify-content: flex-end; gap: 0.25rem;
+}
+.pyro .config-cab.onus, .pyro .config-linha.onus {
+  grid-template-columns: 1fr 5rem;
+}

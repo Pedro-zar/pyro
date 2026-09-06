@@ -3,6 +3,7 @@ import { ConfigElementosApp } from "./apps/config-magia.mjs";
 import { ConfigCaminhosApp } from "./apps/config-caminhos.mjs";
 import { ConfigProgressaoApp } from "./apps/config-progressao.mjs";
 import { ConfigRegrasApp } from "./apps/config-regras.mjs";
+import { ConfigTracosApp } from "./apps/config-tracos.mjs";
 import { SYSTEM_ID } from "./sistema.mjs";
 
 /**
@@ -73,6 +74,26 @@ export function registrarSettings() {
     requiresReload: true
   });
 
+  /*
+   * Traços de técnica e o quanto cada ponto fraco devolve. Ficam em setting
+   * porque são a tabela de regras que mais tende a ser calibrada na mesa.
+   */
+  game.settings.register(SYSTEM_ID, "tracosTecnica", {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: foundry.utils.deepClone(PYRO.tracosTecnicaPadrao),
+    requiresReload: true
+  });
+
+  game.settings.register(SYSTEM_ID, "onusTecnica", {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: foundry.utils.deepClone(PYRO.onusTecnicaPadrao),
+    requiresReload: true
+  });
+
   game.settings.register(SYSTEM_ID, "progressoes", {
     scope: "world",
     config: false,
@@ -82,9 +103,9 @@ export function registrarSettings() {
   });
 
   /*
-   * Três telas, uma por assunto. Elementos é a tabela de dano da magia;
-   * Caminhos Raciais junta raças, potenciais e recursos, que se referenciam
-   * entre si; Progressão é a curva de XP.
+   * Uma tela por assunto. Elementos é a tabela de dano da magia; Caminhos
+   * Raciais junta raças, potenciais e recursos, que se referenciam entre si;
+   * Traços é a tabela das técnicas; Progressão é a curva de XP.
    */
   game.settings.registerMenu(SYSTEM_ID, "configMagia", {
     name: "PYRO.Config.Nome",
@@ -110,6 +131,15 @@ export function registrarSettings() {
     hint: "PYRO.Regras.Dica",
     icon: "fa-solid fa-toggle-on",
     type: ConfigRegrasApp,
+    restricted: true
+  });
+
+  game.settings.registerMenu(SYSTEM_ID, "configTracos", {
+    name: "PYRO.Tracos.Nome",
+    label: "PYRO.Tracos.Botao",
+    hint: "PYRO.Tracos.Dica",
+    icon: "fa-solid fa-hand-fist",
+    type: ConfigTracosApp,
     restricted: true
   });
 
@@ -152,6 +182,8 @@ export function aplicarSettings() {
   PYRO.indexarProgressoes();
   PYRO.curvaXp = { ...PYRO.curvaXpPadrao, ...(game.settings.get(SYSTEM_ID, "curvaXp") ?? {}) };
   PYRO.regrasAtivas = { ...(game.settings.get(SYSTEM_ID, "regrasOpcionais") ?? {}) };
+  PYRO.tracosTecnica = mesclar(PYRO.tracosTecnicaPadrao, game.settings.get(SYSTEM_ID, "tracosTecnica"));
+  PYRO.onusTecnica = mesclar(PYRO.onusTecnicaPadrao, game.settings.get(SYSTEM_ID, "onusTecnica"));
   // Cada trilha é substituída inteira: uma tabela é um array, e mesclar
   // linha a linha misturaria uma tabela editada com a padrão.
   const avanco = game.settings.get(SYSTEM_ID, "avancoPorUso") ?? {};

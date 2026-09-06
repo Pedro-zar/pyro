@@ -60,6 +60,25 @@
     </div>
   </div>
 
+  {{!-- Postura ativa (SRD Técnicas): entrar ou trocar custa 1 ação, e só uma
+        vale por vez, então a escolha é uma barra e não uma lista de marcas. --}}
+  {{#if posturas.length}}
+  <div class="painel posturas">
+    <h3 class="titulo-secao">{{localize "PYRO.Postura.Nome"}}</h3>
+    <div class="barra-posturas">
+      {{#each posturas as |p|}}
+      <button type="button" class="postura {{#if p.ativa}}ativa{{/if}}"
+              data-action="alternarPostura" data-item-id="{{p.id}}"
+              title="{{localize (pyroSe p.ativa 'PYRO.Postura.Sair' 'PYRO.Postura.Entrar')}}">
+        <img src="{{p.img}}" alt="" />
+        <span>{{p.nome}}</span>
+      </button>
+      {{/each}}
+    </div>
+    <p class="pyro-nota">{{localize "PYRO.Postura.Custo"}}</p>
+  </div>
+  {{/if}}
+
   {{> "pyro.secao" secao=secoes.favoritos}}
 
   {{#if system.temTecnicas}}

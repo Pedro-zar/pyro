@@ -4,6 +4,7 @@
  */
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
+import { executarTecnica } from "../tecnica.mjs";
 import { formulaTeste, formulaPool, expandirAtributos } from "../dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado,
@@ -303,7 +304,10 @@ export class PyroItem extends Item {
     switch (this.type) {
       case "arma": return this.#atacar();
       case "consumivel": return this.#consumir();
-      case "habilidade": return this.#usarHabilidade();
+      case "habilidade": return this.system.ehPostura
+        ? this.actor?.alternarPostura(this)
+        : this.#usarHabilidade();
+      case "tecnica": return executarTecnica(this.actor, this);
       case "pericia": return this.actor?.rolarPericia(this);
       case "feitico": return this.#usarFeitico();
       case "magia": return conjurarMagiaSalva(this.actor, this);

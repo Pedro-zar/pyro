@@ -1,8 +1,10 @@
 /**
- * Data models dos itens (arma, equipamento, consumível, habilidade, feitiço,
- * runa, magia, caminho) e a contabilidade de XP das habilidades por Caminho.
+ * Data models dos itens (arma, equipamento, consumível, habilidade, técnica,
+ * feitiço, runa, magia, caminho) e a contabilidade de XP das habilidades por
+ * Caminho.
  */
 import { PYRO } from "../config.mjs";
+import { pontosDaTecnica } from "../tecnica.mjs";
 import { num, dec, str, nivelPorUso } from "./campos.mjs";
 
 const fields = foundry.data.fields;
@@ -153,8 +155,12 @@ export class HabilidadeData extends BaseItemData {
       caminho: str(""), // id do Caminho de origem ("geral" para habilidades gerais)
       // Perícia, passiva ou ativável — organiza a lista da ficha.
       categoria: str("ativavel", { choices: Object.keys(PYRO.categoriasHabilidade) }),
-      // Habilidades de caminhos de Classe podem ser técnicas (aba própria).
-      ehTecnica: new fields.BooleanField({ initial: false }),
+      /*
+       * Postura (SRD Técnicas): a habilidade base de um caminho marcial. Os
+       * efeitos dela só valem enquanto ela é a postura ativa, e cada técnica
+       * pode escrever uma variação para ela.
+       */
+      ehPostura: new fields.BooleanField({ initial: false }),
       // A habilidade base vem junto do caminho e não custa XP.
       ehBase: new fields.BooleanField({ initial: false }),
       // Habilidades de caminhos que concedem recurso próprio (Energia Natural)
@@ -194,7 +200,53 @@ export class HabilidadeData extends BaseItemData {
   }
 }
 
-/* ---------------------------- Feitiço --------------------------------------- */
+/* ---------------------------- Técnica ---------------------------------------- */
+
+/**
+ * Técnica (SRD Técnicas): o equivalente marcial da magia. O que ela faz sai de
+ * uma ação base, de traços comprados em graus e do Esforço posto em cada traço
+ * na hora de usar — nada disso é fórmula escrita à mão.
+ */
+export class TecnicaData extends BaseItemData {
+  /** Técnicas sobem de nível pelo uso, na mesma tabela das magias. */
+  static TRILHA_AVANCO = "magiaTecnica";
+
+  static defineSchema() {
+    return {
+      ...super.defineSchema(),
+      tier: num(1, { min: 1, max: 9 }),
+      acaoBase: str("atacar", { choices: Object.keys(PYRO.acoesBaseTecnica) }),
+      // Custo próprio em ações/reações: o que diferir da ação base vira ponto.
+      acoes: num(2, { min: 1 }),
+      especificidade: str("nenhuma", { choices: Object.keys(PYRO.especificidades) }),
+      /*
+       * Valor do filtro automático da especificidade: "distante", "media",
+       * "cortante". Sem choices porque o conjunto muda com a especificidade
+       * escolhida — e com os tipos de dano que o mestre configurou.
+       */
+      filtro: str(""),
+      // Especificidade "específica": um ataque nomeado da ficha (katana, chute).
+      // O nome acompanha o id como rede de segurança, igual aos alvos de efeito.
+      ataque: new fields.SchemaField({ id: str(""), nome: str("") }),
+      tracos: new fields.ArrayField(new fields.SchemaField({
+        chave: str(""),
+        grau: num(1, { min: 1 })
+      }), { initial: [] }),
+      // Pontos fracos aceitos na criação; devolvem pontos e acumulam.
+      onus: new fields.ArrayField(new fields.StringField({ required: true }), { initial: [] }),
+      // A forma que a técnica toma em cada postura que o usuário conhece.
+      variacoes: new fields.ArrayField(new fields.SchemaField({
+        posturaId: str(""),
+        texto: str("")
+      }), { initial: [] }),
+      progresso: nivelPorUso(1)
+    };
+  }
+
+  prepareDerivedData() {
+    this.pontos = pontosDaTecnica(this);
+  }
+}
 
 /* ---------------------------- Perícia ---------------------------------------- */
 

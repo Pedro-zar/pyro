@@ -71,6 +71,20 @@ export function formulaPool(valor) {
 }
 
 /**
+ * Multiplica só os dados de uma fórmula, deixando bônus e atributos como
+ * estão: "2d6 + [FOR]" vezes 3 vira "6d6 + [FOR]".
+ *
+ * É o que a Potência das técnicas pede — "+1x dados de dano" dobra os dados de
+ * uma katana, não a Força de quem a segura.
+ */
+export function multiplicarDados(formula, mult) {
+  const m = Math.max(0, Math.round(Number(mult) || 0));
+  if (m === 1) return String(formula ?? "");
+  return String(formula ?? "").replace(/(\d*)d(\d+)/gi,
+    (termo, n, faces) => `${(n === "" ? 1 : Number(n)) * m}d${faces}`);
+}
+
+/**
  * Junta várias fórmulas numa só, somando os dados de mesmas faces.
  *
  * Um bloqueio com escudo e brincos seria "2d4 + 2d4 + 2d4" no botão, que não

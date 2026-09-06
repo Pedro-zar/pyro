@@ -170,6 +170,110 @@
   </div>
 {{/if}}
 
+{{#if isTecnica}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Identificacao"}}</h4>
+    <div class="grade-campos">
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tecnica.AcaoBase"}}</span>
+        <select name="system.acaoBase">{{selectOptions acoesBaseOpts selected=system.acaoBase localize=true}}</select></label>
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Tier"}}</span>
+        <select name="system.tier">{{selectOptions tierOpts selected=system.tier}}</select></label>
+      <label class="campo" title="{{localize 'PYRO.Tecnica.AcoesDica'}}">
+        <span class="rotulo">{{localize "PYRO.Acoes"}}</span>
+        <input type="number" name="system.acoes" value="{{system.acoes}}" min="1" /></label>
+      <div class="campo"><span class="rotulo">{{localize "PYRO.Tecnica.AcoesDaBase"}}</span>
+        <span class="valor-texto numero">{{acoesDaBase}}</span></div>
+    </div>
+  </div>
+
+  {{!-- A condição imposta ao ataque, e o filtro que separa as armas da ficha
+        sozinho: quem escolhe "armas pesadas" não marca arma por arma. --}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Tecnica.Especificidade"}}</h4>
+    <div class="grade-campos">
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tecnica.Condicao"}}</span>
+        <select name="system.especificidade">{{selectOptions especificidadeOpts selected=system.especificidade}}</select></label>
+      {{#if filtroOpts}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tecnica.Filtro"}}</span>
+        <select name="system.filtro">{{selectOptions filtroOpts selected=system.filtro}}</select></label>
+      {{/if}}
+      {{#if ataquesOpts}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tecnica.AtaqueEspecifico"}}</span>
+        <select name="system.ataque.id">{{selectOptions ataquesOpts selected=system.ataque.id}}</select></label>
+      {{/if}}
+    </div>
+    <p class="pyro-nota">{{localize "PYRO.Tecnica.EspecificidadeDica"}}</p>
+  </div>
+
+  <div class="bloco">
+    <header class="lista-cabecalho">
+      <h4 class="titulo-secao">{{localize "PYRO.Tecnica.Tracos"}}</h4>
+      <span class="pyro-pontos {{#if pontosExcedidos}}perigo{{/if}}{{#if pontosSobrando}} alerta{{/if}}">
+        {{pontos.gastos}} / {{pontos.disponiveis}} {{localize "PYRO.Tecnica.Pontos"}}
+      </span>
+      {{#if podeAdicionarTraco}}
+      <button type="button" class="icone" data-action="adicionarTraco"
+              title="{{localize 'PYRO.Criar'}}"><i class="fa-solid fa-plus"></i></button>
+      {{/if}}
+    </header>
+
+    {{#if tracosDaTecnica.length}}
+    <div class="config-cab tracos-item">
+      <span>{{localize "PYRO.Tecnica.Traco1"}}</span>
+      <span>{{localize "PYRO.Tecnica.Grau"}}</span>
+      <span>{{localize "PYRO.Tecnica.CustoPontos"}}</span>
+      <span>{{localize "PYRO.Tecnica.NoGrau"}}</span>
+      <span></span>
+    </div>
+    {{#each tracosDaTecnica as |t|}}
+    <div class="config-linha tracos-item">
+      <select name="system.tracos.{{t.indice}}.chave">{{selectOptions t.opcoes selected=t.chave}}</select>
+      <input type="number" name="system.tracos.{{t.indice}}.grau" value="{{t.grau}}" min="1" />
+      <span class="valor-texto numero">{{t.custo}}</span>
+      <span class="valor-texto">{{t.efeito}}</span>
+      <button type="button" class="icone perigo" data-action="removerTraco" data-index="{{t.indice}}"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {{/each}}
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Tecnica.SemTracos"}}</p>
+    {{/if}}
+
+    {{#if pontosExcedidos}}
+    <p class="pyro-aviso"><i class="fa-solid fa-triangle-exclamation"></i>
+      {{localize "PYRO.Tecnica.PontosExcedidos"}}</p>
+    {{/if}}
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Tecnica.Onus"}}</h4>
+    <p class="pyro-nota">{{localize "PYRO.Tecnica.OnusDica"}}</p>
+    <div class="campos-check">
+      {{#each onusOpts as |o|}}
+      <label class="check-linha"><input type="checkbox" name="system.onus.{{o.chave}}" {{checked o.marcado}} />
+        <span>{{o.label}}</span></label>
+      {{/each}}
+    </div>
+  </div>
+
+  {{!-- Uma variação por postura conhecida (SRD Técnicas): a técnica muda de
+        forma conforme a guarda em que é executada. --}}
+  {{#if variacoesPostura.length}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Tecnica.Variacoes"}}</h4>
+    <div class="grade-campos">
+      {{#each variacoesPostura as |v|}}
+      <label class="campo cresce"><span class="rotulo">{{v.nome}}</span>
+        <input type="text" name="system.variacoes.{{v.id}}" value="{{v.texto}}"
+               placeholder="{{localize 'PYRO.Tecnica.VariacaoPlaceholder'}}" /></label>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+
+  {{> "pyro.progresso"}}
+{{/if}}
+
 {{#if isPericia}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Pericia.Atributos"}}</h4>
@@ -413,7 +517,7 @@
   </div>
 {{/if}}
 
-{{#unless isMagia}}
+{{#if mostrarPropriedades}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Propriedades"}}</h4>
     <div class="grade-campos">
@@ -445,8 +549,9 @@
       {{/if}}
       {{/if}}
       {{#if isHabilidade}}
-      <label class="check-linha"><input type="checkbox" name="system.ehTecnica" {{checked system.ehTecnica}} />
-        <span>{{localize "PYRO.Item.EhTecnica"}}</span></label>
+      <label class="check-linha" title="{{localize 'PYRO.Postura.Dica'}}">
+        <input type="checkbox" name="system.ehPostura" {{checked system.ehPostura}} />
+        <span>{{localize "PYRO.Item.EhPostura"}}</span></label>
       <label class="check-linha"><input type="checkbox" name="system.ehBase" {{checked system.ehBase}} />
         <span>{{localize "PYRO.Item.EhBase"}}</span></label>
       {{#if mostrarAdormecida}}
@@ -472,5 +577,5 @@
     </div>
 
   </div>
-{{/unless}}
+{{/if}}
 </section>

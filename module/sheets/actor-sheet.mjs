@@ -11,6 +11,7 @@ import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
 import { descreverRequisito } from "../progressao.mjs";
+import { posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDaCondicao } from "../tecnica.mjs";
 
 /**
  * O que fazer com um drop que caiu em cima de uma linha do inventário.
@@ -80,6 +81,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       recuperar: PyroActorSheet.#recuperar,
       abrirRecuperacao: PyroActorSheet.#abrirRecuperacao,
       abrirConjurador: PyroActorSheet.#abrirConjurador,
+      alternarPostura: PyroActorSheet.#alternarPostura,
       abrirGuiaAcoes: PyroActorSheet.#abrirGuiaAcoes,
       criarItem: PyroActorSheet.#criarItem,
       editarItem: PyroActorSheet.#editarItem,
@@ -346,7 +348,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     // Agrupada por caminho para a lista; a versão plana (habilidades) serve
     // à contagem e aos favoritos.
     const gruposHab = gruposDeHabilidades(porTipo("caminho"),
-      todasHabilidades.filter(i => !i.system.ehTecnica && !i.system.abaCaminho));
+      todasHabilidades.filter(i => !i.system.abaCaminho));
     const habilidadesGrupos = [];
     for (const g of gruposHab) {
       habilidadesGrupos.push({
@@ -355,8 +357,44 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       });
     }
     const habilidades = habilidadesGrupos.flatMap(g => g.itens);
-    const tecnicas = await this.#linhas(
-      todasHabilidades.filter(i => i.system.ehTecnica && !i.system.abaCaminho), habilidade);
+    /*
+     * Técnicas são um tipo próprio: a linha resume a ação base, a condição
+     * imposta e o que cada traço rende no grau comprado, que é o que se
+     * consulta antes de escolher o Esforço.
+     */
+    const tecnicas = await this.#linhas(porTipo("tecnica"), item => {
+      const sys = item.system;
+      const base = loc(PYRO.acoesBaseTecnica[sys.acaoBase]?.label ?? "");
+      const condicao = textoDaCondicao(sys);
+      const efeitos = tracosDaTecnica(sys).map(t =>
+        `${loc(t.cfg.label)} ${valorDoTraco(t.cfg, t.grau, 1)} ${loc(t.cfg.unidade)}`);
+      const acoes = `${sys.acoes} ${umOuVarios(sys.acoes,
+        PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao ? "PYRO.Custos.reacao" : "PYRO.Custos.acao",
+        PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao ? "PYRO.Custos.reacaoPlural" : "PYRO.Custos.acaoPlural")}`;
+      const detalheTexto = [
+        base, acoes, condicao,
+        `${loc("PYRO.Item.Tier").toLocaleLowerCase()} ${sys.tier}`,
+        `${loc("PYRO.Uso.NivelAbrev")} ${sys.progresso.nivel}`
+      ].filter(Boolean).join(", ");
+      const requisito = descreverRequisito(item);
+      return {
+        detalhes: detalheUnico(detalheTexto),
+        cauda: [],
+        resumo: [
+          { label: loc("PYRO.Tecnica.AcaoBase"), valor: base },
+          { label: loc("PYRO.Acoes"), valor: sys.acoes },
+          ...(condicao ? [{ label: loc("PYRO.Tecnica.Condicao"), valor: condicao }] : []),
+          { label: loc("PYRO.Item.Tier"), valor: sys.tier },
+          { label: loc("PYRO.Tecnica.Pontos"), valor: `${sys.pontos.gastos} / ${sys.pontos.disponiveis}` },
+          { label: loc("PYRO.Tecnica.Tracos"), valor: efeitos.join(" · ") || "—" },
+          { label: loc("PYRO.Uso.Nivel"), valor: `${sys.progresso.nivel} / ${sys.progresso.nivelMax}` },
+          ...(requisito ? [{
+            label: requisito.noMaximo ? "" : game.i18n.format("PYRO.Uso.ParaONivel", { nivel: requisito.nivel }),
+            valor: requisito.texto
+          }] : [])
+        ]
+      };
+    });
     const habilidadesCaminho = await this.#linhas(
       todasHabilidades.filter(i => i.system.abaCaminho), habilidade);
 
@@ -507,7 +545,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
      * Favoritos: reaproveita as linhas já montadas — o mesmo item aparece na
      * lista de origem e na seção Favoritos da aba Combate.
      */
-    const favoritaveis = ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia", "pericia"];
+    const favoritaveis = ["arma", "equipamento", "consumivel", "habilidade", "tecnica", "feitico", "magia", "pericia"];
     const favIds = new Set(actor.items
       .filter(i => favoritaveis.includes(i.type) && i.getFlag(SYSTEM_ID, "favorito"))
       .map(i => i.id));
@@ -599,6 +637,17 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ].filter(Boolean).join(","),
       efeitos: this.#categoriasEfeitos(),
       exaustao: nivelExaustao(actor),
+      /*
+       * Barra de posturas: uma por habilidade marcada como postura, com a
+       * ativa em destaque. Só uma vale por vez (SRD Técnicas), e é por isso
+       * que a escolha é uma barra e não uma caixa por habilidade.
+       */
+      posturas: posturasDoAtor(actor).map(p => ({
+        id: p.id,
+        nome: p.name,
+        img: p.img,
+        ativa: actor.posturaAtiva?.id === p.id
+      })),
       recursosVisiveis,
       recursosCols,
       selosPoder,
@@ -658,6 +707,11 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   static async #tomarAr() {
     await this.actor.tomarAr();
+  }
+
+  /** Entrar na postura, ou sair dela ao clicar na que já está ativa. */
+  static async #alternarPostura(event, target) {
+    await this.actor.alternarPostura(this.actor.items.get(target.dataset.itemId));
   }
 
   static async #gastarVontade(event, target) {
@@ -952,7 +1006,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
    * detalhes (colunas), linha2, resumo (pares label/valor) e flags de equipar.
    */
   async #linhas(itens, montar) {
-    const usaveis = ["arma", "consumivel", "habilidade", "feitico", "magia", "runa", "pericia"];
+    const usaveis = ["arma", "consumivel", "habilidade", "tecnica", "feitico", "magia", "runa", "pericia"];
     return Promise.all(itens.map(async item => ({
       id: item.id,
       img: item.img,
@@ -962,7 +1016,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // Ícone de d20 que aparece no hover e dispara o mesmo "usar" do menu.
       usavel: usaveis.includes(item.type),
       // Favoritável = o que se usa ou equipa em combate (runa e caminho não).
-      favoritavel: ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia", "pericia"]
+      favoritavel: ["arma", "equipamento", "consumivel", "habilidade", "tecnica", "feitico", "magia", "pericia"]
         .includes(item.type),
       favorito: !!item.getFlag(SYSTEM_ID, "favorito"),
       descricaoHTML: await enriquecer(item.system.descricao, item),

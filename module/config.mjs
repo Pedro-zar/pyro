@@ -596,6 +596,156 @@ PYRO.tiposCusto = {
   reacao: "PYRO.Item.Reacao"
 };
 
+/* -------------------------------------------------------------------------- */
+/*  Técnicas                                                                  */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Ações base (SRD Técnicas): a técnica herda os dados, o alcance e o custo da
+ * ação em que foi construída. `acoes` é o custo padrão dela — o que a técnica
+ * cobrar a mais ou a menos vira ponto de criação.
+ *
+ *   ataca      a técnica rola um ataque da ficha (arma ou desarmado).
+ *   reacao     é usada fora do próprio turno, e gasta reação em vez de ação.
+ */
+PYRO.acoesBaseTecnica = {
+  atacar:   { label: "PYRO.Tecnica.Base.atacar",   acoes: 2, ataca: true },
+  agarrar:  { label: "PYRO.Tecnica.Base.agarrar",  acoes: 2, ataca: true },
+  mover:    { label: "PYRO.Tecnica.Base.mover",    acoes: 1 },
+  saltar:   { label: "PYRO.Tecnica.Base.saltar",   acoes: 1 },
+  bloquear: { label: "PYRO.Tecnica.Base.bloquear", acoes: 1, reacao: true },
+  esquivar: { label: "PYRO.Tecnica.Base.esquivar", acoes: 1, reacao: true }
+};
+
+/**
+ * Especificidade (SRD Técnicas): condições impostas ao ataque rendem pontos, e
+ * a técnica não funciona fora delas. `filtro` diz qual lista de opções a ficha
+ * oferece; a especificidade sem filtro ("nenhuma") aceita qualquer ataque, e
+ * "ataque" aponta um ataque nomeado da própria ficha.
+ */
+PYRO.especificidades = {
+  nenhuma:    { label: "PYRO.Tecnica.Espec.nenhuma",    pontos: 0, filtro: "" },
+  alcance:    { label: "PYRO.Tecnica.Espec.alcance",    pontos: 1, filtro: "alcance" },
+  familia:    { label: "PYRO.Tecnica.Espec.familia",    pontos: 2, filtro: "familia" },
+  tipo:       { label: "PYRO.Tecnica.Espec.tipo",       pontos: 3, filtro: "tipo" },
+  especifica: { label: "PYRO.Tecnica.Espec.especifica", pontos: 4, filtro: "ataque" }
+};
+
+/**
+ * Opções de cada filtro automático. Alcance e família saem de números que a
+ * arma já tem (alcance máximo e custo em ações), então o jogador escolhe a
+ * condição e o sistema separa as armas sozinho — nada de marcar arma por arma.
+ * O filtro "tipo" é montado no i18nInit, porque inclui os tipos de dano.
+ */
+PYRO.filtrosEspecificidade = {
+  alcance: {
+    corpoACorpo: "PYRO.Tecnica.Filtro.corpoACorpo",
+    distante: "PYRO.Tecnica.Filtro.distante"
+  },
+  familia: {
+    leve: "PYRO.Tecnica.Filtro.leve",
+    media: "PYRO.Tecnica.Filtro.media",
+    pesada: "PYRO.Tecnica.Filtro.pesada"
+  }
+};
+
+/** Ataque desarmado como opção do filtro de tipo, ao lado dos tipos de dano. */
+PYRO.FILTRO_DESARMADO = "desarmado";
+
+/** Opções do filtro de tipo: os tipos de dano da arma, mais o desarmado. */
+PYRO.opcoesFiltroTipo = () => ({
+  ...Object.fromEntries(Object.entries(PYRO.tiposDano).map(([k, v]) => [k, v.label])),
+  [PYRO.FILTRO_DESARMADO]: "PYRO.Tecnica.Filtro.desarmado"
+});
+
+/**
+ * Traços (SRD Técnicas). Cada linha diz o que o traço rende e onde ele cabe:
+ *
+ *   grupo     agrupa a lista na ficha (ofensivo, mobilidade, defesa).
+ *   bases     ações base compatíveis; vazio aceita qualquer uma.
+ *   base      o que o grau 1 rende com Esforço 1.
+ *   porGrau   quanto o grau seguinte acrescenta à base.
+ *   unidade   texto do que o número é ("m", "dados", "x dados de dano").
+ *   regra     comportamento que o código aplica além do número; sem `regra` o
+ *             traço é só o número no card, que é o caso da maioria.
+ *
+ * O mestre edita tudo isso em Configurações > Traços de técnica: um traço novo
+ * é uma linha a mais aqui, sem código novo — só os quatro com `regra` precisam
+ * do sistema para valer.
+ */
+const traco = (grupo, base, porGrau, unidade, extra = {}) =>
+  ({ grupo, base, porGrau, unidade, bases: [], ...extra });
+
+const OFENSIVAS = ["atacar", "agarrar"];
+
+PYRO.tracosTecnicaPadrao = {
+  // Ofensivos (ação base Atacar ou Agarrar).
+  potencia:     traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.multDano", { bases: OFENSIVAS, regra: "danoMult" }),
+  area:         traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.raio", { bases: OFENSIVAS }),
+  cone:         traco("ofensivo", 2, 2, "PYRO.Tecnica.Un.cone", { bases: OFENSIVAS }),
+  linha:        traco("ofensivo", 3, 3, "PYRO.Tecnica.Un.linha", { bases: OFENSIVAS }),
+  alcance:      traco("ofensivo", 3, 3, "PYRO.Tecnica.Un.metros", { bases: OFENSIVAS, regra: "mira" }),
+  alvos:        traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.alvos", { bases: OFENSIVAS }),
+  empurrao:     traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.metros", { bases: OFENSIVAS }),
+  // O grau 1 é o teste em si; os dados extras começam no grau 2.
+  derrubar:     traco("ofensivo", 0, 1, "PYRO.Tecnica.Un.dadosTeste", { bases: OFENSIVAS }),
+  sangramento:  traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.sangramento", { bases: OFENSIVAS }),
+  quebraGuarda: traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.bloqueioIgnorado", { bases: OFENSIVAS }),
+  atordoar:     traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.minutos", { bases: OFENSIVAS }),
+  // Começa em desvantagem: o grau 2 zera e o 3 já é vantagem.
+  desarmar:     traco("ofensivo", -1, 1, "PYRO.Tecnica.Un.vantagens", { bases: OFENSIVAS }),
+
+  // Mobilidade e utilidade (qualquer ação base).
+  passo:        traco("mobilidade", 2, 2, "PYRO.Tecnica.Un.metros"),
+  corrida:      traco("mobilidade", 2, 2, "PYRO.Tecnica.Un.metros", { bases: ["mover"] }),
+  salto:        traco("mobilidade", 2, 1, "PYRO.Tecnica.Un.multSalto"),
+  vertical:     traco("mobilidade", 2, 2, "PYRO.Tecnica.Un.metrosVertical"),
+  queda:        traco("mobilidade", 1, 1, "PYRO.Tecnica.Un.dadosQueda"),
+  arrombar:     traco("mobilidade", 1, 1, "PYRO.Tecnica.Un.dadosForca"),
+  silencioso:   traco("mobilidade", 1, 1, "PYRO.Tecnica.Un.dadosFurtividade"),
+
+  // Reação e defesa (ação base Bloquear ou Esquivar).
+  guarda:       traco("defesa", 1, 1, "PYRO.Tecnica.Un.dadosBloqueio", { bases: ["bloquear"], regra: "bloqueio" }),
+  evasao:       traco("defesa", 1, 1, "PYRO.Tecnica.Un.dadosEsquiva", { bases: ["esquivar"], regra: "esquiva" }),
+  firmeza:      traco("defesa", 1, 1, "PYRO.Tecnica.Un.dadosFirmeza")
+};
+
+// O nome de cada traço segue a chave, então não vale repeti-lo linha a linha
+// na tabela acima — o mestre pode reescrevê-lo na tela de configuração.
+for (const [chave, cfg] of Object.entries(PYRO.tracosTecnicaPadrao)) {
+  cfg.label = `PYRO.Tecnica.Traco.${chave}`;
+}
+
+PYRO.tracosTecnica = foundry.utils.deepClone(PYRO.tracosTecnicaPadrao);
+
+/**
+ * Pontos fracos (SRD Técnicas): limitações aceitas na criação que devolvem
+ * pontos. Acumulam entre si.
+ */
+PYRO.onusTecnicaPadrao = {
+  posturaUnica:  { label: "PYRO.Tecnica.Onus.posturaUnica",  pontos: 2 },
+  alvoNoChao:    { label: "PYRO.Tecnica.Onus.alvoNoChao",    pontos: 1 },
+  custaPv:       { label: "PYRO.Tecnica.Onus.custaPv",       pontos: 3, regra: "custaPv" },
+  umaVezPorCena: { label: "PYRO.Tecnica.Onus.umaVezPorCena", pontos: 3 }
+};
+
+PYRO.onusTecnica = foundry.utils.deepClone(PYRO.onusTecnicaPadrao);
+
+/** Custo acumulado de um grau (SRD Técnicas): 1, 3, 6, 10, 15... */
+PYRO.custoDoGrau = grau => {
+  const g = Math.max(0, Math.round(Number(grau) || 0));
+  return (g * (g + 1)) / 2;
+};
+
+/**
+ * Estamina de um traço no Esforço N (SRD Técnicas): N x (N + 1), ou seja
+ * 2, 6, 12, 20, 30 — o custo do nível anterior mais o nível atual duas vezes.
+ */
+PYRO.custoDoEsforco = esforco => {
+  const e = Math.max(0, Math.round(Number(esforco) || 0));
+  return e * (e + 1);
+};
+
 /**
  * Tabela de Subjulgar: o multiplicador sai da diferença de DET entre quem
  * conjura e quem recebe (usuário − alvo).
