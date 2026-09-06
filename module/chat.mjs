@@ -208,6 +208,10 @@ export function registrarMenuChat() {
     for (const botao of element.querySelectorAll(".pyro-aplicar-efeito")) {
       botao.addEventListener("click", () => aplicarEfeito(botao.dataset.efeitoUuid, message));
     }
+    // Efeitos que a regra do elemento oferece (a defesa da pedra, por exemplo).
+    for (const botao of element.querySelectorAll(".pyro-efeito-regra")) {
+      botao.addEventListener("click", () => aplicarEfeitoDeRegra(message, Number(botao.dataset.indice)));
+    }
     prepararBotaoContarUso(message, element);
     injetarRodape(message, element);
   });
@@ -237,6 +241,45 @@ function prepararBotaoContarUso(message, element) {
       await message.update({ [`flags.${SYSTEM_ID}.usoContado`]: true });
     }
   });
+}
+
+/**
+ * Aplica nos alvos um efeito que veio pronto nas flags do card. Diferente do
+ * efeito de uso, aqui não existe documento de origem: a regra do elemento
+ * montou os dados na hora da conjuração, já com a Intenção daquela vez.
+ */
+async function aplicarEfeitoDeRegra(message, indice) {
+  const dados = flagsDe(message)?.efeitosRegra?.[indice];
+  if (!dados) return;
+
+  const destinos = alvos();
+  if (!destinos.length) {
+    return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemAlvoSelecionado"));
+  }
+
+  const nomes = [];
+  for (const actor of destinos) {
+    if (!actor.isOwner) {
+      ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemPermissao", { nome: actor.name }));
+      continue;
+    }
+    await ActiveEffect.implementation.create({
+      name: dados.name,
+      img: dados.img,
+      origin: actor.uuid,
+      duration: dados.duration ?? {},
+      statuses: dados.statuses ?? [],
+      // v14: as mudanças moram no system do efeito.
+      system: { changes: dados.changes ?? [] }
+    }, { parent: actor });
+    nomes.push(actor.name);
+  }
+
+  if (nomes.length) {
+    ui.notifications.info(game.i18n.format("PYRO.Efeitos.Aplicado", {
+      efeito: dados.name, alvos: nomes.join(", ")
+    }));
+  }
 }
 
 /**

@@ -5,8 +5,9 @@
   "description": "Ferramentas de build do sistema PYRO. Não é necessário para jogar: o Foundry lê packs/ pronto.",
   "scripts": {
     "gerar": "node tools/gerar-itens.mjs",
+    "gerar:runas": "node tools/gerar-runas.mjs",
     "packs": "node tools/compilar-packs.mjs",
-    "build": "npm run gerar && npm run packs"
+    "build": "npm run gerar && npm run gerar:runas && npm run packs"
   },
   "devDependencies": {
     "@foundryvtt/foundryvtt-cli": "^3.0.4"

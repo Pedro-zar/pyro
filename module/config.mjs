@@ -218,11 +218,11 @@ PYRO.elementosPadrao = {
   fogo:   { label: "PYRO.Elementos.fogo",   grupo: "fogo",       tipoDano: "calor",   base: 3, porIntencao: 3,   faces: 6,  efeito: "PYRO.Elementos.Efeito.fogo" },
   agua:   { label: "PYRO.Elementos.agua",   grupo: "aguaGelo",   tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.agua" },
   gelo:   { label: "PYRO.Elementos.gelo",   grupo: "aguaGelo",   tipoDano: "frio",    base: 4, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.gelo" },
-  vento:  { label: "PYRO.Elementos.vento",  grupo: "arVento",    tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.vento" },
-  terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 2,   faces: 12, efeito: "PYRO.Elementos.Efeito.terra" },
+  vento:  { label: "PYRO.Elementos.vento",  grupo: "arVento",    tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.vento", variavel: "empurrao" },
+  terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 2,   faces: 12, efeito: "PYRO.Elementos.Efeito.terra", variavel: "defesaFisica" },
   raio:   { label: "PYRO.Elementos.raio",   grupo: "raio",       tipoDano: "energia", base: 2, porIntencao: 0.5, faces: 10, efeito: "PYRO.Elementos.Efeito.raio",
             extras: [{ nome: "PYRO.Scaling.Corrente", base: 0.5, porIntencao: 0.5, faces: 0 }] },
-  vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 4, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
+  vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 2, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
   mente:  { label: "PYRO.Elementos.mente",  grupo: "mente",      tipoDano: "mental",  base: 1, porIntencao: 1,   faces: 6,  efeito: "PYRO.Elementos.Efeito.mente" },
   morte:  { label: "PYRO.Elementos.morte",  grupo: "morte",      tipoDano: "indefinido", base: 2, porIntencao: 2, faces: 12, efeito: "PYRO.Elementos.Efeito.morte", subjulgar: true },
   espaco: { label: "PYRO.Elementos.espaco", grupo: "espaco",     tipoDano: "",        base: 0, porIntencao: 0,   faces: 0,  efeito: "PYRO.Elementos.Efeito.espaco" }
@@ -239,9 +239,9 @@ PYRO.elementos = foundry.utils.deepClone(PYRO.elementosPadrao);
  */
 PYRO.linguasPadrao = {
   humana:    { label: "PYRO.Linguas.humana",    povo: "PYRO.Povos.humana",    fator: 1, efeito: 1 },
-  elfica:    { label: "PYRO.Linguas.elfica",    povo: "PYRO.Povos.elfica",    fator: 2, efeito: 2.5 },
-  draconica: { label: "PYRO.Linguas.draconica", povo: "PYRO.Povos.draconica", fator: 4, efeito: 10 },
-  angelical: { label: "PYRO.Linguas.angelical", povo: "PYRO.Povos.angelical", fator: 5, efeito: 25 }
+  elfica:    { label: "PYRO.Linguas.elfica",    povo: "PYRO.Povos.elfica",    fator: 2, efeito: 2 },
+  draconica: { label: "PYRO.Linguas.draconica", povo: "PYRO.Povos.draconica", fator: 4, efeito: 4 },
+  angelical: { label: "PYRO.Linguas.angelical", povo: "PYRO.Povos.angelical", fator: 5, efeito: 5 }
 };
 
 PYRO.linguas = foundry.utils.deepClone(PYRO.linguasPadrao);
@@ -287,9 +287,11 @@ PYRO.construirAfinidades = () => {
 PYRO.afinidades = {};
 
 /**
- * Formas reconhecidas pelo nome do gesto (SRD Magia, Tabela de Formas). O
- * rótulo serve para casar a palavra que o jogador escreveu; os números de
- * cada forma moram em scalingsPadrao (magia.mjs).
+ * Gestos nomeados pelo SRD (Tabela de Formas e de Gestos Modificadores). Os
+ * números de cada um vivem na runa do compêndio; estas tabelas existem para o
+ * sistema reconhecer o gesto pelo nome que a mesa escreveu. Só três mudam o
+ * comportamento da conjuração (ver GESTOS_COM_REGRA em magia.mjs): Toque
+ * empresta Intenção, Longo sobe passos de alcance e Dividir reparte o dano.
  */
 PYRO.formas = {
   projetil: { label: "PYRO.Formas.projetil" },
@@ -299,6 +301,56 @@ PYRO.formas = {
   muro:     { label: "PYRO.Formas.muro" },
   aura:     { label: "PYRO.Formas.aura" },
   toque:    { label: "PYRO.Formas.toque" }
+};
+
+PYRO.modificadores = {
+  amplo:       { label: "PYRO.Modificadores.amplo" },
+  longo:       { label: "PYRO.Modificadores.longo" },
+  persistente: { label: "PYRO.Modificadores.persistente" },
+  preciso:     { label: "PYRO.Modificadores.preciso" },
+  dividir:     { label: "PYRO.Modificadores.dividir" }
+};
+
+/** Gestos que o sistema conhece pelo nome, de qualquer um dos dois tipos. */
+PYRO.gestosNomeados = () => ({ ...PYRO.formas, ...PYRO.modificadores });
+
+/**
+ * Passos de alcance (SRD Atributos): toque, estendido, curto, médio, longo,
+ * distante e os degraus sem nome. É a escada que o gesto Longo percorre.
+ */
+PYRO.passosDeAlcance = [1, 3, 6, 20, 60, 200, 500, 1500, 3000, 5000, 10000];
+
+/**
+ * Sobe um alcance em metros pela escada dos passos. O degrau de partida é o
+ * maior que ainda cabe no alcance atual, então um projétil de 10m parte do
+ * curto (6m) e um passo o leva ao médio (20m).
+ */
+PYRO.subirAlcance = (metros, passos) => {
+  const n = Math.round(Number(passos) || 0);
+  if (n <= 0) return metros;
+  const escada = PYRO.passosDeAlcance;
+  let i = 0;
+  while (i + 1 < escada.length && escada[i + 1] <= metros) i++;
+  return escada[Math.min(escada.length - 1, i + n)];
+};
+
+/**
+ * Efeitos de elemento que o card oferece em um clique. Só entram os que viram
+ * alteração de ficha; o resto do texto do elemento fica como referência.
+ * @param {number} intencao Intenção efetiva daquela runa na conjuração.
+ */
+PYRO.efeitosDeElemento = {
+  terra: intencao => ({
+    name: game.i18n.format("PYRO.Elementos.Efeito.terraNome", { valor: intencao }),
+    img: "icons/svg/shield.svg",
+    // Até o fim do próximo turno de quem recebeu.
+    duration: { rounds: 1 },
+    changes: [{
+      key: "system.defesas.categorias.fisico",
+      type: "add",
+      value: String(intencao)
+    }]
+  })
 };
 
 PYRO.tiposRuna = {

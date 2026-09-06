@@ -1,0 +1,32 @@
+{
+  "_id": "473vn1ns78pq14ee",
+  "_key": "!items!473vn1ns78pq14ee",
+  "name": "Terra",
+  "type": "runa",
+  "img": "icons/svg/shield.svg",
+  "folder": "3awu5onxxghypf08",
+  "sort": 500000,
+  "system": {
+    "descricao": "<p>Quem conjura recebe Defesa Física adicional igual à Intenção até o fim do próximo turno.</p>",
+    "tipoRuna": "elemento",
+    "subtipo": "terra",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 0,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Dano",
+        "base": 3,
+        "porIntencao": 2,
+        "faces": 12
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

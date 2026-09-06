@@ -1,0 +1,38 @@
+{
+  "_id": "dzfu8orlykm3ua7h",
+  "_key": "!items!dzfu8orlykm3ua7h",
+  "name": "Explosão",
+  "type": "runa",
+  "img": "icons/svg/explosion.svg",
+  "folder": "g34slc3bx5twmq7d",
+  "sort": 200000,
+  "system": {
+    "descricao": "<p>Raio de 1 metro centrado a até 6 metros, +1 de raio por Intenção.</p>",
+    "tipoRuna": "forma",
+    "subtipo": "",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 1,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Raio",
+        "base": 1,
+        "porIntencao": 1,
+        "faces": 0
+      },
+      {
+        "nome": "Alcance",
+        "base": 6,
+        "porIntencao": 0,
+        "faces": 0
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

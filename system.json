@@ -59,6 +59,17 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "runas",
+      "label": "Runas e Gestos",
+      "path": "packs/runas",
+      "type": "Item",
+      "system": "pyro-dev",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [
@@ -66,7 +77,8 @@
       "name": "PYRO",
       "sorting": "m",
       "packs": [
-        "itens"
+        "itens",
+        "runas"
       ]
     }
   ],

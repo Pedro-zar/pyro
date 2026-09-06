@@ -245,8 +245,10 @@
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Escalonamentos"}}
       <button type="button" class="icone" data-action="adicionarScaling"
               title="{{localize 'PYRO.Item.AdicionarScaling'}}"><i class="fa-solid fa-plus"></i></button>
+      {{#if podeRestaurarScalings}}
       <button type="button" class="icone" data-action="restaurarScalings"
               title="{{localize 'PYRO.Item.RestaurarScalings'}}"><i class="fa-solid fa-rotate-left"></i></button>
+      {{/if}}
     </h4>
 
     {{#if system.scalings.length}}

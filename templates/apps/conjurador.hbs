@@ -37,12 +37,25 @@
         <div class="intencao-ctrl">
           <button type="button" class="icone" data-action="descerIntencao" data-indice="{{f.indice}}"
                   title="{{localize 'PYRO.Conjurador.MenosIntencao'}}"><i class="fa-solid fa-minus"></i></button>
-          <span class="intencao-valor numero" title="{{localize 'PYRO.Magia.Intencao'}}">{{f.intencao}}</span>
+          <span class="intencao-valor numero" title="{{localize 'PYRO.Magia.Intencao'}}">{{f.intencao}}{{#if f.emprestada}}<span class="emprestada" title="{{localize 'PYRO.Conjurador.Emprestada'}}">+{{f.emprestada}}</span>{{/if}}</span>
           <button type="button" class="icone" data-action="subirIntencao" data-indice="{{f.indice}}"
                   title="{{localize 'PYRO.Conjurador.MaisIntencao'}}"><i class="fa-solid fa-plus"></i></button>
         </div>
 
         {{#if f.previa}}<p class="ficha-previa">{{f.previa}}</p>{{/if}}
+
+        {{!-- Toque empresta Intenção para uma runa da frase (SRD Magia). --}}
+        {{#if f.ehToque}}
+        {{#if f.alvosToque.length}}
+        <label class="ficha-toque"><span class="rotulo">{{localize "PYRO.Conjurador.Reforca"}}</span>
+          <select name="alvoToque.{{f.indice}}">
+            {{#each f.alvosToque as |a|}}
+            <option value="{{a.id}}" {{#if a.ativo}}selected{{/if}}>{{a.nome}}</option>
+            {{/each}}
+          </select>
+        </label>
+        {{/if}}
+        {{/if}}
 
         <p class="ficha-custo numero">
           {{f.custo}} {{localize "PYRO.Recursos.mana"}}
@@ -79,7 +92,7 @@
         <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
           {{localize "PYRO.Conjurador.ManaInsuficiente"}}</span>
         {{else}}
-        {{restanteTexto}} · {{acoesTexto}}{{#if maosTexto}} · <span class="{{#if excedeMaos}}perigo{{/if}}">{{maosTexto}}</span>{{/if}}
+        {{restanteTexto}} · {{acoesTexto}} · {{dtTexto}}{{#if maosTexto}} · <span class="{{#if excedeMaos}}perigo{{/if}}">{{maosTexto}}</span>{{/if}}
         {{/if}}
       </p>
     </div>

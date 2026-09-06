@@ -1,0 +1,32 @@
+{
+  "_id": "ktswvr2k5h4tipmu",
+  "_key": "!items!ktswvr2k5h4tipmu",
+  "name": "Preciso",
+  "type": "runa",
+  "img": "icons/svg/eye.svg",
+  "folder": "bb37gsjpinuhgof4",
+  "sort": 400000,
+  "system": {
+    "descricao": "<p>+2 na DT da magia ou no teste de mira, por Intenção.</p>",
+    "tipoRuna": "modificador",
+    "subtipo": "",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 1,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Precisão",
+        "base": 2,
+        "porIntencao": 2,
+        "faces": 0
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

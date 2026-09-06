@@ -1,0 +1,32 @@
+{
+  "_id": "lovkw6x5fdw8ver2",
+  "_key": "!items!lovkw6x5fdw8ver2",
+  "name": "Linha",
+  "type": "runa",
+  "img": "icons/svg/direction.svg",
+  "folder": "g34slc3bx5twmq7d",
+  "sort": 400000,
+  "system": {
+    "descricao": "<p>Linha de 6 metros de comprimento, +4 por Intenção.</p>",
+    "tipoRuna": "forma",
+    "subtipo": "",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 1,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Comprimento",
+        "base": 6,
+        "porIntencao": 4,
+        "faces": 0
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

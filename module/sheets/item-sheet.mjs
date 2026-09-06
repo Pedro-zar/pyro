@@ -117,17 +117,21 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const actor = item.actor;
     const sys = item.system;
 
-    /* --- Runas: elementos têm subtipo (limitado pelas afinidades do mago); */
-    /* --- formas e modificadores são gestos de texto livre.                  */
+    /*
+     * Elemento tem subtipo, que é a linha da tabela de dano; gesto não tem, e
+     * o que o sistema reconhece nele é o nome (um gesto chamado Toque empresta
+     * Intenção, venha ele do compêndio ou da mão do jogador).
+     */
     const ehElemento = item.type === "runa" && sys.tipoRuna === "elemento";
     let subtipos = null;
     if (ehElemento) {
       subtipos = Object.fromEntries(Object.entries(PYRO.elementos).map(([k, v]) => [k, v.label]));
+      // O mago só escreve runas dos elementos com que tem afinidade.
       const permitidos = new Set(actor?.system.afinidadesElementos ?? []);
       if (permitidos.size) {
         permitidos.add(sys.subtipo); // mantém o valor atual visível
         subtipos = Object.fromEntries(
-          Object.entries(subtipos).filter(([k]) => permitidos.has(k))
+          Object.entries(subtipos).filter(([chave]) => permitidos.has(chave))
         );
       }
     }
@@ -205,6 +209,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         });
       })(),
       // O modo Subjulgar é coisa do elemento Morte (ou de runa já marcada).
+      // Só o elemento tem tabela para repor; o gesto veio do compêndio com os
+      // números dele, e restaurar apagaria o que o jogador tem.
+      podeRestaurarScalings: ehElemento,
       mostrarSubjulgar: ehElemento
         && !!(PYRO.elementos[sys.subtipo]?.subjulgar || sys.subjulgar),
       /*
@@ -523,7 +530,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
    * jogador mexeu demais nos números ou quando o mestre editou as tabelas.
    */
   static async #restaurarScalings() {
-    await this.item.update({ "system.scalings": scalingsPadrao(this.item) });
+    const { tipoRuna, subtipo } = this.item.system;
+    await this.item.update({ "system.scalings": scalingsPadrao(tipoRuna, subtipo) });
   }
 
   static async #removerScaling(event, target) {

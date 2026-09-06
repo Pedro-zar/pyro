@@ -1,0 +1,32 @@
+{
+  "_id": "mlpweuz58jafpefz",
+  "_key": "!items!mlpweuz58jafpefz",
+  "name": "Água",
+  "type": "runa",
+  "img": "icons/svg/aura.svg",
+  "folder": "3awu5onxxghypf08",
+  "sort": 200000,
+  "system": {
+    "descricao": "<p>Adiciona 1 dado ao próximo dano de Frio que o alvo receber, para cada 1 de Intenção.</p>",
+    "tipoRuna": "elemento",
+    "subtipo": "agua",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 0,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Dano",
+        "base": 4,
+        "porIntencao": 4,
+        "faces": 4
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

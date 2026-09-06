@@ -1,0 +1,32 @@
+{
+  "_id": "e6zd9cr90ql2tlxz",
+  "_key": "!items!e6zd9cr90ql2tlxz",
+  "name": "Cone",
+  "type": "runa",
+  "img": "icons/svg/light.svg",
+  "folder": "g34slc3bx5twmq7d",
+  "sort": 300000,
+  "system": {
+    "descricao": "<p>Cone de 3 metros à frente, +2 metros por Intenção.</p>",
+    "tipoRuna": "forma",
+    "subtipo": "",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 1,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Alcance",
+        "base": 3,
+        "porIntencao": 2,
+        "faces": 0
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

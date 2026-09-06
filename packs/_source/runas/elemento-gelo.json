@@ -1,0 +1,32 @@
+{
+  "_id": "psocuyuc19qers7e",
+  "_key": "!items!psocuyuc19qers7e",
+  "name": "Gelo",
+  "type": "runa",
+  "img": "icons/svg/frozen.svg",
+  "folder": "3awu5onxxghypf08",
+  "sort": 300000,
+  "system": {
+    "descricao": "<p>O alvo sofre Friagem por 1 rodada: cada reação custa Intenção² de estamina a mais. Teste de VIG para resistir.</p>",
+    "tipoRuna": "elemento",
+    "subtipo": "gelo",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 0,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Dano",
+        "base": 4,
+        "porIntencao": 2,
+        "faces": 8
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

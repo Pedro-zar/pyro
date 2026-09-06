@@ -1,5 +1,5 @@
 import { PYRO } from "../config.mjs";
-import { calcular, conjurar, previaRuna } from "../magia.mjs";
+import { calcular, conjurar, previaRuna, regraDoGesto } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
 
@@ -65,7 +65,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     return this.frase
       .map(f => ({
         item: this.actor.items.get(f.id), intencao: f.intencao,
-        scalings: f.scalings, subjulgar: f.subjulgar, tipoDano: f.tipoDano
+        scalings: f.scalings, subjulgar: f.subjulgar, tipoDano: f.tipoDano,
+        alvoToque: f.alvoToque
       }))
       .filter(e => e.item);
   }
@@ -84,6 +85,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     /* --- Fichas da frase montada ----------------------------------------- */
     const fichas = calc.porRuna.map((pr, indice) => {
       const sys = pr.item.system;
+      const ehToque = regraDoGesto(pr.item) === "toque";
       return {
         indice,
         // Em magia salva, só o que foi adicionado agora pode ser tirado.
@@ -92,13 +94,24 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         tipo: loc(PYRO.tiposRuna[sys.tipoRuna] ?? ""),
         cor: sys.tipoRuna === "elemento" && PYRO.elementos[sys.subtipo] ? sys.subtipo : null,
         intencao: pr.intencao,
+        // O Toque empresta Intenção: a runa reforçada produz como se tivesse mais.
+        emprestada: pr.intencaoEfetiva - pr.intencao,
         custo: pr.custo,
         limite: pr.limite,
         excesso: pr.excesso,
         limiteTexto: game.i18n.format("PYRO.Conjurador.LimiteRuna", { n: pr.limite }),
         // O que esta runa produz na Intenção escolhida (cópia da magia, se houver).
-        previa: previaRuna(pr.item, pr.intencao, pr.efeitoMult, pr.scalings, pr.tipoDano),
-        lingua: sys.lingua !== nativa ? loc(PYRO.linguas[sys.lingua]?.label ?? "") : null
+        previa: previaRuna(pr, calc.passosAlcance),
+        lingua: sys.lingua !== nativa ? loc(PYRO.linguas[sys.lingua]?.label ?? "") : null,
+        // Toque escolhe quem recebe a Intenção emprestada.
+        ehToque,
+        alvosToque: !ehToque ? null : calc.porRuna
+          .filter(outra => outra !== pr)
+          .map(outra => ({
+            id: outra.item.id,
+            nome: outra.item.system.palavra || outra.item.name,
+            ativo: outra.item.id === pr.alvoToque
+          }))
       };
     });
 
@@ -158,6 +171,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         ? game.i18n.format("PYRO.Conjurador.SobrecargaN", { nivel: calc.sobrecarga, nd: calc.nd })
         : "",
       nd: calc.nd,
+      dtTexto: game.i18n.format("PYRO.Magia.DT", { valor: calc.dt }),
       limiteBase: actor.system.sobrecargaLimite,
 
       faltaElemento: escolhas.length > 0 && !calc.temElemento,
@@ -182,6 +196,11 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const form = this.element;
     if (!form) return;
     this.nomeMagia = form.querySelector("[name=nomeMagia]")?.value ?? this.nomeMagia;
+    // Quem o Toque reforça é escolha da conjuração, não da runa.
+    for (const select of form.querySelectorAll("[name^='alvoToque.']")) {
+      const indice = Number(select.name.split(".")[1]);
+      if (this.frase[indice]) this.frase[indice].alvoToque = select.value;
+    }
     this.salvar = form.querySelector("[name=salvar]")?.checked ?? this.salvar;
     this.rolarDano = form.querySelector("[name=rolarDano]")?.checked ?? this.rolarDano;
   }
@@ -267,6 +286,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   /* ---------------------------------------------------------------------- */
 
   static async #aoConjurar(event, form, formData) {
+    this.#capturarCampos();
     const escolhas = this.#escolhas();
     if (!escolhas.length) return;
 

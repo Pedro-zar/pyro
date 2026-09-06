@@ -923,17 +923,17 @@
 .pyro-chat .pyro-efeitos-rotulo {
   font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.7;
 }
-.pyro-chat .pyro-aplicar-efeito {
+.pyro-chat .pyro-aplicar-efeito, .pyro-chat .pyro-efeito-regra {
   display: inline-flex; align-items: center; gap: 0.3rem;
   width: auto; height: auto; padding: 2px 8px;
   font-size: 0.78rem; line-height: 1.4;
   border: 1px solid var(--pyro-borda); border-radius: 999px;
   background: var(--pyro-painel-alto); color: var(--pyro-texto); cursor: pointer;
 }
-.pyro-chat .pyro-aplicar-efeito:hover {
+.pyro-chat .pyro-aplicar-efeito:hover, .pyro-chat .pyro-efeito-regra:hover {
   border-color: var(--pyro-brasa); color: var(--pyro-brasa-alta);
 }
-.pyro-chat .pyro-aplicar-efeito img {
+.pyro-chat .pyro-aplicar-efeito img, .pyro-chat .pyro-efeito-regra img {
   width: 16px; height: 16px; border: none; border-radius: 3px;
 }
 
@@ -1161,6 +1161,17 @@
 /* Custo por tier no item de Caminho. */
 .pyro .custos-tier { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
 .pyro .custo-tier strong { opacity: 0.7; margin-right: 2px; }
+
+/* Conjurador: a Intenção que o Toque empresta e o alvo dele. */
+.pyro .intencao-valor .emprestada {
+  font-size: 0.7em; vertical-align: super; color: var(--pyro-acento-alto); margin-left: 1px;
+}
+.pyro .ficha-toque { display: flex; flex-direction: column; gap: 2px; margin-top: var(--pyro-e-1); }
+.pyro .ficha-toque select { width: 100%; font-size: var(--pyro-t-xs); }
+
+/* Card de magia: DT de resistência e dano repartido pelo gesto Dividir. */
+.pyro-chat .pyro-dt { margin: 0; font-size: 0.78rem; opacity: 0.85; }
+.pyro-chat .pyro-dividido { margin: 0; font-size: 0.8rem; font-weight: 700; }
 
 /* Perícias: progresso resumido na cauda e o botão de ajudar. */
 .pyro .requisito-nivel { display: flex; flex-direction: column; gap: 2px; }

@@ -174,6 +174,26 @@ export function htmlEfeitosDeUso(...itens) {
   </div>`;
 }
 
+/**
+ * Botões de efeito que a regra do elemento oferece no card, e não um efeito
+ * criado por alguém num item (ver PYRO.efeitosDeElemento). Os dados do efeito
+ * viajam nas flags da mensagem, então o clique não depende de haver um
+ * documento por trás.
+ * @param {Array<{name: string, img: string}>} lista
+ */
+export function htmlEfeitosDeRegra(lista) {
+  if (!lista?.length) return "";
+  const botoes = lista.map((efeito, indice) => `
+    <button type="button" class="pyro-efeito-regra" data-indice="${indice}">
+      <img src="${efeito.img}" alt="" />
+      <span>${esc(efeito.name)}</span>
+    </button>`).join("");
+  return `<div class="pyro-efeitos-uso">
+    <span class="pyro-efeitos-rotulo">${game.i18n.localize("PYRO.Efeitos.AplicarEm")}</span>
+    ${botoes}
+  </div>`;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Variáveis do card                                                         */
 /* -------------------------------------------------------------------------- */

@@ -1,0 +1,32 @@
+{
+  "_id": "ogb1yey32n2lgiz4",
+  "_key": "!items!ogb1yey32n2lgiz4",
+  "name": "Projétil",
+  "type": "runa",
+  "img": "icons/svg/target.svg",
+  "folder": "g34slc3bx5twmq7d",
+  "sort": 100000,
+  "system": {
+    "descricao": "<p>1 alvo a 6 metros, +4 metros por Intenção.</p>",
+    "tipoRuna": "forma",
+    "subtipo": "",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 1,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Alcance",
+        "base": 6,
+        "porIntencao": 4,
+        "faces": 0
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

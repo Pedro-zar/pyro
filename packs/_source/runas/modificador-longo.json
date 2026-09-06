@@ -1,0 +1,32 @@
+{
+  "_id": "6yhrjm645967q4gm",
+  "_key": "!items!6yhrjm645967q4gm",
+  "name": "Longo",
+  "type": "runa",
+  "img": "icons/svg/target.svg",
+  "folder": "bb37gsjpinuhgof4",
+  "sort": 200000,
+  "system": {
+    "descricao": "<p>+1 passo de alcance por Intenção. Os passos são 1, 3, 6, 20, 60 e 200 metros, e seguem subindo. O sistema reconhece este gesto pelo nome.</p>",
+    "tipoRuna": "modificador",
+    "subtipo": "",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 1,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Passos",
+        "base": 1,
+        "porIntencao": 1,
+        "faces": 0
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

@@ -1,0 +1,32 @@
+{
+  "_id": "6jijdj8jgqg6sacx",
+  "_key": "!items!6jijdj8jgqg6sacx",
+  "name": "Morte",
+  "type": "runa",
+  "img": "icons/svg/skull.svg",
+  "folder": "3awu5onxxghypf08",
+  "sort": 900000,
+  "system": {
+    "descricao": "<p>Não causa dano direto: o resultado é comparado com a vida máxima do alvo (ver Subjulgar).</p>",
+    "tipoRuna": "elemento",
+    "subtipo": "morte",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": true,
+    "maos": 0,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Dano",
+        "base": 2,
+        "porIntencao": 2,
+        "faces": 12
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

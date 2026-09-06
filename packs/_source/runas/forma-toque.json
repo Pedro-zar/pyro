@@ -1,0 +1,32 @@
+{
+  "_id": "9dzzv7qodfzhpg0a",
+  "_key": "!items!9dzzv7qodfzhpg0a",
+  "name": "Toque",
+  "type": "runa",
+  "img": "icons/svg/upgrade.svg",
+  "folder": "g34slc3bx5twmq7d",
+  "sort": 700000,
+  "system": {
+    "descricao": "<p>Alcance 0. Cada Intenção em Toque dá +1 de Intenção a uma outra runa da frase, escolhida na conjuração. O sistema reconhece este gesto pelo nome.</p>",
+    "tipoRuna": "forma",
+    "subtipo": "",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 1,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Intenção extra",
+        "base": 1,
+        "porIntencao": 1,
+        "faces": 0
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

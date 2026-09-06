@@ -1,0 +1,32 @@
+{
+  "_id": "4f0g5x4li58445bk",
+  "_key": "!items!4f0g5x4li58445bk",
+  "name": "Amplo",
+  "type": "runa",
+  "img": "icons/svg/net.svg",
+  "folder": "bb37gsjpinuhgof4",
+  "sort": 100000,
+  "system": {
+    "descricao": "<p>+1 na amplitude da Forma por Intenção.</p>",
+    "tipoRuna": "modificador",
+    "subtipo": "",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 1,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Amplitude",
+        "base": 1,
+        "porIntencao": 1,
+        "faces": 0
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

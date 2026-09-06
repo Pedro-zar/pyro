@@ -1,0 +1,25 @@
+{
+  "_id": "o15bvns0kiod2icc",
+  "_key": "!items!o15bvns0kiod2icc",
+  "name": "Espaço",
+  "type": "runa",
+  "img": "icons/svg/circle.svg",
+  "folder": "3awu5onxxghypf08",
+  "sort": 1000000,
+  "system": {
+    "descricao": "<p>Portais, teleporte e dimensões de bolso. Sem dano padrão: o efeito é combinado com o mestre.</p>",
+    "tipoRuna": "elemento",
+    "subtipo": "espaco",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 0,
+    "tipoDano": "",
+    "scalings": []
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

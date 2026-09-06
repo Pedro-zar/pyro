@@ -1,0 +1,32 @@
+{
+  "_id": "12f1w9bxcgxmepsj",
+  "_key": "!items!12f1w9bxcgxmepsj",
+  "name": "Fogo",
+  "type": "runa",
+  "img": "icons/svg/fire.svg",
+  "folder": "3awu5onxxghypf08",
+  "sort": 100000,
+  "system": {
+    "descricao": "<p>Para cada 6 rolado, aumente em 1 o Queimando do alvo. Se a duração de Queimando for menor que 2, ela se torna 2.</p>",
+    "tipoRuna": "elemento",
+    "subtipo": "fogo",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 0,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Dano",
+        "base": 3,
+        "porIntencao": 3,
+        "faces": 6
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}

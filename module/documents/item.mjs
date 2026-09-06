@@ -76,17 +76,26 @@ export class PyroItem extends Item {
       if (!data.system?.lingua) {
         alteracoes["system.lingua"] = this.actor.system.linguaNativa ?? "humana";
       }
-      // Nasce já num elemento que o personagem tem afinidade, não no fogo fixo.
+      // Elemento nasce num que o personagem tem afinidade, não no fogo fixo.
       const afinidades = this.actor.system.afinidadesElementos ?? [];
-      if (!data.system?.subtipo && afinidades.length && !afinidades.includes(this.system.subtipo)) {
+      if (this.system.tipoRuna === "elemento" && !data.system?.subtipo
+        && afinidades.length && !afinidades.includes(this.system.subtipo)) {
         alteracoes["system.subtipo"] = afinidades[0];
       }
       if (!foundry.utils.isEmpty(alteracoes)) this.updateSource(alteracoes);
-      // Sem palavra ainda, o nome vira o elemento ("Raio") em vez de "Runa".
-      if (!data.system?.palavra) this.updateSource({ name: nomeDaRuna(this.system) });
+      /*
+       * Runa criada em branco pela ficha chega com o nome genérico do tipo, e
+       * aí vira o nome do elemento ("Raio"). Runa vinda do compêndio ou de
+       * outra ficha mantém o nome que já tem: é por ele que o sistema
+       * reconhece os gestos com regra (Toque, Longo, Dividir).
+       */
+      if (!data.name || data.name === game.i18n.localize("TYPES.Item.runa")) {
+        this.updateSource({ name: nomeDaRuna(this.system) });
+      }
       // Já nasce com o que as regras dão para aquele elemento ou gesto.
       if (!data.system?.scalings?.length) {
-        this.updateSource({ "system.scalings": scalingsPadrao(this) });
+        const sys = this.system;
+        this.updateSource({ "system.scalings": scalingsPadrao(sys.tipoRuna, sys.subtipo) });
       }
       // Elementos de Subjulgar (Morte) nascem com o modo ligado.
       if (data.system?.subjulgar === undefined && this.system.tipoRuna === "elemento"
@@ -146,8 +155,7 @@ export class PyroItem extends Item {
       const mudouNatureza = ("tipoRuna" in sys && sys.tipoRuna !== this.system.tipoRuna)
         || ("subtipo" in sys && sys.subtipo !== this.system.subtipo);
       if (mudouNatureza) {
-        const projetado = { type: "runa", system: projecao };
-        sys.scalings = scalingsPadrao(projetado);
+        sys.scalings = scalingsPadrao(projecao.tipoRuna, projecao.subtipo);
         sys.subjulgar = !!(projecao.tipoRuna === "elemento"
           && PYRO.elementos[projecao.subtipo]?.subjulgar);
         changed.system = sys;

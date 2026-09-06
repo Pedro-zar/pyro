@@ -1,0 +1,32 @@
+{
+  "_id": "exiil8k9l9itrfzd",
+  "_key": "!items!exiil8k9l9itrfzd",
+  "name": "Mente",
+  "type": "runa",
+  "img": "icons/svg/eye.svg",
+  "folder": "3awu5onxxghypf08",
+  "sort": 800000,
+  "system": {
+    "descricao": "<p>A cada Intenção acima de 1, aplique uma condição mental ou aumente em 1 rodada a duração de uma já escolhida. O alvo testa SAB contra a DT para resistir a cada condição nova.</p>",
+    "tipoRuna": "elemento",
+    "subtipo": "mente",
+    "palavra": "",
+    "lingua": "humana",
+    "subjulgar": false,
+    "maos": 0,
+    "tipoDano": "",
+    "scalings": [
+      {
+        "nome": "Dano",
+        "base": 1,
+        "porIntencao": 1,
+        "faces": 6
+      }
+    ]
+  },
+  "effects": [],
+  "flags": {},
+  "ownership": {
+    "default": 0
+  }
+}
