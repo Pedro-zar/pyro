@@ -1,0 +1,23 @@
+<div class="config-corpo">
+  <section>
+    <p class="pyro-nota">{{localize "PYRO.Regras.Explicacao"}}</p>
+    <ul class="lista-regras">
+      {{#each regras as |r|}}
+      <li class="regra-opcional {{#if r.ativa}}ativa{{/if}}">
+        <label class="check-linha">
+          <input type="checkbox" name="regra.{{r.chave}}" {{checked r.ativa}} />
+          <span class="regra-nome">{{r.label}}</span>
+          <span class="regra-srd">{{r.srd}}</span>
+        </label>
+        <p class="regra-dica">{{r.dica}}</p>
+      </li>
+      {{/each}}
+    </ul>
+  </section>
+
+  <footer class="config-rodape">
+    <button type="submit" class="destaque">
+      <i class="fa-solid fa-floppy-disk"></i> {{localize "PYRO.Config.Salvar"}}
+    </button>
+  </footer>
+</div>

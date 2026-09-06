@@ -1008,6 +1008,15 @@
 .pyro-chat .pyro-sobrecarga.sucesso { border-left-color: var(--pyro-sucesso); background: color-mix(in srgb, var(--pyro-sucesso) 8%, transparent); }
 .pyro-chat .pyro-sobrecarga ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
 
+.pyro-chat .pyro-classe-rolagem, .pyro-classe-rolagem {
+  display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
+  font-size: 0.78rem; opacity: 0.9;
+}
+.pyro-classe-rolagem.classe-dificil { color: var(--pyro-aviso); }
+.pyro-classe-rolagem.classe-muitoDificil { color: var(--pyro-perigo); }
+.pyro-classe-rolagem .pyro-contar-uso { flex: 0 0 auto; width: auto; font-size: 0.75rem; line-height: 1.4; padding: 0 0.5rem; }
+.pyro-subiu-nivel { font-weight: 700; color: var(--pyro-sucesso); }
+
 .pyro-resultado.sucesso { color: var(--pyro-sucesso); font-weight: 700; }
 .pyro-resultado.falha, .pyro-falha-auto { color: var(--pyro-perigo); font-weight: 700; }
 .pyro-aviso { color: var(--pyro-aviso); font-size: 0.85rem; }
@@ -1128,10 +1137,34 @@
 .pyro .config-linha input[type=text] { text-align: left; }
 .pyro .config-linha code { font-size: 0.72rem; opacity: 0.7; }
 
-/* Regras de progressão: rótulo, nomes que disparam, passo e multiplicador. */
+/* Regras de progressão: rótulo, nomes que disparam e multiplicador. */
 .pyro .config-cab.progressoes, .pyro .config-linha.progressoes {
-  grid-template-columns: 1fr 1.6fr 5rem 5rem 1.9rem;
+  grid-template-columns: 1fr 1.6fr 5rem 1.9rem;
 }
+/* Tabelas de nível por uso: nível, RR, RD, RMD e o modo da linha. */
+.pyro .config-cab.avanco, .pyro .config-linha.avanco {
+  grid-template-columns: 3rem 4.5rem 4.5rem 4.5rem 1fr;
+}
+.pyro .config-linha.avanco .numero { text-align: center; opacity: 0.8; }
+.pyro .config-linha.avanco select { width: 100%; }
+
+/* Regras opcionais: um interruptor por regra, com a referência do SRD. */
+.pyro .lista-regras { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+.pyro .regra-opcional {
+  border: 1px solid var(--pyro-borda); border-radius: 6px; padding: 0.4rem 0.6rem;
+}
+.pyro .regra-opcional.ativa { border-color: var(--pyro-acento-ficha); }
+.pyro .regra-opcional .regra-nome { font-weight: 700; }
+.pyro .regra-opcional .regra-srd { margin-left: auto; font-size: 0.68rem; opacity: 0.6; }
+.pyro .regra-opcional .regra-dica { margin: 0.25rem 0 0; font-size: 0.78rem; opacity: 0.85; }
+
+/* Custo por tier no item de Caminho. */
+.pyro .custos-tier { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
+.pyro .custo-tier strong { opacity: 0.7; margin-right: 2px; }
+
+/* Despertar: habilidade comprada mas adormecida. */
+.pyro .linha-item.adormecida .nome-item { opacity: 0.55; font-style: italic; }
+.pyro-despertou { font-weight: 700; color: var(--pyro-sucesso); }
 .pyro .progressao-exemplo {
   margin: 0 0 var(--pyro-e-3) 0; display: flex; gap: var(--pyro-e-2); align-items: baseline;
 }
@@ -1479,12 +1512,6 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 }
 
 /* Aumento de atributo por tier: atributo, pontos e o botão de remover. */
-.pyro .linha-aumento {
-  display: grid; grid-template-columns: minmax(0, 1fr) 4.5rem 1.9rem;
-  gap: 4px; align-items: center; margin-top: 2px;
-}
-.pyro .linha-aumento select, .pyro .linha-aumento input { width: 100%; min-width: 0; }
-.pyro .linha-aumento input { text-align: center; }
 
 /* Bônus ao lado da base do atributo: aumentos de tier e efeitos, somados.
    Verde quando somam, vermelho quando descontam. */

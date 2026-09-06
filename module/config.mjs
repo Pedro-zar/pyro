@@ -401,28 +401,80 @@ PYRO.tamanhoNaFaixa = (raca, tamanho) => {
 };
 
 /* -------------------------------------------------------------------------- */
+/*  Nível por uso                                                             */
+/* -------------------------------------------------------------------------- */
+
+/** Classes de rolagem contra um ND (SRD 3b). */
+PYRO.classesDeRolagem = {
+  rotineira: "PYRO.Rolagem.rotineira",
+  dificil: "PYRO.Rolagem.dificil",
+  muitoDificil: "PYRO.Rolagem.muitoDificil"
+};
+
+/**
+ * Quanto cada nível exige de rolagens acumuladas para ser alcançado. O índice
+ * 0 é o que custa chegar ao nível 1, e assim por diante. `modo` "ou" lê
+ * "RR e (RD ou RMD)"; "e" lê "RR e RD e RMD". Perícias e magias/técnicas têm
+ * tabelas separadas de propósito: o SRD ainda vai calibrar uma contra a outra.
+ */
+const linha = (rr, rd, rmd, modo = "ou") => ({ rr, rd, rmd, modo });
+
+PYRO.avancoPorUsoPadrao = {
+  // SRD 3b — perícias nascem no nível 0.
+  pericia: [
+    linha(5, 1, 1), linha(1, 1, 1), linha(2, 1, 1), linha(3, 2, 1), linha(4, 2, 1),
+    linha(5, 3, 2), linha(6, 3, 2), linha(7, 4, 2), linha(8, 4, 2), linha(9, 5, 3),
+    linha(0, 5, 3, "e"), linha(0, 6, 3, "e"), linha(0, 6, 3, "e"), linha(0, 7, 4, "e"), linha(0, 7, 4, "e"),
+    linha(0, 8, 4, "e"), linha(0, 8, 4, "e"), linha(0, 9, 5, "e"), linha(0, 9, 5, "e"), linha(0, 10, 5, "e")
+  ],
+  // SRD Magia — magias e técnicas nascem no nível 1, então a primeira linha
+  // não é consultada; fica para a tabela ter o mesmo formato.
+  magiaTecnica: [
+    linha(5, 0, 0), linha(2, 1, 1), linha(3, 1, 1), linha(4, 2, 1), linha(5, 2, 1),
+    linha(6, 3, 2), linha(7, 3, 2), linha(8, 4, 2), linha(9, 4, 2), linha(10, 5, 3),
+    linha(11, 5, 3, "e"), linha(12, 6, 3, "e"), linha(13, 6, 3, "e"), linha(14, 7, 4, "e"), linha(15, 7, 4, "e"),
+    linha(16, 8, 4, "e"), linha(17, 8, 4, "e"), linha(18, 9, 5, "e"), linha(19, 9, 5, "e"), linha(20, 10, 5, "e")
+  ]
+};
+
+PYRO.avancoPorUso = foundry.utils.deepClone(PYRO.avancoPorUsoPadrao);
+
+/* -------------------------------------------------------------------------- */
 /*  Progressão de XP                                                          */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Curva padrão de custo das habilidades: cada vaga da fila custa uma unidade
- * a mais que a anterior (1, 2, 3, 4...).
+ * Curva de custo das habilidades (SRD §3): custoBase x fator^(tier - 1), o que
+ * dá 3, 6, 12, 24, 48... A mesa muda os dois em Configurações > Progressão
+ * para campanhas mais épicas ou mais aceleradas.
  */
-PYRO.progressaoPadrao = { chave: "", label: "", passo: 1, multiplicador: 1 };
+PYRO.curvaXpPadrao = { custoBase: 3, fator: 2 };
+
+PYRO.curvaXp = foundry.utils.deepClone(PYRO.curvaXpPadrao);
 
 /**
- * Regras que trocam a curva de um Caminho inteiro. Uma regra é disparada por
- * nome: se o Caminho tem uma habilidade chamada como um dos `nomes`, ele passa
- * a usar aquele passo e multiplicador. É por isso que a criação de habilidade
- * não ganhou campo nenhum — quem define o comportamento é o nome que o jogador
- * escreveu, e a lista mora aqui, com o mestre.
- *
- *   custo da vaga N = multiplicador x teto(N / passo)
- *
- * passo 2 e multiplicador 1 dá 1, 1, 2, 2, 3, 3. passo 1 e multiplicador 2 dá
- * 2, 4, 6. Um passo altíssimo deixa o caminho inteiro a preço fixo.
- *
- * Nasce vazia: a mesa cria as regras que quiser em Configurações > Sistema.
+ * Custo em XP de um tier, já com o multiplicador do Caminho. Arredonda para
+ * cima porque o SRD lista a metade do Humano como 2/3/6/12/24.
+ */
+PYRO.custoDoTier = (tier, multiplicador = 1, curva = PYRO.curvaXp) => {
+  const t = Math.max(1, Math.round(Number(tier) || 1));
+  const base = (Number(curva?.custoBase) || 0) * (Number(curva?.fator) || 1) ** (t - 1);
+  return Math.max(0, Math.ceil(base * (Number(multiplicador) || 0)));
+};
+
+/** Tiers de habilidade (SRD §3), com a descrição de escopo de cada um. */
+PYRO.tiers = Object.fromEntries(
+  Array.from({ length: 9 }, (_, i) => [i + 1, `PYRO.Tier.${i + 1}`])
+);
+
+/** Caminho sem regra nenhuma paga o custo cheio do tier. */
+PYRO.progressaoPadrao = { chave: "", label: "", multiplicador: 1 };
+
+/**
+ * Regras que mudam o custo de um Caminho inteiro, disparadas pelo nome de uma
+ * habilidade dele: a base "Aprendizado acelerado" do Humano dá multiplicador
+ * 0,5. Assim a habilidade do compêndio carrega a regra junto, sem campo novo
+ * na ficha. Nasce vazia; a mesa preenche em Configurações > Progressão.
  */
 PYRO.progressoesPadrao = {};
 
@@ -452,7 +504,6 @@ PYRO.indexarProgressoes = () => {
         // arbitrária demais para servir de critério.
         posicao,
         label: regra.label || chave,
-        passo: Math.max(1, Math.round(regra.passo ?? 1)),
         multiplicador: Number(regra.multiplicador ?? 1)
       });
     }
@@ -463,6 +514,23 @@ PYRO.indexarProgressoes = () => {
 };
 
 PYRO.progressaoPorNome = new Map();
+
+/* -------------------------------------------------------------------------- */
+/*  Regras opcionais                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Regras que o SRD marca como opcionais. Cada uma é um interruptor por mundo
+ * (Configurações > Regras opcionais); o código pergunta PYRO.regraAtiva(chave).
+ */
+PYRO.regrasOpcionais = {
+  despertar: { label: "PYRO.Regras.despertar.Nome", dica: "PYRO.Regras.despertar.Dica", srd: "SRD §3" },
+  det0: { label: "PYRO.Regras.det0.Nome", dica: "PYRO.Regras.det0.Dica", srd: "SRD Atributos" }
+};
+
+PYRO.regrasAtivas = {};
+
+PYRO.regraAtiva = chave => !!PYRO.regrasAtivas?.[chave];
 
 /** Como a habilidade se comporta na ficha. */
 PYRO.categoriasHabilidade = {

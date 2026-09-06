@@ -1,0 +1,20 @@
+{{!-- Nível por uso (SRD 3b / Magia). Os contadores são editáveis para o
+      mestre corrigir uma contagem à mão; o avanço normal vem do botão do card. --}}
+<div class="bloco progresso-uso">
+  <h4 class="titulo-secao">{{localize "PYRO.Uso.Bloco"}}
+    <span class="rotulo">{{requisitoTexto}}</span>
+  </h4>
+  <div class="grade-campos">
+    <label class="campo"><span class="rotulo">{{localize "PYRO.Uso.Nivel"}}</span>
+      <input type="number" name="system.progresso.nivel" value="{{system.progresso.nivel}}" min="0" /></label>
+    <label class="campo"><span class="rotulo">{{localize "PYRO.Uso.NivelMax"}}</span>
+      <input type="number" name="system.progresso.nivelMax" value="{{system.progresso.nivelMax}}" min="1" /></label>
+    <label class="campo"><span class="rotulo">{{localize "PYRO.Rolagem.rotineiras"}}</span>
+      <input type="number" name="system.progresso.contadores.rotineiras" value="{{system.progresso.contadores.rotineiras}}" min="0" /></label>
+    <label class="campo"><span class="rotulo">{{localize "PYRO.Rolagem.dificeis"}}</span>
+      <input type="number" name="system.progresso.contadores.dificeis" value="{{system.progresso.contadores.dificeis}}" min="0" /></label>
+    <label class="campo"><span class="rotulo">{{localize "PYRO.Rolagem.muitoDificeis"}}</span>
+      <input type="number" name="system.progresso.contadores.muitoDificeis" value="{{system.progresso.contadores.muitoDificeis}}" min="0" /></label>
+  </div>
+  <p class="pyro-nota">{{localize "PYRO.Uso.Dica"}}</p>
+</div>

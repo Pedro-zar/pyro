@@ -1,18 +1,33 @@
 <div class="config-corpo">
   <section>
     <header class="lista-cabecalho">
+      <h3>{{localize "PYRO.Progressao.Curva"}}</h3>
+      <button type="button" class="icone" data-action="restaurarCurva"
+              title="{{localize 'PYRO.Config.Restaurar'}}"><i class="fa-solid fa-rotate-left"></i></button>
+    </header>
+    <p class="pyro-nota">{{localize "PYRO.Progressao.CurvaDica"}}</p>
+    <div class="grade-campos">
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Progressao.CustoBase"}}</span>
+        <input type="number" name="curva.custoBase" value="{{curva.custoBase}}" min="0" step="1" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Progressao.Fator"}}</span>
+        <input type="number" name="curva.fator" value="{{curva.fator}}" min="0" step="any" /></label>
+    </div>
+    <p class="progressao-exemplo"><span class="rotulo">{{localize "PYRO.Progressao.Exemplo"}}</span>
+      <code>{{exemploCurva}}</code></p>
+  </section>
+
+  <section>
+    <header class="lista-cabecalho">
       <h3>{{localize "PYRO.Progressao.Regras"}}</h3>
       <button type="button" class="icone" data-action="adicionarRegra"
               title="{{localize 'PYRO.Criar'}}"><i class="fa-solid fa-plus"></i></button>
     </header>
     <p class="pyro-nota">{{localize "PYRO.Progressao.RegrasDica"}}</p>
-    <p class="pyro-nota">{{localize "PYRO.Progressao.CurvaPadrao"}} <code>{{exemploPadrao}}</code></p>
 
     {{#if regras.length}}
     <div class="config-cab progressoes">
       <span>{{localize "PYRO.Progressao.Rotulo"}}</span>
       <span>{{localize "PYRO.Progressao.Nomes"}}</span>
-      <span>{{localize "PYRO.Progressao.Passo"}}</span>
       <span>{{localize "PYRO.Progressao.Multiplicador"}}</span>
       <span></span>
     </div>
@@ -21,15 +36,13 @@
       <input type="text" name="regra.{{r.chave}}.label" value="{{r.label}}" />
       <input type="text" name="regra.{{r.chave}}.nomes" value="{{r.nomes}}"
              placeholder="{{localize 'PYRO.Progressao.NomesPlaceholder'}}" />
-      <input type="number" name="regra.{{r.chave}}.passo" value="{{r.passo}}" min="1" step="1" />
       <input type="number" step="any" name="regra.{{r.chave}}.multiplicador"
              value="{{r.multiplicador}}" min="0" />
       <button type="button" class="icone perigo" data-action="removerRegra" data-chave="{{r.chave}}"
               title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
     </div>
-    {{!-- Prévia dos seis primeiros custos: o efeito da regra sem abrir ficha.
-          Só atualiza ao salvar ou ao mexer na lista, que é quando a janela
-          se re-renderiza. --}}
+    {{!-- Prévia dos custos por tier com esta regra. Atualiza ao mexer na lista,
+          que é quando a janela se re-renderiza. --}}
     <p class="progressao-exemplo"><span class="rotulo">{{localize "PYRO.Progressao.Exemplo"}}</span>
       <code>{{r.exemplo}}</code></p>
     {{/each}}
@@ -37,6 +50,35 @@
     <p class="secao-vazia">{{localize "PYRO.Progressao.Vazio"}}</p>
     {{/if}}
   </section>
+
+  {{!-- Uma tabela por trilha: perícias e magias/técnicas evoluem em ritmos
+        que o SRD ainda vai calibrar separadamente. --}}
+  {{#each trilhas as |t|}}
+  <section>
+    <header class="lista-cabecalho">
+      <h3>{{t.titulo}}</h3>
+      <button type="button" class="icone" data-action="restaurarTabela" data-trilha="{{t.chave}}"
+              title="{{localize 'PYRO.Config.Restaurar'}}"><i class="fa-solid fa-rotate-left"></i></button>
+    </header>
+    <p class="pyro-nota">{{localize "PYRO.Progressao.AvancoDica"}}</p>
+    <div class="config-cab avanco">
+      <span>{{localize "PYRO.Uso.Nivel"}}</span>
+      <span>{{localize "PYRO.Rolagem.abrevRR"}}</span>
+      <span>{{localize "PYRO.Rolagem.abrevRD"}}</span>
+      <span>{{localize "PYRO.Rolagem.abrevRMD"}}</span>
+      <span>{{localize "PYRO.Progressao.Modo"}}</span>
+    </div>
+    {{#each t.linhas as |l i|}}
+    <div class="config-linha avanco">
+      <span class="numero">{{l.nivel}}</span>
+      <input type="number" name="avanco.{{t.chave}}.{{i}}.rr" value="{{l.rr}}" min="0" step="1" />
+      <input type="number" name="avanco.{{t.chave}}.{{i}}.rd" value="{{l.rd}}" min="0" step="1" />
+      <input type="number" name="avanco.{{t.chave}}.{{i}}.rmd" value="{{l.rmd}}" min="0" step="1" />
+      <select name="avanco.{{t.chave}}.{{i}}.modo">{{selectOptions @root.modos selected=l.modo}}</select>
+    </div>
+    {{/each}}
+  </section>
+  {{/each}}
 
   <footer class="config-rodape">
     <button type="submit" class="destaque">

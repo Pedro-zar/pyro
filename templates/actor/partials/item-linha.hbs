@@ -1,4 +1,4 @@
-<li class="linha-item{{#if linha.cor}} com-cor{{/if}}{{#if linha.grad}} com-grad{{/if}}"
+<li class="linha-item{{#if linha.cor}} com-cor{{/if}}{{#if linha.grad}} com-grad{{/if}}{{#if linha.adormecida}} adormecida{{/if}}"
     data-item-id="{{linha.id}}" draggable="true"
     {{#if linha.cor}}style="--cor-item: var(--pyro-el-{{linha.cor}})"{{/if}}
     {{#if linha.grad}}style="--cor-grad: {{linha.grad}}; --cor-grad-h: {{linha.gradH}}"{{/if}}>

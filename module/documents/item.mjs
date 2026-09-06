@@ -9,7 +9,6 @@ import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado,
   penalidadeExaustao, dicaExaustao
 } from "../efeitos.mjs";
-import { proximaOrdem } from "../data/item-data.mjs";
 import { esc, enriquecer, formularioDoAtor } from "../ui.mjs";
 import { flagsDoSistema } from "../sistema.mjs";
 
@@ -95,19 +94,6 @@ export class PyroItem extends Item {
         this.updateSource({ "system.subjulgar": true });
       }
     }
-    /*
-     * Habilidade nova ocupa a primeira vaga livre da fila daquele caminho, e
-     * é a vaga que fixa o custo. Uma vaga que já venha no dado (duplicar uma
-     * habilidade, arrastar de outra ficha) é respeitada quando está livre —
-     * senão duas habilidades dividiriam a mesma vaga e o mesmo custo.
-     */
-    if (this.type === "habilidade" && this.actor) {
-      this.updateSource({
-        "system.ordem": this.system.ehBase ? 0 : proximaOrdem(this.actor, this.system.caminho, {
-          preferida: data.system?.ordem
-        })
-      });
-    }
     if (this.type === "caminho") {
       if (!data.name?.trim()) this.updateSource({ name: nomeDoCaminho(this.system) });
       // Caminho vindo de compêndio ou duplicado pode trazer tamanho fora da
@@ -132,27 +118,8 @@ export class PyroItem extends Item {
     await Item.implementation.create({
       name: game.i18n.localize("PYRO.Item.HabilidadeBase"),
       type: "habilidade",
-      system: { caminho: this.id, tier: 1, ordem: 0, ehBase: true }
+      system: { caminho: this.id, tier: 1, ehBase: true }
     }, { parent: this.actor });
-  }
-
-  /**
-   * Habilidade apagada solta quem a usava como base. Sem isto, a vaga ficaria
-   * ocupada por uma referência morta e a habilidade de cima continuaria dizendo
-   * que veio de algo que não existe mais.
-   */
-  async _onDelete(options, userId) {
-    super._onDelete(options, userId);
-    if (userId !== game.user.id || this.type !== "habilidade" || !this.actor) return;
-
-    const dependentes = this.actor.items.filter(i =>
-      i.type === "habilidade" && (i.system.requisitos ?? []).some(r => r.id === this.id));
-    if (!dependentes.length) return;
-
-    await this.actor.updateEmbeddedDocuments("Item", dependentes.map(i => ({
-      _id: i.id,
-      "system.requisitos": i.system.toObject().requisitos.filter(r => r.id !== this.id)
-    })));
   }
 
   /**
@@ -197,79 +164,6 @@ export class PyroItem extends Item {
       const menor = sys.alcanceMenor ?? this.system.alcanceMenor;
       const maximo = sys.alcanceMaximo ?? this.system.alcanceMaximo;
       if (maximo > 0 && menor > maximo) sys.alcanceMaximo = menor + 1;
-      changed.system = sys;
-    }
-
-    /*
-     * Baixar o tier reduz os pontos de aumento: o excesso é aparado do fim
-     * para o começo, para a habilidade nunca dar mais do que concede.
-     */
-    if (this.type === "habilidade" && "tier" in sys && !("aumentos" in sys)) {
-      const teto = Math.max(0, sys.tier - 1);
-      const atuais = this.system.toObject().aumentos ?? [];
-      let gasto = atuais.reduce((t, a) => t + a.pontos, 0);
-      if (gasto > teto) {
-        const podados = [];
-        for (const aumento of atuais) {
-          const jaUsado = podados.reduce((t, x) => t + x.pontos, 0);
-          const cabe = Math.min(aumento.pontos, Math.max(0, teto - jaUsado));
-          if (cabe > 0) podados.push({ ...aumento, pontos: cabe });
-        }
-        sys.aumentos = podados;
-        changed.system = sys;
-      }
-    }
-
-    /*
-     * Pré-requisitos só valem enquanto apontam para habilidades que existem,
-     * estão no tier imediatamente abaixo e respeitam a regra de caminho: o
-     * tier 2 funde dentro do próprio caminho, o tier 3 pode misturar.
-     *
-     * Subir o tier de 2 para 3 derruba as bases antigas, que agora estão dois
-     * degraus abaixo, e trocar o caminho de uma tier 2 derruba as que ficaram
-     * do lado de fora. Melhor perder a ligação do que guardar uma que a árvore
-     * não saberia desenhar.
-     *
-     * A habilidade base do caminho não entra nessa contabilidade: ela não é
-     * ingrediente de ninguém, e não precisa de ingredientes para subir de tier.
-     */
-    if (this.type === "habilidade" && this.actor) {
-      const tier = sys.tier ?? this.system.tier;
-      const ehBase = sys.ehBase ?? this.system.ehBase;
-      const caminho = sys.caminho ?? this.system.caminho;
-      const lista = sys.requisitos ?? this.system.requisitos ?? [];
-      const validos = (tier >= 2 && !ehBase)
-        ? lista.filter(r => {
-            const base = this.actor.items.get(r.id);
-            if (base?.system.tier !== tier - 1 || base.system.ehBase) return false;
-            return tier >= 3 || base.system.caminho === caminho;
-          })
-        : [];
-      if (validos.length !== lista.length) {
-        sys.requisitos = validos.map(r => ({ id: r.id, nome: r.nome }));
-        changed.system = sys;
-      }
-    }
-
-    /*
-     * Trocar de caminho (ou marcar como base) refaz a vaga na fila. A vaga
-     * atual é mantida quando está livre no caminho novo, então mover uma
-     * habilidade de lugar não encarece ela sem motivo. Vaga digitada à mão
-     * pelo jogador tem prioridade e passa direto.
-     */
-    if (this.type === "habilidade" && ("caminho" in sys || "ehBase" in sys)) {
-      const ehBase = sys.ehBase ?? this.system.ehBase;
-      // submitOnChange reenvia o formulário inteiro, então "ordem" chega junto
-      // mesmo quando o jogador só trocou o caminho. Só conta como escolha
-      // dele quando o número de fato mudou.
-      const digitada = "ordem" in sys && sys.ordem !== this.system.ordem;
-      if (ehBase) sys.ordem = 0;
-      else if (!digitada) {
-        sys.ordem = proximaOrdem(this.actor, sys.caminho ?? this.system.caminho, {
-          excluirId: this.id,
-          preferida: this.system.ordem
-        });
-      }
       changed.system = sys;
     }
 
@@ -394,6 +288,10 @@ export class PyroItem extends Item {
 
   /** Ponto de entrada único de "usar" um item — a ficha chama isso. */
   async usar() {
+    // Despertar (regra opcional): comprada mas ainda não recebida.
+    if (this.type === "habilidade" && this.system.adormecidaAtiva) {
+      return ui.notifications.warn(game.i18n.format("PYRO.Despertar.AdormecidaAviso", { nome: this.name }));
+    }
     switch (this.type) {
       case "arma": return this.#atacar();
       case "consumivel": return this.#consumir();
@@ -701,6 +599,18 @@ export class PyroItem extends Item {
         ${this.#topoHTML(cab)}
         ${sys.descricao ?? ""}
         ${htmlEfeitosDeUso(this)}
+      </div>`
+    });
+  }
+
+  /** Despertar (regra opcional, SRD §3): a habilidade adormecida floresce. */
+  async despertar() {
+    if (this.type !== "habilidade" || !this.system.adormecida) return;
+    await this.update({ "system.adormecida": false });
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+      content: `<div class="pyro-chat">${this.#topoHTML(game.i18n.localize("PYRO.Despertar.Nome"))}
+        <p class="pyro-despertou">${game.i18n.format("PYRO.Despertar.Despertou", { nome: esc(this.name) })}</p>
       </div>`
     });
   }

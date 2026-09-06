@@ -122,71 +122,28 @@
       {{/if}}
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Categoria"}}</span>
         <select name="system.categoria">{{selectOptions config.categoriasHabilidade selected=system.categoria localize=true}}</select></label>
-      <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Tier"}}</span>
-        <input type="number" name="system.tier" value="{{system.tier}}" min="1" /></label>
-      {{#unless system.ehBase}}
-      <label class="campo" title="{{localize 'PYRO.Item.OrdemDica'}}">
-        <span class="rotulo">{{localize "PYRO.Item.Ordem"}}</span>
-        <input type="number" name="system.ordem" value="{{system.ordem}}" min="1" /></label>
-      {{/unless}}
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Tier"}}</span>
+        <select name="system.tier">{{selectOptions tierOpts selected=system.tier}}</select></label>
       <div class="campo"><span class="rotulo">{{localize "PYRO.Item.CustoXp"}}</span>
         <span class="valor-texto numero">{{#if system.ehBase}}{{localize "PYRO.Item.BaseTag"}}{{else}}{{system.custoXp}}{{/if}}</span></div>
     </div>
-    {{#unless system.ehBase}}
-    <p class="pyro-nota">{{localize "PYRO.Item.OrdemDica"}}</p>
-    {{/unless}}
   </div>
 
-  {{!-- Fusão de duas habilidades do tier de baixo (SRD §3). Só aparece a
-        partir do tier 2, que é quando existe um tier anterior. --}}
-  {{#if temRequisitos}}
+  {{!-- Nível (SRD §3): o SRD ainda não fechou como ele sobe, então é editado
+        à mão; a escala diz o que muda a cada nível. --}}
   <div class="bloco">
-    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Requisitos"}}
-      <span class="rotulo">{{localize "PYRO.Item.Tier"}} {{tierBase}}</span>
-    </h4>
-    {{#if semCandidatos}}
-    <p class="secao-vazia">{{localize "PYRO.Item.SemCandidatos"}}</p>
-    {{else}}
+    <h4 class="titulo-secao">{{localize "PYRO.Uso.Bloco"}}</h4>
     <div class="grade-campos">
-      {{#each linhasRequisito as |l|}}
-      <label class="campo largo"><span class="rotulo">{{l.rotulo}}</span>
-        <select name="system.requisitos.{{l.indice}}">{{selectOptions l.opcoes selected=l.atual}}</select></label>
-      {{/each}}
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Uso.Nivel"}}</span>
+        <input type="number" name="system.nivel" value="{{system.nivel}}" min="1" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Uso.NivelMax"}}</span>
+        <input type="number" name="system.nivelMax" value="{{system.nivelMax}}" min="1" /></label>
+      <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Item.EscalaPorNivel"}}</span>
+        <input type="text" name="system.escalaPorNivel" value="{{system.escalaPorNivel}}"
+               placeholder="{{localize 'PYRO.Item.EscalaPorNivelPlaceholder'}}" /></label>
     </div>
-    {{/if}}
-    <p class="pyro-nota">{{localize "PYRO.Item.RequisitosDica"}}</p>
-    <p class="pyro-nota">{{#if mistoPermitido}}{{localize "PYRO.Item.RequisitosMisto"}}{{else}}{{localize "PYRO.Item.RequisitosMesmoCaminho"}}{{/if}}</p>
+    <p class="pyro-nota">{{localize "PYRO.Item.NivelHabilidadeDica"}}</p>
   </div>
-  {{/if}}
-
-  {{#if temAumentos}}
-  <div class="bloco">
-    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Aumento"}}
-      <span class="rotulo">{{aumentoResumo}}</span>
-    </h4>
-    {{#each linhasAumento as |l|}}
-    <div class="linha-aumento">
-      <select name="system.aumentos.{{l.index}}.atributo">
-        {{selectOptions l.opcoes selected=l.atributo}}
-      </select>
-      <input type="number" name="system.aumentos.{{l.index}}.pontos" value="{{l.pontos}}"
-             min="1" max="{{l.max}}" />
-      <button type="button" class="icone perigo" data-action="removerAumento" data-index="{{l.index}}"
-              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
-    </div>
-    {{/each}}
-    {{#if linhaAumentoNova}}
-    <div class="linha-aumento">
-      <select name="system.aumentos.{{linhaAumentoNova.index}}.atributo">
-        {{selectOptions linhaAumentoNova.opcoes selected=""}}
-      </select>
-      <input type="number" name="system.aumentos.{{linhaAumentoNova.index}}.pontos"
-             value="{{linhaAumentoNova.max}}" min="1" max="{{linhaAumentoNova.max}}" />
-      <span></span>
-    </div>
-    {{/if}}
-  </div>
-  {{/if}}
 
   {{#if temCustos}}
   <div class="bloco">
@@ -339,6 +296,10 @@
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Xp"}}</span>
         <input type="number" name="system.xp" value="{{system.xp}}" min="0" /></label>
     </div>
+    {{!-- Custo de cada tier neste Caminho, já com a regra de progressão dele. --}}
+    <p class="pyro-nota custos-tier">{{localize "PYRO.Item.CustoPorTier"}}
+      {{#each system.custosPorTier as |c|}}<span class="custo-tier"><strong>T{{c.tier}}</strong> {{c.custo}}</span>{{/each}}
+    </p>
   </div>
 
   {{#if system.usaMagia}}
@@ -375,6 +336,7 @@
 {{/if}}
 
 {{#if isMagia}}
+  {{> "pyro.progresso"}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Item.RunasDaMagia"}}</h4>
     <p class="pyro-nota">{{localize "PYRO.Item.MagiaScalingsDica"}}</p>
@@ -460,6 +422,11 @@
         <span>{{localize "PYRO.Item.EhTecnica"}}</span></label>
       <label class="check-linha"><input type="checkbox" name="system.ehBase" {{checked system.ehBase}} />
         <span>{{localize "PYRO.Item.EhBase"}}</span></label>
+      {{#if mostrarAdormecida}}
+      <label class="check-linha" title="{{localize 'PYRO.Regras.despertar.Dica'}}">
+        <input type="checkbox" name="system.adormecida" {{checked system.adormecida}} />
+        <span>{{localize "PYRO.Despertar.Adormecida"}}</span></label>
+      {{/if}}
       {{#if rotuloAbaCaminho}}
       <label class="check-linha"><input type="checkbox" name="system.abaCaminho" {{checked system.abaCaminho}} />
         <span>{{rotuloAbaCaminho}}</span></label>

@@ -6,7 +6,8 @@
 
 import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
 import { esc } from "./ui.mjs";
-import { flagsDe } from "./sistema.mjs";
+import { SYSTEM_ID, flagsDe } from "./sistema.mjs";
+import { registrarUso } from "./progressao.mjs";
 
 /** Linha de sucesso ou falha contra um ND, nos cards de teste. */
 export function htmlResultadoND(sucesso) {
@@ -207,7 +208,34 @@ export function registrarMenuChat() {
     for (const botao of element.querySelectorAll(".pyro-aplicar-efeito")) {
       botao.addEventListener("click", () => aplicarEfeito(botao.dataset.efeitoUuid, message));
     }
+    prepararBotaoContarUso(message, element);
     injetarRodape(message, element);
+  });
+}
+
+/**
+ * O botão de contar uso vale uma vez por card: depois de contado, a mensagem
+ * guarda a marca e o botão fica travado em todos os clientes.
+ */
+function prepararBotaoContarUso(message, element) {
+  const botao = element.querySelector(".pyro-contar-uso");
+  if (!botao) return;
+  const marcar = () => {
+    botao.disabled = true;
+    botao.innerHTML = `<i class="fa-solid fa-check"></i> ${game.i18n.localize("PYRO.Uso.Contado")}`;
+  };
+  if (flagsDe(message)?.usoContado) return marcar();
+  botao.addEventListener("click", async () => {
+    const item = await fromUuid(botao.dataset.itemUuid);
+    if (!item?.isOwner) {
+      return ui.notifications.warn(game.i18n.localize("PYRO.Uso.SemPermissao"));
+    }
+    const resultado = await registrarUso(item, botao.dataset.classe);
+    if (!resultado) return;
+    marcar();
+    if (message.isAuthor || game.user.isGM) {
+      await message.update({ [`flags.${SYSTEM_ID}.usoContado`]: true });
+    }
   });
 }
 

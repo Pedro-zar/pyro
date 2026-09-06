@@ -5,15 +5,9 @@
 import { PYRO } from "../config.mjs";
 import { formulaPool, juntarDados } from "../dados.mjs";
 import { rotuloCurtoDoCaminho } from "./item-data.mjs";
+import { num, dec } from "./campos.mjs";
 
 const fields = foundry.data.fields;
-
-const num = (initial, opts = {}) =>
-  new fields.NumberField({ required: true, integer: true, initial, ...opts });
-
-/** Igual ao num, mas aceita fração (multiplicadores de efeito). */
-const dec = (initial, opts = {}) =>
-  new fields.NumberField({ required: true, initial, ...opts });
 
 /**
  * Recurso com value/max nos nomes que o Foundry entende, pra virar barra de
@@ -150,23 +144,11 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     // Multiplicador de patamar: +10% por DET acima de 1.
     this.multi = 1 + 0.1 * (det - 1);
 
-    /* --- Aumentos vindos das habilidades de tier 2+ (SRD §3) ------------- */
-    const bonusHab = {};
-    for (const item of this.parent.items) {
-      if (item.type !== "habilidade") continue;
-      for (const a of item.system.aumentos ?? []) {
-        if (!a.atributo || !a.pontos) continue;
-        bonusHab[a.atributo] = (bonusHab[a.atributo] ?? 0) + a.pontos;
-      }
-    }
-
     /* --- Atributos: limite por DET e valor efetivo (SRD Atributos) ------- */
     for (const [chave, attr] of Object.entries(this.atributos)) {
-      // O total é o que vale em jogo: base digitada, mais os aumentos de tier
-      // das habilidades, mais o que os efeitos somaram em .bonus.
-      attr.bonusHab = bonusHab[chave] ?? 0;
-      attr.bonusEfeito = attr.bonus ?? 0;
-      attr.bonusTotal = attr.bonusHab + attr.bonusEfeito;
+      // O total é o que vale em jogo: base digitada mais o que os efeitos
+      // somaram em .bonus.
+      attr.bonusTotal = attr.bonus ?? 0;
       // Piso 1: um efeito negativo forte não derruba o atributo abaixo da
       // primeira linha da Tabela de Dados.
       attr.total = Math.max(1, attr.valor + attr.bonusTotal);
@@ -174,8 +156,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       attr.bonusNegativo = attr.bonusTotal < 0;
       attr.bonusDica = [
         game.i18n.format("PYRO.BonusOrigem.base", { valor: attr.valor }),
-        attr.bonusHab ? game.i18n.format("PYRO.BonusOrigem.habilidades", { valor: comSinal(attr.bonusHab) }) : null,
-        attr.bonusEfeito ? game.i18n.format("PYRO.BonusOrigem.efeitos", { valor: comSinal(attr.bonusEfeito) }) : null
+        attr.bonusTotal ? game.i18n.format("PYRO.BonusOrigem.efeitos", { valor: comSinal(attr.bonusTotal) }) : null
       ].filter(Boolean).join(" · ");
       attr.limite = 15 * det;
       attr.efetivo = attr.total <= attr.limite

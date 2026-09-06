@@ -81,7 +81,8 @@ Hooks.once("init", () => {
   // depender do id da pasta (ver sistema.mjs).
   foundry.applications.handlebars.loadTemplates({
     "pyro.item-linha": caminho("templates/actor/partials/item-linha.hbs"),
-    "pyro.secao": caminho("templates/actor/partials/secao.hbs")
+    "pyro.secao": caminho("templates/actor/partials/secao.hbs"),
+    "pyro.progresso": caminho("templates/item/partials/progresso.hbs")
   });
 
   const { Actors, Items } = foundry.documents.collections;

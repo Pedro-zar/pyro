@@ -8,6 +8,7 @@ import { scalingsPadrao, valorScaling, SEM_DANO } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho, flagsDe } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
+import { tabelaDoItem, requisitoDoNivel } from "../progressao.mjs";
 import { rotuloCurtoDoCaminho } from "../data/item-data.mjs";
 
 /**
@@ -63,7 +64,6 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       removerScaling: PyroItemSheet.#removerScaling,
       adicionarScalingMagia: PyroItemSheet.#adicionarScalingMagia,
       removerScalingMagia: PyroItemSheet.#removerScalingMagia,
-      removerAumento: PyroItemSheet.#removerAumento,
       adicionarAfinidade: PyroItemSheet.#adicionarAfinidade,
       removerAfinidade: PyroItemSheet.#removerAfinidade,
       criarEfeito: PyroItemSheet.#criarEfeito,
@@ -254,8 +254,11 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       tipoCustoOpts: PYRO.tiposCusto,
       // Passiva e perícia não gastam ação nem recurso: sem bloco de Custos.
       temCustos: item.type === "habilidade" && sys.categoria === "ativavel",
-      ...(item.type === "habilidade" ? this.#contextoAumentos() : {}),
-      ...(item.type === "habilidade" ? this.#contextoRequisitos() : {}),
+      // Tier com a descrição de escopo do SRD como dica de cada opção.
+      tierOpts: Object.fromEntries(Object.entries(PYRO.tiers)
+        .map(([t, label]) => [t, `${t} — ${game.i18n.localize(label)}`])),
+      // Despertar é regra opcional: sem ela ligada, o campo nem aparece.
+      mostrarAdormecida: item.type === "habilidade" && PYRO.regraAtiva("despertar"),
       // Caminhos e runas têm nome derivado: só leitura no formulário.
       nomeAutomatico: item.type === "caminho" || item.type === "runa",
       // Mochila e item arcano ganham um campo próprio; os demais sabores de
@@ -269,6 +272,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       efeitos: item.effects.filter(e => !flagsDe(e)?.deUso),
       efeitosDeUso: item.effects.filter(e => flagsDe(e)?.deUso),
       subtitulo: this.#subtitulo(),
+      requisitoTexto: this.#requisitoTexto(),
       valoresRapidos: this.#valoresRapidos(),
       temPropriedadesFisicas: ["arma", "equipamento", "consumivel"].includes(item.type),
       // Prévia do que a runa produz nas primeiras Intenções, já com o
@@ -301,110 +305,24 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   /* ---------------------------------------------------------------------- */
 
   /**
-   * Pré-requisitos (SRD §3): uma habilidade de tier 2 ou mais nasce da fusão
-   * de duas do tier imediatamente abaixo.
-   *
-   * A lista de escolha exclui o que já virou base de outra habilidade, porque
-   * cada uma é ingrediente uma vez só. Também exclui a própria habilidade e a
-   * que estiver na outra vaga, senão daria para montar uma com ela mesma.
-   *
-   * O tier 2 é fechado no caminho: as duas origens têm que ser do mesmo
-   * caminho da habilidade. Do tier 3 em diante a fusão pode misturar, e é aí
-   * que uma tier 2 de mago e uma de espadachim viram algo novo.
-   *
-   * A habilidade base do caminho fica de fora dos dois lados: ela vem junto do
-   * caminho, não é comprada, então não é ingrediente de ninguém nem precisa de
-   * ingredientes para subir de tier.
+   * O que falta para o próximo nível, no cabeçalho do bloco de progresso:
+   * "Nível 3: 2 RR e (1 RD ou 1 RMD)". Vazio quando o item não progride.
    */
-  #contextoRequisitos() {
-    const item = this.item;
-    const actor = item.actor;
-    const sys = item.system;
-    if (!actor || sys.ehBase || (sys.tier ?? 1) < 2) return { temRequisitos: false };
-
-    const tierBase = sys.tier - 1;
-    const mistoPermitido = sys.tier >= 3;
-    const caminhoAlvo = sys.caminho;
-
-    const consumidas = new Set();
-    for (const hab of actor.items) {
-      if (hab.type !== "habilidade" || hab.id === item.id) continue;
-      for (const r of hab.system.requisitos ?? []) if (r.id) consumidas.add(r.id);
-    }
-
-    const escolhidas = (sys.requisitos ?? []).map(r => r.id).filter(Boolean);
-    const nomeDoCaminho = hab => actor.items.get(hab.system.caminho)?.name ?? "";
-
-    const livres = actor.items.filter(hab =>
-      hab.type === "habilidade" && hab.id !== item.id && !hab.system.ehBase
-      && (hab.system.tier ?? 1) === tierBase && !consumidas.has(hab.id)
-      && (mistoPermitido || hab.system.caminho === caminhoAlvo));
-
-    const linhas = [0, 1].map(indice => {
-      const atual = escolhidas[indice] ?? "";
-      const opcoes = { "": "—" };
-      for (const hab of livres) {
-        if (escolhidas.includes(hab.id) && hab.id !== atual) continue;
-        // O caminho no rótulo só ajuda quando a fusão pode misturar; no
-        // tier 2 seria a mesma palavra repetida em todas as linhas.
-        const rotuloCaminho = mistoPermitido ? nomeDoCaminho(hab) : "";
-        opcoes[hab.id] = rotuloCaminho ? `${hab.name} (${rotuloCaminho})` : hab.name;
-      }
-      return { indice, atual, opcoes, rotulo: game.i18n.format("PYRO.Item.BaseN", { n: indice + 1 }) };
+  #requisitoTexto() {
+    const progresso = this.item.system.progresso;
+    const tabela = tabelaDoItem(this.item);
+    if (!progresso || !tabela) return "";
+    const alvo = progresso.nivel + 1;
+    if (alvo > progresso.nivelMax) return game.i18n.localize("PYRO.Uso.NoMaximo");
+    const req = requisitoDoNivel(tabela, alvo);
+    const loc = k => game.i18n.localize(k);
+    const rr = req.rr ? `${req.rr} ${loc("PYRO.Rolagem.abrevRR")}` : "";
+    const rd = `${req.rd} ${loc("PYRO.Rolagem.abrevRD")}`;
+    const rmd = `${req.rmd} ${loc("PYRO.Rolagem.abrevRMD")}`;
+    const resto = req.modo === "e" ? `${rd} ${loc("PYRO.Uso.E")} ${rmd}` : `(${rd} ${loc("PYRO.Uso.Ou")} ${rmd})`;
+    return game.i18n.format("PYRO.Uso.Requisito", {
+      nivel: alvo, requisito: [rr, resto].filter(Boolean).join(` ${loc("PYRO.Uso.E")} `)
     });
-
-    return {
-      temRequisitos: true,
-      tierBase,
-      mistoPermitido,
-      linhasRequisito: linhas,
-      semCandidatos: !livres.length && !escolhidas.length
-    };
-  }
-
-  /**
-   * Aumento de atributo por tier (SRD §3). A ficha mostra as escolhas já
-   * feitas e, enquanto sobrar ponto, uma linha vazia para a próxima — cada
-   * atributo aparece uma vez só, e o campo de pontos nunca deixa passar do
-   * que a habilidade concede.
-   */
-  #contextoAumentos() {
-    const sys = this.item.system;
-    const total = sys.pontosAumento ?? 0;
-    const usados = sys.pontosUsados ?? 0;
-    const restantes = sys.pontosRestantes ?? 0;
-    const escolhidos = (sys.aumentos ?? []).map(a => a.atributo);
-
-    const opcoesPara = atual => Object.fromEntries(
-      Object.entries(PYRO.atributos)
-        .filter(([k]) => k === atual || !escolhidos.includes(k))
-        .map(([k, label]) => [k, game.i18n.localize(label)])
-    );
-
-    const linhas = (sys.aumentos ?? []).map((a, i) => ({
-      index: i,
-      atributo: a.atributo,
-      pontos: a.pontos,
-      // O máximo da linha é o que ela já usa mais o que sobrou.
-      max: a.pontos + restantes,
-      opcoes: opcoesPara(a.atributo)
-    }));
-
-    // Linha nova só enquanto há ponto sobrando e atributo livre.
-    const livres = opcoesPara(null);
-    const linhaNova = restantes > 0 && Object.keys(livres).length
-      ? { index: linhas.length, atributo: "", pontos: "", max: restantes, opcoes: { "": "—", ...livres } }
-      : null;
-
-    return {
-      temAumentos: total > 0,
-      aumentoTotal: total,
-      aumentoUsados: usados,
-      aumentoRestantes: restantes,
-      aumentoResumo: game.i18n.format("PYRO.Item.AumentoPontos", { usados, total }),
-      linhasAumento: linhas,
-      linhaAumentoNova: linhaNova
-    };
   }
 
   /* ---------------------------------------------------------------------- */
@@ -460,15 +378,14 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       case "habilidade": {
         partes.push(loc(PYRO.categoriasHabilidade[sys.categoria] ?? ""));
         partes.push(`${loc("PYRO.Item.Tier")} ${sys.tier}`);
+        partes.push(`${loc("PYRO.Uso.Nivel")} ${sys.nivel}`);
         if (sys.custoAcoes) {
           partes.push(`${sys.custoAcoes} ${loc(`PYRO.Item.Abrev.${sys.tipoCusto}`)}`);
         }
         if (sys.custoEstamina) partes.push(`${sys.custoEstamina} ${loc("PYRO.Abrev.estamina")}`);
         if (sys.custoMana) partes.push(`${sys.custoMana} ${loc("PYRO.Abrev.mana")}`);
         if (sys.custoEnergia) partes.push(`${sys.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
-        for (const a of sys.aumentos ?? []) {
-          partes.push(`+${a.pontos} ${loc(PYRO.atributos[a.atributo] ?? a.atributo)}`);
-        }
+        if (sys.adormecidaAtiva) partes.push(loc("PYRO.Despertar.Tag"));
         break;
       }
       case "feitico": {
@@ -522,11 +439,11 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     }
     if (this.item.type === "habilidade") {
       add("PYRO.Item.CustoXp", sys.ehBase ? loc("PYRO.Item.BaseTag") : sys.custoXp);
+      add("PYRO.Uso.Nivel", `${sys.nivel} / ${sys.nivelMax}`);
     }
     if (this.item.type === "caminho") {
       add("PYRO.Item.Xp", `${sys.xpDisponivel} / ${sys.xp}`);
       add("PYRO.Item.XpGasta", sys.xpGasta);
-      add("PYRO.ProximoCusto", sys.proximoCusto);
     }
     return linhas;
   }
@@ -558,42 +475,6 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         tipo: a.tipo ?? "fogo",
         outro: a.outro ?? ""
       }));
-    }
-
-    if (this.item.type === "habilidade" && sys.aumentos && !Array.isArray(sys.aumentos)) {
-      const teto = Math.max(0, (sys.tier ?? this.item.system.tier) - 1);
-      let gasto = 0;
-      const vistos = new Set();
-      sys.aumentos = Object.values(sys.aumentos)
-        .map(a => ({ atributo: a.atributo ?? "", pontos: Number(a.pontos) || 0 }))
-        .filter(a => {
-          if (!a.atributo || a.pontos <= 0 || vistos.has(a.atributo)) return false;
-          // Nunca passa do que o tier concede, mesmo com edição simultânea.
-          a.pontos = Math.min(a.pontos, teto - gasto);
-          if (a.pontos <= 0) return false;
-          gasto += a.pontos;
-          vistos.add(a.atributo);
-          return true;
-        });
-    }
-
-    /*
-     * Os dois selects de pré-requisito chegam como { 0: id, 1: id }. Vaga
-     * vazia e repetição saem fora, e o nome é resolvido agora para a ligação
-     * sobreviver a um id que mude.
-     */
-    if (this.item.type === "habilidade" && sys.requisitos && !Array.isArray(sys.requisitos)) {
-      const actor = this.item.actor;
-      const vistos = new Set();
-      const ids = [];
-      for (const valor of Object.values(sys.requisitos)) {
-        const id = typeof valor === "string" ? valor : (valor?.id ?? "");
-        if (!id || vistos.has(id)) continue;
-        vistos.add(id);
-        ids.push(id);
-      }
-      sys.requisitos = ids.slice(0, 2)
-        .map(id => ({ id, nome: actor?.items.get(id)?.name ?? "" }));
     }
 
     if (this.item.type === "runa" && sys.scalings && !Array.isArray(sys.scalings)) {
@@ -669,12 +550,6 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     if (!r) return;
     r.scalings.splice(Number(target.dataset.index), 1);
     await this.item.update({ "system.runas": runas });
-  }
-
-  static async #removerAumento(event, target) {
-    const arr = this.item.system.toObject().aumentos;
-    arr.splice(Number(target.dataset.index), 1);
-    await this.item.update({ "system.aumentos": arr });
   }
 
   static async #adicionarAfinidade() {

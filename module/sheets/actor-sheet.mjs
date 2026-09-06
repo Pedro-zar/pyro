@@ -32,14 +32,16 @@ export function planoDeDrop(dados, atorUuid) {
 /**
  * Agrupa as habilidades por caminho, para a lista da ficha.
  *
- * Os grupos saem na ordem da lista de caminhos, e dentro de cada um as
- * habilidades seguem a vaga de XP: base (vaga 0) primeiro, depois 1, 2, 3.
+ * Os grupos saem na ordem da lista de caminhos, e dentro de cada um a
+ * habilidade base vem primeiro, depois as demais por tier.
  * Habilidades gerais e as que ficaram sem caminho (o item foi apagado) fecham
  * a lista, cada grupo com o próprio título. Caminho sem habilidade não vira
  * cabeçalho vazio.
  */
 export function gruposDeHabilidades(caminhos, habilidades) {
-  const porVaga = (a, b) => (a.system.ordem ?? 0) - (b.system.ordem ?? 0)
+  // Base primeiro, depois por tier e nome.
+  const porTier = (a, b) => Number(b.system.ehBase) - Number(a.system.ehBase)
+    || (a.system.tier ?? 1) - (b.system.tier ?? 1)
     || a.name.localeCompare(b.name);
 
   const grupos = caminhos.map(c => ({ chave: c.id, titulo: c.name, itens: [] }));
@@ -54,7 +56,7 @@ export function gruposDeHabilidades(caminhos, habilidades) {
   }
 
   const todos = [...grupos, semCaminho, geral];
-  for (const g of todos) g.itens.sort(porVaga);
+  for (const g of todos) g.itens.sort(porTier);
   return todos.filter(g => g.itens.length);
 }
 
@@ -296,7 +298,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const sys = item.system;
       const caminhoNome = actor.items.get(sys.caminho)?.name
         ?? loc(sys.caminho === "geral" ? "PYRO.CaminhoGeral" : "PYRO.CaminhoRemovido");
-      const posicao = sys.ehBase ? loc("PYRO.Item.BaseTag") : `#${sys.ordem}`;
       const custosPartes = [
         sys.custoEstamina ? `${sys.custoEstamina} ${loc("PYRO.Recursos.estamina").toLocaleLowerCase()}` : null,
         sys.custoMana ? `${sys.custoMana} ${loc("PYRO.Recursos.mana").toLocaleLowerCase()}` : null,
@@ -314,25 +315,25 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
        */
       const detalheTexto = [
         agrupada ? null : caminhoNome,
+        sys.adormecidaAtiva ? loc("PYRO.Despertar.Tag") : null,
         loc(PYRO.categoriasHabilidade[sys.categoria] ?? ""),
         ...custosPartes,
-        `${loc("PYRO.Item.Tier").toLocaleLowerCase()} ${sys.tier}`
+        `${loc("PYRO.Item.Tier").toLocaleLowerCase()} ${sys.tier}`,
+        `${loc("PYRO.Uso.NivelAbrev")} ${sys.nivel}`
       ].filter(Boolean).join(", ");
       return {
+        adormecida: sys.adormecidaAtiva,
         detalhes: detalheUnico(detalheTexto),
         cauda: [],
         resumo: [
           { label: loc("TYPES.Item.caminho"), valor: caminhoNome },
-          { label: loc("PYRO.Item.Posicao"), valor: posicao },
           { label: loc("PYRO.Item.Categoria"), valor: loc(PYRO.categoriasHabilidade[sys.categoria] ?? "") },
           { label: loc("PYRO.Item.Tier"), valor: sys.tier },
           { label: loc("PYRO.Item.CustoXp"), valor: sys.ehBase ? loc("PYRO.Item.BaseTag") : sys.custoXp },
+          { label: loc("PYRO.Uso.Nivel"), valor: `${sys.nivel} / ${sys.nivelMax}` },
+          ...(sys.escalaPorNivel ? [{ label: loc("PYRO.Item.EscalaPorNivel"), valor: sys.escalaPorNivel }] : []),
           { label: loc("PYRO.Item.Custos"), valor: custos || "—" },
-          { label: loc("PYRO.Item.Formula"), valor: sys.formula || "—" },
-          // Ligações da árvore: de onde esta veio e em que ela foi consumida.
-          ...(sys.requisitosNomes
-            ? [{ label: loc("PYRO.Item.Requisitos"), valor: sys.requisitosNomes }] : []),
-          ...(sys.usadaEm ? [{ label: loc("PYRO.Item.UsadaEm"), valor: sys.usadaEm }] : [])
+          { label: loc("PYRO.Item.Formula"), valor: sys.formula || "—" }
         ]
       };
     };
@@ -414,6 +415,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           ? `linear-gradient(90deg, ${cores.map(c => `var(--pyro-el-${c})`).join(", ")})`
           : null,
         detalhes: [{ texto: runasTexto, classe: "" }],
+        cauda: [{
+          texto: `${loc("PYRO.Uso.NivelAbrev")} ${item.system.progresso.nivel}`,
+          classe: "col-curto", dica: loc("PYRO.Uso.Nivel")
+        }],
         resumo: [
           { label: loc("PYRO.Item.RunasDaMagia"), valor: runasTexto || "—" },
           ...(escalas.length ? [{ label: loc("PYRO.Item.ScalingNome"), valor: escalas.join(" · ") }] : [])
@@ -440,8 +445,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
             classe: "col-xp", dica: loc("PYRO.Item.XpGasta")
           },
           {
-            texto: `${loc("PYRO.Abrev.prox")} ${sys.proximoCusto}`,
-            classe: "col-xp", dica: loc("PYRO.ProximoCustoTooltip")
+            texto: `${loc("PYRO.Abrev.tier")}1 ${sys.custosPorTier?.[0]?.custo ?? ""}`,
+            classe: "col-xp", dica: loc("PYRO.Item.CustoPorTier")
           }
         ],
         /*
@@ -521,7 +526,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       }),
       magias: secao("magias", magias, {
         colNome: loc("PYRO.Col.magia"),
-        colunas: [col("runas", "")]
+        colunas: [col("runas", "")],
+        cauda: [col("nivel", "col-curto")],
+        legIcones: "leg-icones-1"
       }),
       runas: secao("runas", runas, { semLegenda: true }),
       caminhos: secao("caminhos", caminhos, {
@@ -958,6 +965,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         condition: li => ["arma", "consumivel", "habilidade", "feitico", "magia", "runa"]
           .includes(item(li)?.type),
         callback: li => item(li)?.usar()
+      },
+      {
+        name: "PYRO.Despertar.Nome",
+        icon: '<i class="fa-solid fa-sun"></i>',
+        condition: li => !!item(li)?.system.adormecidaAtiva,
+        callback: li => item(li)?.despertar()
       },
       {
         name: "PYRO.Menu.MostrarNoChat",

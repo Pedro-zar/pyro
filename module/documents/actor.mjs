@@ -3,7 +3,8 @@
  * de recursos, dano/cura vindos do chat e recuperação por passagem de tempo.
  */
 import { PYRO } from "../config.mjs";
-import { formulaTeste, formulaReacao, expandirAtributos } from "../dados.mjs";
+import { formulaTeste, formulaReacao, expandirAtributos, poolDoAtributo } from "../dados.mjs";
+import { classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse } from "../progressao.mjs";
 import { penalidadeExaustao, dicaExaustao, sincronizarSobrepeso } from "../efeitos.mjs";
 import { formularioDoAtor } from "../ui.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND } from "../chat.mjs";
@@ -241,14 +242,22 @@ export class PyroActor extends Actor {
     if (formula === null) return this.#falhaAutomatica(flavor);
 
     const roll = await new Roll(formula).evaluate();
-    let content = opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : "";
+    let content = "";
+    let classe = null;
+    if (opts.nd) {
+      // A classe mede a pool contra o ND (SRD 3b); o botão de contar chega
+      // quando houver uma perícia para receber o uso.
+      classe = classificarRolagem({ ...poolDoTeste(poolDoAtributo(valor), opts), nd: Number(opts.nd) });
+      content = htmlResultadoND(roll.total >= Number(opts.nd)) + htmlClasseDaRolagem(classe);
+    }
     if (opts.passarLimites) {
       content += `<p class="pyro-aviso">${game.i18n.localize("PYRO.Chat.PassouLimites")}</p>`;
     }
     return roll.toMessage({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor,
-      content: content || undefined
+      content: content || undefined,
+      ...(classe ? { flags: flagsDoSistema(flagsDaClasse(classe)) } : {})
     });
   }
 

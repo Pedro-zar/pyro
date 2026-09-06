@@ -2,6 +2,7 @@ import { PYRO } from "./config.mjs";
 import { ConfigElementosApp } from "./apps/config-magia.mjs";
 import { ConfigCaminhosApp } from "./apps/config-caminhos.mjs";
 import { ConfigProgressaoApp } from "./apps/config-progressao.mjs";
+import { ConfigRegrasApp } from "./apps/config-regras.mjs";
 import { SYSTEM_ID } from "./sistema.mjs";
 
 /**
@@ -47,6 +48,31 @@ export function registrarSettings() {
    * custo do Caminho inteiro. Fica em setting próprio, e não junto das tabelas
    * de magia, porque não tem nada a ver com conjuração.
    */
+  // Tabelas de nível por uso, uma por trilha (perícia; magia e técnica).
+  game.settings.register(SYSTEM_ID, "avancoPorUso", {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: foundry.utils.deepClone(PYRO.avancoPorUsoPadrao),
+    requiresReload: true
+  });
+
+  game.settings.register(SYSTEM_ID, "curvaXp", {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: foundry.utils.deepClone(PYRO.curvaXpPadrao),
+    requiresReload: true
+  });
+
+  game.settings.register(SYSTEM_ID, "regrasOpcionais", {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: Object.fromEntries(Object.keys(PYRO.regrasOpcionais).map(k => [k, false])),
+    requiresReload: true
+  });
+
   game.settings.register(SYSTEM_ID, "progressoes", {
     scope: "world",
     config: false,
@@ -75,6 +101,15 @@ export function registrarSettings() {
     hint: "PYRO.ConfigCaminhos.Dica",
     icon: "fa-solid fa-users",
     type: ConfigCaminhosApp,
+    restricted: true
+  });
+
+  game.settings.registerMenu(SYSTEM_ID, "configRegras", {
+    name: "PYRO.Regras.Nome",
+    label: "PYRO.Regras.Botao",
+    hint: "PYRO.Regras.Dica",
+    icon: "fa-solid fa-toggle-on",
+    type: ConfigRegrasApp,
     restricted: true
   });
 
@@ -115,4 +150,13 @@ export function aplicarSettings() {
   // A lista de progressões nasce vazia, então vale o que o mestre salvou.
   PYRO.progressoes = foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "progressoes") ?? {});
   PYRO.indexarProgressoes();
+  PYRO.curvaXp = { ...PYRO.curvaXpPadrao, ...(game.settings.get(SYSTEM_ID, "curvaXp") ?? {}) };
+  PYRO.regrasAtivas = { ...(game.settings.get(SYSTEM_ID, "regrasOpcionais") ?? {}) };
+  // Cada trilha é substituída inteira: uma tabela é um array, e mesclar
+  // linha a linha misturaria uma tabela editada com a padrão.
+  const avanco = game.settings.get(SYSTEM_ID, "avancoPorUso") ?? {};
+  PYRO.avancoPorUso = {
+    ...foundry.utils.deepClone(PYRO.avancoPorUsoPadrao),
+    ...Object.fromEntries(Object.entries(avanco).filter(([, tabela]) => Array.isArray(tabela) && tabela.length))
+  };
 }

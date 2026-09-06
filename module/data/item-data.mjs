@@ -3,17 +3,9 @@
  * runa, magia, caminho) e a contabilidade de XP das habilidades por Caminho.
  */
 import { PYRO } from "../config.mjs";
+import { num, dec, str, nivelPorUso } from "./campos.mjs";
 
 const fields = foundry.data.fields;
-
-const num = (initial, opts = {}) =>
-  new fields.NumberField({ required: true, integer: true, initial, ...opts });
-
-const dec = (initial, opts = {}) =>
-  new fields.NumberField({ required: true, initial, ...opts });
-
-const str = (initial = "", opts = {}) =>
-  new fields.StringField({ required: true, initial, ...opts });
 
 class BaseItemData extends foundry.abstract.TypeDataModel {
   static defineSchema() {
@@ -27,10 +19,10 @@ class BaseItemData extends foundry.abstract.TypeDataModel {
  * Curva de um Caminho: qual regra de progressão ele está usando.
  *
  * A regra é disparada pelo nome de uma habilidade do próprio Caminho, e a
- * varredura inclui a habilidade base de propósito — é ela que costuma carregar
- * o traço do Caminho, e ela não custa XP nem ocupa vaga.
+ * varredura inclui a habilidade base de propósito: é ela que costuma carregar
+ * o traço do Caminho.
  *
- * Quando nada bate, vale a curva padrão (uma unidade por vaga).
+ * Quando nada bate, vale o custo cheio do tier.
  */
 export function progressaoDoCaminho(actor, caminho) {
   const indice = PYRO.progressaoPorNome;
@@ -53,54 +45,13 @@ export function progressaoDoCaminho(actor, caminho) {
 }
 
 /**
- * Custo em XP de uma habilidade:
- *
- *   multiplicador x teto(posição / passo)
- *
- * Na curva padrão (passo 1, multiplicador 1) isso é a própria posição: 1, 2,
- * 3, 4. Com passo 2 vira 1, 1, 2, 2, 3, 3. A habilidade base do Caminho vem
- * junto dele e não custa nada.
- *
- * Lê a posição gravada na criação (sys.ordem), e não uma contagem das
- * habilidades irmãs: contar faria uma habilidade antiga encarecer quando
- * outras fossem compradas depois.
+ * Custo em XP de uma habilidade (SRD §3): o custo do tier na curva do mundo,
+ * vezes o multiplicador da regra do Caminho. A habilidade base vem junto do
+ * Caminho e não custa nada.
  */
 export function custoDaHabilidade(sys, progressao = null) {
   if (sys?.ehBase) return 0;
-  const ordem = Math.max(0, sys?.ordem ?? 0);
-  if (!ordem) return 0;
-  const passo = Math.max(1, progressao?.passo ?? 1);
-  const mult = Number(progressao?.multiplicador ?? PYRO.progressaoPadrao.multiplicador);
-  // Arredondado porque o multiplicador aceita fração (meio preço) e XP é
-  // sempre inteiro na ficha. Arredonda por habilidade, e não no total, para o
-  // que a ficha mostra bater com o que ela soma.
-  return Math.max(0, Math.round(mult * Math.ceil(ordem / passo)));
-}
-
-/** Posições já ocupadas por habilidades pagas de um Caminho. */
-function ordensUsadas(actor, caminho, excluirId = null) {
-  return new Set((actor?.items ?? [])
-    .filter(i => i.type === "habilidade"
-      && i.id !== excluirId
-      && !i.system.ehBase
-      && i.system.caminho === caminho)
-    .map(i => i.system.ordem)
-    .filter(n => Number.isInteger(n) && n > 0));
-}
-
-/**
- * Primeira posição livre do Caminho: se ninguém tem a 1, é a 1; senão tenta a
- * 2, e assim por diante. Apagar uma habilidade devolve a vaga dela para a
- * próxima que for criada.
- * @param {number} [preferida] mantém esta posição se ela estiver livre
- *   (usado ao mover uma habilidade de Caminho sem mudar o custo à toa).
- */
-export function proximaOrdem(actor, caminho, { excluirId = null, preferida = 0 } = {}) {
-  const usadas = ordensUsadas(actor, caminho, excluirId);
-  if (Number.isInteger(preferida) && preferida > 0 && !usadas.has(preferida)) return preferida;
-  let n = 1;
-  while (usadas.has(n)) n++;
-  return n;
+  return PYRO.custoDoTier(sys?.tier ?? 1, progressao?.multiplicador ?? 1);
 }
 
 /* ---------------------------- Arma ---------------------------------------- */
@@ -204,75 +155,42 @@ export class HabilidadeData extends BaseItemData {
       categoria: str("ativavel", { choices: Object.keys(PYRO.categoriasHabilidade) }),
       // Habilidades de caminhos de Classe podem ser técnicas (aba própria).
       ehTecnica: new fields.BooleanField({ initial: false }),
-      // A habilidade base vem junto do caminho: não custa XP nem entra na
-      // conta do custo da próxima habilidade.
+      // A habilidade base vem junto do caminho e não custa XP.
       ehBase: new fields.BooleanField({ initial: false }),
       // Habilidades de caminhos que concedem recurso próprio (Energia Natural)
       // podem morar na aba daquele caminho.
       abaCaminho: new fields.BooleanField({ initial: false }),
-      tier: num(1, { min: 1 }),
+      // Tier (SRD §3): escopo do que a habilidade faz, e o que fixa o custo.
+      tier: num(1, { min: 1, max: 9 }),
       /*
-       * Posição na fila de habilidades pagas daquele Caminho, atribuída na
-       * criação: a primeira vaga livre. É ela que fixa o custo, então uma
-       * habilidade antiga não fica mais cara porque outras foram compradas
-       * depois. 0 em habilidade base (não ocupa vaga e não custa XP).
+       * Nível (SRD §3): quão bem o personagem faz aquilo. O SRD ainda não
+       * fechou como ele sobe, então é editado à mão; escalaPorNivel é o texto
+       * do que muda a cada nível ("+25% de dano desarmado").
        */
-      ordem: num(1, { min: 0 }),
+      nivel: num(1, { min: 1 }),
+      nivelMax: num(15, { min: 1 }),
+      escalaPorNivel: str(""),
       /*
-       * Pré-requisitos (SRD §3): duas habilidades do tier imediatamente
-       * abaixo, que se fundem nesta. Cada habilidade só pode ser ingrediente
-       * uma vez, então a lista de escolha exclui o que já foi consumido.
-       * Guarda id e nome: o id resolve na ficha, o nome sobrevive a exportar
-       * e reimportar o personagem.
+       * Despertar (regra opcional, SRD §3): comprada mas ainda não recebida.
+       * Só tem efeito com a regra ligada no mundo.
        */
-      requisitos: new fields.ArrayField(new fields.SchemaField({
-        id: new fields.StringField({ required: true, initial: "" }),
-        nome: new fields.StringField({ required: true, initial: "" })
-      }), { initial: [] }),
+      adormecida: new fields.BooleanField({ initial: false }),
       custoEstamina: num(0, { min: 0 }),
       custoMana: num(0, { min: 0 }),
       custoEnergia: num(0, { min: 0 }),
       custoAcoes: num(0, { min: 0 }),
       // A habilidade gasta ações do próprio turno ou reações fora dele.
       tipoCusto: str("acao", { choices: Object.keys(PYRO.tiposCusto) }),
-      formula: str(""),
-      /*
-       * Aumento de atributo do tier (SRD §3): a habilidade dá tier - 1
-       * pontos, distribuíveis entre atributos relacionados a ela. Cada
-       * atributo entra uma vez só; a ficha soma isso no valor do atributo.
-       */
-      aumentos: new fields.ArrayField(new fields.SchemaField({
-        atributo: str("for", { choices: Object.keys(PYRO.atributos) }),
-        pontos: num(1, { min: 0 })
-      }), { initial: [] })
+      formula: str("")
     };
   }
 
   prepareDerivedData() {
-    this.pontosAumento = Math.max(0, (this.tier ?? 1) - 1);
-    this.pontosUsados = (this.aumentos ?? []).reduce((t, a) => t + (a.pontos ?? 0), 0);
-    this.pontosRestantes = Math.max(0, this.pontosAumento - this.pontosUsados);
     // A curva é lida aqui, e não herdada do item de Caminho, porque os itens
     // são preparados em ordem e o Caminho pode vir depois.
     this.progressao = progressaoDoCaminho(this.parent?.actor, this.caminho);
     this.custoXp = custoDaHabilidade(this, this.progressao);
-
-    /* --- Ligações da árvore de habilidades ------------------------------- */
-    const actor = this.parent?.actor;
-    // Referência morta (a habilidade de origem foi apagada) some da leitura.
-    this.requisitosItens = (this.requisitos ?? [])
-      .map(r => actor?.items.get(r.id))
-      .filter(Boolean);
-    this.requisitosNomes = this.requisitosItens.length
-      ? this.requisitosItens.map(i => i.name).join(" + ")
-      : "";
-    // Quem consumiu esta habilidade. Uma habilidade só serve de base uma vez,
-    // então isto é no máximo um nome, mas a lista tolera dado inconsistente.
-    this.usadaEm = (actor?.items ?? [])
-      .filter(i => i.type === "habilidade" && i.id !== this.parent.id
-        && (i.system.requisitos ?? []).some(r => r.id === this.parent.id))
-      .map(i => i.name)
-      .join(", ");
+    this.adormecidaAtiva = this.adormecida && PYRO.regraAtiva("despertar");
   }
 }
 
@@ -340,9 +258,13 @@ export class RunaData extends BaseItemData {
  * ficam editáveis aqui — esta magia pode se comportar diferente da runa solta.
  */
 export class MagiaData extends BaseItemData {
+  /** Magias sobem de nível pelas conjurações, na tabela de magia e técnica. */
+  static TRILHA_AVANCO = "magiaTecnica";
+
   static defineSchema() {
     return {
       ...super.defineSchema(),
+      progresso: nivelPorUso(1),
       runas: new fields.ArrayField(new fields.SchemaField({
         itemId: new fields.StringField({ required: true }),
         nome: new fields.StringField({ required: true }),
@@ -439,18 +361,18 @@ export class CaminhoData extends BaseItemData {
       i.type === "habilidade" && i.system.caminho === this.parent.id
     ) ?? [];
     /*
-     * XP gasta recalcula o custo a partir da posição gravada, em vez de ler o
-     * custoXp derivado da habilidade: os itens são preparados em ordem, e um
-     * caminho preparado antes das habilidades dele veria o custo ainda não
-     * calculado.
+     * XP gasta recalcula o custo de cada habilidade em vez de ler o custoXp
+     * derivado dela: os itens são preparados em ordem, e um caminho preparado
+     * antes das habilidades dele veria o custo ainda não calculado.
      */
     this.progressao = progressaoDoCaminho(actor, this.parent.id);
     this.xpGasta = habilidades.reduce(
       (t, i) => t + custoDaHabilidade(i.system, this.progressao), 0);
     this.xpDisponivel = this.xp - this.xpGasta;
-    this.proximaOrdem = proximaOrdem(actor, this.parent.id);
-    // Com passo 2 o "Próx." repete o mesmo custo por duas vagas seguidas; é
-    // assim que a ficha mostra a curva, sem aviso escrito.
-    this.proximoCusto = custoDaHabilidade({ ordem: this.proximaOrdem }, this.progressao);
+    // Quanto custa cada tier neste Caminho, para a ficha mostrar a curva.
+    this.custosPorTier = Object.keys(PYRO.tiers).map(tier => ({
+      tier: Number(tier),
+      custo: PYRO.custoDoTier(tier, this.progressao.multiplicador)
+    }));
   }
 }

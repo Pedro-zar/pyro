@@ -4,12 +4,13 @@
  */
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { formulaTeste } from "./dados.mjs";
+import { formulaTeste, poolDoAtributo } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeCusto, custoAjustado,
   aplicarExaustao, penalidadeExaustao
 } from "./efeitos.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
+import { classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -316,12 +317,14 @@ export async function conjurar(actor, escolhas, {
   /* A exaustão que o personagem já carrega desconta do próprio teste. */
   let testeRoll = null;
   let falhou = false;
+  // Sem teste de sobrecarga a conjuração é rotineira por regra (SRD Magia).
+  let classe = "rotineira";
   if (calc.sobrecarga > 0) {
     const pen = penalidadeExaustao(actor);
-    const formula = formulaTeste(actor.system.atributos.sab.efetivo, {
-      bonus: pen.bonus,
-      desvantagem: pen.desvantagem
-    });
+    const sab = actor.system.atributos.sab.efetivo;
+    const ajustes = { bonus: pen.bonus, desvantagem: pen.desvantagem };
+    const formula = formulaTeste(sab, ajustes);
+    classe = classificarRolagem({ ...poolDoTeste(poolDoAtributo(sab), ajustes), nd: calc.nd });
     if (formula === null) {
       falhou = true; // pool zerada: falha automática, sem rolagem
     } else {
@@ -484,6 +487,8 @@ export async function conjurar(actor, escolhas, {
 
   // Botões dos efeitos de uso: os da magia salva e os das runas da frase.
   partes.push(htmlEfeitosDeUso(itemMagia, calc.porRuna.map(pr => pr.item)));
+  // Só magia salva progride: frase montada na hora não tem onde contar o uso.
+  partes.push(htmlClasseDaRolagem(classe, itemMagia));
 
   variaveis.danoTotal = danos.reduce((t, d) => t + d.total, 0);
   variaveis.cura = totalCura;
@@ -492,7 +497,7 @@ export async function conjurar(actor, escolhas, {
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<div class="pyro-chat">${partes.join("")}</div>`,
     rolls,
-    flags: flagsDoSistema({ danos, cura: totalCura, variaveis }),
+    flags: flagsDoSistema({ danos, cura: totalCura, variaveis, ...flagsDaClasse(classe, itemMagia) }),
     sound: CONFIG.sounds.dice
   });
 }
