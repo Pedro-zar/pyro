@@ -1,5 +1,5 @@
 import { PYRO } from "../config.mjs";
-import { calcular, conjurar, previaRuna, regraDoGesto, temDanoMental } from "../magia.mjs";
+import { calcular, conjurar, previaRuna, emprestaIntencao, temDanoMental } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
 
@@ -23,6 +23,12 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.itemMagia = itemMagia;
     /** Recurso que o dano mental desta conjuração drena (SRD §6). */
     this.recursoMental = "mana";
+    /*
+     * A magia impõe resistência? Magia salva traz a resposta gravada nela;
+     * frase montada na hora pergunta, e a resposta acompanha a magia se ela
+     * for guardada no grimório.
+     */
+    this.usaDt = itemMagia ? itemMagia.system.usaDt !== false : true;
   }
 
   /** Conjurando uma magia salva, o título é o nome dela. */
@@ -87,7 +93,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     /* --- Fichas da frase montada ----------------------------------------- */
     const fichas = calc.porRuna.map((pr, indice) => {
       const sys = pr.item.system;
-      const ehToque = regraDoGesto(pr.item) === "toque";
+      const ehToque = emprestaIntencao(pr.item);
       return {
         indice,
         // Em magia salva, só o que foi adicionado agora pode ser tirado.
@@ -173,7 +179,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         ? game.i18n.format("PYRO.Conjurador.SobrecargaN", { nivel: calc.sobrecarga, nd: calc.nd })
         : "",
       nd: calc.nd,
-      dtTexto: game.i18n.format("PYRO.Magia.DT", { valor: calc.dt }),
+      // Sem DT nesta conjuração, o medidor não anuncia uma que não existe.
+      dtTexto: this.usaDt ? game.i18n.format("PYRO.Magia.DT", { valor: calc.dt }) : "",
       limiteBase: actor.system.sobrecargaLimite,
 
       faltaElemento: escolhas.length > 0 && !calc.temElemento,
@@ -189,6 +196,9 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
        * quando a frase tem de fato um elemento mental.
        */
       pedeRecursoMental: temDanoMental(calc.porRuna),
+      // Magia salva já respondeu isso na criação: a caixa fica na ficha dela.
+      perguntaDt: !this.fixa,
+      usaDt: this.usaDt,
       recursosMentais: Object.fromEntries(Object.entries(PYRO.recursosDrenaveis())
         .map(([k, label]) => [k, loc(label)])),
       recursoMental: this.recursoMental,
@@ -213,6 +223,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       if (this.frase[indice]) this.frase[indice].alvoToque = select.value;
     }
     this.recursoMental = form.querySelector("[name=recursoMental]")?.value ?? this.recursoMental;
+    this.usaDt = form.querySelector("[name=usaDt]")?.checked ?? this.usaDt;
     this.salvar = form.querySelector("[name=salvar]")?.checked ?? this.salvar;
     this.rolarDano = form.querySelector("[name=rolarDano]")?.checked ?? this.rolarDano;
   }
@@ -307,7 +318,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.fixa) {
       await conjurar(this.actor, escolhas, {
         nomeMagia: this.nomeMagia, rolarDano: true, itemMagia: this.itemMagia,
-        recursoMental: this.recursoMental
+        recursoMental: this.recursoMental, usaDt: this.usaDt
       });
       return this.close();
     }
@@ -327,6 +338,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         name: nome,
         type: "magia",
         system: {
+          usaDt: this.usaDt,
           runas: escolhas.map(e => ({
             itemId: e.item.id,
             nome: e.item.name,
@@ -343,7 +355,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     await conjurar(this.actor, escolhas, {
       nomeMagia: dados.nomeMagia?.trim() || null,
       rolarDano: !!dados.rolarDano,
-      recursoMental: this.recursoMental
+      recursoMental: this.recursoMental,
+      usaDt: this.usaDt
     });
     return this.close();
   }

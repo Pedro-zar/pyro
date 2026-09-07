@@ -208,8 +208,6 @@
   "PYRO.Item.Subtipo": "Subtipo",
   "PYRO.Item.Palavra": "Palavra",
   "PYRO.Item.PalavraPlaceholder": "Chamas, Brasa...",
-  "PYRO.Item.TipoDanoPadrao": "Padrão do elemento ({tipo})",
-  "PYRO.Item.TipoDanoSemTipo": "Sem tipo",
   "PYRO.Item.Subjulgar": "Magia de Subjulgar",
   "PYRO.Item.SubjulgarCurto": "Subjulgar",
   "PYRO.Item.Lingua": "Língua",
@@ -393,7 +391,7 @@
   "PYRO.Modificadores.dividir": "Dividir",
   "PYRO.Magia.DT": "Resistir: ND {valor}",
   "PYRO.Magia.DTMental": "— magia mental: o alvo testa SAB no lugar da esquiva.",
-  "PYRO.Magia.PorPassos": "(de {de}m, +{passos} passo de alcance)",
+  "PYRO.Magia.PorPassos": "(+{passos} passo(s) de alcance)",
   "PYRO.Magia.Dividido": "Dano dividido entre {alvos} alvos: {valor} para cada um.",
   "PYRO.Conjurador.Reforca": "Reforça",
   "PYRO.Conjurador.Emprestada": "Intenção emprestada pelo Toque",
@@ -953,5 +951,8 @@
   "PYRO.Persona.Instintos": "Instintos",
   "PYRO.Persona.InstintosDica": "Como o personagem age sem precisar dizer em voz alta. Sempre, nunca, quando, se/então. Quando um instinto cria problema para o grupo, rende Força de Vontade.",
   "PYRO.Persona.InstintoPlaceholder": "Nunca durmo sem trancar a porta",
-  "PYRO.Cancelar": "Cancelar"
+  "PYRO.Cancelar": "Cancelar",
+  "PYRO.Magia.BonusMira": "Bônus no teste de mira desta magia: +{valor}.",
+  "PYRO.Magia.UsaDt": "Usa ND (o alvo resiste)",
+  "PYRO.Magia.UsaDtDica": "Marque quando a magia impõe um teste de resistência. Desmarcada, o card não mostra a DT — um muro de pedra não pede teste de ninguém."
 }

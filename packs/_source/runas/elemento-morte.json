@@ -14,7 +14,7 @@
     "lingua": "humana",
     "subjulgar": true,
     "maos": 0,
-    "tipoDano": "",
+    "tipoDano": "indefinido",
     "scalings": [
       {
         "nome": "Dano",

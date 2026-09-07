@@ -10,7 +10,7 @@
     "descricao": "<p>Alcance 0. Cada Intenção em Toque dá +1 de Intenção a uma outra runa da frase, escolhida na conjuração. O sistema reconhece este gesto pelo nome.</p>",
     "tipoRuna": "forma",
     "subtipo": "",
-    "palavra": "",
+    "palavra": "Toque",
     "lingua": "humana",
     "subjulgar": false,
     "maos": 1,

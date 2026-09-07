@@ -10,7 +10,7 @@
     "descricao": "<p>+1 passo de alcance por Intenção. Os passos são 1, 3, 6, 20, 60 e 200 metros, e seguem subindo. O sistema reconhece este gesto pelo nome.</p>",
     "tipoRuna": "modificador",
     "subtipo": "",
-    "palavra": "",
+    "palavra": "Longo",
     "lingua": "humana",
     "subjulgar": false,
     "maos": 1,

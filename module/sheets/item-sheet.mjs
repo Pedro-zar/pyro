@@ -4,7 +4,7 @@
  */
 import { PYRO } from "../config.mjs";
 import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
-import { scalingsPadrao, valorScaling, SEM_DANO } from "../magia.mjs";
+import { scalingsPadrao, valorScaling, chaveVariavel, SEM_DANO } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho, flagsDe } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
@@ -17,19 +17,8 @@ import { tracosCompativeis, valorDoTraco, ataquesDoAtor, posturasDoAtor, opcoesD
  * elemento; "Não causa dano" desliga a rolagem, para runas e magias que só
  * produzem efeito (uma barreira, um teleporte, um alcance).
  */
-function opcoesTipoDano(padrao) {
+function opcoesTipoDano() {
   return {
-    /*
-     * Sem elemento por trás não há tipo a herdar, e a primeira opção passa a
-     * ser o dano cru — que é exatamente o que a rolagem faz quando ninguém
-     * escolhe. Um gesto não pode cair no tipo do elemento que por acaso está
-     * gravado no subtipo dele.
-     */
-    "": padrao
-      ? game.i18n.format("PYRO.Item.TipoDanoPadrao", {
-          tipo: game.i18n.localize(PYRO.tiposDano[padrao]?.label ?? `PYRO.Dano.${padrao}`)
-        })
-      : game.i18n.localize("PYRO.Item.TipoDanoSemTipo"),
     [SEM_DANO]: game.i18n.localize("PYRO.Dano.nenhum"),
     ...Object.fromEntries(Object.entries(PYRO.tiposDano)
       .map(([k, v]) => [k, game.i18n.localize(v.label)])),
@@ -38,14 +27,26 @@ function opcoesTipoDano(padrao) {
 }
 
 /**
- * A runa rola dados? Elemento sempre pode, pela tabela do próprio elemento.
- * Gesto e modificador só quando alguém deu um escalonamento com faces a eles,
- * e é aí que a escolha do tipo de dano passa a fazer sentido.
- * @param {object[]} [scalings] a cópia de uma magia salva, no lugar dos da runa.
+ * O tipo de dano que a lista deve mostrar como escolhido.
+ *
+ * A opção "padrão do elemento" saiu: em vez de uma entrada extra que só diz
+ * "o que o elemento mandar", a lista já vem no tipo concreto. É o que faz
+ * duas runas de calor somarem o dano no card — comparar tipos herdados de
+ * origens diferentes nunca ia bater.
  */
-export function rolaDados(sys, scalings = sys?.scalings) {
-  if (sys?.tipoRuna === "elemento") return true;
-  return (scalings ?? []).some(sc => (sc?.faces ?? 0) > 0);
+function tipoDanoEscolhido(sys) {
+  if (sys.tipoDano) return sys.tipoDano;
+  const cfg = sys.tipoRuna === "elemento" ? PYRO.elementos[sys.subtipo] : null;
+  return cfg?.tipoDano || "impacto";
+}
+
+/**
+ * A runa produz dano? É o que decide se a escolha do tipo aparece na ficha.
+ * Vale qualquer Intenção que role dados ou que se chame "Dano" — assim um
+ * gesto que soma dano diz de que tipo ele é, e o card junta as parcelas.
+ */
+export function produzDano(sys, scalings = sys?.scalings) {
+  return (scalings ?? []).some(sc => (sc?.faces ?? 0) > 0 || chaveVariavel(sc?.nome) === "dano");
 }
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
@@ -222,22 +223,23 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
        * elemento ou não: quem pôs um d6 num gesto precisa dizer de que dano
        * ele é. Só o elemento tem tipo herdado para oferecer como padrão.
        */
-      mostrarTipoDano: item.type === "runa" && rolaDados(sys),
-      tipoDanoOpts: opcoesTipoDano(ehElemento ? PYRO.elementos[sys.subtipo]?.tipoDano : null),
+      mostrarTipoDano: item.type === "runa" && produzDano(sys),
+      tipoDanoSelecionado: item.type === "runa" ? tipoDanoEscolhido(sys) : "",
+      tipoDanoOpts: opcoesTipoDano(),
       runasMagia: item.type === "magia"
         ? (sys.runas ?? []).map(r => {
             const runa = actor?.items.get(r.itemId);
             const cfg = runa?.system.tipoRuna === "elemento"
               ? PYRO.elementos[runa.system.subtipo] : null;
-            const padrao = runa?.system.tipoDano || cfg?.tipoDano || "";
-            // A cópia guardada na magia manda: ela pode ter ganhado dados que
-            // a runa original não tem, e vice-versa.
-            const rola = !!runa && rolaDados(runa.system, r.scalings);
+            // A cópia guardada na magia manda: ela pode ter ganhado Intenções
+            // que a runa original não tem, e vice-versa.
+            const rola = !!runa && produzDano(runa.system, r.scalings);
             return {
               ...r,
               mostrarSubjulgar: !!(cfg?.subjulgar || r.subjulgar),
               mostrarTipoDano: rola,
-              tipoDanoOpts: rola ? opcoesTipoDano(padrao) : null
+              tipoDanoSelecionado: r.tipoDano || cfg?.tipoDano || "impacto",
+              tipoDanoOpts: rola ? opcoesTipoDano() : null
             };
           })
         : null,

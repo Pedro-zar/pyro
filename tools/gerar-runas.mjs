@@ -38,24 +38,24 @@ const escala = (nome, base, porIntencao, faces = 0) => ({ nome, base, porIntenca
  * configurações do mundo — aqui eles são o retrato de origem da runa.
  */
 const ELEMENTOS = [
-  { chave: "fogo", nome: "Fogo", dano: [3, 3, 6],
+  { chave: "fogo", nome: "Fogo", dano: [3, 3, 6], tipoDano: "calor",
     desc: "Para cada 6 rolado, aumente em 1 o Queimando do alvo. Se a duração de Queimando for menor que 2, ela se torna 2." },
-  { chave: "agua", nome: "Água", dano: [4, 4, 4],
+  { tipoDano: "impacto", chave: "agua", nome: "Água", dano: [4, 4, 4],
     desc: "Adiciona 1 dado ao próximo dano de Frio que o alvo receber, para cada 1 de Intenção." },
-  { chave: "gelo", nome: "Gelo", dano: [4, 2, 8],
+  { tipoDano: "frio", chave: "gelo", nome: "Gelo", dano: [4, 2, 8],
     desc: "O alvo sofre Friagem por 1 rodada: cada reação custa Intenção² de estamina a mais. Teste de VIG para resistir." },
-  { chave: "vento", nome: "Vento", dano: [4, 4, 4],
+  { tipoDano: "impacto", chave: "vento", nome: "Vento", dano: [4, 4, 4],
     desc: "Empurra o alvo 1m por Intenção. Contra uma parede, causa 1d10 adicional para cada metro que restar." },
-  { chave: "terra", nome: "Terra", dano: [3, 2, 12],
+  { tipoDano: "impacto", chave: "terra", nome: "Terra", dano: [3, 2, 12],
     desc: "Quem conjura recebe Defesa Física adicional igual à Intenção até o fim do próximo turno." },
-  { chave: "raio", nome: "Raio", dano: [2, 0.5, 10], extras: [escala("Corrente", 0.5, 0.5)],
+  { tipoDano: "energia", chave: "raio", nome: "Raio", dano: [2, 0.5, 10], extras: [escala("Corrente", 0.5, 0.5)],
     desc: "A partir da Intenção 2 a corrente pula para alvos próximos, Intenção metros de um para outro, sem atingir o mesmo alvo duas vezes seguidas." },
-  { chave: "vida", nome: "Vida", dano: [2, 2, 8], desc: "Cura em vez de causar dano." },
-  { chave: "mente", nome: "Mente", dano: [1, 1, 6],
+  { tipoDano: "cura", chave: "vida", nome: "Vida", dano: [2, 2, 8], desc: "Cura em vez de causar dano." },
+  { tipoDano: "mental", chave: "mente", nome: "Mente", dano: [1, 1, 6],
     desc: "A cada Intenção acima de 1, aplique uma condição mental ou aumente em 1 rodada a duração de uma já escolhida. O alvo testa SAB contra a DT para resistir a cada condição nova." },
-  { chave: "morte", nome: "Morte", dano: [2, 2, 12], subjulgar: true,
+  { tipoDano: "indefinido", chave: "morte", nome: "Morte", dano: [2, 2, 12], subjulgar: true,
     desc: "Não causa dano direto: o resultado é comparado com a vida máxima do alvo (ver Subjulgar)." },
-  { chave: "espaco", nome: "Espaço", dano: null,
+  { chave: "espaco", nome: "Espaço", dano: null, tipoDano: "",
     desc: "Portais, teleporte e dimensões de bolso. Sem dano padrão: o efeito é combinado com o mestre." }
 ];
 
@@ -85,8 +85,8 @@ const MODIFICADORES = [
     desc: "+1 passo de alcance por Intenção. Os passos são 1, 3, 6, 20, 60 e 200 metros, e seguem subindo. O sistema reconhece este gesto pelo nome." },
   { chave: "persistente", nome: "Persistente", scalings: [escala("Duração (min)", 1, 1)],
     desc: "Aumenta a duração em 1 minuto, +1 minuto por Intenção." },
-  { chave: "preciso", nome: "Preciso", scalings: [escala("Precisão", 2, 2)],
-    desc: "+2 na DT da magia ou no teste de mira, por Intenção." },
+  { chave: "preciso", nome: "Preciso", scalings: [escala("ND", 2, 2), escala("Bônus na Mira", 2, 2)],
+    desc: "+2 na DT da magia e no teste de mira, por Intenção. O sistema soma cada um no teste respectivo." },
   { chave: "dividir", nome: "Dividir", scalings: [escala("Alvos", 2, 1)],
     desc: "2 alvos, +1 alvo por Intenção. O dano é dividido entre eles. O sistema reconhece este gesto pelo nome." }
 ];
@@ -97,7 +97,7 @@ function idEstavel(...partes) {
   return BigInt(`0x${hash}`).toString(36).padStart(16, "0").slice(0, 16);
 }
 
-function documento({ tipoRuna, chave, nome, scalings, desc, subjulgar = false, folder, sort }) {
+function documento({ tipoRuna, chave, nome, scalings, desc, subjulgar = false, tipoDano = "", folder, sort }) {
   const id = idEstavel("runa", tipoRuna, chave);
   return {
     _id: id,
@@ -113,13 +113,19 @@ function documento({ tipoRuna, chave, nome, scalings, desc, subjulgar = false, f
       // Só o elemento tem subtipo: é a linha da tabela de dano. O gesto é
       // reconhecido pelo nome, quando tem regra própria.
       subtipo: tipoRuna === "elemento" ? chave : "",
-      // A palavra é da mesa: "Chamas" para Fogo, "Sopro" para Vento. Fica
-      // vazia para o nome do compêndio ser o do elemento ou gesto.
-      palavra: "",
+      /*
+       * A palavra é da mesa: "Chamas" para Fogo, "Sopro" para Vento. No
+       * elemento ela fica vazia, porque o nome vem da tabela de elementos; no
+       * gesto o nome é a própria palavra, e deixá-la vazia faria a ficha
+       * mostrar um traço onde deveria estar "Toque".
+       */
+      palavra: tipoRuna === "elemento" ? "" : nome,
       lingua: "humana",
       subjulgar,
       maos: tipoRuna === "elemento" ? 0 : 1,
-      tipoDano: "",
+      // Tipo concreto, e não herdado: é o que faz duas runas de calor somarem
+      // o dano num bloco só no card.
+      tipoDano,
       scalings
     },
     effects: [],
@@ -160,7 +166,8 @@ function main() {
       : [];
     escrever(`elemento-${el.chave}.json`, documento({
       tipoRuna: "elemento", chave: el.chave, nome: el.nome, scalings, desc: el.desc,
-      subjulgar: !!el.subjulgar, folder: idPasta.elemento, sort: (i + 1) * 100000
+      subjulgar: !!el.subjulgar, tipoDano: el.tipoDano ?? "",
+      folder: idPasta.elemento, sort: (i + 1) * 100000
     }));
   });
 

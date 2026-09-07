@@ -92,7 +92,7 @@
         <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
           {{localize "PYRO.Conjurador.ManaInsuficiente"}}</span>
         {{else}}
-        {{restanteTexto}} · {{acoesTexto}} · {{dtTexto}}{{#if maosTexto}} · <span class="{{#if excedeMaos}}perigo{{/if}}">{{maosTexto}}</span>{{/if}}
+        {{restanteTexto}} · {{acoesTexto}}{{#if dtTexto}} · {{dtTexto}}{{/if}}{{#if maosTexto}} · <span class="{{#if excedeMaos}}perigo{{/if}}">{{maosTexto}}</span>{{/if}}
         {{/if}}
       </p>
     </div>
@@ -111,6 +111,15 @@
       </p>
     </div>
   </section>
+
+  {{!-- Nem toda frase impõe resistência: a DT só entra no card quando esta
+        conjuração usa uma. Magia salva responde isso na ficha dela. --}}
+  {{#if perguntaDt}}
+  <label class="check-linha" title="{{localize 'PYRO.Magia.UsaDtDica'}}">
+    <input type="checkbox" name="usaDt" {{checked usaDt}} />
+    <span>{{localize "PYRO.Magia.UsaDt"}}</span>
+  </label>
+  {{/if}}
 
   {{!-- Dano mental não tira Vida: quem conjura escolhe de qual recurso do
         alvo ele sai (SRD §6). --}}

@@ -10,7 +10,7 @@
     "descricao": "<p>2 alvos, +1 alvo por Intenção. O dano é dividido entre eles. O sistema reconhece este gesto pelo nome.</p>",
     "tipoRuna": "modificador",
     "subtipo": "",
-    "palavra": "",
+    "palavra": "Dividir",
     "lingua": "humana",
     "subjulgar": false,
     "maos": 1,

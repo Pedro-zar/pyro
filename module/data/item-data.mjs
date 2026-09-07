@@ -363,6 +363,12 @@ export class MagiaData extends BaseItemData {
     return {
       ...super.defineSchema(),
       progresso: nivelPorUso(1),
+      /*
+       * A magia impõe um teste de resistência? Escolhido na conjuração que a
+       * salvou e editável aqui depois. Nem toda frase pede resistência, e a
+       * DT no card de uma que não pede só confunde a mesa.
+       */
+      usaDt: new fields.BooleanField({ initial: true }),
       runas: new fields.ArrayField(new fields.SchemaField({
         itemId: new fields.StringField({ required: true }),
         nome: new fields.StringField({ required: true }),

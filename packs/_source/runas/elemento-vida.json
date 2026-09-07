@@ -14,7 +14,7 @@
     "lingua": "humana",
     "subjulgar": false,
     "maos": 0,
-    "tipoDano": "",
+    "tipoDano": "cura",
     "scalings": [
       {
         "nome": "Dano",

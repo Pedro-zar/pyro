@@ -32,12 +32,34 @@ export function valorScaling(scaling, intencao) {
 }
 
 /**
- * Valor de um escalonamento na conjuração: a Intenção efetiva da runa (já com
- * o que o Toque emprestou) e o multiplicador de efeito da língua.
- * @param {object} pr entrada de calc.porRuna.
+ * O escalonamento depois do que o gesto Longo faz com ele (SRD Magia).
+ *
+ * Longo não soma metros: ele sobe o alcance na escada de passos, e o que
+ * chega ao topo dessa escada é a base — um Projétil de 6 metros com Longo 1
+ * passa a partir de 20. O ganho por Intenção vem junto e passa a ser metade
+ * da base nova, senão a runa subiria de degrau e continuaria escalando no
+ * ritmo do degrau antigo.
+ *
+ * Escalonamento que já não crescia com a Intenção continua sem crescer: o
+ * alcance fixo da Explosão sobe de degrau, mas o Longo não inventa para ela
+ * um ganho por Intenção que ela nunca teve.
  */
-export function valorEfetivo(pr, scaling) {
-  const bruto = valorScaling(scaling, pr.intencaoEfetiva ?? pr.intencao);
+export function escalonamentoComPassos(scaling, passos = 0) {
+  if (!passos || chaveVariavel(scaling.nome) !== "alcance") return scaling;
+  const base = PYRO.subirAlcance(scaling.base, passos);
+  return { ...scaling, base, porIntencao: scaling.porIntencao > 0 ? base / 2 : 0 };
+}
+
+/**
+ * Valor de um escalonamento na conjuração: a Intenção efetiva da runa (já com
+ * o que o Toque emprestou), os passos que o Longo somou ao alcance e o
+ * multiplicador de efeito da língua.
+ * @param {object} pr entrada de calc.porRuna.
+ * @param {number} [passos] passos de alcance que o Longo somou à frase.
+ */
+export function valorEfetivo(pr, scaling, passos = 0) {
+  const ajustado = escalonamentoComPassos(scaling, passos);
+  const bruto = valorScaling(ajustado, pr.intencaoEfetiva ?? pr.intencao);
   return pr.efeitoMult !== 1 ? Math.floor(bruto * pr.efeitoMult) : bruto;
 }
 
@@ -46,29 +68,87 @@ export function scalingPorChave(scalings, chave) {
   return (scalings ?? []).find(sc => chaveVariavel(sc.nome) === chave) ?? null;
 }
 
+/** A runa tem um escalonamento com esta chave de variável? */
+export function temEscalonamento(item, chave) {
+  return (item?.system?.scalings ?? []).some(sc => chaveVariavel(sc.nome) === chave);
+}
+
+/**
+ * Chaves de escalonamento que o sistema lê como bônus fixo num teste, em vez
+ * de número solto no card:
+ *
+ *   nd         soma na DT para resistir à magia.
+ *   mira       soma no teste de mira, escrito de várias formas na mesa
+ *              ("Bônus na Mira", "Bonus de mira", "Bônus Mira").
+ *
+ * Casar por nome de escalonamento, e não por nome de runa, é o que permite um
+ * gesto novo entrar no compêndio já funcionando.
+ */
+export const CHAVE_ND = "nd";
+const CHAVES_MIRA = /^bonus(Na|De|Da)?Mira$|^mira$/;
+
+/** O escalonamento é um bônus de mira, em qualquer das grafias aceitas? */
+export function ehBonusDeMira(nome) {
+  return CHAVES_MIRA.test(chaveVariavel(nome));
+}
+
+/**
+ * Bônus fixos que a frase soma aos testes: a DT da magia e o teste de mira.
+ * Somam entre runas — dois gestos precisos somam os dois bônus.
+ */
+export function bonusDeTestes(porRuna, passos = 0) {
+  let nd = 0;
+  let mira = 0;
+  for (const pr of porRuna) {
+    for (const sc of pr.scalings ?? []) {
+      const chave = chaveVariavel(sc.nome);
+      if (chave === CHAVE_ND) nd += valorEfetivo(pr, sc, passos);
+      else if (ehBonusDeMira(sc.nome)) mira += valorEfetivo(pr, sc, passos);
+    }
+  }
+  return { nd, mira };
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Gestos com regra própria                                                  */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Os três gestos que mudam a conjuração. Todo o resto é número, e número mora
- * na runa do compêndio: um gesto novo só precisa dos escalonamentos certos.
+ * Os gestos que ainda dependem do nome da runa para serem reconhecidos.
+ * Longo mexe na escada de alcance da frase e Dividir reparte o dano entre
+ * alvos — nenhum dos dois cabe num escalonamento, que é sempre um número da
+ * própria runa.
  */
-export const GESTOS_COM_REGRA = ["toque", "longo", "dividir"];
+export const GESTOS_COM_REGRA = ["longo", "dividir"];
 
 /**
- * Que gesto conhecido esta runa é, pelo nome que a mesa deu a ela. Um gesto
- * chamado "Toque" empresta Intenção venha ele do compêndio ou da mão do
- * jogador; renomeá-lo para outra coisa o deixa sem regra, só com os números.
- * @returns {string|null} chave do gesto (toque, longo, dividir...) ou null.
+ * Que gesto conhecido esta runa é, pelo nome que a mesa deu a ela.
+ *
+ * O Toque saiu daqui: ele é reconhecido pelo escalonamento "Intenção extra"
+ * (ver emprestaIntencao), porque o que ele faz é um número da própria runa.
+ * Sobraram os dois gestos cuja regra é da frase inteira, não da runa.
+ * @returns {string|null} chave do gesto (longo, dividir) ou null.
  */
 export function regraDoGesto(item) {
   if (item.system.tipoRuna === "elemento") return null;
   const alvo = PYRO.normalizarTexto(item.system.palavra || item.name);
-  for (const [chave, cfg] of Object.entries(PYRO.gestosNomeados())) {
+  const nomeados = PYRO.gestosNomeados();
+  for (const chave of GESTOS_COM_REGRA) {
+    const cfg = nomeados[chave];
+    if (!cfg) continue;
     if (alvo === chave || alvo === PYRO.normalizarTexto(game.i18n.localize(cfg.label))) return chave;
   }
   return null;
+}
+
+/**
+ * A runa empresta Intenção a outra da frase? É o que o Toque faz, e o que
+ * qualquer gesto com um escalonamento "Intenção extra" passa a fazer — a
+ * regra vive no número, então um gesto novo com esse escalonamento já
+ * funciona sem o sistema conhecer o nome dele.
+ */
+export function emprestaIntencao(item) {
+  return item?.system?.tipoRuna !== "elemento" && temEscalonamento(item, "intencaoExtra");
 }
 
 /**
@@ -154,11 +234,12 @@ export function previaRuna(pr, passos = 0) {
   // Runa sem dano não rola nada: só os escalonamentos numéricos aparecem.
   const texto = (pr.scalings ?? []).map(sc => {
     if (sc.faces > 0 && semDano) return null;
-    const valor = valorEfetivo(pr, sc);
+    // Os passos do Longo entram dentro da conta, na base e no ganho por
+    // Intenção, e não sobre o total já somado.
+    const valor = valorEfetivo(pr, sc, passos);
     if (sc.faces > 0) return `${Math.max(1, valor)}d${sc.faces}${tipo ? ` ${tipo}` : ""}`;
     const nome = sc.nome?.trim();
-    const final = chaveVariavel(sc.nome) === "alcance" ? PYRO.subirAlcance(valor, passos) : valor;
-    return nome ? `${nome} ${final}` : String(final);
+    return nome ? `${nome} ${valor}` : String(valor);
   }).filter(Boolean).join(" · ");
   return texto || (semDano ? loc("PYRO.Dano.nenhum") : "");
 }
@@ -276,8 +357,11 @@ export function calcular(actor, escolhas, itemMagia = null) {
     return sc ? valorEfetivo(pr, sc) : pr.intencao;
   };
 
-  // Toque: cada Intenção nele dá +1 de Intenção a uma runa escolhida na frase.
-  for (const toque of doGesto("toque")) {
+  /*
+   * Toque: cada Intenção nele dá +1 de Intenção a uma runa escolhida na frase.
+   * Quem é Toque se sabe pelo escalonamento "Intenção extra", não pelo nome.
+   */
+  for (const toque of porRuna.filter(pr => emprestaIntencao(pr.item))) {
     const extra = numeroDoGesto(toque, "intencaoExtra");
     const alvo = porRuna.find(pr => pr.item.id === toque.alvoToque && pr !== toque)
       ?? porRuna.find(pr => pr.item.system.tipoRuna === "elemento");
@@ -290,6 +374,9 @@ export function calcular(actor, escolhas, itemMagia = null) {
   // Dividir: o dano é repartido entre os alvos.
   const alvosDivididos = doGesto("dividir")
     .reduce((maior, pr) => Math.max(maior, numeroDoGesto(pr, "alvos")), 0);
+
+  // Escalonamentos que não são número solto no card, e sim bônus num teste.
+  const bonus = bonusDeTestes(porRuna, passosAlcance);
 
   // Efeitos de custo entram por último, sobre o total. As reduções acumulam,
   // mas com piso 1: desconto nenhum deixa a magia de graça.
@@ -304,11 +391,13 @@ export function calcular(actor, escolhas, itemMagia = null) {
     maos: maosUsadas,
     passosAlcance,
     alvosDivididos,
+    bonusMira: bonus.mira,
     // 1 ação por runa verbal ou somática (SRD §5), antes dos efeitos.
     acoes: custoAjustado(escolhas.length, ajustes.acoes),
     nd: 10 + somaIntencoes,
-    // DT para resistir à magia: a SAB de quem conjura (SRD Magia).
-    dt: actor.system.atributos.sab.efetivo,
+    // DT para resistir à magia: a SAB de quem conjura (SRD Magia), mais o que
+    // as runas de precisão somarem.
+    dt: actor.system.atributos.sab.efetivo + bonus.nd,
     temElemento: escolhas.some(e => e.item.system.tipoRuna === "elemento"),
     temForma: escolhas.some(e => e.item.system.tipoRuna === "forma")
   };
@@ -347,7 +436,7 @@ function contarSeis(roll) {
  * @param {object} [opcoes.itemMagia] magia do grimório de origem, quando houver.
  */
 export async function conjurar(actor, escolhas, {
-  nomeMagia = null, rolarDano = true, itemMagia = null, recursoMental = "mana"
+  nomeMagia = null, rolarDano = true, itemMagia = null, recursoMental = "mana", usaDt = true
 } = {}) {
   if (!escolhas.length) return;
 
@@ -451,13 +540,23 @@ export async function conjurar(actor, escolhas, {
   partes.push(`<ul class="pyro-runas-usadas">${linhas}</ul>`);
 
   /*
-   * DT para resistir: a SAB de quem conjura (SRD Magia). Magia mental é
-   * resistida com um teste de SAB do alvo, no lugar da esquiva.
+   * DT para resistir: a SAB de quem conjura (SRD Magia), mais os bônus de
+   * precisão. Nem toda magia impõe resistência — um muro de pedra não pede
+   * teste de ninguém —, então a linha só sai quando esta conjuração usa DT.
+   * Magia mental é resistida com um teste de SAB do alvo, no lugar da esquiva.
    */
-  const ehMental = calc.porRuna.some(pr =>
-    (pr.tipoDano || PYRO.elementos[pr.item.system.subtipo]?.tipoDano) === "mental");
-  partes.push(`<p class="pyro-dt">${loc("PYRO.Magia.DT", { valor: calc.dt })}${
-    ehMental ? ` ${loc("PYRO.Magia.DTMental")}` : ""}</p>`);
+  if (usaDt) {
+    const ehMental = calc.porRuna.some(pr =>
+      (pr.tipoDano || PYRO.elementos[pr.item.system.subtipo]?.tipoDano) === "mental");
+    partes.push(`<p class="pyro-dt">${loc("PYRO.Magia.DT", { valor: calc.dt })}${
+      ehMental ? ` ${loc("PYRO.Magia.DTMental")}` : ""}</p>`);
+  }
+
+  // Bônus de mira que as runas somam: o teste é feito à parte, então o card
+  // publica o número para quem for rolar.
+  if (calc.bonusMira) {
+    partes.push(`<p class="pyro-nota">${loc("PYRO.Magia.BonusMira", { valor: calc.bonusMira })}</p>`);
+  }
 
   // Teste de sobrecarga: falhar custa exaustão, nunca a magia.
   if (calc.sobrecarga > 0) {
@@ -510,7 +609,7 @@ export async function conjurar(actor, escolhas, {
     const tipoDano = pr.tipoDano || elCfg?.tipoDano || "";
 
     for (const sc of pr.scalings) {
-      const valor = valorEfetivo(pr, sc);
+      const valor = valorEfetivo(pr, sc, calc.passosAlcance);
       if (sc.faces > 0) {
         if (semDano) continue;
         const formula = `${Math.max(1, valor)}d${sc.faces}`;
@@ -518,6 +617,15 @@ export async function conjurar(actor, escolhas, {
         // vida do alvo por si, então fica fora do agrupamento.
         if (pr.subjulgar) subjulgares.push({ nomeRuna, formula });
         else somarDano(tipoDano, formula, nomeRuna, sc.nome);
+        continue;
+      }
+      /*
+       * ND e bônus de mira já entraram na DT e na linha da mira: repeti-los
+       * como número solto faria a mesma precisão parecer dois efeitos.
+       */
+      const chave = chaveVariavel(sc.nome);
+      if (chave === CHAVE_ND || ehBonusDeMira(sc.nome)) {
+        publicar(sc.nome, valor);
         continue;
       }
       somarNumero(sc.nome || loc("PYRO.Scaling.Efeito"), valor, nomeRuna);
@@ -529,16 +637,18 @@ export async function conjurar(actor, escolhas, {
   }
 
   /* --- Números, um por escalonamento --------------------------------------- */
+  /*
+   * Os passos do Longo já entraram na conta de cada runa, na base e no ganho
+   * por Intenção — o que chega aqui é o valor final, e só a nota lembra que o
+   * alcance subiu de degrau.
+   */
+  const subiuDegrau = calc.passosAlcance > 0;
   for (const [nome, grupo] of numeros) {
-    // Alcance é o número que o gesto Longo move na escada de passos.
-    const final = chaveVariavel(nome) === "alcance"
-      ? PYRO.subirAlcance(grupo.valor, calc.passosAlcance)
-      : grupo.valor;
-    publicar(nome, final);
-    const nota = final !== grupo.valor
-      ? ` <em>${loc("PYRO.Magia.PorPassos", { de: grupo.valor, passos: calc.passosAlcance })}</em>` : "";
+    publicar(nome, grupo.valor);
+    const nota = subiuDegrau && chaveVariavel(nome) === "alcance"
+      ? ` <em>${loc("PYRO.Magia.PorPassos", { passos: calc.passosAlcance })}</em>` : "";
     const origens = [...grupo.origens].map(esc).join(", ");
-    partes.push(`<p class="pyro-forma"><strong>${esc(nome)}</strong> — ${origens}: ${final}${nota}</p>`);
+    partes.push(`<p class="pyro-forma"><strong>${esc(nome)}</strong> — ${origens}: ${grupo.valor}${nota}</p>`);
   }
 
   /*

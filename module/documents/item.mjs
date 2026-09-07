@@ -149,18 +149,18 @@ export class PyroItem extends Item {
       const projecao = foundry.utils.mergeObject(this.system.toObject(), sys, { inplace: false });
       changed.name = nomeDaRuna(projecao);
       /*
-       * Trocar o elemento ou o tipo troca o que a runa produz: os
-       * escalonamentos voltam ao padrão do novo elemento/gesto. A comparação
-       * é com o valor salvo porque o formulário reenvia os escalonamentos
-       * antigos junto da troca — e eles pertencem ao elemento anterior.
-       * O modo Subjulgar também segue o padrão do elemento novo.
+       * Trocar o elemento não mexe nas Intenções que já estão escritas. Elas
+       * são trabalho de quem montou a runa, e apagá-las por causa de uma troca
+       * de elemento já custou perder ajustes feitos à mão — quem quiser os
+       * números do elemento novo usa o botão de restaurar o padrão.
+       *
+       * Runa que ainda não tem Intenção nenhuma ganha as do elemento novo: aí
+       * não há o que perder, e é o que faz uma runa em branco ser útil.
        */
       const mudouNatureza = ("tipoRuna" in sys && sys.tipoRuna !== this.system.tipoRuna)
         || ("subtipo" in sys && sys.subtipo !== this.system.subtipo);
-      if (mudouNatureza) {
+      if (mudouNatureza && !(this.system.scalings ?? []).length) {
         sys.scalings = scalingsPadrao(projecao.tipoRuna, projecao.subtipo);
-        sys.subjulgar = !!(projecao.tipoRuna === "elemento"
-          && PYRO.elementos[projecao.subtipo]?.subjulgar);
         changed.system = sys;
       }
     }

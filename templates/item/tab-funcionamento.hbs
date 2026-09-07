@@ -339,7 +339,7 @@
       {{/unless}}
       {{#if mostrarTipoDano}}
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.TipoDano"}}</span>
-        <select name="system.tipoDano">{{selectOptions tipoDanoOpts selected=system.tipoDano}}</select></label>
+        <select name="system.tipoDano">{{selectOptions tipoDanoOpts selected=tipoDanoSelecionado}}</select></label>
       {{/if}}
     </div>
     {{#if mostrarSubjulgar}}
@@ -472,6 +472,13 @@
 {{/if}}
 
 {{#if isMagia}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Regras"}}</h4>
+    <label class="check-linha" title="{{localize 'PYRO.Magia.UsaDtDica'}}">
+      <input type="checkbox" name="system.usaDt" {{checked system.usaDt}} />
+      <span>{{localize "PYRO.Magia.UsaDt"}}</span></label>
+  </div>
+
   {{> "pyro.progresso"}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Item.RunasDaMagia"}}</h4>
@@ -483,7 +490,7 @@
           {{#if r.mostrarTipoDano}}
           <select class="mini-select" name="system.runas.{{ri}}.tipoDano"
                   title="{{localize 'PYRO.Item.TipoDano'}}">
-            {{selectOptions r.tipoDanoOpts selected=r.tipoDano}}
+            {{selectOptions r.tipoDanoOpts selected=r.tipoDanoSelecionado}}
           </select>
           {{/if}}
           {{#if r.mostrarSubjulgar}}
