@@ -17,6 +17,25 @@ const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 /** Tipo de dano que desliga a rolagem: a runa só produz efeito e números. */
 export const SEM_DANO = "nenhum";
 
+/**
+ * Ícone do botão de uma regra que não é condição, e por isso não tem imagem em
+ * PYRO.condicoes. É o mesmo ícone do efeito que o clique cria.
+ */
+const IMG_DE_REGRA = {
+  defesaTerra: "icons/svg/shield.svg",
+  mental: "icons/svg/daze.svg"
+};
+
+/**
+ * A @variável que cada regra publica. Só as que não se chamam igual: o nome da
+ * regra da terra é "defesaTerra", mas a Intenção que a alimenta é a Defesa
+ * Física, e é esse nome que um efeito escreveria.
+ */
+const CHAVE_DA_REGRA = {
+  defesaTerra: "defesaFisica",
+  mental: "condicoesMentais"
+};
+
 /* -------------------------------------------------------------------------- */
 /*  Escalonamentos                                                             */
 /* -------------------------------------------------------------------------- */
@@ -627,8 +646,10 @@ export async function conjurar(actor, escolhas, {
        * @variável para os efeitos.
        */
       const chave = chaveVariavel(sc.nome);
-      const daRegra = sys.tipoRuna === "elemento"
-        && PYRO.efeitosDeElemento[sys.subtipo]?.de === chave;
+      // Intenção que alimenta um botão de regra já está escrita no botão —
+      // mas só quando ela rendeu alguma coisa: valendo 0 não há botão, e
+      // esconder o número deixaria a Intenção invisível no card.
+      const daRegra = !!PYRO.regrasDeIntencao[chave] && valor > 0;
       if (chave === CHAVE_ND || ehBonusDeMira(sc.nome) || daRegra) {
         publicar(sc.nome, valor);
         continue;
@@ -737,28 +758,57 @@ export async function conjurar(actor, escolhas, {
    * Friagem, e o mestre ajusta isso na runa como ajusta o dano. O Fogo é a
    * exceção que a regra pede — o Queimando dele vem dos 6 rolados no dano.
    */
-  const efeitosRegra = [];
-  for (const pr of calc.porRuna) {
-    const sys = pr.item.system;
-    const cfg = sys.tipoRuna === "elemento" ? PYRO.efeitosDeElemento[sys.subtipo] : null;
-    if (!cfg) continue;
-    const valor = cfg.seis
-      ? (seisPorTipo.get(pr.tipoDano || PYRO.elementos[sys.subtipo]?.tipoDano) ?? 0)
-      : (() => {
-          const sc = scalingPorChave(pr.scalings, cfg.de);
-          return sc ? valorEfetivo(pr, sc, calc.passosAlcance) : pr.intencaoEfetiva;
-        })();
-    // Fogo sem nenhum 6 não rendeu Queimando: um botão de zero só engana.
-    if (valor <= 0) continue;
-    efeitosRegra.push({
+  /*
+   * Um botão por regra, e não por runa: duas Águas na mesma frase molham o
+   * alvo uma vez só, com a soma das duas — do mesmo jeito que dois
+   * escalonamentos de mesmo nome viram uma linha só de número.
+   */
+  const porRegra = new Map();
+  const somarRegra = (cfg, valor, sys) => {
+    if (valor <= 0) return;
+    const atual = porRegra.get(cfg.regra);
+    if (atual) {
+      atual.valor += valor;
+      return;
+    }
+    porRegra.set(cfg.regra, {
       regra: cfg.regra,
       valor,
-      dt: calc.dt,
       noConjurador: !!cfg.noConjurador,
-      name: loc(`PYRO.Regra.${cfg.regra}`, { valor }),
-      img: PYRO.condicoes[cfg.regra]?.img ?? PYRO.elementos[sys.subtipo]?.img ?? "icons/svg/aura.svg"
+      img: PYRO.condicoes[cfg.regra]?.img
+        ?? PYRO.elementos[sys.subtipo]?.img ?? IMG_DE_REGRA[cfg.regra] ?? "icons/svg/aura.svg"
     });
+  };
+
+  // Os 6 já vêm somados por tipo de dano: contar o mesmo tipo uma vez por runa
+  // faria duas runas de Fogo darem o dobro do Queimando que a frase rendeu.
+  const tiposContados = new Set();
+  for (const pr of calc.porRuna) {
+    const sys = pr.item.system;
+    // Uma Intenção com nome de regra vale a regra, venha ela da runa que vier.
+    for (const sc of pr.scalings ?? []) {
+      const cfg = PYRO.regrasDeIntencao[chaveVariavel(sc.nome)];
+      if (cfg) somarRegra(cfg, valorEfetivo(pr, sc, calc.passosAlcance), sys);
+    }
+    // Queimando é a exceção: ele conta os 6 do dano, não uma Intenção.
+    const seisCfg = sys.tipoRuna === "elemento" ? PYRO.regraDosSeis[sys.subtipo] : null;
+    if (!seisCfg) continue;
+    const tipo = pr.tipoDano || PYRO.elementos[sys.subtipo]?.tipoDano;
+    if (tiposContados.has(tipo)) continue;
+    tiposContados.add(tipo);
+    // Botão de zero só engana: fogo sem nenhum 6 não rendeu Queimando.
+    somarRegra(seisCfg, seisPorTipo.get(tipo) ?? 0, sys);
   }
+
+  const efeitosRegra = [...porRegra.values()].map(e => ({
+    ...e,
+    dt: calc.dt,
+    name: loc(`PYRO.Regra.${e.regra}`, { valor: e.valor })
+  }));
+  // A @variável da Intenção acompanha o botão: um efeito que escreva "@molhado"
+  // recebe o mesmo número que o alvo vai levar.
+  for (const e of efeitosRegra) publicar(CHAVE_DA_REGRA[e.regra] ?? e.regra, e.valor);
+
   if (efeitosRegra.length) partes.push(htmlEfeitosDeRegra(efeitosRegra));
 
   // Botões dos efeitos de uso: os da magia salva e os das runas da frase.

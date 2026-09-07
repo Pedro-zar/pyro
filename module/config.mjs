@@ -231,14 +231,19 @@ PYRO.itemNaCategoria = (item, chave) => {
  */
 PYRO.elementosPadrao = {
   fogo:   { label: "PYRO.Elementos.fogo",   grupo: "fogo",       tipoDano: "calor",   base: 3, porIntencao: 3,   faces: 6,  efeito: "PYRO.Elementos.Efeito.fogo" },
-  agua:   { label: "PYRO.Elementos.agua",   grupo: "aguaGelo",   tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.agua" },
-  gelo:   { label: "PYRO.Elementos.gelo",   grupo: "aguaGelo",   tipoDano: "frio",    base: 4, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.gelo" },
-  vento:  { label: "PYRO.Elementos.vento",  grupo: "arVento",    tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.vento" },
-  terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 2,   faces: 12, efeito: "PYRO.Elementos.Efeito.terra" },
+  agua:   { label: "PYRO.Elementos.agua",   grupo: "aguaGelo",   tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.agua",
+            extras: [{ nome: "PYRO.Scaling.Molhado", base: 1, porIntencao: 1, faces: 0 }] },
+  gelo:   { label: "PYRO.Elementos.gelo",   grupo: "aguaGelo",   tipoDano: "frio",    base: 4, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.gelo",
+            extras: [{ nome: "PYRO.Scaling.Friagem", base: 1, porIntencao: 1, faces: 0 }] },
+  vento:  { label: "PYRO.Elementos.vento",  grupo: "arVento",    tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.vento",
+            extras: [{ nome: "PYRO.Scaling.Empurrado", base: 1, porIntencao: 1, faces: 0 }] },
+  terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 2,   faces: 12, efeito: "PYRO.Elementos.Efeito.terra",
+            extras: [{ nome: "PYRO.Scaling.DefesaFisica", base: 1, porIntencao: 1, faces: 0 }] },
   raio:   { label: "PYRO.Elementos.raio",   grupo: "raio",       tipoDano: "energia", base: 2, porIntencao: 0.5, faces: 10, efeito: "PYRO.Elementos.Efeito.raio",
             extras: [{ nome: "PYRO.Scaling.Corrente", base: 0.5, porIntencao: 0.5, faces: 0 }] },
   vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 2, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
-  mente:  { label: "PYRO.Elementos.mente",  grupo: "mente",      tipoDano: "mental",  base: 1, porIntencao: 1,   faces: 6,  efeito: "PYRO.Elementos.Efeito.mente" },
+  mente:  { label: "PYRO.Elementos.mente",  grupo: "mente",      tipoDano: "mental",  base: 1, porIntencao: 1,   faces: 6,  efeito: "PYRO.Elementos.Efeito.mente",
+            extras: [{ nome: "PYRO.Scaling.CondicoesMentais", base: 1, porIntencao: 1, faces: 0 }] },
   morte:  { label: "PYRO.Elementos.morte",  grupo: "morte",      tipoDano: "indefinido", base: 2, porIntencao: 2, faces: 12, efeito: "PYRO.Elementos.Efeito.morte", subjulgar: true },
   espaco: { label: "PYRO.Elementos.espaco", grupo: "espaco",     tipoDano: "",        base: 0, porIntencao: 0,   faces: 0,  efeito: "PYRO.Elementos.Efeito.espaco" }
 };
@@ -350,32 +355,33 @@ PYRO.subirAlcance = (metros, passos) => {
 };
 
 /**
- * Efeitos de elemento que o card oferece em um clique. Só entram os que viram
- * alteração de ficha; o resto do texto do elemento fica como referência.
- * @param {number} intencao Intenção efetiva daquela runa na conjuração.
- */
-/**
- * Elementos cujo efeito o card entrega em um clique, e de onde sai o número
- * de cada um.
+ * Intenções que o card entrega em um clique.
  *
- *   regra   o que o clique faz (ver aplicarRegraElemental em chat.mjs).
- *   de      chave do escalonamento que dá o valor. O gerador de runas escreve
- *           esses escalonamentos no compêndio, então o número é editável na
- *           runa como qualquer outro — e não escondido no código.
- *   seis    o valor vem da contagem de 6 nos dados de dano, não de um
- *           escalonamento. É a regra do fogo.
+ * A chave é o escalonamento (ver chaveVariavel em magia.mjs), e não a runa:
+ * qualquer runa que tenha uma Intenção chamada "Molhado" molha o alvo, seja
+ * ela do compêndio ou escrita pelo mestre numa runa nova. É o que faz a regra
+ * ser da Intenção, e não do elemento.
  *
- * Quem não está aqui não tem botão: raio, vida, vento, morte e espaço rendem
- * número no card e a mesa resolve o resto.
+ *   regra          o que o clique faz (ver aplicarRegraElemental em chat.mjs).
+ *   noConjurador   o efeito volta para quem conjurou, e não para o alvo.
+ *
+ * Intenção que não está aqui vira número no card e a mesa resolve o resto —
+ * é o caso do Empurrado do vento e da Corrente do raio.
  */
-PYRO.efeitosDeElemento = {
-  fogo:  { regra: "queimando", seis: true },
-  agua:  { regra: "molhado",   de: "molhado" },
-  gelo:  { regra: "friagem",   de: "friagem" },
-  // A pedra defende quem a ergueu, e não quem estiver selecionado no clique.
-  terra: { regra: "defesaFisica", de: "defesaFisica", noConjurador: true },
-  mente: { regra: "mental",    de: "condicoes" }
+PYRO.regrasDeIntencao = {
+  molhado: { regra: "molhado" },
+  friagem: { regra: "friagem" },
+  // A terra defende quem a ergueu, e não quem estiver selecionado no clique.
+  defesaFisica: { regra: "defesaTerra", noConjurador: true },
+  condicoesMentais: { regra: "mental" }
 };
+
+/**
+ * A única regra que não sai de uma Intenção: o Queimando do fogo conta os 6
+ * rolados no dano, e por isso continua presa ao elemento.
+ */
+PYRO.regraDosSeis = { fogo: { regra: "queimando" } };
+
 PYRO.tiposRuna = {
   elemento:    "PYRO.Runas.elemento",
   forma:       "PYRO.Runas.forma",

@@ -9,6 +9,15 @@ import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
 import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDoEfeito } from "../efeitos.mjs";
 import { rotuloDePrazo } from "../duracao.mjs";
+import { pilhasDe, efeitosDetalhados } from "../condicoes.mjs";
+
+/** Condições que aparecem na barra de alertas, com o ícone de cada uma. */
+const ICONES_DE_CONDICAO = {
+  friagem: "fa-snowflake",
+  molhado: "fa-droplet",
+  queimando: "fa-fire"
+};
+
 import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
@@ -672,6 +681,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       podeTrocarTema: actor.isOwner,
       identidade: this.#identidade(),
       alertas: this.#alertas(),
+      efeitosSofridos: this.#efeitosSofridos(),
       tamanhoLabel: loc(PYRO.tamanhos[actor.system.tamanho]?.label ?? ""),
       // Com um caminho racial, o tamanho vem dele — inclusive em NPCs.
       podeEditarTamanho: !actor.system.primeiroRacialId,
@@ -973,6 +983,29 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return partes;
   }
 
+  /**
+   * Linhas do painel de efeitos da aba de combate: só o que o personagem está
+   * sofrendo agora, com nome, número, o que faz e quanto ainda dura.
+   */
+  #efeitosSofridos() {
+    const linhas = efeitosDetalhados(this.actor).map(e => ({
+      chave: e.chave,
+      // "Friagem (3): ..." — o número entre parênteses só quando ele existe.
+      titulo: game.i18n.format("PYRO.Efeito.Linha", {
+        nome: e.nome,
+        valor: e.valor === null ? "" : ` (${e.valor})`,
+        descricao: e.descricao
+      }),
+      prazo: e.prazo ? game.i18n.format("PYRO.Efeito.Restante", { prazo: e.prazo }) : ""
+    }));
+    return {
+      linhas,
+      // A regra das mentais ainda não desconta nada: quem lê a ficha precisa
+      // saber disso, senão procuraria o efeito nos atributos.
+      notaMental: linhas.some(l => PYRO.condicoesMentais[l.chave])
+    };
+  }
+
   /** Estados que precisam de aviso imediato, com ícone além da cor. */
   #alertas() {
     const sys = this.actor.system;
@@ -1003,6 +1036,21 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       lista.push({
         texto: game.i18n.localize("PYRO.Item.PrecisaAfinidade"),
         icone: "fa-triangle-exclamation", tom: "aviso"
+      });
+    }
+    /*
+     * Condições elementais entram aqui porque mudam a conta do turno seguinte
+     * — quanto custa reagir, quanto dano vem — e o jogador precisa vê-las sem
+     * abrir a aba de combate. O detalhe do que cada uma faz fica lá.
+     */
+    for (const [chave, icone] of Object.entries(ICONES_DE_CONDICAO)) {
+      const pilhas = pilhasDe(this.actor, chave);
+      if (!pilhas) continue;
+      lista.push({
+        texto: game.i18n.format("PYRO.Condicoes.ComPilhas", {
+          nome: game.i18n.localize(PYRO.condicoes[chave]?.label ?? chave), n: pilhas
+        }),
+        icone, tom: "aviso"
       });
     }
     return lista;

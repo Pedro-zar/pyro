@@ -9,8 +9,9 @@
  * dano de frio que for chegar.
  */
 import { PYRO } from "./config.mjs";
+import { nivelExaustao } from "./efeitos.mjs";
 import { SYSTEM_ID, flagsDe, naFila } from "./sistema.mjs";
-import { SEM_PRAZO, dadosDePrazo, updateDePrazo } from "./duracao.mjs";
+import { SEM_PRAZO, dadosDePrazo, updateDePrazo, rotuloDePrazo } from "./duracao.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -86,23 +87,33 @@ function juntarPrazos(atual, novo, modo) {
 }
 
 /**
- * Aplica ou reforça uma condição empilhável.
+ * Aplica ou reforça uma condição.
  *
- * As pilhas somam sempre; o prazo é sempre o mais longo entre o que estava lá
- * e o que chegou. É o que a regra do Queimando descreve — quem está queimando
- * há 1 turno e leva mais 3 pilhas fica com 5 pilhas e 2 turnos, e não com o
- * prazo curto do que já estava ardendo.
+ * Cada condição junta o que chega com o que já estava lá do seu próprio jeito,
+ * e é isso que os dois modos descrevem:
  *
- * @param {number} pilhas quantas somar.
+ *   pilhas "soma"  Queimando e Molhado acumulam — 2 pilhas mais 3 são 5.
+ *   pilhas "maior" Friagem não acumula: fica a maior das duas, e uma aplicação
+ *                  menor não muda nada, nem o prazo.
+ *   pilhas "fixa"  condição mental não tem pilha: estar Irritado duas vezes é
+ *                  estar irritado.
+ *   prazo "maior"  o mais longo vence, e uma aplicação curta não encurta o que
+ *                  já estava correndo.
+ *   prazo "soma"   nas mentais, onde cada ponto gasto compra um turno.
+ *
+ * @param {number} pilhas quantas aplicar.
  * @param {number|null} turnos prazo desta aplicação; null é sem prazo.
  * @param {"maior"|"soma"} [opcoes.prazo] como o prazo novo encontra o antigo.
- * @param {boolean} [opcoes.contaPilhas] falso para condição que só tem duração.
+ * @param {"soma"|"maior"|"fixa"} [opcoes.pilhas] o mesmo, para as pilhas.
+ * @param {number} [opcoes.entrada] turnos a mais só quando a condição entra
+ *   agora no alvo (ver aplicarCondicaoMental).
  */
 export function empilharCondicao(actor, chave, pilhas, turnos = SEM_PRAZO, {
-  prazo: modoPrazo = "maior", contaPilhas = true
+  prazo: modoPrazo = "maior", pilhas: modoPilhas = "soma", entrada = 0
 } = {}) {
   const soma = Math.max(0, Math.round(Number(pilhas) || 0));
   if (!actor || !soma || !PYRO.condicoes[chave]) return null;
+  const contaPilhas = modoPilhas !== "fixa";
 
   return naFila(actor, async () => {
     const existente = efeitoDaCondicao(actor, chave);
@@ -112,9 +123,20 @@ export function empilharCondicao(actor, chave, pilhas, turnos = SEM_PRAZO, {
       // primeira (é o que o ícone já dizia na cena) e ele não trazia prazo
       // nenhum, então quem manda no relógio é a aplicação que está chegando.
       const adotado = !flags.condicao;
+      // O efeito do HUD é só o ícone: para o prazo, ele conta como entrada.
+      const chegando = turnos === SEM_PRAZO ? turnos : turnos + (adotado ? entrada : 0);
       const antes = adotado ? 1 : Number(flags.pilhas) || 0;
-      const total = contaPilhas ? antes + soma : 1;
-      const prazo = adotado ? turnos : juntarPrazos(flags.turnos, turnos, modoPrazo);
+      const total = !contaPilhas ? 1
+        : modoPilhas === "maior" ? Math.max(antes, soma)
+        : antes + soma;
+      /*
+       * Aplicação que não muda o valor não mexe em nada: a Friagem 1 que chega
+       * numa Friagem 2 não pode reiniciar o minuto que já estava correndo.
+       */
+      if (modoPilhas === "maior" && !adotado && total === antes) {
+        return { pilhas: antes, turnos: flags.turnos ?? SEM_PRAZO, novo: false };
+      }
+      const prazo = adotado ? chegando : juntarPrazos(flags.turnos, turnos, modoPrazo);
       await existente.update({
         name: nomeDaCondicao(chave, total, contaPilhas),
         ...updateDePrazo(prazo ?? 0),
@@ -124,8 +146,9 @@ export function empilharCondicao(actor, chave, pilhas, turnos = SEM_PRAZO, {
       return { pilhas: total, turnos: prazo, novo: false };
     }
 
+    const novoPrazo = turnos === SEM_PRAZO ? turnos : turnos + entrada;
     await ActiveEffect.implementation.create(foundry.utils.mergeObject(
-      dadosDePrazo(turnos ?? 0, "turnos", {
+      dadosDePrazo(novoPrazo ?? 0, "turnos", {
         condicao: chave, pilhas: contaPilhas ? soma : 1
       }),
       {
@@ -135,7 +158,7 @@ export function empilharCondicao(actor, chave, pilhas, turnos = SEM_PRAZO, {
         statuses: [chave]
       }
     ), { parent: actor });
-    return { pilhas: contaPilhas ? soma : 1, turnos, novo: true };
+    return { pilhas: contaPilhas ? soma : 1, turnos: novoPrazo, novo: true };
   });
 }
 
@@ -202,7 +225,7 @@ export function aplicarMolhado(actor, pilhas) {
 
 /** Friagem: cada reação custa pilhas² de estamina a mais, por um minuto. */
 export function aplicarFriagem(actor, pilhas) {
-  return empilharCondicao(actor, "friagem", pilhas, TURNOS_FRIAGEM);
+  return empilharCondicao(actor, "friagem", pilhas, TURNOS_FRIAGEM, { pilhas: "maior" });
 }
 
 /** Estamina que a Friagem cobra de uma reação: pilhas ao quadrado. */
@@ -240,8 +263,15 @@ export function dadosDeMolhado(actor, formula) {
  */
 export function aplicarCondicaoMental(actor, chave, turnos) {
   if (!PYRO.condicoesMentais[chave]) return null;
+  /*
+   * Um turno a mais na primeira aplicação: a condição é posta no turno do
+   * conjurador e o relógio já desconta um turno no fim dele, então "durar 1
+   * turno" tem que alcançar o fim do turno seguinte. Quem já está sob a
+   * condição só ganha os turnos comprados — o turno extra é o de entrada, e
+   * quem decide se ela está entrando é a fila, não esta linha.
+   */
   return empilharCondicao(actor, chave, 1, Math.max(1, turnos), {
-    prazo: "soma", contaPilhas: false
+    prazo: "soma", pilhas: "fixa", entrada: 1
   });
 }
 
@@ -253,4 +283,92 @@ export function listaDeCondicoesMentais() {
     nome: loc(PYRO.condicoes[chave]?.label ?? chave),
     atributoNome: loc(PYRO.atributos[cfg.atributo] ?? cfg.atributo)
   }));
+}
+
+/* -------------------------------------------------------------------------- */
+/*  O que a ficha mostra                                                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * As condições elementais que a aba de combate detalha, na ordem em que
+ * aparecem. As mentais vêm depois delas, e não são todas as condições que
+ * existem: aqui ficam só as que mudam uma conta que o jogador precisa fazer na
+ * mesa — quanto custa reagir, quanto dano vem no próximo turno, quanto sobe a
+ * defesa. Limiares de vida e marcadores soltos ficam na lista completa de
+ * efeitos, na aba própria.
+ */
+const ELEMENTAIS_DETALHADAS = ["friagem", "queimando", "molhado"];
+
+/** Uma linha da lista da ficha. */
+function linha(chave, nome, valor, descricao, prazo) {
+  return { chave, nome, valor, descricao, prazo };
+}
+
+function linhaDaCondicao(actor, chave) {
+  const efeito = efeitoDaCondicao(actor, chave);
+  if (!efeito) return null;
+  const pilhas = pilhasDe(actor, chave);
+  const descricao = chave === "friagem"
+    ? loc("PYRO.Efeito.friagem", { custo: pilhas * pilhas })
+    : loc(`PYRO.Efeito.${chave}`, { n: pilhas });
+  return linha(
+    chave,
+    loc(PYRO.condicoes[chave]?.label ?? chave),
+    // Condição mental não tem pilha: o "(1)" ao lado do nome não diria nada.
+    PYRO.condicoesMentais[chave] ? null : pilhas,
+    descricao,
+    rotuloDePrazo(efeito)
+  );
+}
+
+/**
+ * Efeitos com número que o personagem está sofrendo agora, prontos para a
+ * ficha: nome, o quanto vale, o que ele faz e quanto tempo ainda dura.
+ *
+ * Junta três origens diferentes — condições empilháveis, a Defesa de Terra
+ * (que é um efeito com prazo, e não uma condição) e a exaustão (que mora na
+ * própria flag) — porque para quem lê a ficha as três são a mesma coisa: algo
+ * pendurado no personagem que ele precisa lembrar na hora de rolar.
+ */
+export function efeitosDetalhados(actor) {
+  const lista = [];
+
+  for (const chave of ELEMENTAIS_DETALHADAS) {
+    const l = linhaDaCondicao(actor, chave);
+    if (l) lista.push(l);
+  }
+
+  for (const efeito of actor?.effects ?? []) {
+    if (flagsDe(efeito)?.regra !== "defesaTerra") continue;
+    lista.push(linha(
+      "defesaTerra",
+      loc("PYRO.Efeito.defesaTerraNome"),
+      null,
+      loc("PYRO.Efeito.defesaTerra", { n: Number(flagsDe(efeito).valor) || 0 }),
+      rotuloDePrazo(efeito)
+    ));
+  }
+
+  const exausto = nivelExaustao(actor);
+  if (exausto > 0) {
+    const desvantagens = Math.floor(exausto / 5);
+    lista.push(linha(
+      "exausto",
+      loc("PYRO.Exaustao.Nome"),
+      exausto,
+      // A partir do quinto nível a exaustão também traz desvantagem, e a
+      // linha precisa dizer as duas coisas.
+      desvantagens > 0
+        ? loc("PYRO.Efeito.exaustoDesvantagem", { n: exausto, d: desvantagens })
+        : loc("PYRO.Efeito.exausto", { n: exausto }),
+      ""
+    ));
+  }
+
+  for (const chave of Object.keys(PYRO.condicoesMentais)) {
+    const l = linhaDaCondicao(actor, chave);
+    if (l) lista.push(l);
+  }
+
+  return lista;
 }

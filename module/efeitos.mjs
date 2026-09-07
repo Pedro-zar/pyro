@@ -176,10 +176,10 @@ export function htmlEfeitosDeUso(...itens) {
 }
 
 /**
- * Botões de efeito que a regra do elemento oferece no card, e não um efeito
- * criado por alguém num item (ver PYRO.efeitosDeElemento). Os dados do efeito
- * viajam nas flags da mensagem, então o clique não depende de haver um
- * documento por trás.
+ * Botões de efeito que a regra da Intenção oferece no card, e não um efeito
+ * criado por alguém num item (ver PYRO.regrasDeIntencao e PYRO.regraDosSeis).
+ * Os dados do efeito viajam nas flags da mensagem, então o clique não depende
+ * de haver um documento por trás.
  * @param {Array<{name: string, img: string}>} lista
  */
 export function htmlEfeitosDeRegra(lista) {

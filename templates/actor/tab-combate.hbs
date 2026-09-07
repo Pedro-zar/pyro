@@ -19,6 +19,23 @@
         </div>
         {{/each}}
       </div>
+
+      {{!-- Só o que está em curso: uma lista com todas as condições possíveis
+            faria o jogador procurar o que ele de fato tem. --}}
+      {{#if efeitosSofridos.linhas.length}}
+      <div class="efeitos-sofridos">
+        <h3 class="titulo-secao">{{localize "PYRO.Efeitos.Sofrendo"}}</h3>
+        {{#each efeitosSofridos.linhas as |e|}}
+        <p class="efeito-sofrido efeito-{{e.chave}}">
+          <span class="efeito-texto">{{e.titulo}}</span>
+          {{#if e.prazo}}<span class="efeito-prazo">{{e.prazo}}</span>{{/if}}
+        </p>
+        {{/each}}
+        {{#if efeitosSofridos.notaMental}}
+        <p class="pyro-nota">{{localize "PYRO.Efeitos.MentalSemRegra"}}</p>
+        {{/if}}
+      </div>
+      {{/if}}
     </div>
 
     <div class="painel lateral">

@@ -116,7 +116,12 @@ export function prazoDoEfeito(efeito) {
  */
 export function rotuloDePrazo(efeito) {
   const prazo = prazoDoEfeito(efeito);
-  if (!prazo) return efeito?.duration?.label ?? "";
+  if (!prazo) {
+    // Condição sem prazo (o Molhado espera o frio) não tem contagem nenhuma:
+    // a etiqueta do Foundry diria "Nenhum", que é o oposto do que ela faz.
+    const d = efeito?.duration;
+    return d?.seconds || d?.rounds || d?.turns ? d.label ?? "" : "";
+  }
   const unidade = loc(PYRO.unidadesDeDuracao[prazo.unidade]?.curto ?? prazo.unidade);
   return loc("PYRO.Duracao.Restam", {
     restante: prazo.restante, total: prazo.valor, unidade

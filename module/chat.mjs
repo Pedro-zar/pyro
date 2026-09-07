@@ -8,10 +8,10 @@
 import { PYRO } from "./config.mjs";
 import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
 import { esc } from "./ui.mjs";
-import { SYSTEM_ID, flagsDe } from "./sistema.mjs";
+import { SYSTEM_ID, flagsDe, flagsDoSistema } from "./sistema.mjs";
 import { registrarUso } from "./progressao.mjs";
 import {
-  aplicarQueimando, aplicarMolhado, aplicarFriagem, efeitoComPrazo
+  aplicarQueimando, aplicarMolhado, aplicarFriagem, efeitoComPrazo, pilhasDe
 } from "./condicoes.mjs";
 
 /** Linha de sucesso ou falha contra um ND, nos cards de teste. */
@@ -427,13 +427,17 @@ async function aplicarEfeitoDeRegra(message, indice) {
       ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemPermissao", { nome: actor.name }));
       continue;
     }
-    await aplicarRegraElemental(actor, dados);
-    nomes.push(actor.name);
+    const feito = await aplicarRegraElemental(actor, dados);
+    // Friagem 1 sobre uma Friagem 3 não muda nada: avisar que foi aplicada
+    // faria a mesa acreditar num efeito que não existe.
+    if (feito !== false) nomes.push(actor.name);
   }
   if (nomes.length) {
     ui.notifications.info(game.i18n.format("PYRO.Efeitos.Aplicado", {
       efeito: dados.name, alvos: nomes.join(", ")
     }));
+  } else {
+    ui.notifications.info(game.i18n.format("PYRO.Efeitos.SemMudanca", { efeito: dados.name }));
   }
 }
 
@@ -447,8 +451,14 @@ async function aplicarRegraElemental(actor, dados) {
   switch (dados.regra) {
     case "queimando": return aplicarQueimando(actor, valor);
     case "molhado": return aplicarMolhado(actor, valor);
-    case "friagem": return aplicarFriagem(actor, valor);
-    case "defesaFisica":
+    // Friagem não empilha: uma aplicação menor que a atual não muda nada, e
+    // é isso que o false diz a quem chamou.
+    case "friagem": {
+      const antes = pilhasDe(actor, "friagem");
+      const r = await aplicarFriagem(actor, valor);
+      return !(r && !r.novo && r.pilhas === antes);
+    }
+    case "defesaTerra":
       /*
        * "Até o fim do próximo turno": dois turnos do próprio, contados pelo
        * relógio — o que passa agora, quando a vez de quem conjurou termina, e
@@ -456,8 +466,10 @@ async function aplicarRegraElemental(actor, dados) {
        * marca o efeito como vencido, e as mudanças continuariam somando.
        */
       return efeitoComPrazo(actor, {
-        name: game.i18n.format("PYRO.Regra.defesaFisica", { valor }),
+        name: game.i18n.format("PYRO.Regra.defesaTerra", { valor }),
         img: "icons/svg/shield.svg",
+        // A ficha lista este efeito no painel de combate pela chave.
+        flags: flagsDoSistema({ regra: "defesaTerra", valor }),
         system: {
           changes: [{ key: "system.defesas.categorias.fisico", type: "add", value: String(valor) }]
         }

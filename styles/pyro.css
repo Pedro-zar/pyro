@@ -1033,6 +1033,22 @@
   font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
 }
 
+/* Efeitos em curso, logo abaixo das defesas: uma linha por efeito, com o que
+   ele faz à esquerda e o tempo que resta à direita. */
+.pyro .efeitos-sofridos {
+  margin-top: var(--pyro-e-3);
+  border-top: 1px solid var(--pyro-borda);
+  padding-top: var(--pyro-e-2);
+  display: flex; flex-direction: column; gap: 0.25rem;
+}
+.pyro .efeito-sofrido {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: var(--pyro-e-2); margin: 0; font-size: 0.72rem; line-height: 1.35;
+}
+.pyro .efeito-prazo { white-space: nowrap; opacity: 0.75; font-variant-numeric: tabular-nums; }
+.pyro .efeito-queimando .efeito-texto { color: var(--pyro-perigo); }
+.pyro .efeito-exausto .efeito-texto { color: var(--pyro-aviso); }
+
 .pyro .destaque-lingua { color: var(--pyro-acento-ficha); font-weight: 600; opacity: 1; }
 
 .pyro.guia-acoes .window-content { gap: 0.5rem; }
