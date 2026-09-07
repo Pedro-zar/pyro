@@ -320,14 +320,18 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
       const formula = multiplicarDados(dano.formula, 1 + multPotencia);
       const roll = await new Roll(expandirAtributos(formula), item.getRollData()).evaluate();
       rolls.push(roll);
-      danos.push({ tipo: dano.tipo, total: roll.total });
+      danos.push({ tipo: dano.tipo, total: roll.total, formula });
       const rotulo = loc(PYRO.tiposDano[dano.tipo]?.label ?? dano.tipo ?? "");
       partes.push(`<p class="pyro-linha-dano dano-${dano.tipo}">${rotulo}</p>`, await roll.render());
     }
     for (const bonus of bonusDeDano(actor, item)) {
       const roll = await new Roll(expandirAtributos(bonus.formula), item.getRollData()).evaluate();
       rolls.push(roll);
-      danos.push({ tipo: bonus.tipo || ataque.danos[0]?.tipo || "", total: roll.total });
+      danos.push({
+        tipo: bonus.tipo || ataque.danos[0]?.tipo || "",
+        total: roll.total,
+        formula: bonus.formula
+      });
       partes.push(`<p class="pyro-linha-dano">${esc(bonus.nome)}</p>`, await roll.render());
     }
   }

@@ -7,7 +7,7 @@
   "folder": "3awu5onxxghypf08",
   "sort": 800000,
   "system": {
-    "descricao": "<p>A cada Intenção acima de 1, aplique uma condição mental ou aumente em 1 rodada a duração de uma já escolhida. O alvo testa SAB contra a DT para resistir a cada condição nova.</p>",
+    "descricao": "<p>Pontos para escolher condições mentais e a duração de cada uma. Uma condição custa 1 ponto por turno de duração.</p>",
     "tipoRuna": "elemento",
     "subtipo": "mente",
     "palavra": "",
@@ -21,6 +21,12 @@
         "base": 1,
         "porIntencao": 1,
         "faces": 6
+      },
+      {
+        "nome": "Condições",
+        "base": 1,
+        "porIntencao": 1,
+        "faces": 0
       }
     ]
   },

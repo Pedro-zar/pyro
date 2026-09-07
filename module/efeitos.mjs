@@ -10,7 +10,7 @@
 
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { SYSTEM_ID, flagsDe, flagsDoSistema } from "./sistema.mjs";
+import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
 
 
 /* -------------------------------------------------------------------------- */
@@ -183,8 +183,12 @@ export function htmlEfeitosDeUso(...itens) {
  */
 export function htmlEfeitosDeRegra(lista) {
   if (!lista?.length) return "";
+  // Efeito que volta para quem conjurou avisa no botão: o rótulo da linha fala
+  // dos selecionados, e a Defesa de Pedra ignora a seleção.
   const botoes = lista.map((efeito, indice) => `
-    <button type="button" class="pyro-efeito-regra" data-indice="${indice}">
+    <button type="button" class="pyro-efeito-regra" data-indice="${indice}"
+            title="${game.i18n.localize(efeito.noConjurador
+              ? "PYRO.Efeitos.NoConjurador" : "PYRO.Efeitos.AplicarEm")}">
       <img src="${efeito.img}" alt="" />
       <span>${esc(efeito.name)}</span>
     </button>`).join("");
@@ -326,9 +330,15 @@ export function dicaExaustao(actor) {
  * flag: quem tem 2 e sofre sobrecarga 2 fica com 4, e não com dois efeitos
  * separados. Chegando a zero o efeito some — nível zero não é exaustão.
  */
-export async function aplicarExaustao(actor, delta) {
+export function aplicarExaustao(actor, delta) {
   delta = Number(delta) || 0;
   if (!actor || delta === 0) return nivelExaustao(actor);
+  // Na fila: contar exaustão é ler-somar-gravar, e duas sobrecargas quase
+  // juntas criariam dois efeitos "Exaustão" em vez de somar num só.
+  return naFila(actor, () => somarExaustao(actor, delta));
+}
+
+async function somarExaustao(actor, delta) {
   const loc = k => game.i18n.localize(k);
 
   const existente = actor.effects?.find?.(e => ehExaustao(e) && !e.disabled);

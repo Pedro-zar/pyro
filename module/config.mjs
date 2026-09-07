@@ -233,8 +233,8 @@ PYRO.elementosPadrao = {
   fogo:   { label: "PYRO.Elementos.fogo",   grupo: "fogo",       tipoDano: "calor",   base: 3, porIntencao: 3,   faces: 6,  efeito: "PYRO.Elementos.Efeito.fogo" },
   agua:   { label: "PYRO.Elementos.agua",   grupo: "aguaGelo",   tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.agua" },
   gelo:   { label: "PYRO.Elementos.gelo",   grupo: "aguaGelo",   tipoDano: "frio",    base: 4, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.gelo" },
-  vento:  { label: "PYRO.Elementos.vento",  grupo: "arVento",    tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.vento", variavel: "empurrao" },
-  terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 2,   faces: 12, efeito: "PYRO.Elementos.Efeito.terra", variavel: "defesaFisica" },
+  vento:  { label: "PYRO.Elementos.vento",  grupo: "arVento",    tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.vento" },
+  terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 2,   faces: 12, efeito: "PYRO.Elementos.Efeito.terra" },
   raio:   { label: "PYRO.Elementos.raio",   grupo: "raio",       tipoDano: "energia", base: 2, porIntencao: 0.5, faces: 10, efeito: "PYRO.Elementos.Efeito.raio",
             extras: [{ nome: "PYRO.Scaling.Corrente", base: 0.5, porIntencao: 0.5, faces: 0 }] },
   vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 2, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
@@ -354,20 +354,28 @@ PYRO.subirAlcance = (metros, passos) => {
  * alteração de ficha; o resto do texto do elemento fica como referência.
  * @param {number} intencao Intenção efetiva daquela runa na conjuração.
  */
+/**
+ * Elementos cujo efeito o card entrega em um clique, e de onde sai o número
+ * de cada um.
+ *
+ *   regra   o que o clique faz (ver aplicarRegraElemental em chat.mjs).
+ *   de      chave do escalonamento que dá o valor. O gerador de runas escreve
+ *           esses escalonamentos no compêndio, então o número é editável na
+ *           runa como qualquer outro — e não escondido no código.
+ *   seis    o valor vem da contagem de 6 nos dados de dano, não de um
+ *           escalonamento. É a regra do fogo.
+ *
+ * Quem não está aqui não tem botão: raio, vida, vento, morte e espaço rendem
+ * número no card e a mesa resolve o resto.
+ */
 PYRO.efeitosDeElemento = {
-  terra: intencao => ({
-    name: game.i18n.format("PYRO.Elementos.Efeito.terraNome", { valor: intencao }),
-    img: "icons/svg/shield.svg",
-    // Até o fim do próximo turno de quem recebeu.
-    duration: { rounds: 1 },
-    changes: [{
-      key: "system.defesas.categorias.fisico",
-      type: "add",
-      value: String(intencao)
-    }]
-  })
+  fogo:  { regra: "queimando", seis: true },
+  agua:  { regra: "molhado",   de: "molhado" },
+  gelo:  { regra: "friagem",   de: "friagem" },
+  // A pedra defende quem a ergueu, e não quem estiver selecionado no clique.
+  terra: { regra: "defesaFisica", de: "defesaFisica", noConjurador: true },
+  mente: { regra: "mental",    de: "condicoes" }
 };
-
 PYRO.tiposRuna = {
   elemento:    "PYRO.Runas.elemento",
   forma:       "PYRO.Runas.forma",
@@ -624,6 +632,46 @@ PYRO.recursosDrenaveis = () => ({
 });
 
 /* -------------------------------------------------------------------------- */
+/*  Tempo de jogo                                                             */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Um turno vale 6 segundos (SRD §1). A rodada não tem tamanho fixo: ela é a
+ * soma dos turnos de quem está em cena, então duas pessoas fazem rodadas de
+ * 12s e dez pessoas fazem de 60s.
+ *
+ * É por isso que toda duração do sistema é contada em turnos, e não em
+ * rodadas: um minuto são dez turnos na mesa, tenha ela dois ou dez lutadores.
+ */
+PYRO.SEGUNDOS_POR_TURNO = 6;
+
+/** Turnos que cabem num tempo em segundos: 1 minuto vira 10 turnos. */
+PYRO.turnosDeSegundos = segundos =>
+  Math.max(1, Math.round((Number(segundos) || 0) / PYRO.SEGUNDOS_POR_TURNO));
+
+/* -------------------------------------------------------------------------- */
+/*  Condições mentais                                                         */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * As sete condições que o elemento Mente aplica, uma por atributo: cada
+ * emoção pesa sobre o que ela atrapalha no corpo ou na cabeça.
+ *
+ * O `atributo` ainda não faz nada — o quanto cada condição desconta é regra
+ * que a mesa não fechou. Ele está aqui porque é a única parte já decidida, e
+ * é o que a interface de Mente mostra ao escolher.
+ */
+PYRO.condicoesMentais = {
+  irritado:  { atributo: "des" },
+  apavorado: { atributo: "agi" },
+  culpado:   { atributo: "vig" },
+  inseguro:  { atributo: "pre" },
+  insensato: { atributo: "sab" },
+  abatido:   { atributo: "for" },
+  confuso:   { atributo: "int" }
+};
+
+/* -------------------------------------------------------------------------- */
 /*  Força de Vontade                                                          */
 /* -------------------------------------------------------------------------- */
 
@@ -836,12 +884,15 @@ PYRO.multiplicadorSubjulgar = dif => {
  */
 PYRO.condicoes = {
   queimando: { label: "PYRO.Condicoes.queimando", img: "icons/svg/fire.svg" },
+  molhado:   { label: "PYRO.Condicoes.molhado",   img: "icons/svg/water.svg" },
   friagem:   { label: "PYRO.Condicoes.friagem",   img: "icons/svg/frozen.svg" },
   irritado:  { label: "PYRO.Condicoes.irritado",  img: "icons/svg/combat.svg" },
   inseguro:  { label: "PYRO.Condicoes.inseguro",  img: "icons/svg/downgrade.svg" },
   apavorado: { label: "PYRO.Condicoes.apavorado", img: "icons/svg/terror.svg" },
   culpado:   { label: "PYRO.Condicoes.culpado",   img: "icons/svg/degen.svg" },
   insensato: { label: "PYRO.Condicoes.insensato", img: "icons/svg/daze.svg" },
+  abatido:   { label: "PYRO.Condicoes.abatido",   img: "icons/svg/unconscious.svg" },
+  confuso:   { label: "PYRO.Condicoes.confuso",   img: "icons/svg/stoned.svg" },
   desmaiado: { label: "PYRO.Condicoes.desmaiado", img: "icons/svg/unconscious.svg" },
   // Limiares de vida (SRD Atributos): metade e um quarto. Não fazem nada por
   // si — são o gancho de habilidades que reagem a um aliado ferido.

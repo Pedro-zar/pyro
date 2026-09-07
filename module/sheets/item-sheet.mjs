@@ -42,11 +42,13 @@ function tipoDanoEscolhido(sys) {
 
 /**
  * A runa produz dano? É o que decide se a escolha do tipo aparece na ficha.
- * Vale qualquer Intenção que role dados ou que se chame "Dano" — assim um
- * gesto que soma dano diz de que tipo ele é, e o card junta as parcelas.
+ *
+ * Só a Intenção chamada "Dano" conta. Rolar dados não basta: o muro rola PV e
+ * o raio rola corrente, e nenhum dos dois pede tipo de dano — perguntar ali
+ * seria oferecer uma escolha que não muda nada.
  */
 export function produzDano(sys, scalings = sys?.scalings) {
-  return (scalings ?? []).some(sc => (sc?.faces ?? 0) > 0 || chaveVariavel(sc?.nome) === "dano");
+  return (scalings ?? []).some(sc => chaveVariavel(sc?.nome) === "dano");
 }
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;

@@ -7,7 +7,7 @@
   "folder": "3awu5onxxghypf08",
   "sort": 300000,
   "system": {
-    "descricao": "<p>O alvo sofre Friagem por 1 rodada: cada reação custa Intenção² de estamina a mais. Teste de VIG para resistir.</p>",
+    "descricao": "<p>O alvo sofre Friagem por 1 minuto: cada reação custa Friagem² de estamina a mais.</p>",
     "tipoRuna": "elemento",
     "subtipo": "gelo",
     "palavra": "",
@@ -21,6 +21,12 @@
         "base": 4,
         "porIntencao": 2,
         "faces": 8
+      },
+      {
+        "nome": "Friagem",
+        "base": 1,
+        "porIntencao": 1,
+        "faces": 0
       }
     ]
   },

@@ -1,0 +1,275 @@
+/**
+ * Condições que se acumulam e passam com o tempo: Queimando, Molhado, Friagem
+ * e as sete condições mentais.
+ *
+ * Todas guardam duas coisas nas flags do efeito — quantas pilhas e quantos
+ * turnos faltam. O turno é a unidade porque é a única que o SRD fixa: ele vale
+ * 6 segundos, enquanto a rodada estica conforme quanta gente está em cena
+ * (ver PYRO.SEGUNDOS_POR_TURNO). Molhado é a exceção sem prazo: ele espera o
+ * dano de frio que for chegar.
+ */
+import { PYRO } from "./config.mjs";
+import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
+
+const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
+
+/** Sem prazo: a condição fica até algo consumi-la. */
+export const SEM_PRAZO = null;
+
+/**
+ * O efeito que carrega esta condição no ator, se houver.
+ *
+ * Também reconhece o efeito que o HUD do token criou: ele tem o status certo e
+ * nenhuma flag nossa. Ignorá-lo faria o ícone aparecer sem que nada queimasse
+ * ou expirasse, e o próximo botão criaria um segundo efeito igual.
+ */
+export function efeitoDaCondicao(actor, chave) {
+  const efeitos = actor?.effects;
+  if (!efeitos?.find) return null;
+  return efeitos.find(e => flagsDe(e)?.condicao === chave)
+    ?? efeitos.find(e => temStatus(e, chave) && ehDoHud(e))
+    ?? null;
+}
+
+const temStatus = (efeito, chave) =>
+  efeito?.statuses?.has?.(chave) ?? efeito?.statuses?.includes?.(chave) ?? false;
+
+/**
+ * Efeito acendido pelo HUD do token: só o ícone, sem nada dentro. Um efeito
+ * montado no construtor que por acaso marque o mesmo status carrega bônus,
+ * mudanças ou prazo próprios — adotá-lo renomearia a peça de outra pessoa e a
+ * apagaria quando o prazo da condição vencesse.
+ */
+function ehDoHud(efeito) {
+  return !flagsDe(efeito)
+    && !efeito?.system?.changes?.length
+    && !efeito?.changes?.length;
+}
+
+/**
+ * Quantas pilhas da condição o ator tem agora. Condição ligada pelo HUD do
+ * token não traz contagem: ela vale uma pilha, que é o que o mestre quis dizer
+ * ao acender o ícone.
+ */
+export function pilhasDe(actor, chave) {
+  const efeito = efeitoDaCondicao(actor, chave);
+  if (!efeito) return 0;
+  const flags = flagsDe(efeito);
+  if (!flags?.condicao) return 1;
+  return Math.max(0, Number(flags.pilhas) || 0);
+}
+
+/** Quantos turnos faltam para a condição acabar; null quando ela não tem prazo. */
+export function turnosDe(actor, chave) {
+  const efeito = efeitoDaCondicao(actor, chave);
+  if (!efeito) return 0;
+  const turnos = flagsDe(efeito)?.turnos;
+  return turnos === null || turnos === undefined ? SEM_PRAZO : Number(turnos) || 0;
+}
+
+/** Nome que a condição mostra na ficha e no token, com a contagem de pilhas. */
+function nomeDaCondicao(chave, pilhas, contaPilhas = true) {
+  const nome = loc(PYRO.condicoes[chave]?.label ?? chave);
+  return contaPilhas ? loc("PYRO.Condicoes.ComPilhas", { nome, n: pilhas }) : nome;
+}
+
+/**
+ * Duração nativa do Foundry equivalente ao prazo, para o efeito mostrar a
+ * contagem na ficha e parar de valer se o tempo do mundo passar por ele.
+ *
+ * Quem apaga o efeito é o relógio do combate (ver tempo.mjs) — a duração do
+ * Foundry só marca o vencimento, sem remover nada. Ela existe aqui para o caso
+ * em que não há combate nenhum contando os turnos.
+ */
+function duracaoDe(turnos) {
+  if (turnos === SEM_PRAZO || turnos === undefined) return undefined;
+  return {
+    seconds: Math.max(0, Number(turnos) || 0) * PYRO.SEGUNDOS_POR_TURNO,
+    startTime: game.time?.worldTime ?? 0
+  };
+}
+
+/**
+ * Prazo que sobra quando uma aplicação nova encontra uma condição já ativa.
+ * Sem prazo de um dos lados é sem prazo: a condição espera algo consumi-la.
+ * Fora isso, o mais longo vence — nas mentais, onde cada ponto gasto compra um
+ * turno, eles somam.
+ */
+function juntarPrazos(atual, novo, modo) {
+  const antes = atual === null || atual === undefined ? SEM_PRAZO : Number(atual) || 0;
+  if (novo === SEM_PRAZO || antes === SEM_PRAZO) return SEM_PRAZO;
+  return modo === "soma" ? antes + novo : Math.max(antes, novo);
+}
+
+/**
+ * Aplica ou reforça uma condição empilhável.
+ *
+ * As pilhas somam sempre; o prazo é sempre o mais longo entre o que estava lá
+ * e o que chegou. É o que a regra do Queimando descreve — quem está queimando
+ * há 1 turno e leva mais 3 pilhas fica com 5 pilhas e 2 turnos, e não com o
+ * prazo curto do que já estava ardendo.
+ *
+ * @param {number} pilhas quantas somar.
+ * @param {number|null} turnos prazo desta aplicação; null é sem prazo.
+ * @param {"maior"|"soma"} [opcoes.prazo] como o prazo novo encontra o antigo.
+ * @param {boolean} [opcoes.contaPilhas] falso para condição que só tem duração.
+ */
+export function empilharCondicao(actor, chave, pilhas, turnos = SEM_PRAZO, {
+  prazo: modoPrazo = "maior", contaPilhas = true
+} = {}) {
+  const soma = Math.max(0, Math.round(Number(pilhas) || 0));
+  if (!actor || !soma || !PYRO.condicoes[chave]) return null;
+
+  return naFila(actor, async () => {
+    const existente = efeitoDaCondicao(actor, chave);
+    if (existente) {
+      const flags = flagsDe(existente) ?? {};
+      // Efeito adotado do HUD do token não tem nada gravado: a pilha dele é a
+      // primeira (é o que o ícone já dizia na cena) e ele não trazia prazo
+      // nenhum, então quem manda no relógio é a aplicação que está chegando.
+      const adotado = !flags.condicao;
+      const antes = adotado ? 1 : Number(flags.pilhas) || 0;
+      const total = contaPilhas ? antes + soma : 1;
+      const prazo = adotado ? turnos : juntarPrazos(flags.turnos, turnos, modoPrazo);
+      await existente.update({
+        name: nomeDaCondicao(chave, total, contaPilhas),
+        duration: duracaoDe(prazo),
+        [`flags.${SYSTEM_ID}.condicao`]: chave,
+        [`flags.${SYSTEM_ID}.pilhas`]: total,
+        [`flags.${SYSTEM_ID}.turnos`]: prazo
+      });
+      return { pilhas: total, turnos: prazo, novo: false };
+    }
+
+    await ActiveEffect.implementation.create({
+      name: nomeDaCondicao(chave, soma, contaPilhas),
+      img: PYRO.condicoes[chave]?.img ?? "icons/svg/aura.svg",
+      origin: actor.uuid,
+      statuses: [chave],
+      duration: duracaoDe(turnos),
+      flags: flagsDoSistema({ condicao: chave, pilhas: contaPilhas ? soma : 1, turnos })
+    }, { parent: actor });
+    return { pilhas: contaPilhas ? soma : 1, turnos, novo: true };
+  });
+}
+
+/**
+ * Efeito que não é condição empilhável mas conta o mesmo relógio: a Defesa de
+ * Pedra, por exemplo. Guarda o prazo na mesma flag para que tempo.mjs o
+ * expire — a duração nativa do Foundry só marca o efeito como vencido, e as
+ * mudanças continuariam somando na defesa depois da hora.
+ *
+ * @param {boolean} [proprio] verdadeiro quando o prazo corre nos turnos de
+ *   quem carrega o efeito, e não em todo turno da cena.
+ */
+export function efeitoComPrazo(actor, dados, turnos, proprio = false) {
+  return ActiveEffect.implementation.create({
+    ...dados,
+    duration: duracaoDe(turnos),
+    origin: dados.origin ?? actor.uuid,
+    flags: foundry.utils.mergeObject(
+      dados.flags ?? {},
+      flagsDoSistema({ turnos, porTurnoProprio: proprio, rotulo: dados.name })
+    )
+  }, { parent: actor });
+}
+
+/** Tira pilhas; chegando a zero, o efeito some. */
+export function reduzirCondicao(actor, chave, pilhas = Infinity) {
+  return naFila(actor, async () => {
+    const efeito = efeitoDaCondicao(actor, chave);
+    if (!efeito) return 0;
+    const atual = Math.max(0, Number(flagsDe(efeito)?.pilhas) || 0);
+    const novo = Math.max(0, atual - Math.max(0, pilhas));
+    if (novo === 0) {
+      await efeito.delete();
+      return 0;
+    }
+    await efeito.update({
+      name: nomeDaCondicao(chave, novo),
+      [`flags.${SYSTEM_ID}.pilhas`]: novo
+    });
+    return novo;
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Regras das condições elementais                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Prazo mínimo do Queimando (SRD Magia): duração menor que 2 vira 2. */
+export const TURNOS_QUEIMANDO = 2;
+/** Friagem dura um minuto, que na mesa são dez turnos. */
+export const TURNOS_FRIAGEM = PYRO.turnosDeSegundos(60);
+
+/**
+ * Queimando: cada pilha queima 1d6 de calor por turno, e o prazo nunca fica
+ * abaixo de dois turnos. Quem já ardia por 1 turno e leva 3 pilhas passa a
+ * arder por 2 turnos com 5 pilhas.
+ */
+export function aplicarQueimando(actor, pilhas) {
+  return empilharCondicao(actor, "queimando", pilhas, TURNOS_QUEIMANDO);
+}
+
+/**
+ * Molhado: soma dados ao próximo dano de frio que chegar, e é consumido
+ * inteiro nessa hora. Não tem prazo — a água espera.
+ */
+export function aplicarMolhado(actor, pilhas) {
+  return empilharCondicao(actor, "molhado", pilhas, SEM_PRAZO);
+}
+
+/** Friagem: cada reação custa pilhas² de estamina a mais, por um minuto. */
+export function aplicarFriagem(actor, pilhas) {
+  return empilharCondicao(actor, "friagem", pilhas, TURNOS_FRIAGEM);
+}
+
+/** Estamina que a Friagem cobra de uma reação: pilhas ao quadrado. */
+export function custoDeFriagem(actor) {
+  const pilhas = pilhasDe(actor, "friagem");
+  return pilhas * pilhas;
+}
+
+/**
+ * Dados que o Molhado soma a uma instância de dano de frio. Vale o dado da
+ * própria instância: um frio de 4d8 com Molhado 3 rola 3d8 a mais.
+ */
+export function dadosDeMolhado(actor, formula) {
+  const pilhas = pilhasDe(actor, "molhado");
+  if (!pilhas) return null;
+  // Maior dado da fórmula: é o que representa o golpe, se ele misturar dados.
+  const faces = [...String(formula ?? "").matchAll(/\d*d(\d+)/gi)]
+    .map(m => Number(m[1]))
+    .reduce((maior, f) => Math.max(maior, f), 0);
+  return { pilhas, faces: faces || 6 };
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Condições mentais                                                          */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Uma condição mental por atributo (ver PYRO.condicoesMentais). Elas ainda não
+ * descontam nada: o quanto cada uma pesa é regra que a mesa não fechou, e o
+ * efeito existe para já marcar o alvo e contar o prazo.
+ *
+ * Mental não empilha: estar Irritado duas vezes é estar irritado. O que o
+ * ponto gasto compra é tempo, então uma aplicação nova estende o prazo do que
+ * já estava lá em vez de renomear o efeito para "Irritado 2".
+ */
+export function aplicarCondicaoMental(actor, chave, turnos) {
+  if (!PYRO.condicoesMentais[chave]) return null;
+  return empilharCondicao(actor, chave, 1, Math.max(1, turnos), {
+    prazo: "soma", contaPilhas: false
+  });
+}
+
+/** As sete condições mentais com o atributo de cada uma, para as interfaces. */
+export function listaDeCondicoesMentais() {
+  return Object.entries(PYRO.condicoesMentais).map(([chave, cfg]) => ({
+    chave,
+    atributo: cfg.atributo,
+    nome: loc(PYRO.condicoes[chave]?.label ?? chave),
+    atributoNome: loc(PYRO.atributos[cfg.atributo] ?? cfg.atributo)
+  }));
+}

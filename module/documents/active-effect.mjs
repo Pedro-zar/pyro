@@ -28,14 +28,25 @@ export class PyroActiveEffect extends ActiveEffect {
     return item.actor?.getFlag(SYSTEM_ID, "postura") !== item.id;
   }
 
+  /**
+   * Prazo vencido no relógio do mundo. Quem apaga os efeitos com prazo é o
+   * relógio do combate (ver tempo.mjs); isto cobre o que foi aplicado fora de
+   * combate, onde ninguém passa turno: o efeito continua listado, mas para de
+   * somar assim que o tempo do mundo passa por ele.
+   */
+  get #prazoVencido() {
+    const d = this.duration;
+    return !!d?.seconds && Number(d.remaining) <= 0;
+  }
+
   get isSuppressed() {
-    if (this.#presoAItem || this.#posturaInativa) return true;
+    if (this.#presoAItem || this.#posturaInativa || this.#prazoVencido) return true;
     return super.isSuppressed ?? false;
   }
 
   /** O mesmo travamento, no portão que o Foundry consulta por mudança. */
   shouldApplyChange(change, options) {
-    if (this.#presoAItem || this.#posturaInativa) return false;
+    if (this.#presoAItem || this.#posturaInativa || this.#prazoVencido) return false;
     return super.shouldApplyChange?.(change, options) ?? true;
   }
 }

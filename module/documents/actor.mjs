@@ -10,7 +10,8 @@ import {
 import {
   sincronizarSobrepeso, sincronizarDesmaio, sincronizarEstadoDeVida, aplicarExaustao
 } from "../efeitos.mjs";
-import { formularioDoAtor } from "../ui.mjs";
+import { formularioDoAtor, esc } from "../ui.mjs";
+import { custoDeFriagem, dadosDeMolhado, reduzirCondicao, pilhasDe } from "../condicoes.mjs";
 import {
   campoCheckbox, campoSelect, camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste,
   valorComInspiracao, htmlVontadeGasta, vontadeDisponivel, sufixoND
@@ -405,15 +406,38 @@ export class PyroActor extends Actor {
     const vontade = await aplicarVontadeNoTeste(this, opts);
     opts.vantagem += vontade.beneficio;
 
+    /*
+     * Friagem cobra estamina de cada reação, o quadrado das pilhas (SRD
+     * Magia). É cobrado aqui, e não lembrado ao jogador, porque uma reação
+     * acontece no meio do turno de outra pessoa — é exatamente o momento em
+     * que ninguém quer parar para conferir uma condição.
+     */
+    const friagem = custoDeFriagem(this);
+    let pagoFriagem = null;
+    if (friagem > 0) pagoFriagem = await this.pagarCustos({ estamina: friagem });
+
     const formula = formulaReacao(this.system[tipo], cfg.faces, opts);
     const flavor = game.i18n.localize(opts.cobertura ? chaves.flavorCobertura : chaves.flavor)
       + sufixoND(opts.nd);
-    if (formula === null) return this.#falhaAutomatica(flavor, htmlVontadeGasta(vontade));
+    // Montado antes da saída por falha automática: a estamina já foi cobrada,
+    // e uma reação que falha sem dizer o que custou parece um bug na mesa.
+    const avisoFriagem = friagem > 0
+      ? `<p class="pyro-nota"><i class="fa-solid fa-snowflake"></i>
+          ${game.i18n.format("PYRO.Condicoes.FriagemCobrou", {
+            valor: friagem, pilhas: pilhasDe(this, "friagem")
+          })}${pagoFriagem?.dosPv
+            ? ` ${game.i18n.format("PYRO.Chat.CustoPv", { valor: pagoFriagem.dosPv })}` : ""}</p>`
+      : "";
+
+    if (formula === null) {
+      return this.#falhaAutomatica(flavor, htmlVontadeGasta(vontade) + avisoFriagem);
+    }
 
     const roll = await new Roll(expandirAtributos(formula), this.getRollData()).evaluate();
     return this.#cardDeTeste(roll, {
       flavor,
-      html: (opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : "") + htmlVontadeGasta(vontade)
+      html: (opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : "")
+        + avisoFriagem + htmlVontadeGasta(vontade)
     });
   }
 
@@ -611,9 +635,38 @@ export class PyroActor extends Actor {
     let emRecurso = 0;
     const contas = [];
 
+    /*
+     * Molhado espera o frio: a primeira instância de dano de frio que chegar
+     * leva as pilhas como dados a mais, do mesmo dado do golpe, e consome a
+     * condição inteira. Rolado aqui, e não na origem, porque quem molhou o
+     * alvo raramente é quem congela.
+     */
+    // Dano mental não tem tipo elemental: ele drena recurso, não congela.
+    const frias = mental ? [] : entradas.filter(e => e.tipo === "frio");
+    // Todas as fórmulas de frio juntas: o Molhado acompanha o maior dado do
+    // golpe, e não o da primeira parcela que apareceu na lista.
+    const molhado = frias.length
+      ? dadosDeMolhado(this, frias.map(e => e.formula ?? "").join(" "))
+      : null;
+    let extraMolhado = 0;
+    if (molhado) {
+      const roll = await new Roll(`${molhado.pilhas}d${molhado.faces}`).evaluate();
+      extraMolhado = roll.total;
+      await reduzirCondicao(this, "molhado");
+      await roll.toMessage({
+        speaker: ChatMessage.getSpeaker({ actor: this }),
+        flavor: game.i18n.format("PYRO.Condicoes.MolhadoConsumido", {
+          nome: esc(this.name), pilhas: molhado.pilhas, faces: molhado.faces
+        })
+      });
+    }
+
     for (const entrada of entradas) {
       const tipo = mental ? "mental" : entrada.tipo;
-      const bruto = Math.floor(entrada.total * multiplicador);
+      // O extra do Molhado entra antes da defesa: é dano da mesma instância.
+      const comMolhado = entrada.total + (tipo === "frio" ? extraMolhado : 0);
+      const bruto = Math.floor(comMolhado * multiplicador);
+      if (tipo === "frio") extraMolhado = 0;
       // Sem tipo conhecido (rolagem avulsa no chat) não há defesa a aplicar.
       const defesa = ignorarDefesa || !tipo ? 0 : (totais[tipo] ?? 0);
       const liquido = Math.max(0, bruto - defesa);

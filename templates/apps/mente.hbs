@@ -1,0 +1,64 @@
+<div class="conjurador-corpo">
+  <section class="frase-area">
+    <header class="secao-topo">
+      <h3 class="titulo-secao">{{localize "PYRO.Mente.Condicoes"}}</h3>
+      <button type="button" class="botao-secao" data-action="limpar">
+        <i class="fa-solid fa-eraser"></i> {{localize "PYRO.Mente.Limpar"}}
+      </button>
+    </header>
+
+    <p class="pyro-nota">{{localize "PYRO.Mente.Dica"}}</p>
+
+    {{!-- Uma condição por atributo: o atributo aparece na ficha porque é a
+          única parte da regra já fechada. --}}
+    <ol class="frase mente">
+      {{#each condicoes as |c|}}
+      <li class="ficha-runa{{#if c.turnos}} escolhida{{/if}}">
+        <div class="runa-topo">
+          <span class="ficha-nome">{{c.nome}}</span>
+        </div>
+        <div class="ficha-meta"><span>{{c.atributoNome}}</span></div>
+        <div class="intencao-ctrl">
+          <button type="button" class="icone" data-action="descerTurnos" data-chave="{{c.chave}}"
+                  title="{{localize 'PYRO.Mente.MenosTurnos'}}"><i class="fa-solid fa-minus"></i></button>
+          <span class="intencao-valor numero" title="{{localize 'PYRO.Mente.Turnos'}}">{{c.turnos}}</span>
+          <button type="button" class="icone" data-action="subirTurnos" data-chave="{{c.chave}}"
+                  title="{{localize 'PYRO.Mente.MaisTurnos'}}"
+                  {{#unless c.podeSubir}}disabled{{/unless}}><i class="fa-solid fa-plus"></i></button>
+        </div>
+        <p class="ficha-previa">
+          {{#if c.turnos}}{{localize "PYRO.Mente.PorTurnos"}} {{c.turnos}}{{else}}—{{/if}}
+        </p>
+      </li>
+      {{/each}}
+    </ol>
+  </section>
+
+  <section class="medidores">
+    <div class="medidor">
+      <div class="medidor-topo">
+        <span class="rotulo">{{localize "PYRO.Mente.Pontos"}}</span>
+        <span class="medidor-valor numero">{{gasto}} / {{pontos}}</span>
+      </div>
+      <p class="medidor-nota">
+        {{#if restam}}{{localize "PYRO.Mente.Restam"}} {{restam}}{{else}}
+        <i class="fa-solid fa-check"></i> {{localize "PYRO.Mente.Fechou"}}{{/if}}
+      </p>
+    </div>
+
+    <div class="medidor">
+      <div class="medidor-topo">
+        <span class="rotulo">{{localize "PYRO.Mente.Alvos"}}</span>
+      </div>
+      <p class="medidor-nota">{{#if semAlvos}}{{localize "PYRO.Avisos.SemAlvoSelecionado"}}{{else}}{{alvos}}{{/if}}</p>
+    </div>
+  </section>
+
+  {{#if dtTexto}}<p class="pyro-nota">{{dtTexto}}</p>{{/if}}
+
+  <footer class="conjurador-rodape">
+    <button type="submit" class="botao-principal" {{#unless podeAplicar}}disabled{{/unless}}>
+      <i class="fa-solid fa-brain"></i> {{localize "PYRO.Mente.Aplicar"}}
+    </button>
+  </footer>
+</div>

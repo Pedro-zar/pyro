@@ -7,7 +7,7 @@
   "folder": "3awu5onxxghypf08",
   "sort": 200000,
   "system": {
-    "descricao": "<p>Adiciona 1 dado ao próximo dano de Frio que o alvo receber, para cada 1 de Intenção.</p>",
+    "descricao": "<p>Adiciona dados ao próximo dano de Frio que o alvo receber, iguais ao Molhado acumulado.</p>",
     "tipoRuna": "elemento",
     "subtipo": "agua",
     "palavra": "",
@@ -21,6 +21,12 @@
         "base": 4,
         "porIntencao": 4,
         "faces": 4
+      },
+      {
+        "nome": "Molhado",
+        "base": 1,
+        "porIntencao": 1,
+        "faces": 0
       }
     ]
   },

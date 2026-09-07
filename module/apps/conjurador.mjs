@@ -304,6 +304,18 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     };
     salvar?.addEventListener("change", atualizarModo);
     atualizarModo();
+
+    /*
+     * Trocar quem o Toque reforça muda a Intenção efetiva da runa escolhida,
+     * e a prévia dela vive na ficha ao lado. Sem este ouvinte o "+X" só se
+     * mexia no próximo clique de Intenção, mostrando a conta antiga.
+     */
+    for (const select of form.querySelectorAll("[name^='alvoToque.']")) {
+      select.addEventListener("change", () => {
+        this.#capturarCampos();
+        this.render();
+      });
+    }
   }
 
   /* ---------------------------------------------------------------------- */

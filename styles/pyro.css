@@ -1633,3 +1633,12 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 .pyro .config-cab.fontes-xp, .pyro .config-linha.fontes-xp {
   grid-template-columns: 1fr 6rem 6rem;
 }
+
+/* Condições mentais: a escolhida ganha destaque na grade. */
+.pyro .frase.mente { display: grid; grid-template-columns: repeat(auto-fill, minmax(9rem, 1fr)); }
+.pyro .frase.mente .ficha-runa.escolhida { border-color: var(--pyro-acento-ficha); }
+
+/* Card da passagem de turno: uma linha por coisa que aconteceu. */
+.pyro-turno-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
+.pyro-turno-lista { list-style: none; margin: 0.3rem 0 0; padding: 0; }
+.pyro-turno-lista li { padding: 0.2rem 0; border-top: 1px solid var(--pyro-borda); font-size: var(--pyro-t-sm); }

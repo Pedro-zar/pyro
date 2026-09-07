@@ -16,6 +16,7 @@ import { PyroActorSheet } from "./sheets/actor-sheet.mjs";
 import { PyroItemSheet } from "./sheets/item-sheet.mjs";
 import { registrarSettings, aplicarSettings } from "./settings.mjs";
 import { registrarMenuChat } from "./chat.mjs";
+import { registrarRelogio } from "./tempo.mjs";
 import { SYSTEM_ID, caminho } from "./sistema.mjs";
 
 Hooks.once("init", () => {
@@ -67,6 +68,8 @@ Hooks.once("init", () => {
   CONFIG.Combat.initiative = { formula: "@dados.agi", decimals: 2 };
 
   registrarMenuChat();
+  // Cada turno do combate vale 6 segundos para todos em cena (SRD §1).
+  registrarRelogio();
 
   // Fontes do sistema, também disponíveis nos editores de texto.
   CONFIG.fontDefinitions["PyroDisplay"] = {

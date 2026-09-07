@@ -10,6 +10,9 @@ import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
 import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe } from "./sistema.mjs";
 import { registrarUso } from "./progressao.mjs";
+import {
+  aplicarQueimando, aplicarMolhado, aplicarFriagem, efeitoComPrazo
+} from "./condicoes.mjs";
 
 /** Linha de sucesso ou falha contra um ND, nos cards de teste. */
 export function htmlResultadoND(sucesso) {
@@ -36,11 +39,29 @@ export function htmlBotaoSorte() {
   </div>`;
 }
 
-/** Atores alvo da aplicação: tokens selecionados, ou o personagem do usuário. */
+/**
+ * Atores alvo da aplicação: tokens selecionados, ou o personagem do usuário.
+ * Dois tokens do mesmo ator vinculado são a mesma pessoa — sem tirar o repetido
+ * o dano cairia duas vezes sobre ela.
+ */
 function alvos() {
   const selecionados = canvas.tokens?.controlled?.map(t => t.actor).filter(Boolean) ?? [];
-  if (selecionados.length) return selecionados;
+  if (selecionados.length) {
+    const vistos = new Set();
+    return selecionados.filter(a => {
+      if (vistos.has(a.uuid)) return false;
+      vistos.add(a.uuid);
+      return true;
+    });
+  }
   return game.user.character ? [game.user.character] : [];
+}
+
+/** Quem conjurou a magia daquele card, para os efeitos que voltam ao próprio. */
+function conjurador(message) {
+  const speaker = message?.speaker;
+  const token = speaker?.token ? canvas.tokens?.get(speaker.token)?.actor : null;
+  return token ?? (speaker?.actor ? game.actors.get(speaker.actor) : null);
 }
 
 /** Mensagem a partir do elemento da lista (aceita HTMLElement ou jQuery). */
@@ -380,9 +401,24 @@ async function aplicarEfeitoDeRegra(message, indice) {
   const dados = flagsDe(message)?.efeitosRegra?.[indice];
   if (!dados) return;
 
-  const destinos = alvos();
+  /*
+   * A Defesa de Pedra é do próprio conjurador ("quem conjura recebe"), e não
+   * de quem estiver selecionado no momento do clique — quem conjurou está no
+   * card, então não há o que escolher.
+   */
+  const proprio = dados.noConjurador ? conjurador(message) : null;
+  const destinos = proprio ? [proprio] : alvos();
   if (!destinos.length) {
     return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemAlvoSelecionado"));
+  }
+
+  /*
+   * Mente não aplica nada sozinha: o mago escolhe quais condições e por quanto
+   * tempo, dentro do que a Intenção comprou. A janela cuida disso e dos alvos.
+   */
+  if (dados.regra === "mental") {
+    const { MenteApp } = await import("./apps/mente.mjs");
+    return new MenteApp({ alvos: destinos, pontos: dados.valor, dt: dados.dt }).render(true);
   }
 
   const nomes = [];
@@ -391,22 +427,41 @@ async function aplicarEfeitoDeRegra(message, indice) {
       ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemPermissao", { nome: actor.name }));
       continue;
     }
-    await ActiveEffect.implementation.create({
-      name: dados.name,
-      img: dados.img,
-      origin: actor.uuid,
-      duration: dados.duration ?? {},
-      statuses: dados.statuses ?? [],
-      // v14: as mudanças moram no system do efeito.
-      system: { changes: dados.changes ?? [] }
-    }, { parent: actor });
+    await aplicarRegraElemental(actor, dados);
     nomes.push(actor.name);
   }
-
   if (nomes.length) {
     ui.notifications.info(game.i18n.format("PYRO.Efeitos.Aplicado", {
       efeito: dados.name, alvos: nomes.join(", ")
     }));
+  }
+}
+
+/**
+ * O que cada regra elemental faz no alvo. Queimando, Molhado e Friagem são
+ * condições que empilham; a defesa da pedra é um efeito comum, com prazo, e
+ * por isso não passa pela contagem de pilhas.
+ */
+async function aplicarRegraElemental(actor, dados) {
+  const valor = Math.max(0, Math.round(Number(dados.valor) || 0));
+  switch (dados.regra) {
+    case "queimando": return aplicarQueimando(actor, valor);
+    case "molhado": return aplicarMolhado(actor, valor);
+    case "friagem": return aplicarFriagem(actor, valor);
+    case "defesaFisica":
+      /*
+       * "Até o fim do próximo turno": dois turnos do próprio, contados pelo
+       * relógio — o que passa agora, quando a vez de quem conjurou termina, e
+       * o seguinte. O prazo vai na flag porque a duração nativa do Foundry só
+       * marca o efeito como vencido, e as mudanças continuariam somando.
+       */
+      return efeitoComPrazo(actor, {
+        name: game.i18n.format("PYRO.Regra.defesaFisica", { valor }),
+        img: "icons/svg/shield.svg",
+        system: {
+          changes: [{ key: "system.defesas.categorias.fisico", type: "add", value: String(valor) }]
+        }
+      }, 2, true);
   }
 }
 

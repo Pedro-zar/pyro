@@ -620,19 +620,22 @@ export async function conjurar(actor, escolhas, {
         continue;
       }
       /*
-       * ND e bônus de mira já entraram na DT e na linha da mira: repeti-los
-       * como número solto faria a mesma precisão parecer dois efeitos.
+       * Três Intenções não viram número solto no card, porque já apareceram
+       * em outro lugar: ND e bônus de mira entraram nos testes, e a que
+       * alimenta um botão de regra (o Molhado da água, a Friagem do gelo) já
+       * está escrita no próprio botão. Todas continuam publicadas como
+       * @variável para os efeitos.
        */
       const chave = chaveVariavel(sc.nome);
-      if (chave === CHAVE_ND || ehBonusDeMira(sc.nome)) {
+      const daRegra = sys.tipoRuna === "elemento"
+        && PYRO.efeitosDeElemento[sys.subtipo]?.de === chave;
+      if (chave === CHAVE_ND || ehBonusDeMira(sc.nome) || daRegra) {
         publicar(sc.nome, valor);
         continue;
       }
       somarNumero(sc.nome || loc("PYRO.Scaling.Efeito"), valor, nomeRuna);
     }
 
-    // Número que o elemento publica sozinho (empurrão do vento, defesa da pedra).
-    if (elCfg?.variavel) variaveis[elCfg.variavel] = pr.intencaoEfetiva;
     if (elCfg?.efeito) efeitosDeTexto.push(loc(elCfg.efeito));
   }
 
@@ -663,6 +666,9 @@ export async function conjurar(actor, escolhas, {
 
   /* --- Dano, um bloco por tipo -------------------------------------------- */
   let seis = 0;
+  // Os 6 contam por tipo de dano: o Queimando do fogo nasce dos dados de calor,
+  // e não de um 6 rolado no gelo que veio junto na mesma frase.
+  const seisPorTipo = new Map();
   for (const [tipo, grupo] of gruposDeDano) {
     const formula = juntarDados(grupo.partes);
     const rotulo = tipo
@@ -677,8 +683,11 @@ export async function conjurar(actor, escolhas, {
     rolls.push(roll);
     if (tipo === "cura") totalCura += roll.total;
     else {
-      danos.push({ tipo, total: roll.total });
-      seis += contarSeis(roll);
+      // A fórmula acompanha o total: é dela que o Molhado tira o dado a somar.
+      danos.push({ tipo, total: roll.total, formula });
+      const doGrupo = contarSeis(roll);
+      seis += doGrupo;
+      seisPorTipo.set(tipo, (seisPorTipo.get(tipo) ?? 0) + doGrupo);
     }
     // O total do grupo vale para cada escalonamento que entrou nele: um efeito
     // que escreve "@dano" recebe o dano daquele tipo, já somado.
@@ -722,9 +731,34 @@ export async function conjurar(actor, escolhas, {
   for (const texto of efeitosDeTexto) partes.push(`<p class="pyro-efeito">${texto}</p>`);
 
   /* --- Efeitos que o card aplica em um clique ----------------------------- */
-  const efeitosRegra = calc.porRuna
-    .filter(pr => pr.item.system.tipoRuna === "elemento" && PYRO.efeitosDeElemento[pr.item.system.subtipo])
-    .map(pr => PYRO.efeitosDeElemento[pr.item.system.subtipo](pr.intencaoEfetiva));
+  /*
+   * O número de cada efeito sai do escalonamento da própria runa, e não de
+   * uma conta escondida aqui: a Água diz quanto Molhado dá, o Gelo quanta
+   * Friagem, e o mestre ajusta isso na runa como ajusta o dano. O Fogo é a
+   * exceção que a regra pede — o Queimando dele vem dos 6 rolados no dano.
+   */
+  const efeitosRegra = [];
+  for (const pr of calc.porRuna) {
+    const sys = pr.item.system;
+    const cfg = sys.tipoRuna === "elemento" ? PYRO.efeitosDeElemento[sys.subtipo] : null;
+    if (!cfg) continue;
+    const valor = cfg.seis
+      ? (seisPorTipo.get(pr.tipoDano || PYRO.elementos[sys.subtipo]?.tipoDano) ?? 0)
+      : (() => {
+          const sc = scalingPorChave(pr.scalings, cfg.de);
+          return sc ? valorEfetivo(pr, sc, calc.passosAlcance) : pr.intencaoEfetiva;
+        })();
+    // Fogo sem nenhum 6 não rendeu Queimando: um botão de zero só engana.
+    if (valor <= 0) continue;
+    efeitosRegra.push({
+      regra: cfg.regra,
+      valor,
+      dt: calc.dt,
+      noConjurador: !!cfg.noConjurador,
+      name: loc(`PYRO.Regra.${cfg.regra}`, { valor }),
+      img: PYRO.condicoes[cfg.regra]?.img ?? PYRO.elementos[sys.subtipo]?.img ?? "icons/svg/aura.svg"
+    });
+  }
   if (efeitosRegra.length) partes.push(htmlEfeitosDeRegra(efeitosRegra));
 
   // Botões dos efeitos de uso: os da magia salva e os das runas da frase.

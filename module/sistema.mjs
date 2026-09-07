@@ -28,3 +28,28 @@ export const flagsDe = doc => doc?.flags?.[SYSTEM_ID] ?? doc?.flags?.pyro;
 
 /** Bloco de flags para dados de criação: { [SYSTEM_ID]: dados }. */
 export const flagsDoSistema = dados => ({ [SYSTEM_ID]: dados });
+
+/*
+ * Fila por documento.
+ *
+ * Aplicar condição, contar exaustão e passar o turno são todos ler-somar-
+ * gravar: dois cliques quase juntos leem o mesmo "não existe" e criam dois
+ * efeitos iguais. Uma fila por ator faz o segundo esperar o primeiro.
+ *
+ * Nada dentro de uma tarefa enfileirada pode enfileirar outra tarefa do mesmo
+ * ator: a de dentro esperaria a de fora, que espera a de dentro, e o turno
+ * trava em silêncio. Por isso o que aplica dano fica fora da fila.
+ */
+const filas = new Map();
+
+export function naFila(doc, tarefa) {
+  const chave = doc?.uuid;
+  if (!chave) return tarefa();
+  const anterior = filas.get(chave) ?? Promise.resolve();
+  const atual = anterior.catch(() => {}).then(tarefa);
+  const marcador = atual.catch(() => {}).then(() => {
+    if (filas.get(chave) === marcador) filas.delete(chave);
+  });
+  filas.set(chave, marcador);
+  return atual;
+}

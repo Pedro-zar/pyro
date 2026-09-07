@@ -287,7 +287,8 @@ export class PyroItem extends Item {
       rolls.push(roll);
       // Sem tipo escolhido, o bônus herda o tipo do ataque que ele acompanha.
       const tipo = bonus.tipo || tipoPadrao || "";
-      danos.push({ tipo, total: roll.total });
+      // A fórmula acompanha a parcela: é dela que o Molhado tira o dado a somar.
+      danos.push({ tipo, total: roll.total, formula: bonus.formula });
       const rotulo = tipo ? game.i18n.localize(PYRO.tiposDano[tipo]?.label ?? tipo) : "";
       partes.push(
         `<p class="pyro-linha-dano dano-${tipo}">${esc(bonus.nome)}${rotulo ? ` — ${rotulo}` : ""}</p>`,
@@ -416,7 +417,7 @@ export class PyroItem extends Item {
       if (!dano.formula?.trim()) continue;
       const roll = await new Roll(expandirAtributos(dano.formula), this.getRollData()).evaluate();
       rolls.push(roll);
-      danos.push({ tipo: dano.tipo, total: roll.total });
+      danos.push({ tipo: dano.tipo, total: roll.total, formula: dano.formula });
       const tipo = game.i18n.localize(PYRO.tiposDano[dano.tipo]?.label ?? dano.tipo ?? "");
       partes.push(`<p class="pyro-linha-dano dano-${dano.tipo}">${tipo}</p>`, await roll.render());
     }
@@ -433,7 +434,7 @@ export class PyroItem extends Item {
       if (municao.system.formula) {
         const extra = await new Roll(expandirAtributos(municao.system.formula), this.getRollData()).evaluate();
         rolls.push(extra);
-        danos.push({ tipo: municao.system.tipoDano, total: extra.total });
+        danos.push({ tipo: municao.system.tipoDano, total: extra.total, formula: municao.system.formula });
         const tipoMun = game.i18n.localize(PYRO.tiposDano[municao.system.tipoDano]?.label ?? "");
         partes.push(`<p><strong>${esc(municao.name)}</strong> — ${game.i18n.localize("PYRO.Municao.DanoExtra")}${tipoMun ? ` (${tipoMun})` : ""}</p>`, await extra.render());
       }

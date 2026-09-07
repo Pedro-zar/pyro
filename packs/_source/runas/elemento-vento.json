@@ -7,7 +7,7 @@
   "folder": "3awu5onxxghypf08",
   "sort": 400000,
   "system": {
-    "descricao": "<p>Empurra o alvo 1m por Intenção. Contra uma parede, causa 1d10 adicional para cada metro que restar.</p>",
+    "descricao": "<p>Empurra o alvo. Contra uma parede, causa 1d10 adicional para cada metro que restar.</p>",
     "tipoRuna": "elemento",
     "subtipo": "vento",
     "palavra": "",
@@ -21,6 +21,12 @@
         "base": 4,
         "porIntencao": 4,
         "faces": 4
+      },
+      {
+        "nome": "Empurrão",
+        "base": 1,
+        "porIntencao": 1,
+        "faces": 0
       }
     ]
   },
