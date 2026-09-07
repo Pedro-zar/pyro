@@ -1593,3 +1593,43 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 .pyro .config-cab.onus, .pyro .config-linha.onus {
   grid-template-columns: 1fr 5rem;
 }
+
+/* -------------------------------------------------------------------------- */
+/*  Atributos e regras gerais (Fase 6)                                        */
+/* -------------------------------------------------------------------------- */
+
+/* Crenças e instintos: três campos empilhados, sem rótulo por linha. */
+.pyro .tracos-persona { display: flex; flex-direction: column; gap: var(--pyro-e-2); }
+.pyro .tracos-persona input[type=text] { width: 100%; }
+
+/* Linha da Força de Vontade gasta, nos cards de teste. */
+.pyro-vontade-gasta {
+  margin: 0.3rem 0 0; font-size: var(--pyro-t-sm); color: var(--pyro-vontade);
+}
+.pyro-vontade-viver { margin: 0; color: var(--pyro-vontade); }
+
+/* Sorte: o botão no card e a grade de dados do diálogo. */
+.pyro-sorte-linha { display: flex; justify-content: flex-end; margin-top: 0.3rem; }
+.pyro .pyro-dados-sorte, .pyro-dados-sorte {
+  display: flex; flex-wrap: wrap; gap: 0.35rem; margin: 0.4rem 0;
+}
+.dado-sorte {
+  display: flex; flex-direction: column; align-items: center; gap: 2px;
+  padding: 0.3rem 0.45rem; min-width: 2.6rem;
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
+  cursor: pointer;
+}
+.dado-sorte:has(input:checked) {
+  border-color: var(--pyro-vontade);
+  background: color-mix(in srgb, var(--pyro-vontade) 12%, transparent);
+}
+.dado-sorte .dado-valor { font-weight: 700; }
+.dado-sorte .dado-faces { font-size: var(--pyro-t-xs); opacity: 0.7; }
+
+/* Desvio do tiro errado. */
+.pyro-desvio { margin-top: 0.4rem; border-left: 3px solid var(--pyro-perigo); padding-left: 0.5rem; }
+
+/* Repartição da XP na compra de um caminho novo. */
+.pyro .config-cab.fontes-xp, .pyro .config-linha.fontes-xp {
+  grid-template-columns: 1fr 6rem 6rem;
+}

@@ -365,3 +365,57 @@ export async function sincronizarSobrepeso(actor) {
   await actor.setFlag(SYSTEM_ID, "sobrepesoExausto", agora);
   await aplicarExaustao(actor, agora ? 1 : -1);
 }
+
+/**
+ * Ensanguentado e Machucado (SRD Atributos): abaixo da metade e abaixo de um
+ * quarto da vida. São estado, não efeito com regra própria, então acompanham
+ * o PV sozinhos — e só a condição posta aqui é retirada, para não apagar uma
+ * que o mestre tenha aplicado à mão.
+ */
+export async function sincronizarEstadoDeVida(actor) {
+  if (!actor?.system?.limiaresPv) return;
+  const estados = { ensanguentado: !!actor.system.ensanguentado, machucado: !!actor.system.machucado };
+  for (const [chave, deveEstar] of Object.entries(estados)) {
+    const nosso = actor.effects?.find?.(e => flagsDe(e)?.estadoDeVida === chave);
+    if (deveEstar === !!nosso) continue;
+    if (deveEstar) {
+      await ActiveEffect.implementation.create({
+        name: game.i18n.localize(PYRO.condicoes[chave].label),
+        img: PYRO.condicoes[chave].img,
+        origin: actor.uuid,
+        statuses: [chave],
+        flags: flagsDoSistema({ estadoDeVida: chave })
+      }, { parent: actor });
+    } else await nosso.delete();
+  }
+}
+
+/**
+ * Desmaio por exaustão (SRD Atributos): com exaustão igual ou maior que o
+ * VIG o personagem apaga, e acorda quando ela cai abaixo de novo.
+ *
+ * O efeito posto aqui é assinado na flag, e só ele é removido quando a
+ * exaustão baixa — um Desmaiado que o mestre aplicou pelo HUD do token por
+ * outro motivo continua onde está.
+ */
+export async function sincronizarDesmaio(actor) {
+  if (!actor) return;
+  const vig = actor.system?.atributos?.vig?.efetivo;
+  if (!vig) return;
+  const deveEstar = nivelExaustao(actor) >= vig;
+  const nosso = actor.effects?.find?.(e => flagsDe(e)?.desmaioPorExaustao);
+  if (deveEstar === !!nosso) return;
+
+  if (deveEstar) {
+    await ActiveEffect.implementation.create({
+      name: game.i18n.localize("PYRO.Exaustao.Desmaio"),
+      img: PYRO.condicoes.desmaiado?.img ?? "icons/svg/unconscious.svg",
+      origin: actor.uuid,
+      statuses: ["desmaiado"],
+      description: game.i18n.localize("PYRO.Exaustao.DesmaioDica"),
+      flags: flagsDoSistema({ desmaioPorExaustao: true })
+    }, { parent: actor });
+    return;
+  }
+  await nosso.delete();
+}

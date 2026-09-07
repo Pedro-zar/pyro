@@ -296,6 +296,15 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // Magia e técnica não têm nem uma coisa nem outra, e o bloco vazio só
       // ocuparia espaço no fim da aba.
       mostrarPropriedades: !["magia", "tecnica"].includes(item.type),
+      /*
+       * Dano mental consome recurso, não Vida (SRD §6). O campo só aparece na
+       * arma que de fato tem uma parcela mental — nas outras seria uma escolha
+       * sem efeito nenhum.
+       */
+      mostrarRecursoMental: item.type === "arma"
+        && (sys.danos ?? []).some(d => PYRO.tiposDano[d.tipo]?.categoria === "mental"),
+      recursosMentaisOpts: Object.fromEntries(Object.entries(PYRO.recursosDrenaveis())
+        .map(([k, label]) => [k, game.i18n.localize(label)])),
       // Prévia do que a runa produz nas primeiras Intenções, já com o
       // multiplicador de efeito da língua (a mesma conta da conjuração).
       previaIntencoes: [1, 2, 3, 4, 5],

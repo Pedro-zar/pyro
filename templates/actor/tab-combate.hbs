@@ -25,6 +25,21 @@
       <h3 class="titulo-secao">{{localize "PYRO.Combate"}}</h3>
       <p class="stat-inline"><i class="fa-solid fa-person-running"></i>
         {{localize "PYRO.Velocidade"}} <span class="valor numero">{{system.velocidade}}m</span></p>
+      {{!-- Voo e natação só aparecem em quem os tem: numa ficha comum os dois
+            seriam duas linhas de zero. --}}
+      {{#if system.deslocamentoAereo}}
+      <p class="stat-inline {{#if system.vooBloqueado}}perigo{{/if}}"
+         title="{{localize 'PYRO.DeslocamentoAereoDica'}}">
+        <i class="fa-solid fa-feather"></i>
+        {{localize "PYRO.DeslocamentoAereo"}}
+        <span class="valor numero">{{system.deslocamentoAereo}}m</span>
+        {{#if system.vooBloqueado}}<i class="fa-solid fa-ban"></i>{{/if}}</p>
+      {{/if}}
+      {{#if system.deslocamentoNatacao}}
+      <p class="stat-inline"><i class="fa-solid fa-person-swimming"></i>
+        {{localize "PYRO.DeslocamentoNatacao"}}
+        <span class="valor numero">{{system.deslocamentoNatacao}}m</span></p>
+      {{/if}}
       <div class="botoes-reacao">
         <button type="button" data-action="rolarEsquiva"
                 title="{{localize 'PYRO.EsquivaTooltip'}}">{{localize "PYRO.Esquivar"}} ({{system.esquiva}})</button>
@@ -38,14 +53,20 @@
         </button>
       </div>
 
+      {{!-- Benefício e Inspiração Divina são escolhidos no diálogo do teste, e
+            a Sorte no card da rolagem. Aqui fica só o uso que depende do
+            estado da ficha: agarrar-se à vida a 0 PV. --}}
       <h3 class="titulo-secao">{{localize "PYRO.Vontade.Nome"}}</h3>
       <div class="botoes-reacao vontade">
-        <button type="button" data-action="gastarVontade" data-pontos="1"
-                title="{{localize 'PYRO.Vontade.Uso1'}}">1</button>
-        <button type="button" data-action="gastarVontade" data-pontos="2"
-                title="{{localize 'PYRO.Vontade.Uso2'}}">2</button>
-        <button type="button" data-action="gastarVontade" data-pontos="3"
-                title="{{localize 'PYRO.Vontade.Uso3'}}">3</button>
+        {{#if podeVontadeDeViver}}
+        <button type="button" data-action="vontadeDeViver"
+                title="{{localize 'PYRO.Vontade.ViverDica'}}">
+          <i class="fa-solid fa-heart-pulse"></i>
+          {{localize "PYRO.Vontade.Viver"}} ({{custoVontadeDeViver}})
+        </button>
+        {{else}}
+        <p class="pyro-nota">{{localize "PYRO.Vontade.OndeGastar"}}</p>
+        {{/if}}
       </div>
 
       <h3 class="titulo-secao">{{localize "PYRO.Exaustao.Nome"}}</h3>

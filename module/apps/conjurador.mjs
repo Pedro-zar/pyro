@@ -1,5 +1,5 @@
 import { PYRO } from "../config.mjs";
-import { calcular, conjurar, previaRuna, regraDoGesto } from "../magia.mjs";
+import { calcular, conjurar, previaRuna, regraDoGesto, temDanoMental } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
 
@@ -21,6 +21,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     this.fixa = fixa;
     /** Item de magia de origem, quando veio do grimório (leva os efeitos de uso). */
     this.itemMagia = itemMagia;
+    /** Recurso que o dano mental desta conjuração drena (SRD §6). */
+    this.recursoMental = "mana";
   }
 
   /** Conjurando uma magia salva, o título é o nome dela. */
@@ -181,6 +183,15 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         ? game.i18n.format("PYRO.Conjurador.Maos", { usadas: calc.maos, total: maosDisponiveis })
         : "",
       podeConjurar,
+      /*
+       * Dano mental não tira Vida: escolher de qual recurso ele sai é parte
+       * da conjuração, e não da hora de aplicar no chat. O select só aparece
+       * quando a frase tem de fato um elemento mental.
+       */
+      pedeRecursoMental: temDanoMental(calc.porRuna),
+      recursosMentais: Object.fromEntries(Object.entries(PYRO.recursosDrenaveis())
+        .map(([k, label]) => [k, loc(label)])),
+      recursoMental: this.recursoMental,
       fixa: this.fixa,
       nomeMagia: this.nomeMagia
     });
@@ -201,6 +212,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       const indice = Number(select.name.split(".")[1]);
       if (this.frase[indice]) this.frase[indice].alvoToque = select.value;
     }
+    this.recursoMental = form.querySelector("[name=recursoMental]")?.value ?? this.recursoMental;
     this.salvar = form.querySelector("[name=salvar]")?.checked ?? this.salvar;
     this.rolarDano = form.querySelector("[name=rolarDano]")?.checked ?? this.rolarDano;
   }
@@ -294,7 +306,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // Magia salva: sem re-salvar e o dano rola sempre.
     if (this.fixa) {
       await conjurar(this.actor, escolhas, {
-        nomeMagia: this.nomeMagia, rolarDano: true, itemMagia: this.itemMagia
+        nomeMagia: this.nomeMagia, rolarDano: true, itemMagia: this.itemMagia,
+        recursoMental: this.recursoMental
       });
       return this.close();
     }
@@ -329,7 +342,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     await conjurar(this.actor, escolhas, {
       nomeMagia: dados.nomeMagia?.trim() || null,
-      rolarDano: !!dados.rolarDano
+      rolarDano: !!dados.rolarDano,
+      recursoMental: this.recursoMental
     });
     return this.close();
   }

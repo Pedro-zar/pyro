@@ -107,11 +107,12 @@ export function calcularEsforco(actor, usados) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Ataques que a ficha oferece: as armas e o ataque desarmado, na mesma forma,
- * para o filtro da especificidade e o Executor tratarem os dois igual.
+ * Ataques que a ficha oferece. São as armas do inventário, incluindo as
+ * marcadas como ataque desarmado — soco e chute são itens como qualquer
+ * outro aqui, montados por quem joga.
  */
 export function ataquesDoAtor(actor) {
-  const lista = actor.items
+  return actor.items
     .filter(i => i.type === "arma")
     .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
     .map(item => ({
@@ -122,23 +123,8 @@ export function ataquesDoAtor(actor) {
       acoes: item.system.acoes ?? 2,
       alcanceMenor: item.system.alcanceMenor ?? 0,
       alcanceMaximo: item.system.alcanceMaximo ?? 0,
-      desarmado: false
+      desarmado: !!item.system.desarmado
     }));
-
-  // O desarmado não é item da ficha, e ainda assim é um ataque como outro
-  // qualquer: entra na lista com o mesmo formato, e com o id do filtro de
-  // tipo que o seleciona.
-  lista.push({
-    id: PYRO.FILTRO_DESARMADO,
-    nome: loc("PYRO.Tecnica.Desarmado"),
-    item: null,
-    danos: [{ formula: "1d8 + [FOR]", tipo: "impacto" }],
-    acoes: 2,
-    alcanceMenor: 0,
-    alcanceMaximo: 0,
-    desarmado: true
-  });
-  return lista;
 }
 
 /** Família de uma arma pelo custo em ações (SRD Técnicas: leve, média, pesada). */

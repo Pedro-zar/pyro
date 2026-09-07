@@ -1,9 +1,11 @@
 /**
- * Chat do PYRO: menu de contexto das mensagens e o rodapé dos cards do
- * sistema — fichas de dano por tipo e botões de aplicar dano/cura direto no
- * card. Menu e rodapé aplicam a mesma coisa; o rodapé é o caminho principal.
+ * Chat do PYRO: menu de contexto das mensagens, o rodapé dos cards do sistema
+ * — fichas de dano por tipo e botões de aplicar dano/cura direto no card — e
+ * os botões que agem sobre a rolagem já feita (contar uso, Sorte).
+ * Menu e rodapé aplicam a mesma coisa; o rodapé é o caminho principal.
  */
 
+import { PYRO } from "./config.mjs";
 import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
 import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe } from "./sistema.mjs";
@@ -18,6 +20,20 @@ export function htmlResultadoND(sucesso) {
 /** Card de pool zerada por desvantagens. */
 export function htmlFalhaAutomatica() {
   return `<p class="pyro-falha-auto">${game.i18n.localize("PYRO.Chat.FalhaAutomatica")}</p>`;
+}
+
+/**
+ * Botão de Sorte (SRD Atributos): por 1 ponto de Força de Vontade, re-rola os
+ * dados escolhidos de uma rolagem recém feita. Só entra em card que tenha
+ * dados para re-rolar; quem não tem ponto vê o aviso ao clicar, e não um
+ * botão que some — a regra existe mesmo quando o personagem não pode pagá-la.
+ */
+export function htmlBotaoSorte() {
+  return `<div class="pyro-sorte-linha">
+    <button type="button" class="pyro-sorte">
+      <i class="fa-solid fa-clover"></i> ${game.i18n.localize("PYRO.Vontade.Sorte")}
+    </button>
+  </div>`;
 }
 
 /** Atores alvo da aplicação: tokens selecionados, ou o personagem do usuário. */
@@ -42,10 +58,16 @@ function mensagemDe(li) {
 function totais(message) {
   const flags = flagsDe(message);
   if (flags?.danos || flags?.cura !== undefined) {
-    return { danos: flags.danos ?? [], cura: flags.cura ?? 0 };
+    return {
+      danos: flags.danos ?? [],
+      cura: flags.cura ?? 0,
+      // Qual recurso o dano mental drena foi decidido por quem atacou, e vem
+      // no card (SRD §6). Sem declaração, a mana.
+      recursoMental: flags.recursoMental ?? "mana"
+    };
   }
   const soma = (message?.rolls ?? []).reduce((t, r) => t + (r.total ?? 0), 0);
-  return { danos: [{ tipo: "", total: soma }], cura: soma };
+  return { danos: [{ tipo: "", total: soma }], cura: soma, recursoMental: "mana" };
 }
 
 function temRolagem(li) {
@@ -56,7 +78,7 @@ function temRolagem(li) {
 /** Aplica em todos os alvos e resume num único aviso. */
 async function aplicarEm(msg, tipo, multiplicador = 1) {
   if (!msg) return;
-  const { danos, cura } = totais(msg);
+  const { danos, cura, recursoMental } = totais(msg);
   const destinos = alvos();
 
   if (!destinos.length) {
@@ -72,9 +94,13 @@ async function aplicarEm(msg, tipo, multiplicador = 1) {
     const somaBruta = danos.reduce((soma, d) => soma + d.total, 0);
     if (tipo === "cura") resumos.push(await actor.aplicarCura(cura * multiplicador));
     else if (tipo === "estamina") resumos.push(await actor.aplicarEstamina(somaBruta * multiplicador));
-    else if (tipo === "mental") resumos.push(await actor.aplicarDano(danos, { multiplicador, mental: true }));
-    else if (tipo === "cheio") resumos.push(await actor.aplicarDano(danos, { multiplicador, ignorarDefesa: true }));
-    else resumos.push(await actor.aplicarDano(danos, { multiplicador }));
+    else if (tipo === "mental") {
+      resumos.push(await actor.aplicarDano(danos, { multiplicador, mental: true, recursoMental }));
+    }
+    else if (tipo === "cheio") {
+      resumos.push(await actor.aplicarDano(danos, { multiplicador, ignorarDefesa: true, recursoMental }));
+    }
+    else resumos.push(await actor.aplicarDano(danos, { multiplicador, recursoMental }));
   }
   if (resumos.length) ui.notifications.info(resumos.join(" · "));
 }
@@ -213,7 +239,109 @@ export function registrarMenuChat() {
       botao.addEventListener("click", () => aplicarEfeitoDeRegra(message, Number(botao.dataset.indice)));
     }
     prepararBotaoContarUso(message, element);
+    prepararBotaoSorte(message, element);
     injetarRodape(message, element);
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Sorte (Força de Vontade)                                                  */
+/* -------------------------------------------------------------------------- */
+
+/** Todos os dados ativos das rolagens de uma mensagem, achatados e numerados. */
+function dadosDaMensagem(message) {
+  const lista = [];
+  (message?.rolls ?? []).forEach((roll, iRoll) => {
+    roll.dice.forEach((termo, iTermo) => {
+      termo.results.forEach((res, iRes) => {
+        if (res.active === false) return;
+        lista.push({ id: `${iRoll}.${iTermo}.${iRes}`, faces: termo.faces, valor: res.result });
+      });
+    });
+  });
+  return lista;
+}
+
+/**
+ * Sorte: re-rola os dados que o jogador escolher, por 1 ponto de Força de
+ * Vontade. O card original fica como está e o resultado sai num card novo —
+ * a rolagem antiga é parte do que aconteceu na mesa, e reescrevê-la apagaria
+ * o motivo de alguém ter gastado o ponto.
+ */
+function prepararBotaoSorte(message, element) {
+  const botao = element.querySelector(".pyro-sorte");
+  if (!botao) return;
+  if (flagsDe(message)?.sorteUsada) {
+    botao.disabled = true;
+    botao.innerHTML = `<i class="fa-solid fa-check"></i> ${game.i18n.localize("PYRO.Vontade.SorteUsada")}`;
+    return;
+  }
+  botao.addEventListener("click", () => usarSorte(message));
+}
+
+async function usarSorte(message) {
+  const actor = ChatMessage.getSpeakerActor(message.speaker);
+  if (!actor?.isOwner) {
+    return ui.notifications.warn(game.i18n.localize("PYRO.Vontade.SemPermissao"));
+  }
+  if (actor.system.recursos.vontade.value < PYRO.CUSTO_SORTE) {
+    return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemVontade"));
+  }
+  const dados = dadosDaMensagem(message);
+  if (!dados.length) return ui.notifications.warn(game.i18n.localize("PYRO.Vontade.SemDados"));
+
+  const escolha = await foundry.applications.api.DialogV2.wait({
+    window: { title: game.i18n.localize("PYRO.Vontade.Sorte") },
+    content: `<p class="hint">${game.i18n.localize("PYRO.Vontade.SorteDica")}</p>
+      <div class="pyro-dados-sorte">${dados.map(d =>
+        `<label class="dado-sorte"><input type="checkbox" name="${d.id}" />
+          <span class="dado-valor numero">${d.valor}</span>
+          <span class="dado-faces">d${d.faces}</span></label>`).join("")}</div>`,
+    buttons: [
+      { action: "ok", label: game.i18n.localize("PYRO.Vontade.ReRolar"), default: true,
+        callback: (event, botao, dialogo) =>
+          Array.from(dialogo.element.querySelectorAll("input:checked")).map(i => i.name) },
+      { action: "cancelar", label: game.i18n.localize("PYRO.Cancelar") }
+    ],
+    rejectClose: false
+  });
+  if (!Array.isArray(escolha) || !escolha.length) return;
+
+  const escolhidos = dados.filter(d => escolha.includes(d.id));
+  const formula = escolhidos.map(d => `1d${d.faces}`).join(" + ");
+  const roll = await new Roll(formula).evaluate();
+  const antes = escolhidos.reduce((t, d) => t + d.valor, 0);
+  const totalAntigo = (message.rolls ?? []).reduce((t, r) => t + (r.total ?? 0), 0);
+
+  /*
+   * A Força de Vontade é relida agora, e não antes do diálogo: a janela fica
+   * aberta o tempo que o jogador quiser, e ele pode ter gasto os pontos em
+   * outro teste nesse meio. Cobrar sobre o número antigo devolveria pontos já
+   * gastos.
+   */
+  const disponivel = actor.system.recursos.vontade.value;
+  if (disponivel < PYRO.CUSTO_SORTE) {
+    return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemVontade"));
+  }
+  await actor.update({ "system.recursos.vontade.value": disponivel - PYRO.CUSTO_SORTE });
+  if (message.isAuthor || game.user.isGM) {
+    await message.update({ [`flags.${SYSTEM_ID}.sorteUsada`]: true });
+  }
+
+  return ChatMessage.create({
+    speaker: message.speaker,
+    flavor: game.i18n.localize("PYRO.Vontade.Sorte"),
+    content: `<div class="pyro-chat pyro-teste">
+      <p class="pyro-nota">${game.i18n.format("PYRO.Vontade.SorteTrocou", {
+        n: escolhidos.length, antes, depois: roll.total
+      })}</p>
+      ${await roll.render()}
+      <p class="pyro-resultado">${game.i18n.format("PYRO.Vontade.SorteNovoTotal", {
+        total: totalAntigo - antes + roll.total
+      })}</p>
+    </div>`,
+    rolls: [roll],
+    sound: CONFIG.sounds.dice
   });
 }
 

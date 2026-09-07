@@ -318,6 +318,18 @@ export function calcular(actor, escolhas, itemMagia = null) {
 /*  Conjuração                                                                */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * A frase causa dano mental? É o que decide se a conjuração precisa escolher
+ * qual recurso do alvo o dano drena (SRD §6).
+ */
+export function temDanoMental(porRuna) {
+  return porRuna.some(pr => {
+    const sys = pr.item.system;
+    const cfg = sys.tipoRuna === "elemento" ? PYRO.elementos[sys.subtipo] : null;
+    return (pr.tipoDano || cfg?.tipoDano) === "mental";
+  });
+}
+
 /** Quantos 6 saíram na rolagem: é por 6 que o fogo aumenta o Queimando. */
 function contarSeis(roll) {
   let total = 0;
@@ -335,7 +347,7 @@ function contarSeis(roll) {
  * @param {object} [opcoes.itemMagia] magia do grimório de origem, quando houver.
  */
 export async function conjurar(actor, escolhas, {
-  nomeMagia = null, rolarDano = true, itemMagia = null
+  nomeMagia = null, rolarDano = true, itemMagia = null, recursoMental = "mana"
 } = {}) {
   if (!escolhas.length) return;
 
@@ -614,7 +626,12 @@ export async function conjurar(actor, escolhas, {
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<div class="pyro-chat">${partes.join("")}</div>`,
     rolls,
-    flags: flagsDoSistema({ danos, cura: totalCura, variaveis, efeitosRegra, ...flagsDaClasse(classe, itemMagia) }),
+    flags: flagsDoSistema({
+      danos, cura: totalCura, variaveis, efeitosRegra,
+      // Qual recurso o dano mental drena é escolha da conjuração (SRD §6).
+      recursoMental,
+      ...flagsDaClasse(classe, itemMagia)
+    }),
     sound: CONFIG.sounds.dice
   });
 }

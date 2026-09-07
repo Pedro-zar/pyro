@@ -1,0 +1,68 @@
+<div class="conjurador-corpo">
+  <section class="frase-area">
+    <header class="secao-topo">
+      <h3 class="titulo-secao">{{localize "PYRO.NovoCaminho.DeOnde"}}</h3>
+      {{#if temFontes}}
+      <button type="button" class="botao-secao" data-action="distribuir">
+        <i class="fa-solid fa-wand-magic-sparkles"></i> {{localize "PYRO.NovoCaminho.Distribuir"}}
+      </button>
+      <button type="button" class="botao-secao" data-action="limpar">
+        <i class="fa-solid fa-eraser"></i> {{localize "PYRO.NovoCaminho.Limpar"}}
+      </button>
+      {{/if}}
+    </header>
+
+    <p class="pyro-nota">{{custoTexto}}</p>
+
+    {{#if temFontes}}
+    <div class="config-cab fontes-xp">
+      <span>{{localize "TYPES.Item.caminho"}}</span>
+      <span>{{localize "PYRO.XpDisponivel"}}</span>
+      <span>{{localize "PYRO.NovoCaminho.Usar"}}</span>
+    </div>
+    {{#each fontes as |f|}}
+    <div class="config-linha fontes-xp">
+      <span>{{f.nome}}</span>
+      <span class="valor-texto numero">{{f.disponivel}}</span>
+      <input type="number" name="fonte.{{f.id}}" value="{{f.valor}}" min="0" max="{{f.disponivel}}" />
+    </div>
+    {{/each}}
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.NovoCaminho.SemCaminhos"}}</p>
+    {{/if}}
+  </section>
+
+  <section class="medidores">
+    <div class="medidor {{#if excedeu}}alerta{{/if}}">
+      <div class="medidor-topo">
+        <span class="rotulo">{{localize "PYRO.NovoCaminho.Somado"}}</span>
+        <span class="medidor-valor numero {{#if excedeu}}perigo{{/if}}">{{somado}} / {{custo}}</span>
+      </div>
+      <p class="medidor-nota">
+        {{#if excedeu}}
+        <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
+          {{localize "PYRO.NovoCaminho.Excedeu"}}</span>
+        {{else if falta}}
+        {{localize "PYRO.NovoCaminho.Falta"}} {{falta}}
+        {{else}}
+        <i class="fa-solid fa-check"></i> {{localize "PYRO.NovoCaminho.Fechou"}}
+        {{/if}}
+      </p>
+    </div>
+  </section>
+
+  {{#if semXpSuficiente}}
+  <p class="pyro-aviso"><i class="fa-solid fa-triangle-exclamation"></i>
+    {{localize "PYRO.NovoCaminho.SemXp"}}</p>
+  {{/if}}
+
+  {{!-- A Experiência é só metade do preço: o SRD pede uma motivação na
+        história para o caminho novo, e essa parte é com a mesa. --}}
+  <p class="pyro-nota">{{localize "PYRO.NovoCaminho.Motivacao"}}</p>
+
+  <footer class="conjurador-rodape">
+    <button type="submit" class="botao-principal" {{#unless podeComprar}}disabled{{/unless}}>
+      <i class="fa-solid fa-route"></i> {{localize "PYRO.NovoCaminho.Comprar"}}
+    </button>
+  </footer>
+</div>

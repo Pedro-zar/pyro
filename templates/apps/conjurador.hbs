@@ -112,6 +112,15 @@
     </div>
   </section>
 
+  {{!-- Dano mental não tira Vida: quem conjura escolhe de qual recurso do
+        alvo ele sai (SRD §6). --}}
+  {{#if pedeRecursoMental}}
+  <label class="campo largo recurso-mental">
+    <span class="rotulo">{{localize "PYRO.Magia.RecursoMental"}}</span>
+    <select name="recursoMental">{{selectOptions recursosMentais selected=recursoMental}}</select>
+  </label>
+  {{/if}}
+
   {{#if faltaElemento}}
   <p class="pyro-aviso"><i class="fa-solid fa-triangle-exclamation"></i>
     {{localize "PYRO.Conjurador.FaltaElemento"}}</p>

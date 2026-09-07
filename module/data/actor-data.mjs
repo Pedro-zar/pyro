@@ -56,7 +56,13 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     }
 
     return {
-      det: num(1, { min: 1 }),
+      /*
+       * Determinação (SRD Atributos). Aceita 0 porque a regra opcional do
+       * prólogo começa aí; tudo que a DET governa já cai sozinho no lugar
+       * nessa ponta — o multiplicador de recursos vira 0,9, a Força de
+       * Vontade máxima vira 0 e a Intenção e o Esforço seguros também.
+       */
+      det: num(1, { min: 0 }),
       tamanho: new fields.StringField({
         required: true, initial: "medio", choices: Object.keys(PYRO.tamanhos)
       }),
@@ -75,6 +81,15 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
        */
       velocidadeBonus: num(0),
       velocidadeMult: dec(1, { min: 0 }),
+
+      /*
+       * Voar e nadar não têm base derivada de atributo: ou a criatura tem, ou
+       * não tem. Zero é o normal, e é por isso que a ficha só mostra estes
+       * dois quando são diferentes de zero — asas e guelras são exceção, não
+       * uma linha vazia na ficha de todo mundo.
+       */
+      deslocamentoAereo: num(0, { min: 0 }),
+      deslocamentoNatacao: num(0, { min: 0 }),
 
       /*
        * Dados a mais nas reações, em dados inteiros: +2 no bloqueio é "mais
@@ -100,7 +115,9 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
         estamina: recurso(80),  // VIG 8 x 10
         mana: recurso(40),      // SAB 8 x 5
         energia: recurso(40),   // PRE 8 x 5
-        vontade: recurso(5),    // DET 1 x 5
+        // Todo personagem começa a jornada com 0 pontos (SRD Atributos): o
+        // máximo é DET x 5, mas eles são conquistados em jogo, não dados.
+        vontade: recurso(0),
         // Recursos personalizados definidos nas configurações do mundo.
         ...Object.fromEntries(
           Object.keys(PYRO.recursosCustom ?? {}).map(chave => [chave, recurso(0)])
@@ -121,6 +138,17 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       }),
 
       dinheiro: num(0, { min: 0 }),
+
+      /*
+       * Crenças e instintos (SRD §11): três de cada, em campos fixos. São
+       * traços de interpretação, e é deles que saem os pontos de Força de
+       * Vontade — por isso moram na ficha, e não numa anotação solta.
+       */
+      crencas: new fields.ArrayField(new fields.StringField({ required: true, initial: "" }),
+        { initial: ["", "", ""] }),
+      instintos: new fields.ArrayField(new fields.StringField({ required: true, initial: "" }),
+        { initial: ["", "", ""] }),
+
       biografia: new fields.HTMLField(),
       // Campos de mesa: dois fixos e dois de título livre.
       pessoas: new fields.HTMLField(),
@@ -141,7 +169,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
   prepareDerivedData() {
     const det = this.det;
 
-    // Multiplicador de patamar: +10% por DET acima de 1.
+    // Multiplicador de patamar: +10% por DET acima de 1, e −10% na DET 0.
     this.multi = 1 + 0.1 * (det - 1);
 
     /* --- Atributos: limite por DET e valor efetivo (SRD Atributos) ------- */
@@ -158,7 +186,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
         game.i18n.format("PYRO.BonusOrigem.base", { valor: attr.valor }),
         attr.bonusTotal ? game.i18n.format("PYRO.BonusOrigem.efeitos", { valor: comSinal(attr.bonusTotal) }) : null
       ].filter(Boolean).join(" · ");
-      attr.limite = 15 * det;
+      attr.limite = PYRO.tetoDeAtributo(det);
       attr.efetivo = attr.total <= attr.limite
         ? attr.total
         : attr.limite + Math.floor((attr.total - attr.limite) / 2);
@@ -244,6 +272,22 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       + recursos.energia.bonus;
     recursos.energia.recuperacao = recuperacao;
     recursos.vontade.max = det * 5 + recursos.vontade.bonus;
+
+    /*
+     * Ensanguentado abaixo da metade da vida, Machucado abaixo de um quarto
+     * (SRD Atributos). Por si não fazem nada — são o gancho de que habilidades
+     * e a Vontade de Viver precisam, e o que a ficha mostra de estado.
+     *
+     * O limiar arredonda para cima porque a regra é "menos que": com 30 de
+     * vida máxima, Machucado começa abaixo de 8, e não abaixo de 7.
+     */
+    this.limiaresPv = {
+      ensanguentado: Math.ceil(recursos.pv.max / 2),
+      machucado: Math.ceil(recursos.pv.max / 4)
+    };
+    this.ensanguentado = recursos.pv.value > 0 && recursos.pv.value < this.limiaresPv.ensanguentado;
+    this.machucado = recursos.pv.value > 0 && recursos.pv.value < this.limiaresPv.machucado;
+    this.caido = recursos.pv.value <= 0;
 
     // Recursos personalizados: (base + atributo x porPonto) +10% por patamar.
     for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
@@ -393,6 +437,18 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.carga.bonus = cargaExtra;
     this.carga.max += cargaExtra;
     this.sobrepeso = this.carga.atual > this.carga.max;
+
+    /*
+     * Voo e natação não passam pelo bônus e pelo multiplicador da velocidade
+     * terrestre: uma Lentidão que corta o passo pela metade não corta o voo,
+     * que é outro deslocamento. Quem quiser mexer neles mexe no campo.
+     *
+     * O voo é a única exceção: sobrepeso o desliga (SRD, Regras Gerais), e por
+     * isso ele é lido depois da carga estar fechada.
+     */
+    this.voando = this.deslocamentoAereo > 0 && !this.sobrepeso;
+    this.vooBloqueado = this.deslocamentoAereo > 0 && this.sobrepeso;
+    this.temDeslocamentoExtra = this.deslocamentoAereo > 0 || this.deslocamentoNatacao > 0;
 
     /* --- Defesas totais: base + equipamento ------------------------------- */
     const defesas = this.defesas;

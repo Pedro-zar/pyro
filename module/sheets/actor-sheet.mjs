@@ -4,6 +4,7 @@
  */
 import { PYRO } from "../config.mjs";
 import { ConjuradorApp } from "../apps/conjurador.mjs";
+import { NovoCaminhoApp } from "../apps/novo-caminho.mjs";
 import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
 import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDoEfeito } from "../efeitos.mjs";
@@ -76,11 +77,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       rolarEsquiva: PyroActorSheet.#rolarEsquiva,
       rolarBloqueio: PyroActorSheet.#rolarBloqueio,
       tomarAr: PyroActorSheet.#tomarAr,
-      gastarVontade: PyroActorSheet.#gastarVontade,
+      vontadeDeViver: PyroActorSheet.#vontadeDeViver,
       ajustarExaustao: PyroActorSheet.#ajustarExaustao,
       recuperar: PyroActorSheet.#recuperar,
       abrirRecuperacao: PyroActorSheet.#abrirRecuperacao,
       abrirConjurador: PyroActorSheet.#abrirConjurador,
+      abrirNovoCaminho: PyroActorSheet.#abrirNovoCaminho,
       alternarPostura: PyroActorSheet.#alternarPostura,
       abrirGuiaAcoes: PyroActorSheet.#abrirGuiaAcoes,
       criarItem: PyroActorSheet.#criarItem,
@@ -637,6 +639,19 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ].filter(Boolean).join(","),
       efeitos: this.#categoriasEfeitos(),
       exaustao: nivelExaustao(actor),
+      // A DET só chega a 0 onde a mesa ligou a regra do prólogo.
+      detMin: PYRO.regraAtiva("det0") ? 0 : 1,
+      /*
+       * Força de Vontade: os dois usos que dependem do estado da ficha, e não
+       * de uma rolagem em andamento. Benefício e Inspiração vivem no diálogo
+       * de teste, e a Sorte no card da rolagem — nenhum dos dois cabe aqui.
+       */
+      podeVontadeDeViver: actor.system.caido
+        && actor.system.recursos.vontade.value >= PYRO.CUSTO_VONTADE_DE_VIVER,
+      custoVontadeDeViver: PYRO.CUSTO_VONTADE_DE_VIVER,
+      // Caminho novo custa 10 x os que já tem (SRD §2), e o botão mostra o
+      // preço antes de abrir a janela de repartir a XP.
+      custoNovoCaminho: PYRO.custoDoCaminhoNovo(caminhos.length),
       /*
        * Barra de posturas: uma por habilidade marcada como postura, com a
        * ativa em destaque. Só uma vale por vez (SRD Técnicas), e é por isso
@@ -687,6 +702,22 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return context;
   }
 
+  /**
+   * Campos indexados (system.crencas.0) chegam do expandObject como objeto de
+   * chaves numéricas. Os ArrayFields quebram assim, então voltam a ser array
+   * antes do update — mesma correção que a ficha de item faz.
+   */
+  _processFormData(event, form, formData) {
+    const data = super._processFormData(event, form, formData);
+    const sys = data.system ?? {};
+    for (const chave of ["crencas", "instintos"]) {
+      if (sys[chave] && !Array.isArray(sys[chave])) {
+        sys[chave] = Object.values(sys[chave]).map(v => String(v ?? ""));
+      }
+    }
+    return data;
+  }
+
   /* ---------------------------------------------------------------------- */
   /*  Actions                                                               */
   /* ---------------------------------------------------------------------- */
@@ -714,8 +745,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     await this.actor.alternarPostura(this.actor.items.get(target.dataset.itemId));
   }
 
-  static async #gastarVontade(event, target) {
-    await this.actor.gastarVontade(Number(target.dataset.pontos));
+  static async #vontadeDeViver() {
+    await this.actor.vontadeDeViver();
   }
 
   /** -1/+1 de exaustão à mão: mesma trilha da sobrecarga e do sobrepeso. */
@@ -732,6 +763,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   static #abrirConjurador() {
     new ConjuradorApp({ actor: this.actor }).render(true);
+  }
+
+  static #abrirNovoCaminho() {
+    new NovoCaminhoApp({ actor: this.actor }).render(true);
   }
 
   static #abrirGuiaAcoes() {

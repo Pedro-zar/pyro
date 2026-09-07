@@ -20,6 +20,21 @@ PYRO.atributos = {
   pre: "PYRO.Atributos.pre"
 };
 
+/**
+ * Teto de atributo por Determinação (SRD Atributos). O SRD lista 15, 15, 20,
+ * 30, 45, 65, 90 e 120 até a DET 7, e a regra por trás é "cada degrau soma
+ * 5 × (DET − 1) ao anterior" — é ela que está aqui, e não a lista, para uma
+ * campanha que passe da DET 7 continuar tendo teto.
+ *
+ * DET 0 e DET 1 param no mesmo 15: o primeiro degrau soma 5 × 0.
+ */
+PYRO.tetoDeAtributo = det => {
+  const alvo = Math.max(0, Math.round(Number(det) || 0));
+  let teto = 15;
+  for (let d = 1; d <= alvo; d++) teto += 5 * (d - 1);
+  return teto;
+};
+
 /** Tabela de Dados (SRD): índice = valor do atributo (1–50). */
 PYRO.tabelaDados = [null,
   "1",    "1d2",  "1d4",  "1d6",  "1d8",  "1d10", "1d12", "2d6",  "2d8",  "3d6",
@@ -519,6 +534,13 @@ PYRO.tiers = Object.fromEntries(
   Array.from({ length: 9 }, (_, i) => [i + 1, `PYRO.Tier.${i + 1}`])
 );
 
+/**
+ * Custo de um Caminho novo (SRD §2): 10 x o número de caminhos que o
+ * personagem já tem — o 4º custa 30, o 5º custa 40. Pode ser pago com a
+ * Experiência de vários caminhos ao mesmo tempo.
+ */
+PYRO.custoDoCaminhoNovo = quantos => 10 * Math.max(0, Math.round(Number(quantos) || 0));
+
 /** Caminho sem regra nenhuma paga o custo cheio do tier. */
 PYRO.progressaoPadrao = { chave: "", label: "", multiplicador: 1 };
 
@@ -583,6 +605,34 @@ PYRO.regrasOpcionais = {
 PYRO.regrasAtivas = {};
 
 PYRO.regraAtiva = chave => !!PYRO.regrasAtivas?.[chave];
+
+/**
+ * Recursos que o dano mental pode consumir (SRD §6): ele não tira Vida, e sim
+ * "os recursos do alvo". Qual deles é escolha de quem ataca, declarada na arma
+ * ou na conjuração — não de quem aplica o dano no chat.
+ *
+ * Os recursos próprios do mundo (Energia Natural e afins) entram junto, então
+ * a lista é montada na hora e não fixada aqui.
+ */
+PYRO.recursosDrenaveis = () => ({
+  mana: "PYRO.Recursos.mana",
+  estamina: "PYRO.Recursos.estamina",
+  energia: "PYRO.Recursos.energia",
+  ...Object.fromEntries(
+    Object.entries(PYRO.recursosCustom ?? {}).map(([chave, cfg]) => [chave, cfg.label])
+  )
+});
+
+/* -------------------------------------------------------------------------- */
+/*  Força de Vontade                                                          */
+/* -------------------------------------------------------------------------- */
+
+/** Sorte: re-rola os dados escolhidos de uma rolagem recém feita. */
+PYRO.CUSTO_SORTE = 1;
+/** Vontade de Viver: a 0 PV, o personagem se agarra à vida e não cai. */
+PYRO.CUSTO_VONTADE_DE_VIVER = 2;
+/** Inspiração Divina: o atributo daquela rolagem vale o dobro. */
+PYRO.CUSTO_INSPIRACAO = 5;
 
 /** Como a habilidade se comporta na ficha. */
 PYRO.categoriasHabilidade = {
@@ -793,6 +843,10 @@ PYRO.condicoes = {
   culpado:   { label: "PYRO.Condicoes.culpado",   img: "icons/svg/degen.svg" },
   insensato: { label: "PYRO.Condicoes.insensato", img: "icons/svg/daze.svg" },
   desmaiado: { label: "PYRO.Condicoes.desmaiado", img: "icons/svg/unconscious.svg" },
+  // Limiares de vida (SRD Atributos): metade e um quarto. Não fazem nada por
+  // si — são o gancho de habilidades que reagem a um aliado ferido.
+  ensanguentado: { label: "PYRO.Condicoes.ensanguentado", img: "icons/svg/blood.svg" },
+  machucado: { label: "PYRO.Condicoes.machucado", img: "icons/svg/bones.svg" },
   // Acumula em níveis: cada nível tira 1 de todos os testes (ver efeitos.mjs).
   exausto:   { label: "PYRO.Condicoes.exausto",   img: "icons/svg/sleep.svg" }
 };

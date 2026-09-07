@@ -70,6 +70,19 @@ export class ArmaData extends BaseItemData {
       }), { initial: [{ formula: "2d6", tipo: "impacto" }] }),
       usaMunicao: new fields.BooleanField({ initial: false }),
       /*
+       * Ataque desarmado: soco, chute, mordida. É uma arma como as outras na
+       * ficha — a marca existe para as técnicas poderem exigir "só desarmado"
+       * na especificidade, sem o sistema ter que adivinhar pelo nome.
+       */
+      desarmado: new fields.BooleanField({ initial: false }),
+      /*
+       * Qual recurso o dano mental desta arma drena (SRD §6). Fica aqui, e não
+       * na hora de aplicar no chat, porque é característica do golpe: uma lâmina
+       * que suga fôlego suga fôlego de quem quer que ela acerte.
+       * Sem choices: os recursos próprios do mundo são configuráveis.
+       */
+      recursoMental: str("mana"),
+      /*
        * Tamanho da arma, não de quem a empunha: uma clava de gigante continua
        * sendo de gigante na mão de quem a roubou. Médio é o padrão e vale ×1,
        * então arma antiga e item de compêndio nascem sem multiplicador — é

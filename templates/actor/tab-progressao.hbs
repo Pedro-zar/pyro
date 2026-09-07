@@ -1,5 +1,13 @@
 <section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
   <div class="barra-acoes">
+    {{!-- Caminho novo tem preço (SRD §2): o botão próprio abre a repartição da
+          XP entre os caminhos que o personagem já tem. O botão de criar segue
+          ao lado, para montar a ficha sem cobrar nada. --}}
+    <button type="button" class="botao-secao" data-action="abrirNovoCaminho"
+            title="{{localize 'PYRO.NovoCaminho.Dica'}}">
+      <i class="fa-solid fa-route"></i>
+      {{localize "PYRO.NovoCaminho.Botao"}} ({{custoNovoCaminho}})
+    </button>
     <button type="button" class="botao-secao" data-action="criarItem"
             data-tipos="caminho,habilidade,tecnica" title="{{localize 'PYRO.Criar'}}">
       <i class="fa-solid fa-plus"></i>

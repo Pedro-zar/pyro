@@ -28,6 +28,27 @@
     </div>
 
     <div class="notas-col">
+      {{!-- Crenças e instintos (SRD §11): os pilares do personagem e o que ele
+            faz sem precisar dizer. São a fonte dos pontos de Força de Vontade,
+            e por isso ficam em campos próprios, não numa anotação solta. --}}
+      <div class="bloco tracos-persona">
+        <h4 class="titulo-secao">{{localize "PYRO.Persona.Crencas"}}</h4>
+        <p class="pyro-nota">{{localize "PYRO.Persona.CrencasDica"}}</p>
+        {{#each system.crencas as |c idx|}}
+        <input type="text" name="system.crencas.{{idx}}" value="{{c}}"
+               placeholder="{{localize 'PYRO.Persona.CrencaPlaceholder'}}" />
+        {{/each}}
+      </div>
+
+      <div class="bloco tracos-persona">
+        <h4 class="titulo-secao">{{localize "PYRO.Persona.Instintos"}}</h4>
+        <p class="pyro-nota">{{localize "PYRO.Persona.InstintosDica"}}</p>
+        {{#each system.instintos as |i idx|}}
+        <input type="text" name="system.instintos.{{idx}}" value="{{i}}"
+               placeholder="{{localize 'PYRO.Persona.InstintoPlaceholder'}}" />
+        {{/each}}
+      </div>
+
       <div class="bloco">
         <h4 class="titulo-secao">{{localize "PYRO.Notas.Pessoas"}}</h4>
         {{formInput systemFields.pessoas value=system.pessoas enriched=notas.pessoas

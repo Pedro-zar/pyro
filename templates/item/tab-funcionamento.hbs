@@ -19,6 +19,11 @@
     {{#if dadosArmaDica}}
     <p class="pyro-nota">{{dadosArmaDica}}</p>
     {{/if}}
+    {{#if mostrarRecursoMental}}
+    <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.RecursoMental"}}</span>
+      <select name="system.recursoMental">{{selectOptions recursosMentaisOpts selected=system.recursoMental}}</select></label>
+    <p class="pyro-nota">{{localize "PYRO.Item.RecursoMentalDica"}}</p>
+    {{/if}}
   </div>
 
   <div class="bloco">
@@ -535,6 +540,9 @@
       {{#if isArma}}
       <label class="check-linha"><input type="checkbox" name="system.usaMunicao" {{checked system.usaMunicao}} />
         <span>{{localize "PYRO.Item.UsaMunicao"}}</span></label>
+      <label class="check-linha" title="{{localize 'PYRO.Item.DesarmadoDica'}}">
+        <input type="checkbox" name="system.desarmado" {{checked system.desarmado}} />
+        <span>{{localize "PYRO.Item.Desarmado"}}</span></label>
       {{/if}}
       {{#if isEquipamento}}
       <label class="check-linha"><input type="checkbox" name="system.equipado" {{checked system.equipado}} />

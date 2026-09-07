@@ -7,56 +7,16 @@ import { formulaTeste, formulaReacao, expandirAtributos, poolDoAtributo } from "
 import {
   classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse, bonusPorNivel, ndAjustado
 } from "../progressao.mjs";
-import { penalidadeExaustao, dicaExaustao, sincronizarSobrepeso } from "../efeitos.mjs";
+import {
+  sincronizarSobrepeso, sincronizarDesmaio, sincronizarEstadoDeVida, aplicarExaustao
+} from "../efeitos.mjs";
 import { formularioDoAtor } from "../ui.mjs";
-import { htmlFalhaAutomatica, htmlResultadoND } from "../chat.mjs";
+import {
+  campoCheckbox, campoSelect, camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste,
+  valorComInspiracao, htmlVontadeGasta, vontadeDisponivel, sufixoND
+} from "../teste.mjs";
+import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
 import { SYSTEM_ID, flagsDoSistema } from "../sistema.mjs";
-
-/* -------------------------------------------------------------------------- */
-/*  Diálogo de teste                                                          */
-/* -------------------------------------------------------------------------- */
-
-const campoNumero = (nome, chave, valor = 0, min = null) => `
-  <div class="form-group"><label>${game.i18n.localize(chave)}</label>
-    <input type="number" name="${nome}" value="${valor}"${min === null ? "" : ` min="${min}"`}></div>`;
-
-const campoSelect = (nome, chave, opcoes, selecionado) => `
-  <div class="form-group"><label>${game.i18n.localize(chave)}</label>
-    <select name="${nome}">${Object.entries(opcoes).map(([valor, rotulo]) =>
-      `<option value="${valor}"${valor === selecionado ? " selected" : ""}>${rotulo}</option>`).join("")}</select></div>`;
-
-const campoCheckbox = (nome, chave, marcado = false) => `
-  <div class="form-group"><label>${game.i18n.localize(chave)}</label>
-    <input type="checkbox" name="${nome}"${marcado ? " checked" : ""}></div>`;
-
-/**
- * Campos comuns a todo teste (bônus, vantagens, desvantagens, ND), com o
- * aviso de exaustão no topo quando houver.
- * @param {string} [opcoes.dica] linha de contexto antes dos campos.
- * @param {string} [opcoes.extras] campos próprios do teste, no fim.
- */
-function camposDeTeste(actor, { dica = "", extras = "" } = {}) {
-  const avisoExaustao = dicaExaustao(actor);
-  return `
-    ${avisoExaustao ? `<p class="hint">${avisoExaustao}</p>` : ""}
-    ${dica ? `<p class="hint">${dica}</p>` : ""}
-    ${campoNumero("bonus", "PYRO.Teste.Bonus")}
-    ${campoNumero("vantagem", "PYRO.Teste.Vantagem", 0, 0)}
-    ${campoNumero("desvantagem", "PYRO.Teste.Desvantagem", 0, 0)}
-    <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.ND")}</label>
-      <input type="number" name="nd" placeholder="—"></div>
-    ${extras}`;
-}
-
-/** Normaliza os números do formulário e desconta a exaustão do ator (SRD Atributos). */
-function aplicarExaustaoNoTeste(actor, opts) {
-  const pen = penalidadeExaustao(actor);
-  opts.bonus = (Number(opts.bonus) || 0) + pen.bonus;
-  opts.vantagem = Number(opts.vantagem) || 0;
-  opts.desvantagem = (Number(opts.desvantagem) || 0) + pen.desvantagem;
-}
-
-const sufixoND = nd => (nd ? ` (ND ${nd})` : "");
 
 export class PyroActor extends Actor {
   /**
@@ -89,33 +49,56 @@ export class PyroActor extends Actor {
   }
 
   /*
-   * Sobrepeso é derivado (carga contra capacidade), então qualquer coisa
-   * pode virá-lo: FOR mudou, item entrou, saiu ou foi equipado, um efeito
-   * mexeu na carga. Depois de cada mudança o efeito Exaustão é acertado —
-   * só no cliente de quem editou, senão cada um repetiria a conta.
+   * Sobrepeso e desmaio por exaustão são derivados — o primeiro da carga
+   * contra a capacidade, o segundo da exaustão contra o VIG —, e quase
+   * qualquer mudança pode virá-los: FOR ou VIG mudou, item entrou, saiu ou
+   * foi equipado, um efeito mexeu na carga ou na exaustão. Depois de cada
+   * mudança os dois são acertados, só no cliente de quem editou, senão cada
+   * um repetiria a conta.
+   *
+   * O sobrepeso vem primeiro porque ele mesmo soma exaustão, e é essa
+   * exaustão que o desmaio precisa enxergar.
    */
-  #acertarSobrepeso(userId) {
-    if (game.user.id === userId) sincronizarSobrepeso(this);
+  async #acertarDerivados(userId) {
+    if (game.user.id !== userId) return;
+    /*
+     * Uma sincronização por vez, em fila. Os hooks que chamam esta função são
+     * síncronos e ela cria efeitos, o que dispara os mesmos hooks antes do
+     * `create` de fora terminar: sem a fila, duas execuções conferem "já
+     * existe?" ao mesmo tempo, as duas veem que não, e o personagem fica com
+     * dois Machucados. A fila é por ator, e o `catch` existe para um erro numa
+     * passagem não travar todas as seguintes.
+     */
+    this.#filaDerivados = this.#filaDerivados
+      .catch(() => {})
+      .then(async () => {
+        await sincronizarSobrepeso(this);
+        await sincronizarDesmaio(this);
+        await sincronizarEstadoDeVida(this);
+      });
+    return this.#filaDerivados;
   }
+
+  #filaDerivados = Promise.resolve();
 
   _onUpdate(changed, options, userId) {
     super._onUpdate(changed, options, userId);
-    this.#acertarSobrepeso(userId);
+    this.#acertarDerivados(userId);
   }
 
   _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
     super._onCreateDescendantDocuments(parent, collection, documents, data, options, userId);
-    this.#acertarSobrepeso(userId);
+    this.#acertarDerivados(userId);
   }
 
   _onUpdateDescendantDocuments(parent, collection, documents, changes, options, userId) {
     super._onUpdateDescendantDocuments(parent, collection, documents, changes, options, userId);
-    this.#acertarSobrepeso(userId);
+    this.#acertarDerivados(userId);
   }
 
   _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
     super._onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId);
-    this.#acertarSobrepeso(userId);
+    this.#acertarDerivados(userId);
   }
 
   /**
@@ -241,25 +224,39 @@ export class PyroActor extends Actor {
     }
     aplicarExaustaoNoTeste(this, opts);
 
-    // Passar seus Limites usa o atributo cheio, sem o desconto do limite de
-    // DET. O rebote (1 exaustão por rolagem, SRD Atributos) não é aplicado aqui.
-    const valor = opts.passarLimites ? attr.total : attr.efetivo;
+    /*
+     * Passar seus Limites usa o atributo cheio, sem o desconto do limite de
+     * DET. O rebote vem depois: 1 exaustão por rolagem feita assim (SRD
+     * Atributos), inclusive quando a pool zera e o teste falha sozinho — o
+     * corpo foi forçado do mesmo jeito.
+     */
+    const valorBase = opts.passarLimites ? attr.total : attr.efetivo;
+
+    /*
+     * A classe da rolagem é medida antes da Força de Vontade entrar: por
+     * regra ela fica fora dessa conta (SRD 3b), senão gastar pontos num teste
+     * o rebaixaria de difícil para rotineiro e ele deixaria de contar para o
+     * avanço — exatamente ao contrário do que o gasto significa.
+     */
+    const classe = opts.nd
+      ? classificarRolagem({ ...poolDoTeste(poolDoAtributo(valorBase), opts), nd: Number(opts.nd) })
+      : null;
+
+    const vontade = await aplicarVontadeNoTeste(this, opts);
+    opts.vantagem += vontade.beneficio;
+    const valor = valorComInspiracao(valorBase, vontade);
     const formula = formulaTeste(valor, opts);
     const flavor = game.i18n.format("PYRO.Chat.TesteDe", { atributo: label }) + sufixoND(opts.nd);
-    if (formula === null) return this.#falhaAutomatica(flavor);
+    const rebote = opts.passarLimites ? await aplicarExaustao(this, 1) : 0;
+    const extra = htmlVontadeGasta(vontade) + this.#avisoLimites(opts, rebote);
+    if (formula === null) return this.#falhaAutomatica(flavor, extra);
 
     const roll = await new Roll(formula).evaluate();
     let content = "";
-    let classe = null;
-    if (opts.nd) {
-      // A classe mede a pool contra o ND (SRD 3b); o botão de contar chega
-      // quando houver uma perícia para receber o uso.
-      classe = classificarRolagem({ ...poolDoTeste(poolDoAtributo(valor), opts), nd: Number(opts.nd) });
+    if (classe) {
       content = htmlResultadoND(roll.total >= Number(opts.nd)) + htmlClasseDaRolagem(classe);
     }
-    if (opts.passarLimites) {
-      content += `<p class="pyro-aviso">${game.i18n.localize("PYRO.Chat.PassouLimites")}</p>`;
-    }
+    content += extra;
     return this.#cardDeTeste(roll, { flavor, html: content, flags: classe ? flagsDaClasse(classe) : null });
   }
 
@@ -292,8 +289,10 @@ export class PyroActor extends Actor {
 
     const res = await formularioDoAtor(this, {
       titulo: game.i18n.format(ajudar ? "PYRO.Pericia.TituloAjuda" : "PYRO.Pericia.Titulo", { nome: pericia.name }),
+      // Ajudar não rola nada: sem campos de Força de Vontade, que ali não
+      // teriam onde ser gastos.
       conteudo: campoSelect("atributo", "PYRO.Pericia.Atributo", atributoOpts, aceitos[0])
-        + camposDeTeste(this, { dica: dicaNivel, extras }),
+        + camposDeTeste(this, { dica: dicaNivel, extras, comVontade: !ajudar }),
       rotuloOk: ajudar ? "PYRO.Pericia.Ajudar" : "PYRO.Rolar"
     });
     if (!res) return;
@@ -319,11 +318,17 @@ export class PyroActor extends Actor {
     const textoND = !ndOriginal ? ""
       : nd !== ndOriginal ? ` (ND ${ndOriginal} → ${nd}, ${ajustes})` : ` (ND ${nd})`;
 
+    // Ajudar não rola nada, então também não gasta Força de Vontade.
     if (ajudar) return this.#cardDeAjuda(pericia, rotuloAtributo, porNivel, classe, textoND);
 
+    // Depois da classe, pelo mesmo motivo do teste de atributo: a Vontade
+    // não entra na medida de dificuldade da rolagem.
+    const vontade = await aplicarVontadeNoTeste(this, res);
+    opts.vantagem += vontade.beneficio;
+
     const flavor = game.i18n.format("PYRO.Pericia.TesteDe", { nome: pericia.name, atributo: rotuloAtributo }) + textoND;
-    const formula = formulaTeste(attr.efetivo, opts);
-    if (formula === null) return this.#falhaAutomatica(flavor);
+    const formula = formulaTeste(valorComInspiracao(attr.efetivo, vontade), opts);
+    if (formula === null) return this.#falhaAutomatica(flavor, htmlVontadeGasta(vontade));
 
     const roll = await new Roll(formula).evaluate();
     let content = "";
@@ -333,6 +338,7 @@ export class PyroActor extends Actor {
       const conta = !sys.contaSoSucesso || sucesso;
       content = htmlResultadoND(sucesso) + htmlClasseDaRolagem(classe, conta ? pericia : null);
     }
+    content += htmlVontadeGasta(vontade);
     return this.#cardDeTeste(roll, { flavor, html: content, flags: classe ? flagsDaClasse(classe, pericia) : null });
   }
 
@@ -383,25 +389,31 @@ export class PyroActor extends Actor {
     if (!rapido) {
       const res = await formularioDoAtor(this, {
         titulo: game.i18n.localize(chaves.titulo),
+        // Sem Inspiração Divina: a pool da reação é fixa pelo sistema (d4 no
+        // bloqueio, d12 na esquiva) e não sai de atributo nenhum, então não há
+        // atributo para dobrar.
         conteudo: camposDeTeste(this, {
           dica: game.i18n.format("PYRO.Reacao.Base", { formula: this.system[tipo] || "0" }),
-          extras: campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura)
+          extras: campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura),
+          comInspiracao: false
         })
       });
       if (!res) return;
       opts = { ...opts, ...res, nd: res.nd || null, cobertura: !!res.cobertura };
     }
     aplicarExaustaoNoTeste(this, opts);
+    const vontade = await aplicarVontadeNoTeste(this, opts);
+    opts.vantagem += vontade.beneficio;
 
     const formula = formulaReacao(this.system[tipo], cfg.faces, opts);
     const flavor = game.i18n.localize(opts.cobertura ? chaves.flavorCobertura : chaves.flavor)
       + sufixoND(opts.nd);
-    if (formula === null) return this.#falhaAutomatica(flavor);
+    if (formula === null) return this.#falhaAutomatica(flavor, htmlVontadeGasta(vontade));
 
     const roll = await new Roll(expandirAtributos(formula), this.getRollData()).evaluate();
     return this.#cardDeTeste(roll, {
       flavor,
-      html: opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : ""
+      html: (opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : "") + htmlVontadeGasta(vontade)
     });
   }
 
@@ -414,7 +426,8 @@ export class PyroActor extends Actor {
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor,
-      content: `<div class="pyro-chat pyro-teste">${await roll.render()}${html}</div>`,
+      // A Sorte age sobre esta rolagem, então o botão dela mora no card.
+      content: `<div class="pyro-chat pyro-teste">${await roll.render()}${html}${htmlBotaoSorte()}</div>`,
       rolls: [roll],
       sound: CONFIG.sounds.dice,
       ...(flags ? { flags: flagsDoSistema(flags) } : {})
@@ -422,28 +435,52 @@ export class PyroActor extends Actor {
   }
 
   /** Pool reduzida a zero dados por desvantagem: falha sem rolar (SRD §6). */
-  #falhaAutomatica(flavor) {
+  #falhaAutomatica(flavor, html = "") {
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       flavor,
-      content: htmlFalhaAutomatica()
+      content: htmlFalhaAutomatica() + html
     });
+  }
+
+  /**
+   * Linha do card quando o teste passou dos limites do corpo: diz que o
+   * atributo cheio foi usado e quanta exaustão isso custou (SRD Atributos).
+   */
+  #avisoLimites(opts, total) {
+    if (!opts.passarLimites) return "";
+    return `<p class="pyro-aviso">${game.i18n.localize("PYRO.Chat.PassouLimites")}
+      ${game.i18n.format("PYRO.Chat.ReboteLimites", { total })}</p>`;
   }
 
   /* ---------------------------------------------------------------------- */
   /*  Força de Vontade                                                      */
   /* ---------------------------------------------------------------------- */
 
-  async gastarVontade(pontos) {
-    const vontade = this.system.recursos.vontade;
-    if (vontade.value < pontos) {
+  /**
+   * Vontade de Viver (SRD Atributos): a 0 PV, por 2 pontos, o personagem se
+   * agarra à própria vida e não cai. Recupera o suficiente para deixar de
+   * estar Machucado, que é o limiar de um quarto da vida máxima — nem mais
+   * que isso, porque a regra é sobreviver, não voltar inteiro.
+   */
+  async vontadeDeViver() {
+    const recursos = this.system.recursos;
+    if (recursos.pv.value > 0) {
+      return ui.notifications.warn(game.i18n.localize("PYRO.Vontade.ViverSoAZero"));
+    }
+    if (recursos.vontade.value < PYRO.CUSTO_VONTADE_DE_VIVER) {
       return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemVontade"));
     }
-    await this.update({ "system.recursos.vontade.value": vontade.value - pontos });
+    const alvo = this.system.limiaresPv.machucado;
+    await this.update({
+      "system.recursos.vontade.value": recursos.vontade.value - PYRO.CUSTO_VONTADE_DE_VIVER,
+      "system.recursos.pv.value": alvo
+    });
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      content: `<p><strong>${game.i18n.localize("PYRO.Vontade.Nome")} (${pontos})</strong>:
-        ${game.i18n.localize(`PYRO.Vontade.Uso${pontos}`)}</p>`
+      content: `<div class="pyro-chat"><p class="pyro-vontade-viver">
+        <strong>${game.i18n.localize("PYRO.Vontade.Viver")}</strong>
+        ${game.i18n.format("PYRO.Vontade.ViverCard", { pv: alvo })}</p></div>`
     });
   }
 
@@ -554,11 +591,24 @@ export class PyroActor extends Actor {
    * @param {boolean} [opcoes.mental]        trata tudo como mental
    * @returns {Promise<string>} resumo com a conta feita
    */
-  async aplicarDano(entradas, { multiplicador = 1, ignorarDefesa = false, mental = false } = {}) {
+  async aplicarDano(entradas, {
+    multiplicador = 1, ignorarDefesa = false, mental = false, recursoMental = "mana"
+  } = {}) {
     const recursos = this.system.recursos;
     const totais = this.system.defesas.totais;
+    /*
+     * O recurso vem declarado no golpe. Um recurso próprio de caminho (Energia
+     * Natural e afins) existe no schema de todo ator, mas só vale para quem o
+     * caminho concedeu — testar a existência do campo faria o dano sumir numa
+     * barra invisível. Sem o recurso concedido, o dano cai na mana, que é de
+     * todos.
+     */
+    const proprio = PYRO.recursosCustom?.[recursoMental];
+    const temRecurso = !!recursos[recursoMental]
+      && (!proprio || (this.system.recursosConcedidos ?? []).includes(recursoMental));
+    const chaveRecurso = temRecurso ? recursoMental : "mana";
     let emPv = 0;
-    let emMana = 0;
+    let emRecurso = 0;
     const contas = [];
 
     for (const entrada of entradas) {
@@ -568,7 +618,7 @@ export class PyroActor extends Actor {
       const defesa = ignorarDefesa || !tipo ? 0 : (totais[tipo] ?? 0);
       const liquido = Math.max(0, bruto - defesa);
 
-      if (PYRO.tiposDano[tipo]?.categoria === "mental") emMana += liquido;
+      if (PYRO.tiposDano[tipo]?.categoria === "mental") emRecurso += liquido;
       else emPv += liquido;
 
       const rotulo = tipo ? game.i18n.localize(PYRO.tiposDano[tipo]?.label ?? tipo) : "";
@@ -578,15 +628,20 @@ export class PyroActor extends Actor {
     }
 
     const pvNovo = Math.max(0, recursos.pv.value - emPv);
-    const manaNovo = Math.max(0, recursos.mana.value - emMana);
+    const recursoNovo = Math.max(0, recursos[chaveRecurso].value - emRecurso);
     await this.update({
       "system.recursos.pv.value": pvNovo,
-      "system.recursos.mana.value": manaNovo
+      [`system.recursos.${chaveRecurso}.value`]: recursoNovo
     });
 
     const partes = [];
     if (emPv) partes.push(game.i18n.format("PYRO.Chat.AplicouDano", { valor: emPv, pv: pvNovo }));
-    if (emMana) partes.push(game.i18n.format("PYRO.Chat.AplicouMental", { valor: emMana }));
+    if (emRecurso) {
+      partes.push(game.i18n.format("PYRO.Chat.AplicouMental", {
+        valor: emRecurso,
+        recurso: game.i18n.localize(PYRO.recursosDrenaveis()[chaveRecurso] ?? chaveRecurso)
+      }));
+    }
     if (!partes.length) partes.push(game.i18n.localize("PYRO.Chat.DefesaAbsorveu"));
 
     return `${this.name}: ${partes.join(" · ")} (${contas.join(" + ")})`;
@@ -662,12 +717,16 @@ export class PyroActor extends Actor {
     });
   }
 
-  /** Início de arco (ou subida de DET): Força de Vontade reseta. */
+  /**
+   * Início de arco: tudo que o capítulo recupera.
+   *
+   * A Força de Vontade fica de fora de propósito. Ela não volta com o tempo
+   * (SRD Atributos): todo ponto é conquistado em jogo — por um instinto que
+   * criou problema, por uma crença defendida, por votação no fim do arco —, e
+   * enchê-la aqui tornaria o resto dessa economia decorativa.
+   */
   async recuperarArco() {
     await this.recuperarCapitulo();
-    await this.update({
-      "system.recursos.vontade.value": this.system.recursos.vontade.max
-    });
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<p>${game.i18n.localize("PYRO.Chat.NovoArco")}</p>`

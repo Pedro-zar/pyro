@@ -7,10 +7,12 @@ import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { executarTecnica } from "../tecnica.mjs";
 import { formulaTeste, formulaPool, expandirAtributos } from "../dados.mjs";
 import {
-  htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado,
-  penalidadeExaustao, dicaExaustao
+  htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado
 } from "../efeitos.mjs";
 import { esc, enriquecer, formularioDoAtor } from "../ui.mjs";
+import {
+  camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste, valorComInspiracao, htmlVontadeGasta
+} from "../teste.mjs";
 import { flagsDoSistema } from "../sistema.mjs";
 
 /**
@@ -387,17 +389,23 @@ export class PyroItem extends Item {
           — <strong><i class="fa-solid ${mira.acertou ? "fa-check" : "fa-xmark"}"></i>
           ${game.i18n.localize(mira.acertou ? "PYRO.Mira.Acertou" : "PYRO.Mira.Errou")}</strong></p>
         ${await mira.roll.render()}
+        ${htmlVontadeGasta(mira.vontade)}
       </div>`);
       if (!mira.acertou) {
-        if (municao) {
-          partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: esc(municao.name) })}</p>`);
-        }
-        return ChatMessage.create({
-          speaker,
-          content: `<div class="pyro-chat">${partes.join("")}</div>`,
-          rolls,
-          sound: CONFIG.sounds.dice
-        });
+        /*
+         * Errar não anula o tiro: ele cai em outro lugar, e o que estiver lá
+         * vira o novo alvo (SRD §5). Por isso o dano continua sendo rolado
+         * abaixo — o card só troca o alvo, e a mesa marca no mapa onde a
+         * flecha foi parar.
+         */
+        rolls.push(mira.desvio.direcao);
+        partes.push(`<div class="pyro-desvio">
+          <p>${game.i18n.format("PYRO.Mira.Desvio", {
+            hora: mira.desvio.hora, metros: mira.desvio.metros
+          })}</p>
+          ${await mira.desvio.direcao.render()}
+          <p class="pyro-nota">${game.i18n.localize("PYRO.Mira.DesvioDica")}</p>
+        </div>`);
       }
     }
 
@@ -437,16 +445,39 @@ export class PyroItem extends Item {
       speaker,
       content: `<div class="pyro-chat">${partes.join("")}</div>`,
       rolls,
-      // O menu do chat usa estas flags: dano separado por tipo, sem o teste de mira.
-      flags: flagsDoSistema({ danos, cura: 0 }),
+      // O menu do chat usa estas flags: dano separado por tipo, sem o teste de
+      // mira, e o recurso que o dano mental desta arma drena.
+      flags: flagsDoSistema({ danos, cura: 0, recursoMental: sys.recursoMental }),
       sound: CONFIG.sounds.dice
     });
   }
 
   /**
+   * Ajustes que a distância impõe ao tiro (SRD §5): dentro do alcance menor a
+   * arma está no ponto e o teste ganha uma vantagem; passando dele, e até o
+   * alcance máximo, ganha uma desvantagem. Além do máximo não há tiro, mas o
+   * jogador ainda pode digitar a distância — quem decide se a arma alcança é
+   * a mesa, e o teste sai com a desvantagem do longe.
+   */
+  #ajusteDeAlcance(distancia) {
+    const sys = this.system;
+    /*
+     * Arma com alcance menor 0 não tem faixa confortável nenhuma, e aí todo
+     * tiro sai com desvantagem. Isso é característica da arma, não um caso
+     * esquecido: uma arma de arremesso que deveria ter uma faixa boa precisa
+     * do alcance menor preenchido.
+     */
+    if (sys.alcanceMenor > 0 && distancia <= sys.alcanceMenor) {
+      return { vantagem: 1, desvantagem: 0, nota: "PYRO.Mira.NoPonto" };
+    }
+    return { vantagem: 0, desvantagem: 1, nota: "PYRO.Mira.Longe" };
+  }
+
+  /**
    * Janela do teste de mira: DES contra ND igual à distância em metros.
-   * Com um alvo marcado, a distância e o ND já vêm preenchidos, e passar do
-   * alcance menor soma uma desvantagem automaticamente (SRD §5).
+   * Com um alvo marcado, a distância e o ND já vêm preenchidos, e o ajuste do
+   * alcance entra sozinho. Errar não perde o tiro: ele vai parar em outro
+   * lugar, e o desvio é rolado aqui (SRD §5).
    */
   async #testeDeMira(limiteMira = 2) {
     const sys = this.system;
@@ -454,49 +485,67 @@ export class PyroItem extends Item {
     const medida = distanciaAteAlvo(actor);
     // Sem alvo marcado, começa no primeiro metro que já pede teste.
     const distancia = medida ?? Math.max(limiteMira + 1, sys.alcanceMenor);
-    const desvInicial = distancia > sys.alcanceMenor ? 1 : 0;
+    const ajuste = this.#ajusteDeAlcance(distancia);
 
     const dica = medida !== null
       ? game.i18n.format("PYRO.Mira.AlvoMarcado", { distancia: medida })
       : game.i18n.format("PYRO.Mira.SemAlvoLimite", { limite: limiteMira });
 
-    const avisoExaustao = dicaExaustao(actor);
     const res = await formularioDoAtor(actor, {
       titulo: game.i18n.localize("PYRO.Mira.Titulo"),
-      conteudo: `
-        ${avisoExaustao ? `<p class="hint">${avisoExaustao}</p>` : ""}
-        <p class="hint">${dica}</p>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Mira.Distancia")}</label>
-          <input type="number" name="distancia" value="${distancia}" min="0"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.ND")}</label>
-          <input type="number" name="nd" value="${distancia}" min="0"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Vantagem")}</label>
-          <input type="number" name="vantagem" value="0" min="0"></div>
-        <div class="form-group"><label>${game.i18n.localize("PYRO.Teste.Desvantagem")}</label>
-          <input type="number" name="desvantagem" value="${desvInicial}" min="0"></div>
-        <p class="hint">${game.i18n.localize("PYRO.Mira.Dica")}</p>`
+      // O ND da mira é a distância em metros, então ele já vem preenchido.
+      conteudo: camposDeTeste(actor, {
+        dica: `${dica} ${game.i18n.localize(ajuste.nota)}`,
+        nd: distancia,
+        extras: `<div class="form-group"><label>${game.i18n.localize("PYRO.Mira.Distancia")}</label>
+          <input type="number" name="distancia" value="${distancia}" min="0"></div>`
+      })
     });
     if (!res) return null;
 
+    /*
+     * O ajuste é recalculado com a distância que o jogador confirmou, e não
+     * com a estimada: quem corrigiu o número para 3m depois de a janela abrir
+     * em 12m está atirando de perto, e merece a vantagem do ponto.
+     */
+    const distanciaFinal = Number(res.distancia) || 0;
+    const doAlcance = this.#ajusteDeAlcance(distanciaFinal);
+    const opts = { ...res, nd: Number(res.nd) || 0 };
+    aplicarExaustaoNoTeste(actor, opts);
+    const vontade = await aplicarVontadeNoTeste(actor, res);
+    opts.vantagem += doAlcance.vantagem + vontade.beneficio;
+    opts.desvantagem += doAlcance.desvantagem;
+
     const des = actor?.system.atributos.des;
-    // A mira é um teste como outro qualquer: a exaustão desconta dela também,
-    // com a desvantagem extra a cada 5 níveis.
-    const pen = penalidadeExaustao(actor);
-    const formula = des ? formulaTeste(des.efetivo, {
-      vantagem: Number(res.vantagem) || 0,
-      desvantagem: (Number(res.desvantagem) || 0) + pen.desvantagem,
-      bonus: pen.bonus
-    }) : null;
+    const formula = des
+      ? formulaTeste(valorComInspiracao(des.efetivo, vontade), opts)
+      : null;
 
     // Pool zerada por desvantagens: erra sem rolar (mesma regra dos testes).
     const roll = await new Roll(formula ?? "0").evaluate();
-    const nd = Number(res.nd) || 0;
+    const nd = opts.nd;
+    const acertou = formula !== null && roll.total >= nd;
     return {
-      roll,
-      nd,
-      distancia: Number(res.distancia) || 0,
-      acertou: formula !== null && roll.total >= nd
+      roll, nd, vontade,
+      distancia: distanciaFinal,
+      acertou,
+      desvio: acertou ? null : await this.#desvioDoTiro(roll.total, nd)
     };
+  }
+
+  /**
+   * Onde o tiro errado foi parar (SRD §5). A direção sai de 1d12 lido como um
+   * relógio a partir do ponto além do alvo — 1 é atrás dele, 7 é à frente, na
+   * direção de quem atirou —, e a distância é metade do que faltou no teste.
+   *
+   * Um erro por 1 ponto não move o tiro meio metro: com a diferença abaixo de
+   * 2 o desvio é de 1 metro, senão o tiro que quase acertou acertaria mesmo
+   * assim, o que não é o que a regra descreve.
+   */
+  async #desvioDoTiro(total, nd) {
+    const direcao = await new Roll("1d12").evaluate();
+    const metros = Math.max(1, Math.floor((nd - total) / 2));
+    return { direcao, metros, hora: direcao.total };
   }
 
   async #consumir() {
