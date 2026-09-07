@@ -14,13 +14,21 @@ import { caminho } from "../sistema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
+/**
+ * Piso do Esforço, igual ao da Intenção nas magias: um traço com Esforço 0 não
+ * rende nada, e a técnica que sai com todos zerados não faz coisa alguma.
+ */
+const ESFORCO_MINIMO = 1;
+
 export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   constructor({ actor, item, ...options } = {}) {
     super(options);
     this.actor = actor;
     this.item = item;
     /** Esforço por chave de traço, escolhido nesta execução. */
-    this.esforcos = Object.fromEntries(tracosDaTecnica(item.system).map(t => [t.chave, 1]));
+    this.esforcos = Object.fromEntries(
+      tracosDaTecnica(item.system).map(t => [t.chave, ESFORCO_MINIMO])
+    );
     this.ataqueId = null;
   }
 
@@ -50,7 +58,7 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   #usados() {
     return tracosDaTecnica(this.item.system)
-      .map(t => ({ ...t, esforco: Math.max(0, this.esforcos[t.chave] ?? 0) }));
+      .map(t => ({ ...t, esforco: Math.max(ESFORCO_MINIMO, this.esforcos[t.chave] ?? 0) }));
   }
 
   async _prepareContext(options) {
@@ -61,24 +69,19 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const loc = k => game.i18n.localize(k);
 
     const usados = this.#usados();
-    const calc = calcularEsforco(this.actor, usados.filter(u => u.esforco > 0));
-    // As linhas do card só trazem os traços em uso; a janela mostra todos,
-    // inclusive os deixados em zero, senão não haveria como voltar a subi-los.
-    const porChave = new Map(calc.linhas.map(l => [l.chave, l]));
-
-    const fichas = usados.map(u => {
-      const linha = porChave.get(u.chave);
-      return {
-        chave: u.chave,
-        nome: loc(u.cfg.label ?? u.chave),
-        grupo: loc(`PYRO.Tecnica.Grupo.${u.cfg.grupo}`),
-        grau: u.grau,
-        esforco: u.esforco,
-        custo: linha?.custo ?? 0,
-        alem: linha?.alem ?? 0,
-        efeito: linha ? textoDoTraco(linha) : loc("PYRO.Executor.SemEsforco")
-      };
-    });
+    const calc = calcularEsforco(this.actor, usados);
+    // Todo traço entra na conta, porque o Esforço mínimo é 1: cada linha da
+    // janela tem a sua em calc.
+    const fichas = calc.linhas.map(l => ({
+      chave: l.chave,
+      nome: loc(l.cfg.label ?? l.chave),
+      grupo: loc(`PYRO.Tecnica.Grupo.${l.cfg.grupo}`),
+      grau: l.grau,
+      esforco: l.esforco,
+      custo: l.custo,
+      alem: l.alem,
+      efeito: textoDoTraco(l)
+    }));
 
     /* --- Ataque: a técnica pergunta sempre, entre os que a condição aceita -- */
     const ataques = base?.ataca ? ataquesDaTecnica(this.actor, sys) : [];
@@ -88,7 +91,15 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       this.ataqueId = ataques[0]?.id ?? null;
     }
 
-    const faltaEstamina = calc.estamina > estamina.value + this.actor.system.recursos.pv.value;
+    /*
+     * O ônus "custa PV" cobra vida além da estamina, e o que falta de estamina
+     * também sai do PV: os dois disputam a mesma reserva, e a conta precisa
+     * ser feita junta para o botão não liberar uma execução que mata o ator.
+     */
+    const pv = this.actor.system.recursos.pv.value;
+    const custaPv = (sys.onus ?? []).some(o => PYRO.onusTecnica[o]?.regra === "custaPv");
+    const pvDoOnus = custaPv ? calc.somaEsforcos : 0;
+    const faltaEstamina = calc.estamina + pvDoOnus > estamina.value + pv;
     const semAtaque = !!base?.ataca && !ataques.length;
     this._podeExecutar = !semAtaque && !faltaEstamina;
 
@@ -135,20 +146,24 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static #subirEsforco(event, target) {
     this.#capturarCampos();
     const chave = target.dataset.chave;
-    this.esforcos[chave] = (this.esforcos[chave] ?? 0) + 1;
+    this.esforcos[chave] = Math.max(ESFORCO_MINIMO, this.esforcos[chave] ?? 0) + 1;
     this.render();
   }
 
+  /*
+   * O piso é 1, como a Intenção das magias: um traço sem Esforço não rende
+   * nada, e deixar zerar dava uma execução que não fazia coisa nenhuma.
+   */
   static #descerEsforco(event, target) {
     this.#capturarCampos();
     const chave = target.dataset.chave;
-    this.esforcos[chave] = Math.max(0, (this.esforcos[chave] ?? 0) - 1);
+    this.esforcos[chave] = Math.max(ESFORCO_MINIMO, (this.esforcos[chave] ?? 0) - 1);
     this.render();
   }
 
   static #zerarEsforcos() {
     this.#capturarCampos();
-    for (const chave of Object.keys(this.esforcos)) this.esforcos[chave] = 0;
+    for (const chave of Object.keys(this.esforcos)) this.esforcos[chave] = ESFORCO_MINIMO;
     this.render();
   }
 

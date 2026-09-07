@@ -125,8 +125,10 @@
       <label class="campo largo"><span class="rotulo">{{localize "TYPES.Item.caminho"}}</span>
         <input type="text" name="system.caminho" value="{{system.caminho}}" /></label>
       {{/if}}
-      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Categoria"}}</span>
+      <label class="campo largo" title="{{#if system.ehPostura}}{{localize 'PYRO.Postura.Dica'}}{{/if}}">
+        <span class="rotulo">{{localize "PYRO.Item.Categoria"}}</span>
         <select name="system.categoria">{{selectOptions config.categoriasHabilidade selected=system.categoria localize=true}}</select></label>
+      {{#if system.ehPostura}}<p class="pyro-nota">{{localize "PYRO.Postura.Dica"}}</p>{{/if}}
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Tier"}}</span>
         <select name="system.tier">{{selectOptions tierOpts selected=system.tier}}</select></label>
       <div class="campo"><span class="rotulo">{{localize "PYRO.Item.CustoXp"}}</span>
@@ -199,7 +201,7 @@
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tecnica.Condicao"}}</span>
         <select name="system.especificidade">{{selectOptions especificidadeOpts selected=system.especificidade}}</select></label>
       {{#if filtroOpts}}
-      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tecnica.Filtro"}}</span>
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tecnica.ValePara"}}</span>
         <select name="system.filtro">{{selectOptions filtroOpts selected=system.filtro}}</select></label>
       {{/if}}
       {{#if ataquesOpts}}
@@ -251,7 +253,7 @@
   </div>
 
   <div class="bloco">
-    <h4 class="titulo-secao">{{localize "PYRO.Tecnica.Onus"}}</h4>
+    <h4 class="titulo-secao">{{localize "PYRO.Tecnica.PontosFracos"}}</h4>
     <p class="pyro-nota">{{localize "PYRO.Tecnica.OnusDica"}}</p>
     <div class="campos-check">
       {{#each onusOpts as |o|}}
@@ -564,9 +566,6 @@
       {{/if}}
       {{/if}}
       {{#if isHabilidade}}
-      <label class="check-linha" title="{{localize 'PYRO.Postura.Dica'}}">
-        <input type="checkbox" name="system.ehPostura" {{checked system.ehPostura}} />
-        <span>{{localize "PYRO.Item.EhPostura"}}</span></label>
       <label class="check-linha"><input type="checkbox" name="system.ehBase" {{checked system.ehBase}} />
         <span>{{localize "PYRO.Item.EhBase"}}</span></label>
       {{#if mostrarAdormecida}}

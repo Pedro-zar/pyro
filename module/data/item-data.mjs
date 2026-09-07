@@ -162,18 +162,23 @@ export class ConsumivelData extends BaseItemData {
 
 /** Habilidades de Caminho, gerais e técnicas marciais. */
 export class HabilidadeData extends BaseItemData {
+  /**
+   * Postura (SRD Técnicas): a habilidade base de um caminho marcial. Os
+   * efeitos dela só valem enquanto ela é a postura ativa, e cada técnica pode
+   * escrever uma variação para ela. É a categoria que diz, e não um campo à
+   * parte — uma habilidade não é passiva e postura ao mesmo tempo.
+   */
+  get ehPostura() {
+    return this.categoria === "postura";
+  }
+
   static defineSchema() {
     return {
       ...super.defineSchema(),
       caminho: str(""), // id do Caminho de origem ("geral" para habilidades gerais)
-      // Perícia, passiva ou ativável — organiza a lista da ficha.
+      // Passiva, ativável ou postura — organiza a lista da ficha e, no caso da
+      // postura, decide quando os efeitos da habilidade valem.
       categoria: str("ativavel", { choices: Object.keys(PYRO.categoriasHabilidade) }),
-      /*
-       * Postura (SRD Técnicas): a habilidade base de um caminho marcial. Os
-       * efeitos dela só valem enquanto ela é a postura ativa, e cada técnica
-       * pode escrever uma variação para ela.
-       */
-      ehPostura: new fields.BooleanField({ initial: false }),
       // A habilidade base vem junto do caminho e não custa XP.
       ehBase: new fields.BooleanField({ initial: false }),
       // Habilidades de caminhos que concedem recurso próprio (Energia Natural)

@@ -1190,9 +1190,10 @@
 .pyro-chat .pyro-dividido { margin: 0; font-size: 0.8rem; font-weight: 700; }
 
 /* Perícias: progresso resumido na cauda e o botão de ajudar. */
+/* O requisito é uma frase só, com o mesmo rótulo e a mesma fonte dos campos
+   ao lado — antes ele quebrava em pedaços de tamanhos diferentes. */
 .pyro .requisito-nivel { display: flex; flex-direction: column; gap: 2px; }
-.pyro .requisito-nivel .valor-texto { font-size: var(--pyro-t-xs); line-height: 1.3; }
-.pyro .requisito-nivel .conector { opacity: 0.7; font-style: italic; }
+.pyro .requisito-nivel .valor-texto { line-height: 1.3; }
 .pyro-ajuda { font-weight: 700; }
 
 /* Despertar: habilidade comprada mas adormecida. */

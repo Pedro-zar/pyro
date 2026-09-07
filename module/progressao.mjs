@@ -190,31 +190,43 @@ export async function registrarUso(item, classe) {
 }
 
 /**
- * O requisito do próximo nível em palavras, para a ficha e o resumo. Separa
- * as rotineiras das outras duas classes e diz se estas são "uma destas" ou
- * "todas estas", porque a leitura inline "2 RR e (1 RD ou 1 RMD)" passava a
- * impressão de que as três eram obrigatórias.
- * @returns {null|{nivel, rotineiras: string, exclusivo: boolean, outras: string[], texto: string}}
+ * O requisito do próximo nível em uma frase.
+ *
+ * "2 rotineiras. 1 difícil ou 1 muito difícil" — o ponto separa o que é
+ * obrigatório e o "ou" mostra onde há escolha. A quebra em rótulo e valores
+ * soltos, que era o formato antigo, desalinhava a ficha e ainda precisava de
+ * um "todas estas" para dizer o óbvio.
+ *
+ * Classe que o nível não pede sai da frase: "0 difíceis" não é requisito.
+ * @returns {null|{nivel: number, noMaximo?: boolean, texto: string}}
  */
 export function descreverRequisito(item) {
   const progresso = item?.system?.progresso;
   const tabela = tabelaDoItem(item);
   if (!progresso || !tabela) return null;
   const nivel = progresso.nivel + 1;
-  if (nivel > progresso.nivelMax) return { nivel, noMaximo: true, texto: game.i18n.localize("PYRO.Uso.NoMaximo") };
+  if (nivel > progresso.nivelMax) {
+    return { nivel, noMaximo: true, texto: game.i18n.localize("PYRO.Uso.NoMaximo") };
+  }
   const req = requisitoDoNivel(tabela, nivel);
   const loc = k => game.i18n.localize(k);
-  const plural = (n, um, varios) => `${n} ${loc(n === 1 ? um : varios)}`;
-  const rotineiras = req.rr ? plural(req.rr, "PYRO.Rolagem.rotineiraUma", "PYRO.Rolagem.rotineiras") : "";
+  // Minúscula porque aqui as classes estão dentro de uma frase, e não como
+  // rótulo de campo — "2 Rotineiras" no meio do texto lê como nome próprio.
+  const plural = (n, um, varios) =>
+    (n > 0 ? `${n} ${loc(n === 1 ? um : varios).toLocaleLowerCase()}` : "");
+
+  const rotineiras = plural(req.rr, "PYRO.Rolagem.rotineiraUma", "PYRO.Rolagem.rotineiras");
   const outras = [
     plural(req.rd, "PYRO.Rolagem.dificilUma", "PYRO.Rolagem.dificeis"),
     plural(req.rmd, "PYRO.Rolagem.muitoDificilUma", "PYRO.Rolagem.muitoDificeis")
-  ];
-  const exclusivo = req.modo !== "e";
-  const grupo = exclusivo ? `(${outras.join(` ${loc("PYRO.Uso.Ou")} `)})` : outras.join(` ${loc("PYRO.Uso.E")} `);
+  ].filter(Boolean);
+
+  // Uma classe só não precisa de conector; duas ligam por "ou" quando a
+  // tabela deixa escolher, e viram frases separadas quando ela pede as duas.
+  const ligacao = req.modo === "e" ? ". " : ` ${loc("PYRO.Uso.Ou")} `;
   return {
-    nivel, rotineiras, exclusivo, outras,
-    texto: [rotineiras, grupo].filter(Boolean).join(` ${loc("PYRO.Uso.E")} `)
+    nivel,
+    texto: [rotineiras, outras.join(ligacao)].filter(Boolean).join(". ")
   };
 }
 

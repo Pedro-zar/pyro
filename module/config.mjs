@@ -700,10 +700,26 @@ PYRO.CUSTO_VONTADE_DE_VIVER = 2;
 PYRO.CUSTO_INSPIRACAO = 5;
 
 /** Como a habilidade se comporta na ficha. */
+/*
+ * Postura é uma categoria, e não uma marca à parte: uma habilidade é passiva,
+ * ativável ou postura, e as três se excluem. Marcá-la num checkbox separado
+ * deixava a ficha aceitar "passiva e postura ao mesmo tempo", que não existe.
+ */
 PYRO.categoriasHabilidade = {
   passiva: "PYRO.Item.Cat.passiva",
-  ativavel: "PYRO.Item.Cat.ativavel"
+  ativavel: "PYRO.Item.Cat.ativavel",
+  postura: "PYRO.Item.Cat.postura"
 };
+
+/**
+ * A habilidade cobra recurso ao ser usada? Só a ativável.
+ *
+ * Passiva não é usada, e postura é trocada — quem entra em guarda não paga
+ * nada por regra. É a mesma pergunta na ficha do item (o bloco de Custos) e na
+ * linha do ator (o resumo de custos), senão a ficha mostraria um custo que
+ * ninguém cobra.
+ */
+PYRO.cobraCustoDeUso = sys => sys?.categoria === "ativavel";
 
 /** Habilidades gastam ações ou reações. */
 PYRO.tiposCusto = {

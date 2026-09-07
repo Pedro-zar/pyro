@@ -223,8 +223,9 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   const sys = item.system;
   const base = PYRO.acoesBaseTecnica[sys.acaoBase];
   const usados = tracosDaTecnica(sys)
-    .map(t => ({ ...t, esforco: Math.max(0, Math.round(Number(esforcos[t.chave]) || 0)) }))
-    .filter(t => t.esforco > 0);
+    // Esforço mínimo 1, como a Intenção das magias: um traço só entra na
+    // execução fazendo alguma coisa.
+    .map(t => ({ ...t, esforco: Math.max(1, Math.round(Number(esforcos[t.chave]) || 0)) }));
 
   const calc = calcularEsforco(actor, usados);
   const ataque = base?.ataca && ataqueId
@@ -233,10 +234,12 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
 
   /* --- Custos: estamina do Esforço, e os PV do ônus que os pede ----------- */
   const custaPv = (sys.onus ?? []).some(o => PYRO.onusTecnica[o]?.regra === "custaPv");
+  // O ônus cobra vida além da estamina, no valor do Esforço em si: Esforço 2
+  // num traço custa 6 de estamina (a tabela do Esforço) e 2 de vida.
+  const cobraPv = custaPv && calc.somaEsforcos > 0;
   const pago = await actor.pagarCustos({ estamina: calc.estamina });
   if (!pago) return;
-  // O ônus cobra PV além da estamina, e não no lugar dela.
-  if (custaPv && calc.somaEsforcos > 0) {
+  if (cobraPv) {
     const pv = actor.system.recursos.pv;
     await actor.update({ "system.recursos.pv.value": Math.max(0, pv.value - calc.somaEsforcos) });
   }
@@ -272,7 +275,17 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   const meta = [
     loc(chaveCusto, { acoes }),
     loc(base?.label ?? ""),
-    calc.estamina ? loc("PYRO.Chat.CustoEstamina", { valor: calc.estamina }) : null,
+    /*
+     * Estamina e vida saem na mesma linha: o ônus "custa PV" cobra os dois
+     * pelo mesmo Esforço, e uma segunda linha dizendo "pagou X de PV pelo
+     * ponto fraco" repetia o número que já está aqui.
+     */
+    calc.estamina || cobraPv
+      ? loc(cobraPv ? "PYRO.Chat.CustoEstaminaEVida" : "PYRO.Chat.CustoEstamina",
+            // Os dois números são diferentes: a estamina sai da tabela de
+            // custo do Esforço e a vida é o Esforço em si.
+            { valor: calc.estamina, pv: calc.somaEsforcos })
+      : null,
     ataque ? esc(ataque.nome) : null
   ].filter(Boolean).join(" · ");
 
@@ -293,8 +306,9 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   if (calc.linhas.length) {
     partes.push(`<ul class="pyro-tracos">${calc.linhas.map(l => `<li${l.alem ? ` class="alem-limite"` : ""}>
       <strong>${loc(l.cfg.label ?? l.chave)}</strong>
-      <span class="pyro-traco-meta">${loc("PYRO.Tecnica.GrauAbrev")} ${l.grau} ·
-        ${loc("PYRO.Tecnica.EsforcoAbrev")} ${l.esforco} · ${l.custo} ${loc("PYRO.Abrev.estamina")}</span>
+      <span class="pyro-traco-meta">${loc("PYRO.Tecnica.Grau")} ${l.grau} ·
+        ${loc("PYRO.Tecnica.Esforco")} ${l.esforco} ·
+        ${loc("PYRO.Tecnica.CustoEmEstamina", { valor: l.custo })}</span>
       <span class="pyro-traco-valor">${textoDoTraco(l)}</span>
     </li>`).join("")}</ul>`);
   }
@@ -341,10 +355,9 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     partes.push(`<p class="pyro-nota">${loc("PYRO.Tecnica.PedeMira")}</p>`);
   }
 
+  // Sem estamina bastante, parte do custo saiu do PV — isso é outra coisa, e
+  // continua avisado à parte do ônus que cobra vida de propósito.
   if (pago.dosPv) partes.push(`<p class="pyro-nota">${loc("PYRO.Chat.CustoPv", { valor: pago.dosPv })}</p>`);
-  if (custaPv && calc.somaEsforcos) {
-    partes.push(`<p class="pyro-nota">${loc("PYRO.Tecnica.OnusPv", { valor: calc.somaEsforcos })}</p>`);
-  }
 
   partes.push(htmlEfeitosDeUso(item));
   partes.push(htmlClasseDaRolagem(classe, item));

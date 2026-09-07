@@ -13,16 +13,12 @@
       <input type="number" name="system.progresso.contadores.dificeis" value="{{system.progresso.contadores.dificeis}}" min="0" /></label>
     <label class="campo"><span class="rotulo">{{localize "PYRO.Rolagem.muitoDificeis"}}</span>
       <input type="number" name="system.progresso.contadores.muitoDificeis" value="{{system.progresso.contadores.muitoDificeis}}" min="0" /></label>
+    {{!-- Uma frase só, na mesma fonte dos outros campos: o formato antigo
+          quebrava o requisito em rótulo e valores soltos e desalinhava. --}}
     {{#if requisito}}
     <div class="campo requisito-nivel">
-      {{#if requisito.noMaximo}}
-      <span class="rotulo">{{requisito.texto}}</span>
-      {{else}}
-      <span class="rotulo">{{localize "PYRO.Uso.ParaONivel" nivel=requisito.nivel}}</span>
-      {{#if requisito.rotineiras}}<span class="valor-texto">{{requisito.rotineiras}}</span>{{/if}}
-      <span class="valor-texto conector">{{#if requisito.rotineiras}}{{localize "PYRO.Uso.E"}} {{/if}}{{#if requisito.exclusivo}}{{localize "PYRO.Uso.UmaDestas"}}{{else}}{{localize "PYRO.Uso.TodasEstas"}}{{/if}}</span>
-      {{#each requisito.outras as |o|}}<span class="valor-texto">{{o}}</span>{{/each}}
-      {{/if}}
+      <span class="rotulo">{{#unless requisito.noMaximo}}{{localize "PYRO.Uso.ParaONivel" nivel=requisito.nivel}}{{/unless}}</span>
+      <span class="valor-texto">{{requisito.texto}}</span>
     </div>
     {{/if}}
   </div>

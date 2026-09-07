@@ -316,7 +316,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const sys = item.system;
       const caminhoNome = actor.items.get(sys.caminho)?.name
         ?? loc(sys.caminho === "geral" ? "PYRO.CaminhoGeral" : "PYRO.CaminhoRemovido");
-      const custosPartes = [
+      // Só a ativável cobra: mostrar o custo de uma postura seria anunciar
+      // uma cobrança que não acontece (ver PYRO.cobraCustoDeUso).
+      const custosPartes = !PYRO.cobraCustoDeUso(sys) ? [] : [
         sys.custoEstamina ? `${sys.custoEstamina} ${loc("PYRO.Recursos.estamina").toLocaleLowerCase()}` : null,
         sys.custoMana ? `${sys.custoMana} ${loc("PYRO.Recursos.mana").toLocaleLowerCase()}` : null,
         sys.custoEnergia ? `${sys.custoEnergia} ${loc("PYRO.Recursos.energia").toLocaleLowerCase()}` : null,

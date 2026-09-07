@@ -266,8 +266,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         marcado: (sys.recursos ?? []).includes(chave)
       })),
       tipoCustoOpts: PYRO.tiposCusto,
-      // Passiva e perícia não gastam ação nem recurso: sem bloco de Custos.
-      temCustos: item.type === "habilidade" && sys.categoria === "ativavel",
+      // Passiva, postura e perícia não gastam ação nem recurso ao serem
+      // usadas: sem bloco de Custos.
+      temCustos: item.type === "habilidade" && PYRO.cobraCustoDeUso(sys),
       // Tier com a descrição de escopo do SRD como dica de cada opção.
       tierOpts: Object.fromEntries(Object.entries(PYRO.tiers)
         .map(([t, label]) => [t, `${t} — ${game.i18n.localize(label)}`])),
