@@ -649,6 +649,17 @@ PYRO.SEGUNDOS_POR_TURNO = 6;
 PYRO.turnosDeSegundos = segundos =>
   Math.max(1, Math.round((Number(segundos) || 0) / PYRO.SEGUNDOS_POR_TURNO));
 
+/**
+ * Unidades em que um prazo pode ser escrito. Turno e segundo são a mesma
+ * contagem (um vale seis do outro); a rodada é outra régua, porque ela cresce
+ * com a quantidade de gente em cena, e por isso é contada à parte.
+ */
+PYRO.unidadesDeDuracao = {
+  turnos: { label: "PYRO.Duracao.Turnos", curto: "PYRO.Duracao.TurnosCurto" },
+  segundos: { label: "PYRO.Duracao.Segundos", curto: "PYRO.Duracao.SegundosCurto" },
+  rodadas: { label: "PYRO.Duracao.Rodadas", curto: "PYRO.Duracao.RodadasCurto" }
+};
+
 /* -------------------------------------------------------------------------- */
 /*  Condições mentais                                                         */
 /* -------------------------------------------------------------------------- */

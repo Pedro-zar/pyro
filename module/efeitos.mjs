@@ -11,6 +11,7 @@
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
+import { UNIDADE_PADRAO, dadosDePrazo } from "./duracao.mjs";
 
 
 /* -------------------------------------------------------------------------- */
@@ -257,14 +258,24 @@ export function dadosDoEfeitoAplicado(efeito, vars) {
     }))
   };
 
-  // Duração escrita como fórmula ("@rodadas") só vira número aqui, porque só
-  // agora se sabe com que Intenção a magia foi conjurada.
-  const formula = flagsDe(efeito)?.rodadasFormula;
-  if (formula) {
-    const rodadas = Number(resolverValorEfeito(formula, vars));
-    if (Number.isFinite(rodadas) && rodadas > 0) {
-      dados.duration = { ...(dados.duration ?? {}), rounds: rodadas };
-    }
+  /*
+   * O prazo é remontado agora, e não copiado. Duas razões: uma fórmula
+   * ("@intencao * 2") só vira número aqui, porque só agora se sabe com que
+   * Intenção a magia foi conjurada; e o relógio do prazo começa a contar
+   * quando o efeito é aplicado, não quando ele foi escrito no item — o
+   * original guarda um começo de meses atrás, que faria a cópia nascer
+   * vencida.
+   */
+  const flags = flagsDe(efeito) ?? {};
+  const formula = flags.prazoFormula;
+  const unidade = formula?.unidade ?? flags.prazo?.unidade ?? UNIDADE_PADRAO;
+  const valor = formula?.formula
+    ? Number(resolverValorEfeito(formula.formula, vars))
+    : Number(flags.prazo?.valor) || 0;
+  if (Number.isFinite(valor) && valor > 0) {
+    const resolvido = dadosDePrazo(valor, unidade);
+    dados.duration = { ...(dados.duration ?? {}), ...resolvido.duration };
+    dados.flags = foundry.utils.mergeObject(dados.flags ?? {}, resolvido.flags);
   }
   return dados;
 }

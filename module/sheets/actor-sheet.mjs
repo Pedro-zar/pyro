@@ -8,6 +8,7 @@ import { NovoCaminhoApp } from "../apps/novo-caminho.mjs";
 import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
 import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDoEfeito } from "../efeitos.mjs";
+import { rotuloDePrazo } from "../duracao.mjs";
 import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
@@ -1242,7 +1243,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         img: ef.img,
         name: ef.name,
         disabled: ef.disabled,
-        duracao: ef.duration?.label ?? "",
+        duracao: rotuloDePrazo(ef),
         // Exaustão mostra o número de níveis ao lado do nome: ele mora na
         // flag, não no nome, então a linha precisa dizer.
         exaustao: ehExaustao(ef) ? niveisDoEfeito(ef) : null,

@@ -60,32 +60,48 @@ async function queimar(actor, relatos, rolagens) {
  * o Molhado, que entra na fila deste mesmo ator — enfileirar aqui faria a
  * chamada de dentro esperar a de fora e o turno travaria sem erro nenhum.
  */
-async function passarTurnoDoAtor(actor, relatos, rolagens, ehSeuTurno) {
+async function passarTurnoDoAtor(actor, relatos, rolagens, ehSeuTurno, virouRodada) {
   await queimar(actor, relatos, rolagens);
-  return naFila(actor, () => vencerPrazos(actor, relatos, ehSeuTurno));
+  return naFila(actor, () => vencerPrazos(actor, relatos, ehSeuTurno, virouRodada));
 }
 
-/** Desconta um turno dos efeitos com prazo e remove os que acabaram. */
-async function vencerPrazos(actor, relatos, ehSeuTurno) {
+/** Nome do efeito no relato de expiração. */
+function nomeDoEfeito(efeito, flags) {
+  const chave = flags.condicao;
+  return esc(chave ? loc(PYRO.condicoes[chave]?.label ?? chave)
+                   : (flags.rotulo ?? efeito.name));
+}
+
+/**
+ * Desconta o que passou dos efeitos com prazo e remove os que acabaram.
+ *
+ * Duas contagens, porque são duas réguas: turno (e segundo, que é a mesma
+ * régua) anda a cada turno; rodada anda só quando a rodada vira, já que ela
+ * cresce com a quantidade de gente em cena.
+ */
+async function vencerPrazos(actor, relatos, ehSeuTurno, virouRodada) {
   for (const efeito of [...(actor.effects ?? [])]) {
     const flags = flagsDe(efeito);
-    // Sem prazo (Molhado) ou sem prazo nosso: o tempo não o alcança.
-    if (!flags || flags.turnos === null || flags.turnos === undefined) continue;
+    if (!flags) continue;
+
+    const emTurnos = flags.turnos !== null && flags.turnos !== undefined;
+    const emRodadas = !emTurnos && virouRodada
+      && flags.rodadas !== null && flags.rodadas !== undefined;
+    // Sem prazo (Molhado), ou prazo em rodadas num turno que não virou rodada.
+    if (!emTurnos && !emRodadas) continue;
     // Efeito que dura "até o fim do próximo turno" só conta os turnos de quem
     // o carrega — nos turnos dos outros ele não anda.
-    if (flags.porTurnoProprio && !ehSeuTurno) continue;
+    if (emTurnos && flags.porTurnoProprio && !ehSeuTurno) continue;
 
-    const restam = (Number(flags.turnos) || 0) - 1;
+    const campo = emTurnos ? "turnos" : "rodadas";
+    const restam = (Number(flags[campo]) || 0) - 1;
     if (restam > 0) {
-      await efeito.update({ [`flags.${SYSTEM_ID}.turnos`]: restam });
+      await efeito.update({ [`flags.${SYSTEM_ID}.${campo}`]: restam });
       continue;
     }
     await efeito.delete();
-    const chave = flags.condicao;
     relatos.push(loc("PYRO.Tempo.Expirou", {
-      nome: esc(actor.name),
-      condicao: esc(chave ? loc(PYRO.condicoes[chave]?.label ?? chave)
-                          : (flags.rotulo ?? efeito.name))
+      nome: esc(actor.name), condicao: nomeDoEfeito(efeito, flags)
     }));
   }
 }
@@ -94,12 +110,14 @@ async function vencerPrazos(actor, relatos, ehSeuTurno) {
  * Um turno passou: 6 segundos correm para todos os que estão em cena.
  * Publica um card só com tudo que aconteceu, e nada quando nada aconteceu.
  */
-export async function passarTurno(combate, atorDoTurno = null) {
+export async function passarTurno(combate, atorDoTurno = null, virouRodada = false) {
   const relatos = [];
   const rolagens = [];
   for (const actor of atoresDoCombate(combate)) {
     if (!actor.isOwner) continue;
-    await passarTurnoDoAtor(actor, relatos, rolagens, actor.uuid === atorDoTurno);
+    await passarTurnoDoAtor(
+      actor, relatos, rolagens, actor.uuid === atorDoTurno, virouRodada
+    );
   }
   return publicarTurno(relatos, rolagens);
 }
@@ -154,14 +172,18 @@ export function avancouUmTurno(combate, mudanca, opcoes) {
   const antes = posicoes.get(combate.id);
   posicoes.set(combate.id, agora);
 
-  const parado = { passou: false, atorUuid: null };
+  const parado = { passou: false, atorUuid: null, virouRodada: false };
   if (mudanca.turn === undefined && mudanca.round === undefined) return parado;
   if (!combate.started) return parado;
   // Sem estado anterior (recarga de página) ou combate que acabou de começar:
   // este update é o retrato inicial, e não um turno gasto.
   if (!antes?.iniciado) return parado;
 
-  const deQuem = { passou: true, atorUuid: antes.atorUuid };
+  const deQuem = {
+    passou: true,
+    atorUuid: antes.atorUuid,
+    virouRodada: agora.round > antes.round
+  };
   // Os botões de próximo e de voltar turno declaram a direção.
   if (opcoes?.direction !== undefined) {
     return opcoes.direction > 0 ? deQuem : parado;
@@ -172,38 +194,6 @@ export function avancouUmTurno(combate, mudanca, opcoes) {
   const avancou = agora.round > antes.round
     || (agora.round === antes.round && agora.turn > antes.turn);
   return avancou ? deQuem : parado;
-}
-
-/** O efeito conta o relógio do sistema? */
-const temPrazo = efeito => {
-  const f = flagsDe(efeito);
-  return !!f && f.turnos !== null && f.turnos !== undefined;
-};
-
-/** Tira do ator todo efeito que dependia do relógio. */
-function limparPrazosDoAtor(actor) {
-  return naFila(actor, async () => {
-    const vencidos = [...(actor.effects ?? [])].filter(temPrazo).map(e => e.id);
-    if (vencidos.length) await actor.deleteEmbeddedDocuments("ActiveEffect", vencidos);
-  });
-}
-
-/**
- * O combate acabou: os prazos que ele contava não têm mais quem os conte.
- * Sem isso a Defesa de Pedra e o Queimando ficariam presos no ator até alguém
- * apagar o efeito na mão.
- */
-async function limparPrazos(combate) {
-  // Encontro montado e apagado sem começar não gastou tempo de ninguém.
-  if (!combate.started) return;
-  for (const actor of atoresDoCombate(combate)) {
-    if (!actor.isOwner) continue;
-    // Quem ainda está em outro combate em andamento continua com relógio.
-    const noutro = (game.combats ?? []).some(c => c.id !== combate.id && c.started
-      && atoresDoCombate(c).some(a => a.uuid === actor.uuid));
-    if (noutro) continue;
-    await limparPrazosDoAtor(actor);
-  }
 }
 
 /**
@@ -222,14 +212,16 @@ export function registrarRelogio() {
   });
 
   Hooks.on("updateCombat", async (combate, mudanca, opcoes) => {
-    const { passou, atorUuid } = avancouUmTurno(combate, mudanca, opcoes);
+    const { passou, atorUuid, virouRodada } = avancouUmTurno(combate, mudanca, opcoes);
     if (!passou) return;
     if (!(game.users.activeGM?.isSelf ?? game.user.isGM)) return;
-    await passarTurno(combate, atorUuid);
+    await passarTurno(combate, atorUuid, virouRodada);
   });
 
-  Hooks.on("deleteCombat", async combate => {
-    posicoes.delete(combate.id);
-    if (game.users.activeGM?.isSelf ?? game.user.isGM) await limparPrazos(combate);
-  });
+  /*
+   * Acabar o combate não apaga condição nenhuma: o que está pendurado no
+   * personagem continua lá, e quem decide quanto tempo passou depois da luta é
+   * a mesa, na mão.
+   */
+  Hooks.on("deleteCombat", combate => posicoes.delete(combate.id));
 }

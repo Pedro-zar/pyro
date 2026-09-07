@@ -9,12 +9,12 @@
  * dano de frio que for chegar.
  */
 import { PYRO } from "./config.mjs";
-import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
+import { SYSTEM_ID, flagsDe, naFila } from "./sistema.mjs";
+import { SEM_PRAZO, dadosDePrazo, updateDePrazo } from "./duracao.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
-/** Sem prazo: a condição fica até algo consumi-la. */
-export const SEM_PRAZO = null;
+export { SEM_PRAZO };
 
 /**
  * O efeito que carrega esta condição no ator, se houver.
@@ -74,22 +74,6 @@ function nomeDaCondicao(chave, pilhas, contaPilhas = true) {
 }
 
 /**
- * Duração nativa do Foundry equivalente ao prazo, para o efeito mostrar a
- * contagem na ficha e parar de valer se o tempo do mundo passar por ele.
- *
- * Quem apaga o efeito é o relógio do combate (ver tempo.mjs) — a duração do
- * Foundry só marca o vencimento, sem remover nada. Ela existe aqui para o caso
- * em que não há combate nenhum contando os turnos.
- */
-function duracaoDe(turnos) {
-  if (turnos === SEM_PRAZO || turnos === undefined) return undefined;
-  return {
-    seconds: Math.max(0, Number(turnos) || 0) * PYRO.SEGUNDOS_POR_TURNO,
-    startTime: game.time?.worldTime ?? 0
-  };
-}
-
-/**
  * Prazo que sobra quando uma aplicação nova encontra uma condição já ativa.
  * Sem prazo de um dos lados é sem prazo: a condição espera algo consumi-la.
  * Fora isso, o mais longo vence — nas mentais, onde cada ponto gasto compra um
@@ -133,22 +117,24 @@ export function empilharCondicao(actor, chave, pilhas, turnos = SEM_PRAZO, {
       const prazo = adotado ? turnos : juntarPrazos(flags.turnos, turnos, modoPrazo);
       await existente.update({
         name: nomeDaCondicao(chave, total, contaPilhas),
-        duration: duracaoDe(prazo),
+        ...updateDePrazo(prazo ?? 0),
         [`flags.${SYSTEM_ID}.condicao`]: chave,
-        [`flags.${SYSTEM_ID}.pilhas`]: total,
-        [`flags.${SYSTEM_ID}.turnos`]: prazo
+        [`flags.${SYSTEM_ID}.pilhas`]: total
       });
       return { pilhas: total, turnos: prazo, novo: false };
     }
 
-    await ActiveEffect.implementation.create({
-      name: nomeDaCondicao(chave, soma, contaPilhas),
-      img: PYRO.condicoes[chave]?.img ?? "icons/svg/aura.svg",
-      origin: actor.uuid,
-      statuses: [chave],
-      duration: duracaoDe(turnos),
-      flags: flagsDoSistema({ condicao: chave, pilhas: contaPilhas ? soma : 1, turnos })
-    }, { parent: actor });
+    await ActiveEffect.implementation.create(foundry.utils.mergeObject(
+      dadosDePrazo(turnos ?? 0, "turnos", {
+        condicao: chave, pilhas: contaPilhas ? soma : 1
+      }),
+      {
+        name: nomeDaCondicao(chave, soma, contaPilhas),
+        img: PYRO.condicoes[chave]?.img ?? "icons/svg/aura.svg",
+        origin: actor.uuid,
+        statuses: [chave]
+      }
+    ), { parent: actor });
     return { pilhas: contaPilhas ? soma : 1, turnos, novo: true };
   });
 }
@@ -163,15 +149,10 @@ export function empilharCondicao(actor, chave, pilhas, turnos = SEM_PRAZO, {
  *   quem carrega o efeito, e não em todo turno da cena.
  */
 export function efeitoComPrazo(actor, dados, turnos, proprio = false) {
-  return ActiveEffect.implementation.create({
-    ...dados,
-    duration: duracaoDe(turnos),
-    origin: dados.origin ?? actor.uuid,
-    flags: foundry.utils.mergeObject(
-      dados.flags ?? {},
-      flagsDoSistema({ turnos, porTurnoProprio: proprio, rotulo: dados.name })
-    )
-  }, { parent: actor });
+  return ActiveEffect.implementation.create(foundry.utils.mergeObject(
+    dadosDePrazo(turnos, "turnos", { porTurnoProprio: proprio, rotulo: dados.name }),
+    { ...dados, origin: dados.origin ?? actor.uuid }
+  ), { parent: actor });
 }
 
 /** Tira pilhas; chegando a zero, o efeito some. */

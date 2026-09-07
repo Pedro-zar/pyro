@@ -7,10 +7,12 @@
   <div class="linha-campos">
     <label class="campo cresce"><span>{{localize "PYRO.Efeitos.NomeEfeito"}}</span>
       <input type="text" name="nome" value="{{nome}}" /></label>
-    <label class="campo"><span>{{localize "PYRO.Efeitos.Rodadas"}}</span>
-      <input type="text" name="rodadas" value="{{rodadas}}" /></label>
+    <label class="campo"><span>{{localize "PYRO.Efeitos.Duracao"}}</span>
+      <input type="text" name="prazo" value="{{prazo}}" /></label>
+    <label class="campo"><span>{{localize "PYRO.Efeitos.Unidade"}}</span>
+      <select name="unidade">{{selectOptions unidades selected=unidade}}</select></label>
   </div>
-  <p class="pyro-nota">{{localize "PYRO.Efeitos.RodadasDica"}}</p>
+  <p class="pyro-nota">{{localize "PYRO.Efeitos.DuracaoDica"}}</p>
 
   {{#if podeSerDeUso}}
   <div class="campos-check">

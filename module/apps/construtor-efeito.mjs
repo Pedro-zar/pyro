@@ -1,7 +1,8 @@
 import { PYRO } from "../config.mjs";
 import { variaveisDoItem } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
-import { caminho, flagsDe, flagsDoSistema } from "../sistema.mjs";
+import { caminho, flagsDe, flagsDoSistema, SYSTEM_ID } from "../sistema.mjs";
+import { UNIDADE_PADRAO, dadosDePrazo, opcoesDeUnidade } from "../duracao.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -66,21 +67,42 @@ export function estadoDeEfeito(efeito) {
     }
   }
 
-  const rodadas = flags.rodadasFormula
-    ?? ((efeito.duration?.rounds ?? 0) > 0 ? String(efeito.duration.rounds) : "0");
+  const prazo = prazoEscrito(efeito);
 
   return {
     nome: efeito.name,
     img: efeito.img,
-    rodadas: String(rodadas),
+    prazo: prazo.valor,
+    unidade: prazo.unidade,
     deUso: !!flags.deUso,
     alvosItem: (flags.alvosItem ?? []).filter(a => a.id).map(a => a.id),
     alvosTipo: (flags.alvosItem ?? []).filter(a => a.tipo).map(a => a.tipo),
     mudancas,
     avancadas,
     statusPreservados,
-    categoria: efeito.disabled ? "inativos" : rodadas !== "0" ? "temporarios" : "passivos"
+    categoria: efeito.disabled ? "inativos" : prazo.valor !== "0" ? "temporarios" : "passivos"
   };
+}
+
+/**
+ * Prazo do efeito como ele foi escrito, para reabrir a janela do jeito que ela
+ * foi fechada. Efeito montado fora do construtor não tem a flag: aí o prazo é
+ * lido da duração nativa, que é o que a ficha padrão do Foundry preenche.
+ */
+function prazoEscrito(efeito) {
+  const flags = flagsDe(efeito) ?? {};
+  const formula = flags.prazoFormula;
+  if (formula?.formula) {
+    return { valor: String(formula.formula), unidade: formula.unidade ?? UNIDADE_PADRAO };
+  }
+  if (flags.prazo?.valor) {
+    return { valor: String(flags.prazo.valor), unidade: flags.prazo.unidade ?? UNIDADE_PADRAO };
+  }
+  const d = efeito.duration ?? {};
+  if (d.rounds > 0) return { valor: String(d.rounds), unidade: "rodadas" };
+  if (d.turns > 0) return { valor: String(d.turns), unidade: "turnos" };
+  if (d.seconds > 0) return { valor: String(d.seconds), unidade: "segundos" };
+  return { valor: "0", unidade: UNIDADE_PADRAO };
 }
 
 /**
@@ -104,7 +126,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       this.categoria = estado.categoria;
       this.nome = estado.nome;
       this.img = estado.img;
-      this.rodadas = estado.rodadas;
+      this.prazo = estado.prazo;
+      this.unidade = estado.unidade;
       this.deUso = estado.deUso;
       this.alvosItem = estado.alvosItem;
       this.alvosTipo = estado.alvosTipo;
@@ -117,7 +140,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.categoria = categoria;
     this.nome = game.i18n.localize("PYRO.Efeitos.Novo");
     this.img = null;
-    this.rodadas = categoria === "temporarios" ? "1" : "0";
+    this.prazo = categoria === "temporarios" ? "1" : "0";
+    this.unidade = UNIDADE_PADRAO;
     this.deUso = documento instanceof Item && TIPOS_DE_USO.includes(documento.type);
     /** Ids dos itens a que o efeito fica preso. Vazio = vale sempre. */
     this.alvosItem = [];
@@ -218,7 +242,9 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     context.podeSerDeUso = this.documento instanceof Item;
     context.deUso = this.deUso ?? false;
     context.nome = this.nome;
-    context.rodadas = this.rodadas;
+    context.prazo = this.prazo;
+    context.unidade = this.unidade;
+    context.unidades = opcoesDeUnidade();
     context.variaveis = this.#variaveis();
     context.itensAlvo = this.#itensAlvo();
     context.editando = !!this.efeito;
@@ -297,7 +323,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       new foundry.applications.ux.FormDataExtended(this.element).object
     );
     this.nome = dados.nome ?? this.nome;
-    this.rodadas = String(dados.rodadas ?? this.rodadas ?? "0");
+    this.prazo = String(dados.prazo ?? this.prazo ?? "0");
+    this.unidade = String(dados.unidade ?? this.unidade ?? UNIDADE_PADRAO);
     this.deUso = dados.deUso ?? this.deUso;
     // Marcações da árvore de alvos, item a item e por tipo inteiro.
     const marcados = (prefixo, chaves) =>
@@ -363,13 +390,15 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     const deUso = !!dados.deUso;
 
     /*
-     * A duração aceita fórmula ("@rodadas", "@intencao * 2"). Número puro vira
-     * duração direto; fórmula fica guardada e só é resolvida quando o efeito é
-     * aplicado, com as variáveis daquela conjuração.
+     * O prazo aceita fórmula ("@intencao * 2"). Número puro vira duração
+     * direto; fórmula fica guardada e só é resolvida quando o efeito é
+     * aplicado, com as variáveis daquela conjuração. A unidade vale para os
+     * dois casos.
      */
-    const textoRodadas = String(dados.rodadas ?? "").trim();
-    const rodadasFixas = Number(textoRodadas);
-    const rodadasEhFormula = textoRodadas !== "" && !Number.isFinite(rodadasFixas);
+    const textoPrazo = String(dados.prazo ?? "").trim();
+    const unidade = PYRO.unidadesDeDuracao[dados.unidade] ? dados.unidade : UNIDADE_PADRAO;
+    const prazoFixo = Number(textoPrazo);
+    const prazoEhFormula = textoPrazo !== "" && !Number.isFinite(prazoFixo);
 
     /*
      * Três destinos diferentes: condição vira status (marcador no token),
@@ -424,7 +453,13 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
        */
       flags: flagsDoSistema({
         deUso,
-        rodadasFormula: rodadasEhFormula ? textoRodadas : null,
+        /*
+         * Fórmula: o efeito nasce com prazo de 1 na unidade escolhida, só
+         * para já ser temporário; o número real entra na cópia aplicada.
+         */
+        prazoFormula: prazoEhFormula ? { formula: textoPrazo, unidade } : null,
+        ...dadosDePrazo(prazoEhFormula ? 1 : Math.max(0, prazoFixo || 0), unidade)
+          .flags[SYSTEM_ID],
         danos,
         custos,
         alvosItem,
@@ -441,12 +476,12 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
           ...(this.avancadas ?? [])
         ]
       },
-      /*
-       * Fórmula entra com 1 rodada só para o efeito nascer temporário (o
-       * número real vai na cópia aplicada); sem duração nenhuma, o null
-       * limpa o que houver — uma edição pode justamente tirar a duração.
-       */
-      duration: { rounds: rodadasEhFormula ? 1 : rodadasFixas > 0 ? rodadasFixas : null }
+      // A duração vai com todos os campos escritos, inclusive os nulos: uma
+      // edição pode justamente ser a que tira a duração, e o update do Foundry
+      // funde o que recebe em vez de trocar.
+      duration: dadosDePrazo(
+        prazoEhFormula ? 1 : Math.max(0, prazoFixo || 0), unidade
+      ).duration
     };
 
     if (this.efeito) {
