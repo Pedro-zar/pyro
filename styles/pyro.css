@@ -352,7 +352,9 @@
 
 .pyro .botoes-reacao { display: flex; flex-wrap: wrap; gap: 4px; }
 .pyro .botoes-reacao button { font-size: 0.75rem; padding: 3px 8px; line-height: 1.4; }
-.pyro .botoes-reacao.vontade button { width: 2.2rem; font-weight: 700; }
+/* A Vontade de Viver é um botão com texto, e não um passo de contador: a
+   largura fixa dos botões de exaustão espremia o rótulo em três linhas. */
+.pyro .botoes-reacao.vontade button { font-weight: 700; white-space: nowrap; }
 /* Exaustão: -1 [nível] +1, na mesma linha dos botões de vontade. */
 .pyro .botoes-reacao.exaustao { align-items: center; }
 .pyro .botoes-reacao.exaustao button { width: 2.2rem; }
@@ -390,6 +392,9 @@
   text-shadow: 0 0 10px var(--pyro-acento-suave);
 }
 .pyro nav.tabs i { font-size: 0.9em; }
+/* Efeitos é aba de consulta rara: o ícone basta, e a palavra roubava espaço
+   das outras seis. O nome continua no tooltip. */
+.pyro nav.tabs > [data-tab="efeitos"] span { display: none; }
 
 /* ---------- Seções de lista ------------------------------------------------ */
 
@@ -860,6 +865,12 @@
   display: flex; justify-content: flex-end; gap: var(--pyro-e-2);
   margin-bottom: var(--pyro-e-2);
 }
+/* A barra já empurra tudo para a direita: o margin-left automático que o
+   botão de seção carrega separava os dois e ainda deixava o primeiro
+   encolher, quebrando o rótulo em várias linhas. */
+.pyro .barra-acoes > .botao-secao {
+  margin-left: 0; flex: 0 0 auto; white-space: nowrap; width: auto;
+}
 /* Painel de magia e botão de criar lado a lado (aba Poderes). */
 .pyro .linha-magia {
   display: flex; align-items: center; gap: var(--pyro-e-2);
@@ -878,7 +889,13 @@
 .pyro .stat-inline {
   margin: 0; font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
 }
-.pyro .barra-acoes .botao-secao {
+/*
+ * Só o botão de ícone puro fica quadrado, e ele diz isso na classe. Antes a
+ * regra pegava qualquer botão da barra, e o "Caminho novo (30)" era espremido
+ * em 1,9rem com o rótulo quebrado em três linhas — um :has(i:only-child) não
+ * resolveria, porque o texto ao lado do ícone não conta como filho.
+ */
+.pyro .barra-acoes .botao-secao.so-icone {
   width: var(--pyro-toque); padding: 0; justify-content: center;
 }
 
@@ -1617,7 +1634,9 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 
 /* Crenças e instintos: três campos empilhados, sem rótulo por linha. */
 .pyro .tracos-persona { display: flex; flex-direction: column; gap: var(--pyro-e-2); }
-.pyro .tracos-persona input[type=text] { width: 100%; }
+.pyro .tracos-persona textarea {
+  width: 100%; resize: vertical; min-height: 3.2rem; line-height: 1.35;
+}
 
 /* Linha da Força de Vontade gasta, nos cards de teste. */
 .pyro-vontade-gasta {

@@ -34,18 +34,20 @@
       <div class="bloco tracos-persona">
         <h4 class="titulo-secao">{{localize "PYRO.Persona.Crencas"}}</h4>
         <p class="pyro-nota">{{localize "PYRO.Persona.CrencasDica"}}</p>
-        {{#each system.crencas as |c idx|}}
-        <input type="text" name="system.crencas.{{idx}}" value="{{c}}"
-               placeholder="{{localize 'PYRO.Persona.CrencaPlaceholder'}}" />
+        {{!-- Uma crença pode ser uma frase comprida: o campo cresce com o
+              texto em vez de escondê-lo numa linha só. --}}
+        {{#each crencas as |c|}}
+        <textarea name="system.crencas.{{c.indice}}" rows="2"
+                  placeholder="{{c.exemplo}}">{{c.texto}}</textarea>
         {{/each}}
       </div>
 
       <div class="bloco tracos-persona">
         <h4 class="titulo-secao">{{localize "PYRO.Persona.Instintos"}}</h4>
         <p class="pyro-nota">{{localize "PYRO.Persona.InstintosDica"}}</p>
-        {{#each system.instintos as |i idx|}}
-        <input type="text" name="system.instintos.{{idx}}" value="{{i}}"
-               placeholder="{{localize 'PYRO.Persona.InstintoPlaceholder'}}" />
+        {{#each instintos as |i|}}
+        <textarea name="system.instintos.{{i.indice}}" rows="2"
+                  placeholder="{{i.exemplo}}">{{i.texto}}</textarea>
         {{/each}}
       </div>
 

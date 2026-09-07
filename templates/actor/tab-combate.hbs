@@ -71,20 +71,19 @@
       </div>
 
       {{!-- Benefício e Inspiração Divina são escolhidos no diálogo do teste, e
-            a Sorte no card da rolagem. Aqui fica só o uso que depende do
-            estado da ficha: agarrar-se à vida a 0 PV. --}}
+            a Sorte no card da rolagem: o único uso que mora na ficha é
+            agarrar-se à vida a 0 PV. Fora dessa hora o bloco inteiro sai, em
+            vez de ficar ocupando espaço para dizer que não há o que clicar. --}}
+      {{#if podeVontadeDeViver}}
       <h3 class="titulo-secao">{{localize "PYRO.Vontade.Nome"}}</h3>
       <div class="botoes-reacao vontade">
-        {{#if podeVontadeDeViver}}
         <button type="button" data-action="vontadeDeViver"
                 title="{{localize 'PYRO.Vontade.ViverDica'}}">
           <i class="fa-solid fa-heart-pulse"></i>
           {{localize "PYRO.Vontade.Viver"}} ({{custoVontadeDeViver}})
         </button>
-        {{else}}
-        <p class="pyro-nota">{{localize "PYRO.Vontade.OndeGastar"}}</p>
-        {{/if}}
       </div>
+      {{/if}}
 
       <h3 class="titulo-secao">{{localize "PYRO.Exaustao.Nome"}}</h3>
       <div class="botoes-reacao exaustao" title="{{localize 'PYRO.Exaustao.Dica'}}">

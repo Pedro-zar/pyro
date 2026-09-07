@@ -266,7 +266,13 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       + recursos.estamina.bonus;
     recursos.mana.max = Math.floor(atributos.sab.efetivo * 5 * this.multi)
       + recursos.mana.bonus;
-    const recuperacao = Math.floor((atributos.int.efetivo / 2) * this.multi);
+    /*
+     * A recuperação é metade do atributo, e só. O multiplicador de patamar
+     * mexe no que cabe no tanque, não no ritmo com que ele enche — a regra
+     * antiga aplicava os 10% aqui também e fazia a recuperação pular a cada
+     * ponto de Determinação.
+     */
+    const recuperacao = Math.floor(atributos.int.efetivo / 2);
     recursos.mana.recuperacao = recuperacao;
     recursos.energia.max = Math.floor(atributos.pre.efetivo * 5 * this.multi)
       + recursos.energia.bonus;
@@ -290,6 +296,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.caido = recursos.pv.value <= 0;
 
     // Recursos personalizados: (base + atributo x porPonto) +10% por patamar.
+    // A recuperação fica fora do multiplicador, como a da mana.
     for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
       const rec = recursos[chave];
       if (!rec) continue;
@@ -297,7 +304,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       rec.max = Math.floor((cfg.base + attr * cfg.porPonto) * this.multi) + rec.bonus;
       const attrRec = atributos[cfg.recAtributo]?.efetivo;
       rec.recuperacao = attrRec
-        ? Math.floor((attrRec * (cfg.recPorPonto ?? 0) * this.multi) / 2) : 0;
+        ? Math.floor((attrRec * (cfg.recPorPonto ?? 0)) / 2) : 0;
     }
 
     /* --- Caminhos: magia, feitiçaria, afinidades -------------------------- */

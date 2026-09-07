@@ -139,7 +139,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         { id: "inventario", icon: "fa-solid fa-box-open" },
         { id: "progressao", icon: "fa-solid fa-route" },
         { id: "notas", icon: "fa-solid fa-book" },
-        { id: "efeitos", icon: "fa-solid fa-bolt" }
+        // Só o ícone na barra (ver pyro.css): o tooltip é o que sobra para
+        // dizer o nome da aba.
+        { id: "efeitos", icon: "fa-solid fa-bolt", tooltip: "PYRO.Tabs.efeitos" }
       ],
       initial: "combate",
       labelPrefix: "PYRO.Tabs"
@@ -532,10 +534,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           {
             texto: `${loc("PYRO.Abrev.gasta")} ${sys.xpGasta}`,
             classe: "col-xp", dica: loc("PYRO.Item.XpGasta")
-          },
-          {
-            texto: `${loc("PYRO.Abrev.tier")}1 ${sys.custosPorTier?.[0]?.custo ?? ""}`,
-            classe: "col-xp", dica: loc("PYRO.Item.CustoPorTier")
           }
         ],
         /*
@@ -622,7 +620,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       runas: secao("runas", runas, { semLegenda: true }),
       pericias: secao("pericias", pericias, { semLegenda: true }),
       caminhos: secao("caminhos", caminhos, {
-        colNome: loc("PYRO.Col.caminho")
+        colNome: loc("PYRO.Col.caminho"),
+        // A linha traz XP disponível e XP gasta: sem estes dois a legenda
+        // terminava antes das colunas e elas ficavam sem rótulo.
+        cauda: [col("xp", "col-xp"), col("gasta", "col-xp")]
       })
     };
 
@@ -682,6 +683,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       coresElemento,
       podeTrocarTema: actor.isOwner,
       identidade: this.#identidade(),
+      crencas: this.#pilares("crencas", "Crenca"),
+      instintos: this.#pilares("instintos", "Instinto"),
       alertas: this.#alertas(),
       efeitosSofridos: this.#efeitosSofridos(),
       tamanhoLabel: loc(PYRO.tamanhos[actor.system.tamanho]?.label ?? ""),
@@ -986,6 +989,22 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   /**
+   * Crenças ou instintos com um exemplo diferente por linha: três exemplos
+   * iguais só mostravam que dava para escrever qualquer coisa ali, e não que
+   * as três linhas são três pilares diferentes.
+   */
+  #pilares(campo, chave) {
+    return (this.actor.system[campo] ?? []).map((texto, indice) => ({
+      indice,
+      texto,
+      // A regra são três de cada; uma quarta linha fica sem exemplo em vez de
+      // mostrar a chave crua.
+      exemplo: game.i18n.has(`PYRO.Persona.${chave}${indice + 1}`)
+        ? game.i18n.localize(`PYRO.Persona.${chave}${indice + 1}`) : ""
+    }));
+  }
+
+  /**
    * Linhas do painel de efeitos da aba de combate: só o que o personagem está
    * sofrendo agora, com nome, número, o que faz e quanto ainda dura.
    */
@@ -1020,10 +1039,35 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         icone: "fa-lungs", tom: "perigo"
       });
     }
-    if (recursos.pv.max > 0 && recursos.pv.value / recursos.pv.max <= 0.25) {
+    /*
+     * O estado de vida sai pelo nome que a regra dá a ele (SRD Atributos), e
+     * não por um "PV crítico" genérico: Machucado e Ensanguentado são o gancho
+     * de habilidades e da Vontade de Viver, então a barra fala a mesma língua
+     * da ficha. Machucado é o degrau mais fundo e some com o outro.
+     */
+    if (sys.caido) {
+      // A 0 PV não há Machucado nem Ensanguentado (os dois pedem PV acima de
+      // zero), e era justamente o estado mais grave que ficava sem aviso.
       lista.push({
-        texto: game.i18n.localize("PYRO.Alerta.PvBaixo"),
-        icone: "fa-heart-crack", tom: "perigo"
+        texto: game.i18n.localize("PYRO.Alerta.Caido"),
+        icone: "fa-skull", tom: "perigo"
+      });
+    } else {
+      const estado = sys.machucado ? "machucado" : sys.ensanguentado ? "ensanguentado" : null;
+      if (estado) {
+        lista.push({
+          texto: game.i18n.localize(PYRO.condicoes[estado].label),
+          icone: estado === "machucado" ? "fa-bone" : "fa-droplet",
+          tom: estado === "machucado" ? "perigo" : "aviso"
+        });
+      }
+    }
+    // Desmaiado é o que mais muda o que o jogador pode fazer, e passava só
+    // como ícone no token.
+    if (this.actor.statuses?.has?.("desmaiado")) {
+      lista.push({
+        texto: game.i18n.localize(PYRO.condicoes.desmaiado.label),
+        icone: "fa-bed", tom: "perigo"
       });
     }
     if (sys.sobrepeso) {
