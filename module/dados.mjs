@@ -58,10 +58,24 @@ export function formulaReacao(formula, faces, { vantagem = 0, desvantagem = 0, b
 /**
  * Atalho de escrita nas fórmulas: [VIG], [FOR]... viram @vig, @for — o MOD
  * (valor efetivo) do atributo entra na conta via getRollData.
+ *
+ * [NVL] é o nível do próprio item (a magia, a habilidade, a técnica que está
+ * sendo usada), e não um atributo de quem usa: é o que faz "1d6 + [NVL]"
+ * crescer com o uso, sem o jogador reescrever a fórmula a cada nível.
  */
 export function expandirAtributos(formula) {
-  return String(formula ?? "").replace(/\[(FOR|VIG|DES|AGI|INT|SAB|PRE)\]/gi,
+  return String(formula ?? "").replace(/\[(FOR|VIG|DES|AGI|INT|SAB|PRE|NVL)\]/gi,
     (m, sigla) => `@${sigla.toLowerCase()}`);
+}
+
+/**
+ * Cola a unidade no número, sem espaço nenhum: quem escreveu "% de chance"
+ * quer "10% de chance", e quem escreveu " de dano" já pôs o espaço.
+ * Serve tanto para o resultado rolado quanto para a fórmula na ficha.
+ */
+export function comUnidade(valor, unidade) {
+  const texto = String(valor ?? "").trim();
+  return texto ? `${texto}${unidade ?? ""}` : "";
 }
 
 /** Fórmula "crua" da pool (sem ajustes) — usada em @dados.* e na iniciativa. */

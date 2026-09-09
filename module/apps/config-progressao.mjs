@@ -1,5 +1,5 @@
 /**
- * Progressão (só para o mestre): curva de custo por tier, regras por nome de
+ * Progressão (só para o mestre): curva de custo por ranque, regras por nome de
  * habilidade e as tabelas de nível por uso.
  */
 import { PYRO } from "../config.mjs";
@@ -63,9 +63,9 @@ export class ConfigProgressaoApp extends HandlebarsApplicationMixin(ApplicationV
     return context;
   }
 
-  /** Custos dos cinco primeiros tiers, como "3 · 6 · 12 · 24 · 48". */
+  /** Custos dos cinco primeiros ranques, como "3 · 6 · 12 · 24 · 48". */
   static #exemplo(curva, multiplicador) {
-    return Array.from({ length: 5 }, (_, i) => PYRO.custoDoTier(i + 1, multiplicador, curva)).join(" · ");
+    return Array.from({ length: 5 }, (_, i) => PYRO.custoDoRanque(i + 1, multiplicador, curva)).join(" · ");
   }
 
   /* ---------------------------------------------------------------------- */

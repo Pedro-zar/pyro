@@ -29,12 +29,8 @@
         <i class="fa-solid fa-hands-helping"></i>
       </button>
       {{/if}}
-      {{#if linha.favoritavel}}
-      <button type="button" class="icone favorito {{#if linha.favorito}}ativo{{/if}}"
-              data-action="alternarFavorito" title="{{localize 'PYRO.Favoritar'}}">
-        <i class="fa-{{#if linha.favorito}}solid{{else}}regular{{/if}} fa-star"></i>
-      </button>
-      {{/if}}
+      {{!-- Equipar antes de favoritar: a estrela é o último ícone de toda
+            linha, então ela fica na mesma coluna em todas as seções. --}}
       {{#if linha.equipavel}}
       <button type="button" class="icone equipar {{#if linha.equipado}}ativo{{/if}}"
               data-action="alternarEquipado" title="{{localize 'PYRO.Equipar'}}">
@@ -42,6 +38,12 @@
       </button>
       {{else if linha.espacoEquipar}}
       <span class="icone-vazio"></span>
+      {{/if}}
+      {{#if linha.favoritavel}}
+      <button type="button" class="icone favorito {{#if linha.favorito}}ativo{{/if}}"
+              data-action="alternarFavorito" title="{{localize 'PYRO.Favoritar'}}">
+        <i class="fa-{{#if linha.favorito}}solid{{else}}regular{{/if}} fa-star"></i>
+      </button>
       {{/if}}
     </span>
   </div>

@@ -5,7 +5,7 @@
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { executarTecnica } from "../tecnica.mjs";
-import { formulaTeste, formulaPool, expandirAtributos } from "../dados.mjs";
+import { formulaTeste, formulaPool, expandirAtributos, comUnidade } from "../dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado
 } from "../efeitos.mjs";
@@ -140,7 +140,7 @@ export class PyroItem extends Item {
     await Item.implementation.create({
       name: game.i18n.localize("PYRO.Item.HabilidadeBase"),
       type: "habilidade",
-      system: { caminho: this.id, tier: 1, ehBase: true }
+      system: { caminho: this.id, ranque: 1, ehBase: true }
     }, { parent: this.actor });
   }
 
@@ -294,6 +294,12 @@ export class PyroItem extends Item {
    */
   getRollData() {
     const dados = this.actor?.getRollData() ?? {};
+    /*
+     * [NVL]: o nível deste item. Técnica, perícia e magia guardam o nível em
+     * progresso (ele sobe pelo uso); a habilidade tem o dela em system.nivel,
+     * editado à mão. Item sem nenhum dos dois (uma arma) vale 0.
+     */
+    dados.nvl = Number(this.system?.progresso?.nivel ?? this.system?.nivel) || 0;
     for (const [chave, delta] of Object.entries(ajustesDeAtributo(this.actor, this))) {
       if (typeof dados[chave] !== "number") continue;
       dados[chave] += delta;
@@ -642,11 +648,17 @@ export class PyroItem extends Item {
 
     if (sys.formula) {
       const roll = await new Roll(expandirAtributos(sys.formula), this.getRollData()).evaluate();
+      // "10% de chance": o que o número é, escrito na habilidade, embaixo da
+      // rolagem — o total sozinho não diz se são metros, dano ou chance.
+      const unidade = sys.unidadeFormula
+        ? `<p class="pyro-total-unidade">${esc(comUnidade(roll.total, sys.unidadeFormula))}</p>`
+        : "";
       return ChatMessage.create({
         speaker,
         content: `<div class="pyro-chat">
           ${this.#topoHTML(cab)}
           ${await roll.render()}
+          ${unidade}
           ${htmlEfeitosDeUso(this)}
         </div>`,
         rolls: [roll],

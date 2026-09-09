@@ -475,7 +475,7 @@
  * Linha de item em grade: ícone | nome | detalhes | cauda [| equipar].
  * As trilhas com minmax(0, ...) podem encolher abaixo do conteúdo, então a
  * linha nunca fica mais larga que a lista — era o que empurrava a última
- * coluna da cauda (tier, "Próx.") pra fora da ficha.
+ * coluna da cauda (ranque, "Próx.") pra fora da ficha.
  */
 .pyro .lista-itens li.linha-item {
   display: flex; flex-direction: column; align-items: stretch; gap: 2px;
@@ -1057,6 +1057,11 @@
 }
 
 .pyro-nota, .pyro .pyro-nota { font-size: 0.75rem; opacity: 0.7; font-style: italic; margin: 0.3rem 0 0; }
+/* O que o resultado da habilidade é ("10% de chance"), embaixo da rolagem. */
+.pyro-chat .pyro-total-unidade {
+  margin: 0.25rem 0 0; text-align: center;
+  font-size: 1.05rem; font-weight: 600;
+}
 
 .pyro-chat { display: flex; flex-direction: column; gap: 0.4rem; }
 .pyro-chat .pyro-magia-titulo h3 { margin: 0; border: none; }
@@ -1240,9 +1245,9 @@
 .pyro .regra-opcional .regra-srd { margin-left: auto; font-size: 0.68rem; opacity: 0.6; }
 .pyro .regra-opcional .regra-dica { margin: 0.25rem 0 0; font-size: 0.78rem; opacity: 0.85; }
 
-/* Custo por tier no item de Caminho. */
-.pyro .custos-tier { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
-.pyro .custo-tier strong { opacity: 0.7; margin-right: 2px; }
+/* Custo por ranque no item de Caminho. */
+.pyro .custos-ranque { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: baseline; }
+.pyro .custo-ranque strong { opacity: 0.7; margin-right: 2px; }
 
 /* Conjurador: a Intenção que o Toque empresta e o alvo dele. */
 .pyro .intencao-valor .emprestada {
@@ -1611,9 +1616,9 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
   box-shadow: 0 0 10px color-mix(in srgb, var(--pyro-acento-ficha) 30%, transparent);
 }
 
-/* Aumento de atributo por tier: atributo, pontos e o botão de remover. */
+/* Aumento de atributo por ranque: atributo, pontos e o botão de remover. */
 
-/* Bônus ao lado da base do atributo: aumentos de tier e efeitos, somados.
+/* Bônus ao lado da base do atributo: aumentos de ranque e efeitos, somados.
    Verde quando somam, vermelho quando descontam. */
 
 /* -------------------------------------------------------------------------- */

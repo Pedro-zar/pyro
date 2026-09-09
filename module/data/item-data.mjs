@@ -24,7 +24,7 @@ class BaseItemData extends foundry.abstract.TypeDataModel {
  * varredura inclui a habilidade base de propósito: é ela que costuma carregar
  * o traço do Caminho.
  *
- * Quando nada bate, vale o custo cheio do tier.
+ * Quando nada bate, vale o custo cheio do ranque.
  */
 export function progressaoDoCaminho(actor, caminho) {
   const indice = PYRO.progressaoPorNome;
@@ -47,13 +47,13 @@ export function progressaoDoCaminho(actor, caminho) {
 }
 
 /**
- * Custo em XP de uma habilidade (SRD §3): o custo do tier na curva do mundo,
+ * Custo em XP de uma habilidade (SRD §3): o custo do ranque na curva do mundo,
  * vezes o multiplicador da regra do Caminho. A habilidade base vem junto do
  * Caminho e não custa nada.
  */
 export function custoDaHabilidade(sys, progressao = null) {
   if (sys?.ehBase) return 0;
-  return PYRO.custoDoTier(sys?.tier ?? 1, progressao?.multiplicador ?? 1);
+  return PYRO.custoDoRanque(sys?.ranque ?? 1, progressao?.multiplicador ?? 1);
 }
 
 /* ---------------------------- Arma ---------------------------------------- */
@@ -184,8 +184,8 @@ export class HabilidadeData extends BaseItemData {
       // Habilidades de caminhos que concedem recurso próprio (Energia Natural)
       // podem morar na aba daquele caminho.
       abaCaminho: new fields.BooleanField({ initial: false }),
-      // Tier (SRD §3): escopo do que a habilidade faz, e o que fixa o custo.
-      tier: num(1, { min: 1, max: 9 }),
+      // Ranque (SRD §3): escopo do que a habilidade faz, e o que fixa o custo.
+      ranque: num(1, { min: 1, max: 9 }),
       /*
        * Nível (SRD §3): quão bem o personagem faz aquilo. O SRD ainda não
        * fechou como ele sobe, então é editado à mão; escalaPorNivel é o texto
@@ -205,7 +205,13 @@ export class HabilidadeData extends BaseItemData {
       custoAcoes: num(0, { min: 0 }),
       // A habilidade gasta ações do próprio turno ou reações fora dele.
       tipoCusto: str("acao", { choices: Object.keys(PYRO.tiposCusto) }),
-      formula: str("")
+      formula: str(""),
+      /*
+       * O que o resultado da fórmula é, colado nele sem espaço nenhum: "% de
+       * chance" vira "10% de chance" e " de dano" vira "10 de dano". O espaço
+       * é do texto porque só quem escreve sabe se ele cabe ali.
+       */
+      unidadeFormula: str("")
     };
   }
 
@@ -232,7 +238,7 @@ export class TecnicaData extends BaseItemData {
   static defineSchema() {
     return {
       ...super.defineSchema(),
-      tier: num(1, { min: 1, max: 9 }),
+      ranque: num(1, { min: 1, max: 9 }),
       acaoBase: str("atacar", { choices: Object.keys(PYRO.acoesBaseTecnica) }),
       /*
        * Custo próprio em ações. O que diferir das ações da arma escolhida vira
@@ -487,10 +493,10 @@ export class CaminhoData extends BaseItemData {
     this.xpGasta = habilidades.reduce(
       (t, i) => t + custoDaHabilidade(i.system, this.progressao), 0);
     this.xpDisponivel = this.xp - this.xpGasta;
-    // Quanto custa cada tier neste Caminho, para a ficha mostrar a curva.
-    this.custosPorTier = Object.keys(PYRO.tiers).map(tier => ({
-      tier: Number(tier),
-      custo: PYRO.custoDoTier(tier, this.progressao.multiplicador)
+    // Quanto custa cada ranque neste Caminho, para a ficha mostrar a curva.
+    this.custosPorRanque = Object.keys(PYRO.ranques).map(ranque => ({
+      ranque: Number(ranque),
+      custo: PYRO.custoDoRanque(ranque, this.progressao.multiplicador)
     }));
   }
 }

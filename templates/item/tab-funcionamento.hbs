@@ -129,8 +129,8 @@
         <span class="rotulo">{{localize "PYRO.Item.Categoria"}}</span>
         <select name="system.categoria">{{selectOptions config.categoriasHabilidade selected=system.categoria localize=true}}</select></label>
       {{#if system.ehPostura}}<p class="pyro-nota">{{localize "PYRO.Postura.Dica"}}</p>{{/if}}
-      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Tier"}}</span>
-        <select name="system.tier">{{selectOptions tierOpts selected=system.tier}}</select></label>
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Ranque"}}</span>
+        <select name="system.ranque">{{selectOptions ranqueOpts selected=system.ranque}}</select></label>
       <div class="campo"><span class="rotulo">{{localize "PYRO.Item.CustoXp"}}</span>
         <span class="valor-texto numero">{{#if system.ehBase}}{{localize "PYRO.Item.BaseTag"}}{{else}}{{system.custoXp}}{{/if}}</span></div>
     </div>
@@ -172,8 +172,17 @@
 
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Rolagem"}}</h4>
-    <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Item.Formula"}}</span>
-      <input type="text" name="system.formula" value="{{system.formula}}" placeholder="4d6 + [FOR]" /></label>
+    <div class="grade-campos">
+      <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Item.Formula"}}</span>
+        <input type="text" name="system.formula" value="{{system.formula}}" placeholder="4d6 + [NVL]" /></label>
+      {{!-- O texto cola no resultado sem espaço: "% de chance" dá "10% de
+            chance", " de dano" dá "10 de dano". --}}
+      <label class="campo cresce" title="{{localize 'PYRO.Item.UnidadeFormulaDica'}}">
+        <span class="rotulo">{{localize "PYRO.Item.UnidadeFormula"}}</span>
+        <input type="text" name="system.unidadeFormula" value="{{system.unidadeFormula}}"
+               placeholder="{{localize 'PYRO.Item.UnidadeFormulaEx'}}" /></label>
+    </div>
+    <p class="pyro-nota">{{localize "PYRO.Item.FormulaDica"}}</p>
   </div>
 {{/if}}
 
@@ -183,8 +192,8 @@
     <div class="grade-campos">
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Tecnica.AcaoBase"}}</span>
         <select name="system.acaoBase">{{selectOptions acoesBaseOpts selected=system.acaoBase localize=true}}</select></label>
-      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Tier"}}</span>
-        <select name="system.tier">{{selectOptions tierOpts selected=system.tier}}</select></label>
+      <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Ranque"}}</span>
+        <select name="system.ranque">{{selectOptions ranqueOpts selected=system.ranque}}</select></label>
       {{!-- Ações só existem quando a técnica prende uma arma: nas outras
             especificidades quem manda é a arma escolhida na hora de usar, e um
             campo fixo aqui prometeria um custo que a técnica não tem. --}}
@@ -445,9 +454,9 @@
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Xp"}}</span>
         <input type="number" name="system.xp" value="{{system.xp}}" min="0" /></label>
     </div>
-    {{!-- Custo de cada tier neste Caminho, já com a regra de progressão dele. --}}
-    <p class="pyro-nota custos-tier">{{localize "PYRO.Item.CustoPorTier"}}
-      {{#each system.custosPorTier as |c|}}<span class="custo-tier"><strong>T{{c.tier}}</strong> {{c.custo}}</span>{{/each}}
+    {{!-- Custo de cada ranque neste Caminho, já com a regra de progressão dele. --}}
+    <p class="pyro-nota custos-ranque">{{localize "PYRO.Item.CustoPorRanque"}}
+      {{#each system.custosPorRanque as |c|}}<span class="custo-ranque"><strong>R{{c.ranque}}</strong> {{c.custo}}</span>{{/each}}
     </p>
   </div>
 

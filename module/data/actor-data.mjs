@@ -48,7 +48,7 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
         /*
          * Alvo dos efeitos, e não o valor digitado. Assim uma bênção ou uma
          * condição aparece como +X ao lado da base, do mesmo jeito que o
-         * aumento de tier das habilidades, em vez de reescrever o número que
+         * aumento de ranque das habilidades, em vez de reescrever o número que
          * o jogador escolheu na criação.
          */
         bonus: num(0)

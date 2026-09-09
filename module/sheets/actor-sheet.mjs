@@ -21,6 +21,7 @@ const ICONES_DE_CONDICAO = {
 import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
+import { comUnidade } from "../dados.mjs";
 import { descreverRequisito } from "../progressao.mjs";
 import {
   posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDoValor, textoDaCondicao
@@ -48,15 +49,15 @@ export function planoDeDrop(dados, atorUuid) {
  * Agrupa as habilidades por caminho, para a lista da ficha.
  *
  * Os grupos saem na ordem da lista de caminhos, e dentro de cada um a
- * habilidade base vem primeiro, depois as demais por tier.
+ * habilidade base vem primeiro, depois as demais por ranque.
  * Habilidades gerais e as que ficaram sem caminho (o item foi apagado) fecham
  * a lista, cada grupo com o próprio título. Caminho sem habilidade não vira
  * cabeçalho vazio.
  */
 export function gruposDeHabilidades(caminhos, habilidades) {
-  // Base primeiro, depois por tier e nome.
-  const porTier = (a, b) => Number(b.system.ehBase) - Number(a.system.ehBase)
-    || (a.system.tier ?? 1) - (b.system.tier ?? 1)
+  // Base primeiro, depois por ranque e nome.
+  const porRanque = (a, b) => Number(b.system.ehBase) - Number(a.system.ehBase)
+    || (a.system.ranque ?? 1) - (b.system.ranque ?? 1)
     || a.name.localeCompare(b.name);
 
   const grupos = caminhos.map(c => ({ chave: c.id, titulo: c.name, itens: [] }));
@@ -71,7 +72,7 @@ export function gruposDeHabilidades(caminhos, habilidades) {
   }
 
   const todos = [...grupos, semCaminho, geral];
-  for (const g of todos) g.itens.sort(porTier);
+  for (const g of todos) g.itens.sort(porRanque);
   return todos.filter(g => g.itens.length);
 }
 
@@ -332,7 +333,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ].filter(Boolean);
       const custos = custosPartes.join(", ");
       /*
-       * "Passiva, tier 1", "Ativável, 3 estamina, 1 ação, tier 1". Nos grupos
+       * "Passiva, ranque 1", "Ativável, 3 estamina, 1 ação, ranque 1". Nos grupos
        * por caminho o cabeçalho do grupo já diz de onde a habilidade vem; fora
        * deles (técnicas, aba do caminho próprio, favoritos) o caminho abre a
        * lista.
@@ -342,7 +343,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         sys.adormecidaAtiva ? loc("PYRO.Despertar.Tag") : null,
         loc(PYRO.categoriasHabilidade[sys.categoria] ?? ""),
         ...custosPartes,
-        `${loc("PYRO.Item.Tier").toLocaleLowerCase()} ${sys.tier}`,
+        `${loc("PYRO.Item.Ranque").toLocaleLowerCase()} ${sys.ranque}`,
         `${loc("PYRO.Uso.NivelAbrev")} ${sys.nivel}`
       ].filter(Boolean).join(", ");
       return {
@@ -352,12 +353,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         resumo: [
           { label: loc("TYPES.Item.caminho"), valor: caminhoNome },
           { label: loc("PYRO.Item.Categoria"), valor: loc(PYRO.categoriasHabilidade[sys.categoria] ?? "") },
-          { label: loc("PYRO.Item.Tier"), valor: sys.tier },
+          { label: loc("PYRO.Item.Ranque"), valor: sys.ranque },
           { label: loc("PYRO.Item.CustoXp"), valor: sys.ehBase ? loc("PYRO.Item.BaseTag") : sys.custoXp },
           { label: loc("PYRO.Uso.Nivel"), valor: `${sys.nivel} / ${sys.nivelMax}` },
           ...(sys.escalaPorNivel ? [{ label: loc("PYRO.Item.EscalaPorNivel"), valor: sys.escalaPorNivel }] : []),
           { label: loc("PYRO.Item.Custos"), valor: custos || "—" },
-          { label: loc("PYRO.Item.Formula"), valor: sys.formula || "—" }
+          { label: loc("PYRO.Item.Formula"), valor: comUnidade(sys.formula, sys.unidadeFormula) || "—" }
         ]
       };
     };
@@ -391,7 +392,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao ? "PYRO.Custos.reacaoPlural" : "PYRO.Custos.acaoPlural")}`;
       const detalheTexto = [
         base, acoes, condicao,
-        `${loc("PYRO.Item.Tier").toLocaleLowerCase()} ${sys.tier}`,
+        `${loc("PYRO.Item.Ranque").toLocaleLowerCase()} ${sys.ranque}`,
         `${loc("PYRO.Uso.NivelAbrev")} ${sys.progresso.nivel}`
       ].filter(Boolean).join(", ");
       const requisito = descreverRequisito(item);
@@ -402,7 +403,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           { label: loc("PYRO.Tecnica.AcaoBase"), valor: base },
           { label: loc("PYRO.Acoes"), valor: sys.acoes },
           ...(condicao ? [{ label: loc("PYRO.Tecnica.Condicao"), valor: condicao }] : []),
-          { label: loc("PYRO.Item.Tier"), valor: sys.tier },
+          { label: loc("PYRO.Item.Ranque"), valor: sys.ranque },
           { label: loc("PYRO.Tecnica.Pontos"), valor: `${sys.pontos.gastos} / ${sys.pontos.disponiveis}` },
           { label: loc("PYRO.Tecnica.Tracos"), valor: efeitos.join(" · ") || "—" },
           { label: loc("PYRO.Uso.Nivel"), valor: `${sys.progresso.nivel} / ${sys.progresso.nivelMax}` },

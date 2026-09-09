@@ -272,8 +272,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // Passiva, postura e perícia não gastam ação nem recurso ao serem
       // usadas: sem bloco de Custos.
       temCustos: item.type === "habilidade" && PYRO.cobraCustoDeUso(sys),
-      // Tier com a descrição de escopo do SRD como dica de cada opção.
-      tierOpts: Object.fromEntries(Object.entries(PYRO.tiers)
+      // Ranque com a descrição de escopo do SRD como dica de cada opção.
+      ranqueOpts: Object.fromEntries(Object.entries(PYRO.ranques)
         .map(([t, label]) => [t, `${t} — ${game.i18n.localize(label)}`])),
       // Despertar é regra opcional: sem ela ligada, o campo nem aparece.
       mostrarAdormecida: item.type === "habilidade" && PYRO.regraAtiva("despertar"),
@@ -498,7 +498,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }
       case "habilidade": {
         partes.push(loc(PYRO.categoriasHabilidade[sys.categoria] ?? ""));
-        partes.push(`${loc("PYRO.Item.Tier")} ${sys.tier}`);
+        partes.push(`${loc("PYRO.Item.Ranque")} ${sys.ranque}`);
         partes.push(`${loc("PYRO.Uso.Nivel")} ${sys.nivel}`);
         if (sys.custoAcoes) {
           partes.push(`${sys.custoAcoes} ${loc(`PYRO.Item.Abrev.${sys.tipoCusto}`)}`);
@@ -511,7 +511,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }
       case "tecnica": {
         partes.push(loc(PYRO.acoesBaseTecnica[sys.acaoBase]?.label ?? ""));
-        partes.push(`${loc("PYRO.Item.Tier")} ${sys.tier}`);
+        partes.push(`${loc("PYRO.Item.Ranque")} ${sys.ranque}`);
         partes.push(`${loc("PYRO.Uso.Nivel")} ${sys.progresso.nivel}`);
         partes.push(`${sys.acoes} ${loc("PYRO.AcoesAbrev")}`);
         break;

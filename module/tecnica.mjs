@@ -50,10 +50,10 @@ export function ajusteDeAcoes(sys) {
 }
 
 /**
- * Pontos de criação: (nível + especificidade + ações + pontos fracos) x (tier + 1).
+ * Pontos de criação: (nível + especificidade + ações + pontos fracos) x (ranque + 1).
  *
  * Tudo entra no produto: cada concessão que a técnica faz vale mais quanto
- * maior o tier dela. O nível ocupa o lugar do antigo 1 fixo — no nível 1 a
+ * maior o ranque dela. O nível ocupa o lugar do antigo 1 fixo — no nível 1 a
  * conta é a mesma, e daí para cima a técnica cresce sozinha com o uso, sem
  * precisar de concessão nova.
  *
@@ -63,14 +63,14 @@ export function ajusteDeAcoes(sys) {
  */
 export function pontosDaTecnica(sys) {
   const espec = PYRO.especificidades[sys?.especificidade]?.pontos ?? 0;
-  const tier = Math.max(1, Number(sys?.tier) || 1);
+  const ranque = Math.max(1, Number(sys?.ranque) || 1);
   const nivel = Math.max(1, Number(sys?.progresso?.nivel) || 1);
   const dasAcoes = ajusteDeAcoes(sys);
   const dosOnus = (sys?.onus ?? [])
     .reduce((total, chave) => total + (PYRO.onusTecnica[chave]?.pontos ?? 0), 0);
 
   const base = nivel + espec + dasAcoes + dosOnus;
-  const disponiveis = base * (tier + 1);
+  const disponiveis = base * (ranque + 1);
   const gastos = (sys?.tracos ?? [])
     .reduce((total, t) => total + PYRO.custoDoGrau(t.grau), 0);
   return { disponiveis, base, nivel, dasAcoes, dosOnus, gastos, restantes: disponiveis - gastos };

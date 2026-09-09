@@ -734,7 +734,10 @@ export async function conjurar(actor, escolhas, {
       partes.push(`<p class="pyro-forma"><strong>${rotulo}</strong> — ${origens}: ${formula} (${loc("PYRO.Chat.NaoRolado")})</p>`);
       continue;
     }
-    const roll = await new Roll(expandirAtributos(formula), actor.getRollData()).evaluate();
+    // Os dados da magia salva, quando a conjuração veio de uma: é dela que
+    // [NVL] tira o nível. Frase montada na hora não tem nível nenhum.
+    const roll = await new Roll(expandirAtributos(formula),
+      (itemMagia ?? actor).getRollData()).evaluate();
     rolls.push(roll);
     if (tipo === "cura") totalCura += roll.total;
     else {

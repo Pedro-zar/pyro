@@ -115,6 +115,10 @@ export class PyroActor extends Actor {
     }
     data.det = this.system.det;
     data.multi = this.system.multi;
+    // [NVL] é nível de item. Numa rolagem do ator não há item nenhum, e sem
+    // esta linha a fórmula copiada de uma habilidade quebraria em vez de
+    // simplesmente não somar nada.
+    data.nvl = 0;
     return data;
   }
 

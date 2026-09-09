@@ -546,7 +546,7 @@ PYRO.avancoPorUso = foundry.utils.deepClone(PYRO.avancoPorUsoPadrao);
 /* -------------------------------------------------------------------------- */
 
 /**
- * Curva de custo das habilidades (SRD §3): custoBase x fator^(tier - 1), o que
+ * Curva de custo das habilidades (SRD §3): custoBase x fator^(ranque - 1), o que
  * dá 3, 6, 12, 24, 48... A mesa muda os dois em Configurações > Progressão
  * para campanhas mais épicas ou mais aceleradas.
  */
@@ -555,18 +555,18 @@ PYRO.curvaXpPadrao = { custoBase: 3, fator: 2 };
 PYRO.curvaXp = foundry.utils.deepClone(PYRO.curvaXpPadrao);
 
 /**
- * Custo em XP de um tier, já com o multiplicador do Caminho. Arredonda para
+ * Custo em XP de um ranque, já com o multiplicador do Caminho. Arredonda para
  * cima porque o SRD lista a metade do Humano como 2/3/6/12/24.
  */
-PYRO.custoDoTier = (tier, multiplicador = 1, curva = PYRO.curvaXp) => {
-  const t = Math.max(1, Math.round(Number(tier) || 1));
+PYRO.custoDoRanque = (ranque, multiplicador = 1, curva = PYRO.curvaXp) => {
+  const t = Math.max(1, Math.round(Number(ranque) || 1));
   const base = (Number(curva?.custoBase) || 0) * (Number(curva?.fator) || 1) ** (t - 1);
   return Math.max(0, Math.ceil(base * (Number(multiplicador) || 0)));
 };
 
-/** Tiers de habilidade (SRD §3), com a descrição de escopo de cada um. */
-PYRO.tiers = Object.fromEntries(
-  Array.from({ length: 9 }, (_, i) => [i + 1, `PYRO.Tier.${i + 1}`])
+/** Ranques de habilidade (SRD §3), com a descrição de escopo de cada um. */
+PYRO.ranques = Object.fromEntries(
+  Array.from({ length: 9 }, (_, i) => [i + 1, `PYRO.Ranque.${i + 1}`])
 );
 
 /**
@@ -576,7 +576,7 @@ PYRO.tiers = Object.fromEntries(
  */
 PYRO.custoDoCaminhoNovo = quantos => 10 * Math.max(0, Math.round(Number(quantos) || 0));
 
-/** Caminho sem regra nenhuma paga o custo cheio do tier. */
+/** Caminho sem regra nenhuma paga o custo cheio do ranque. */
 PYRO.progressaoPadrao = { chave: "", label: "", multiplicador: 1 };
 
 /**
