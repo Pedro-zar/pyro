@@ -8,7 +8,7 @@
  */
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { formulaTeste, poolDoAtributo, multiplicarDados, expandirAtributos } from "./dados.mjs";
+import { formulaTeste, poolDoAtributo, multiplicarDados, expandirAtributos, juntarDados } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeCusto, custoAjustado,
   aplicarExaustao, penalidadeExaustao
@@ -23,30 +23,57 @@ const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 /* -------------------------------------------------------------------------- */
 
 /**
- * Ações que a técnica cobra a mais (positivo) ou a menos (negativo) que a ação
- * base. Cada uma vale um ponto, para os dois lados (SRD Técnicas).
+ * Ações da arma que a técnica usa como base, ou null quando não há uma.
+ *
+ * Só a especificidade "arma específica" tem base: nas outras a técnica aceita
+ * várias armas, e o custo em ações delas varia — comparar com um número fixo
+ * daria ponto ou cobraria ponto pela arma que o jogador escolhesse na hora.
+ *
+ * O número é o que a arma tinha quando foi escolhida (ver o _preUpdate da
+ * técnica): assim a conta continua fechando mesmo que a arma saia da ficha.
  */
-export function ajusteDeAcoes(sys) {
-  const base = PYRO.acoesBaseTecnica[sys?.acaoBase]?.acoes ?? 1;
-  return Math.max(1, Number(sys?.acoes) || 1) - base;
+export function acoesBaseDaArma(sys) {
+  if (PYRO.especificidades[sys?.especificidade]?.filtro !== "ataque") return null;
+  const acoes = Number(sys?.ataque?.acoes) || 0;
+  return acoes > 0 ? acoes : null;
 }
 
 /**
- * Pontos de criação: (2 + especificidade + ajuste de ações) x (tier + 1), mais
- * o que os pontos fracos devolvem. Os ônus entram fora do produto: são um
- * abatimento fixo, e não uma condição que o tier amplifica.
+ * Pontos que a diferença de ações rende (SRD Técnicas). Positivo quando a
+ * técnica é mais lenta que a arma, negativo quando é mais rápida; zero quando
+ * não há arma base contra a qual comparar.
+ */
+export function ajusteDeAcoes(sys) {
+  const base = acoesBaseDaArma(sys);
+  if (base === null) return 0;
+  return PYRO.pontosDeAcoes(base, Math.max(1, Number(sys?.acoes) || 1));
+}
+
+/**
+ * Pontos de criação: (nível + especificidade + ações + pontos fracos) x (tier + 1).
+ *
+ * Tudo entra no produto: cada concessão que a técnica faz vale mais quanto
+ * maior o tier dela. O nível ocupa o lugar do antigo 1 fixo — no nível 1 a
+ * conta é a mesma, e daí para cima a técnica cresce sozinha com o uso, sem
+ * precisar de concessão nova.
+ *
+ * O total pode ficar negativo, e fica de propósito: uma técnica mais rápida do
+ * que a arma aguenta não é uma técnica sem pontos, é uma técnica impossível do
+ * jeito que está — e o número negativo é o que diz isso na cara da ficha.
  */
 export function pontosDaTecnica(sys) {
   const espec = PYRO.especificidades[sys?.especificidade]?.pontos ?? 0;
   const tier = Math.max(1, Number(sys?.tier) || 1);
-  const doTier = Math.max(0, 2 + espec + ajusteDeAcoes(sys)) * (tier + 1);
+  const nivel = Math.max(1, Number(sys?.progresso?.nivel) || 1);
+  const dasAcoes = ajusteDeAcoes(sys);
   const dosOnus = (sys?.onus ?? [])
     .reduce((total, chave) => total + (PYRO.onusTecnica[chave]?.pontos ?? 0), 0);
 
-  const disponiveis = doTier + dosOnus;
+  const base = nivel + espec + dasAcoes + dosOnus;
+  const disponiveis = base * (tier + 1);
   const gastos = (sys?.tracos ?? [])
     .reduce((total, t) => total + PYRO.custoDoGrau(t.grau), 0);
-  return { disponiveis, doTier, dosOnus, gastos, restantes: disponiveis - gastos };
+  return { disponiveis, base, nivel, dasAcoes, dosOnus, gastos, restantes: disponiveis - gastos };
 }
 
 /** Traços que cabem nesta ação base; sem `bases` o traço cabe em qualquer uma. */
@@ -67,7 +94,8 @@ export function valorDoTraco(cfg, grau, esforco) {
   if (!cfg || esforco <= 0) return 0;
   const porGrau = Number(cfg.porGrau) || 0;
   const noGrau = (Number(cfg.base) || 0) + porGrau * (Math.max(1, grau) - 1);
-  return noGrau * esforco;
+  // Traço de quarto em quarto (a Potência) não pode virar 0,7500000000000001.
+  return Math.round(noGrau * esforco * 1000) / 1000;
 }
 
 /** Limite seguro de Esforço por traço (SRD Técnicas): DET x 2. */
@@ -206,9 +234,83 @@ export function tracosDaTecnica(sys) {
     .filter(Boolean);
 }
 
-/** Texto do que um traço rende ("+3 m", "3x dados de dano"). */
+/**
+ * Número de traço em texto. A Potência anda de 0,25 em 0,25, e "0.75" com
+ * ponto não é como se escreve um número aqui.
+ *
+ * A vírgula não vem de game.i18n.lang: o Foundry pode estar em inglês com o
+ * sistema em português, e aí o mesmo painel mostraria "2.25x" no meio de
+ * textos em português.
+ */
+export function numeroDoTraco(valor) {
+  return Number(valor || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+}
+
+/**
+ * Texto de um valor de traço ("3 m", "1,25 x dados de dano").
+ *
+ * Multiplicador é o único que não sai como o traço rendeu: a Potência soma
+ * um quarto por vez, e quem lê a ficha quer o total que vai multiplicar os
+ * dados — "0,25 x dados de dano" leria como se o golpe encolhesse.
+ */
+export function textoDoValor(cfg, valor) {
+  const total = cfg?.regra === "danoMult" ? 1 + valor : valor;
+  return `${numeroDoTraco(total)} ${loc(cfg?.unidade)}`;
+}
+
+/** Texto do que um traço rende ("+3 m", "1,25 x dados de dano"). */
 export function textoDoTraco(linha) {
-  return `${linha.valor} ${loc(linha.cfg.unidade)}`;
+  return textoDoValor(linha.cfg, linha.valor);
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Prévia do ataque final                                                    */
+/* -------------------------------------------------------------------------- */
+
+/** Multiplicador de dano da execução: 1 mais o que a Potência somar. */
+export function multiplicadorDeDano(calc) {
+  return 1 + calc.linhas
+    .filter(l => l.cfg.regra === "danoMult")
+    .reduce((total, l) => total + l.valor, 0);
+}
+
+/**
+ * O que a execução vai produzir, em texto: o dano final da arma já
+ * multiplicado e uma linha por característica.
+ *
+ * É a mesma conta de usarTecnica sobre o mesmo calc — a janela mostra o que
+ * vai sair, e não uma segunda versão da regra que pode divergir dela.
+ *
+ * Dano de mesmo tipo sai numa linha só: uma arma de "6d8 + 2d10" cortante
+ * aparece somada, como aparece na rolagem.
+ */
+export function resumoDaTecnica(actor, item, calc, ataque) {
+  const mult = multiplicadorDeDano(calc);
+  const porTipo = new Map();
+  const somar = (tipo, formula) => porTipo.set(tipo, [...(porTipo.get(tipo) ?? []), formula]);
+
+  for (const dano of ataque?.danos ?? []) somar(dano.tipo, multiplicarDados(dano.formula, mult));
+  // O bônus de dano de um efeito entra inteiro: ele não é dado da arma, e a
+  // Potência multiplica o golpe, não o que vem de fora dele.
+  for (const bonus of ataque ? bonusDeDano(actor, item) : []) {
+    somar(bonus.tipo || ataque.danos[0]?.tipo || "", bonus.formula);
+  }
+
+  const dano = [...porTipo].map(([tipo, partes]) => ({
+    tipo,
+    rotulo: tipo ? loc(PYRO.tiposDano[tipo]?.label ?? `PYRO.Dano.${tipo}`) : loc("PYRO.Item.Dano"),
+    formula: juntarDados(partes)
+  }));
+
+  return {
+    mult,
+    dano,
+    // A Potência já está no dano; repetir "0,25 x dados de dano" ao lado dele
+    // seria a mesma informação duas vezes.
+    caracteristicas: calc.linhas
+      .filter(l => l.cfg.regra !== "danoMult")
+      .map(l => ({ nome: loc(l.cfg.label ?? l.chave), texto: textoDoTraco(l) }))
+  };
 }
 
 /**
@@ -324,14 +426,12 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   }
 
   /* --- Dano do ataque, com o multiplicador da Potência --------------------- */
-  const multPotencia = calc.linhas
-    .filter(l => l.cfg.regra === "danoMult")
-    .reduce((total, l) => total + l.valor, 0);
+  const mult = multiplicadorDeDano(calc);
 
   if (ataque) {
     for (const dano of ataque.danos) {
       // "+1x dados de dano" soma uma cópia dos dados, não substitui a original.
-      const formula = multiplicarDados(dano.formula, 1 + multPotencia);
+      const formula = multiplicarDados(dano.formula, mult);
       const roll = await new Roll(expandirAtributos(formula), item.getRollData()).evaluate();
       rolls.push(roll);
       danos.push({ tipo: dano.tipo, total: roll.total, formula });

@@ -1,0 +1,36 @@
+{{!--
+  Coluna da direita: o que vai sair, montado da mesma conta que a execução
+  usa. Cada coisa aparece uma vez só — duas runas ou traços que aumentam o
+  mesmo número já chegam aqui somados.
+--}}
+<aside class="previa-final">
+  <h3 class="titulo-secao">{{previa.titulo}}</h3>
+
+  {{#if previa.dano}}
+  <ul class="previa-dano">
+    {{#each previa.dano as |d|}}
+    <li>
+      <span class="previa-rotulo">{{d.rotulo}}</span>
+      <strong class="previa-formula numero">{{d.texto}}</strong>
+      {{#if d.origens}}<span class="previa-origem">{{d.origens}}</span>{{/if}}
+    </li>
+    {{/each}}
+  </ul>
+  {{/if}}
+
+  {{#if previa.linhas}}
+  <ul class="previa-linhas">
+    {{#each previa.linhas as |l|}}
+    <li>
+      <span class="previa-rotulo">{{l.nome}}</span>
+      <span class="previa-valor">{{l.texto}}</span>
+      {{#if l.origens}}<span class="previa-origem">{{l.origens}}</span>{{/if}}
+    </li>
+    {{/each}}
+  </ul>
+  {{/if}}
+
+  {{#unless previa.temAlgo}}
+  <p class="secao-vazia">{{previa.vazio}}</p>
+  {{/unless}}
+</aside>

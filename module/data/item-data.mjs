@@ -234,8 +234,12 @@ export class TecnicaData extends BaseItemData {
       ...super.defineSchema(),
       tier: num(1, { min: 1, max: 9 }),
       acaoBase: str("atacar", { choices: Object.keys(PYRO.acoesBaseTecnica) }),
-      // Custo próprio em ações/reações: o que diferir da ação base vira ponto.
-      acoes: num(2, { min: 1 }),
+      /*
+       * Custo próprio em ações. O que diferir das ações da arma escolhida vira
+       * ponto de criação (ver PYRO.pontosDeAcoes); o teto é o turno inteiro,
+       * senão uma técnica de oito ações mostraria pontos que a tabela não dá.
+       */
+      acoes: num(2, { min: 1, max: PYRO.ACOES_MAX_TECNICA }),
       especificidade: str("nenhuma", { choices: Object.keys(PYRO.especificidades) }),
       /*
        * Valor do filtro automático da especificidade: "distante", "media",
@@ -243,9 +247,14 @@ export class TecnicaData extends BaseItemData {
        * escolhida — e com os tipos de dano que o mestre configurou.
        */
       filtro: str(""),
-      // Especificidade "específica": um ataque nomeado da ficha (katana, chute).
-      // O nome acompanha o id como rede de segurança, igual aos alvos de efeito.
-      ataque: new fields.SchemaField({ id: str(""), nome: str("") }),
+      /*
+       * Especificidade "específica": um ataque nomeado da ficha (katana, chute).
+       * O nome acompanha o id como rede de segurança, igual aos alvos de efeito,
+       * e as ações são o retrato de quando a arma foi escolhida — é delas que
+       * sai a base da conta de pontos (ver acoesBaseDaArma em tecnica.mjs), e
+       * gravá-las aqui mantém a conta fechando com a arma fora da ficha.
+       */
+      ataque: new fields.SchemaField({ id: str(""), nome: str(""), acoes: num(0, { min: 0 }) }),
       tracos: new fields.ArrayField(new fields.SchemaField({
         chave: str(""),
         grau: num(1, { min: 1 })

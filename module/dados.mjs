@@ -76,12 +76,17 @@ export function formulaPool(valor) {
  *
  * É o que a Potência das técnicas pede — "+1x dados de dano" dobra os dados de
  * uma katana, não a Força de quem a segura.
+ *
+ * O multiplicador é fracionário e o resultado desce para o dado inteiro de
+ * baixo, parcela por parcela: 4d4 a 1,25x são 5d4, mas 1d8 a 1,25x continua
+ * 1d8 — um golpe de um dado só espera a Potência fechar um 1x inteiro para
+ * ganhar o segundo. Nunca some abaixo de um dado: o ataque existe.
  */
 export function multiplicarDados(formula, mult) {
-  const m = Math.max(0, Math.round(Number(mult) || 0));
+  const m = Math.max(0, Number(mult) || 0);
   if (m === 1) return String(formula ?? "");
   return String(formula ?? "").replace(/(\d*)d(\d+)/gi,
-    (termo, n, faces) => `${(n === "" ? 1 : Number(n)) * m}d${faces}`);
+    (termo, n, faces) => `${Math.max(1, Math.floor((n === "" ? 1 : Number(n)) * m))}d${faces}`);
 }
 
 /**

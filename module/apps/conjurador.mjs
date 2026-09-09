@@ -1,5 +1,8 @@
 import { PYRO } from "../config.mjs";
-import { calcular, conjurar, previaRuna, emprestaIntencao, temDanoMental } from "../magia.mjs";
+import {
+  calcular, conjurar, previaRuna, emprestaIntencao, temDanoMental, resumoDaFrase
+} from "../magia.mjs";
+import { bonusDeDano } from "../efeitos.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
 
@@ -42,7 +45,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     id: "pyro-conjurador-{id}",
     classes: ["pyro", "conjurador"],
     tag: "form",
-    position: { width: 640, height: "auto" },
+    position: { width: 900, height: "auto" },
     window: { title: "PYRO.Conjurador.Titulo", resizable: true },
     form: { handler: ConjuradorApp.#aoConjurar, closeOnSubmit: false },
     actions: {
@@ -77,6 +80,76 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         alvoToque: f.alvoToque
       }))
       .filter(e => e.item);
+  }
+
+  /**
+   * A coluna da direita: o que a frase vai produzir, com dados de mesmo tipo
+   * numa fórmula só e escalonamentos de mesmo nome numa linha só.
+   *
+   * É o mesmo resumo que o card do chat publica. Duas runas que deviam somar
+   * e aparecem em duas linhas aqui vão aparecer em duas linhas lá também —
+   * ver isso antes de gastar mana é metade do motivo desta coluna existir.
+   */
+  #previa(calc) {
+    const loc = k => game.i18n.localize(k);
+    const vazia = {
+      titulo: loc("PYRO.Previa.Magia"), dano: [], linhas: [],
+      temAlgo: false, vazio: loc("PYRO.Previa.VaziaMagia")
+    };
+    // Frase vazia não tem prévia: a DT sozinha não é uma magia.
+    if (!calc.porRuna.length) return vazia;
+    // O bônus de dano de um efeito entra na fórmula do card; entra aqui também,
+    // ou a coluna anuncia menos dado do que a rolagem vai ter.
+    const rolando = this.fixa || this.rolarDano !== false;
+    const resumo = resumoDaFrase(calc, {
+      bonusDano: rolando ? bonusDeDano(this.actor, this.itemMagia) : []
+    });
+    const linhas = resumo.numeros.map(n => ({
+      nome: n.nome,
+      texto: n.porPassos
+        ? game.i18n.format("PYRO.Previa.AlcancePorPassos", { valor: n.valor, passos: n.porPassos })
+        : String(n.valor),
+      origens: n.origens.join(", ")
+    }));
+
+    // Intenção que vira botão de regra no card (Molhado, Friagem, Defesa
+    // Física, Condições Mentais): é efeito da magia como qualquer outro.
+    for (const regra of resumo.regras) {
+      linhas.push({ nome: regra.nome, texto: String(regra.valor), origens: regra.origem });
+    }
+
+    if (this.usaDt) {
+      linhas.push({ nome: loc("PYRO.Previa.Dt"), texto: String(calc.dt), origens: "" });
+    }
+    if (calc.bonusMira) {
+      linhas.push({ nome: loc("PYRO.Previa.Mira"), texto: `+${calc.bonusMira}`, origens: "" });
+    }
+    if (calc.alvosDivididos > 1) {
+      linhas.push({
+        nome: loc("PYRO.Previa.Dividido"),
+        texto: String(calc.alvosDivididos),
+        origens: ""
+      });
+    }
+
+    // Subjulgar não soma no dano: a rolagem dele é comparada com a vida do
+    // alvo, então fica numa linha própria, como no card.
+    const dano = [
+      ...resumo.danos.map(d => ({
+        rotulo: d.rotulo, texto: d.formula, origens: d.origens.join(", ")
+      })),
+      ...resumo.subjulgares.map(s => ({
+        rotulo: loc("PYRO.Previa.Subjulgar"), texto: s.formula, origens: s.nomeRuna
+      }))
+    ];
+
+    return {
+      titulo: loc("PYRO.Previa.Magia"),
+      dano,
+      linhas,
+      temAlgo: dano.length > 0 || linhas.length > 0,
+      vazio: loc("PYRO.Previa.VaziaMagia")
+    };
   }
 
   async _prepareContext(options) {
@@ -155,6 +228,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     Object.assign(context, {
       actor,
+      previa: this.#previa(calc),
       fichas,
       temFrase: fichas.length > 0,
       elementos: grupo("elemento"),

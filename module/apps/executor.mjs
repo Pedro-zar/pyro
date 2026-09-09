@@ -7,7 +7,8 @@
  */
 import { PYRO } from "../config.mjs";
 import {
-  tracosDaTecnica, calcularEsforco, ataquesDaTecnica, usarTecnica, textoDoTraco, textoDaCondicao
+  tracosDaTecnica, calcularEsforco, ataquesDaTecnica, usarTecnica, textoDoTraco, textoDaCondicao,
+  resumoDaTecnica, numeroDoTraco
 } from "../tecnica.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
@@ -40,7 +41,7 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     id: "pyro-executor-{id}",
     classes: ["pyro", "conjurador", "executor"],
     tag: "form",
-    position: { width: 600, height: "auto" },
+    position: { width: 860, height: "auto" },
     window: { title: "PYRO.Executor.Nome", resizable: true },
     form: { handler: ExecutorApp.#aoExecutar, closeOnSubmit: false },
     actions: {
@@ -59,6 +60,47 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   #usados() {
     return tracosDaTecnica(this.item.system)
       .map(t => ({ ...t, esforco: Math.max(ESFORCO_MINIMO, this.esforcos[t.chave] ?? 0) }));
+  }
+
+  /**
+   * A coluna da direita: o ataque como ele vai sair, com o dano da arma já
+   * multiplicado e uma linha por característica.
+   *
+   * Sai do mesmo calc que a execução usa, e não de uma segunda conta: se um
+   * traço estiver rendendo o número errado, é aqui que aparece antes de virar
+   * uma rolagem no chat.
+   */
+  #previa(calc, ataque) {
+    const loc = k => game.i18n.localize(k);
+    const resumo = resumoDaTecnica(this.actor, this.item, calc, ataque);
+    const linhas = [];
+
+    // O multiplicador em si, além do dano já multiplicado: é o que diz se a
+    // Potência fechou mais um dado ou parou no meio do caminho.
+    if (resumo.mult !== 1) {
+      linhas.push({
+        nome: loc("PYRO.Previa.Multiplicador"),
+        texto: `${numeroDoTraco(resumo.mult)}x`,
+        origens: ataque ? ataque.nome : ""
+      });
+    }
+    if (ataque?.alcanceMaximo > 0) {
+      linhas.push({
+        nome: loc("PYRO.Item.Alcance"),
+        texto: game.i18n.format("PYRO.Previa.AlcanceArma",
+          { menor: ataque.alcanceMenor, maximo: ataque.alcanceMaximo }),
+        origens: ataque.nome
+      });
+    }
+    linhas.push(...resumo.caracteristicas.map(c => ({ ...c, origens: "" })));
+
+    return {
+      titulo: loc("PYRO.Previa.Tecnica"),
+      dano: resumo.dano.map(d => ({ rotulo: d.rotulo, texto: d.formula, origens: ataque?.nome ?? "" })),
+      linhas,
+      temAlgo: resumo.dano.length > 0 || linhas.length > 0,
+      vazio: loc("PYRO.Previa.VaziaTecnica")
+    };
   }
 
   async _prepareContext(options) {
@@ -106,6 +148,7 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     Object.assign(context, {
       actor: this.actor,
       item: this.item,
+      previa: this.#previa(calc, ataques.find(a => a.id === this.ataqueId) ?? null),
       fichas,
       temTracos: fichas.length > 0,
       pedeAtaque: !!base?.ataca,

@@ -264,6 +264,130 @@ export function previaRuna(pr, passos = 0) {
 }
 
 /**
+ * O que a frase inteira produz, já juntado: dados de mesmo tipo numa fórmula
+ * só, escalonamentos de mesmo nome numa linha só.
+ *
+ * É o que o card do chat publica e o que a prévia do Conjurador mostra — a
+ * mesma conta, feita uma vez. Dois gestos que aumentam a Duração aparecem
+ * somados nos dois lugares, e uma runa que teima em sair sozinha na prévia
+ * também sai sozinha no card, que é onde o erro fica visível.
+ *
+ * @param {object} calc saída de calcular().
+ * @param {object[]} [bonusDano] bônus de dano de efeitos, que entram nos grupos.
+ * @returns {{danos: object[], numeros: object[], subjulgares: object[],
+ *            efeitos: string[], publicados: object[], regras: object[]}}
+ */
+export function resumoDaFrase(calc, { bonusDano = [] } = {}) {
+  const gruposDeDano = new Map();
+  const numeros = new Map();
+  const efeitos = [];
+  const subjulgares = [];
+  const publicados = [];
+  const regras = [];
+
+  const somarDano = (tipo, parte, origem, nomeScaling = null) => {
+    const grupo = gruposDeDano.get(tipo) ?? { partes: [], origens: new Set(), scalings: new Set() };
+    grupo.partes.push(parte);
+    grupo.origens.add(origem);
+    if (nomeScaling) grupo.scalings.add(nomeScaling);
+    gruposDeDano.set(tipo, grupo);
+  };
+
+  const somarNumero = (nome, valor, origem) => {
+    const grupo = numeros.get(nome) ?? { valor: 0, origens: new Set() };
+    grupo.valor += valor;
+    grupo.origens.add(origem);
+    numeros.set(nome, grupo);
+  };
+
+  for (const pr of calc.porRuna) {
+    const sys = pr.item.system;
+    const nomeRuna = sys.palavra || pr.item.name;
+    // Tipo "Não causa dano": os dados não são rolados, o resto continua.
+    const semDano = pr.tipoDano === SEM_DANO;
+    /*
+     * Só elemento herda tipo de dano da tabela: gesto guarda um subtipo que
+     * não quer dizer nada aqui, e um Toque com dados sairia como dano de
+     * energia.
+     */
+    const elCfg = sys.tipoRuna === "elemento" ? PYRO.elementos[sys.subtipo] : null;
+    const tipoDano = pr.tipoDano || elCfg?.tipoDano || "";
+
+    for (const sc of pr.scalings) {
+      const valor = valorEfetivo(pr, sc, calc.passosAlcance);
+      if (sc.faces > 0) {
+        if (semDano) continue;
+        const formula = `${Math.max(1, valor)}d${sc.faces}`;
+        // Subjulgar não causa dano direto: cada rolagem é comparada com a
+        // vida do alvo por si, então fica fora do agrupamento.
+        if (pr.subjulgar) subjulgares.push({ nomeRuna, formula });
+        else somarDano(tipoDano, formula, nomeRuna, sc.nome);
+        continue;
+      }
+      /*
+       * Três Intenções não viram número solto no card, porque já apareceram
+       * em outro lugar: ND e bônus de mira entraram nos testes, e a que
+       * alimenta um botão de regra (o Molhado da água, a Friagem do gelo) já
+       * está escrita no próprio botão. Todas continuam publicadas como
+       * @variável para os efeitos.
+       */
+      const chave = chaveVariavel(sc.nome);
+      // Intenção que alimenta um botão de regra já está escrita no botão —
+      // mas só quando ela rendeu alguma coisa: valendo 0 não há botão, e
+      // esconder o número deixaria a Intenção invisível no card.
+      const daRegra = !!PYRO.regrasDeIntencao[chave] && valor > 0;
+      if (chave === CHAVE_ND || ehBonusDeMira(sc.nome) || daRegra) {
+        publicados.push({ nome: sc.nome, valor });
+        // A regra vira botão no card e linha na prévia: sem isso o Molhado da
+        // água só apareceria depois da mana gasta.
+        if (daRegra) regras.push({ nome: sc.nome, valor, origem: nomeRuna });
+        continue;
+      }
+      somarNumero(sc.nome || loc("PYRO.Scaling.Efeito"), valor, nomeRuna);
+    }
+
+    if (elCfg?.efeito) efeitos.push(loc(elCfg.efeito));
+  }
+
+  /*
+   * Bônus de dano de efeitos ("Foco em Fogo: 2d6") entram no grupo do tipo
+   * deles, e não como uma rolagem à parte: quem recebe o dano soma uma vez só.
+   */
+  for (const bonus of bonusDano) {
+    somarDano(bonus.tipo || [...gruposDeDano.keys()][0] || "", bonus.formula, bonus.nome);
+  }
+
+  /*
+   * Os passos do Longo já entraram na conta de cada runa, na base e no ganho
+   * por Intenção — o que sai daqui é o valor final, e só a nota lembra que o
+   * alcance subiu de degrau.
+   */
+  const subiuDegrau = calc.passosAlcance > 0;
+
+  return {
+    danos: [...gruposDeDano].map(([tipo, grupo]) => ({
+      tipo,
+      rotulo: tipo
+        ? loc(PYRO.tiposDano[tipo]?.label ?? `PYRO.Dano.${tipo}`)
+        : loc("PYRO.Item.Dano"),
+      origens: [...grupo.origens],
+      scalings: [...grupo.scalings],
+      formula: juntarDados(grupo.partes)
+    })),
+    numeros: [...numeros].map(([nome, grupo]) => ({
+      nome,
+      valor: grupo.valor,
+      origens: [...grupo.origens],
+      porPassos: subiuDegrau && chaveVariavel(nome) === "alcance" ? calc.passosAlcance : 0
+    })),
+    subjulgares,
+    efeitos,
+    publicados,
+    regras
+  };
+}
+
+/**
  * Tabela de Subjulgar: para cada DET de alvo, o multiplicador, o resultado já
  * multiplicado e até quanto de PV máximo o alvo pode ter para sofrer cada
  * patamar (25%, 50% e 100% da vida máxima dele).
@@ -565,8 +689,7 @@ export async function conjurar(actor, escolhas, {
    * Magia mental é resistida com um teste de SAB do alvo, no lugar da esquiva.
    */
   if (usaDt) {
-    const ehMental = calc.porRuna.some(pr =>
-      (pr.tipoDano || PYRO.elementos[pr.item.system.subtipo]?.tipoDano) === "mental");
+    const ehMental = temDanoMental(calc.porRuna);
     partes.push(`<p class="pyro-dt">${loc("PYRO.Magia.DT", { valor: calc.dt })}${
       ehMental ? ` ${loc("PYRO.Magia.DTMental")}` : ""}</p>`);
   }
@@ -587,102 +710,17 @@ export async function conjurar(actor, escolhas, {
     </div>`);
   }
 
-  /* --- Números e dados de cada runa --------------------------------------- */
-  /*
-   * Dados e números são juntados antes de sair no card: dois elementos de
-   * calor viram uma rolagem de dano só, e dois gestos que aumentam a mesma
-   * coisa ("Duração") viram uma linha com a soma. Assim gestos que se
-   * acumulam funcionam sem o sistema conhecer cada um pelo nome.
-   */
-  const gruposDeDano = new Map();
-  const numeros = new Map();
-  const efeitosDeTexto = [];
-  const subjulgares = [];
-
-  const somarDano = (tipo, parte, origem, nomeScaling = null) => {
-    const grupo = gruposDeDano.get(tipo) ?? { partes: [], origens: new Set(), scalings: new Set() };
-    grupo.partes.push(parte);
-    grupo.origens.add(origem);
-    if (nomeScaling) grupo.scalings.add(nomeScaling);
-    gruposDeDano.set(tipo, grupo);
-  };
-
-  const somarNumero = (nome, valor, origem) => {
-    const grupo = numeros.get(nome) ?? { valor: 0, origens: new Set() };
-    grupo.valor += valor;
-    grupo.origens.add(origem);
-    numeros.set(nome, grupo);
-  };
-
-  for (const pr of calc.porRuna) {
-    const sys = pr.item.system;
-    const nomeRuna = sys.palavra || pr.item.name;
-    // Tipo "Não causa dano": os dados não são rolados, o resto continua.
-    const semDano = pr.tipoDano === SEM_DANO;
-    /*
-     * Só elemento herda tipo de dano da tabela: gesto guarda um subtipo que
-     * não quer dizer nada aqui, e um Toque com dados sairia como dano de
-     * energia.
-     */
-    const elCfg = sys.tipoRuna === "elemento" ? PYRO.elementos[sys.subtipo] : null;
-    const tipoDano = pr.tipoDano || elCfg?.tipoDano || "";
-
-    for (const sc of pr.scalings) {
-      const valor = valorEfetivo(pr, sc, calc.passosAlcance);
-      if (sc.faces > 0) {
-        if (semDano) continue;
-        const formula = `${Math.max(1, valor)}d${sc.faces}`;
-        // Subjulgar não causa dano direto: cada rolagem é comparada com a
-        // vida do alvo por si, então fica fora do agrupamento.
-        if (pr.subjulgar) subjulgares.push({ nomeRuna, formula });
-        else somarDano(tipoDano, formula, nomeRuna, sc.nome);
-        continue;
-      }
-      /*
-       * Três Intenções não viram número solto no card, porque já apareceram
-       * em outro lugar: ND e bônus de mira entraram nos testes, e a que
-       * alimenta um botão de regra (o Molhado da água, a Friagem do gelo) já
-       * está escrita no próprio botão. Todas continuam publicadas como
-       * @variável para os efeitos.
-       */
-      const chave = chaveVariavel(sc.nome);
-      // Intenção que alimenta um botão de regra já está escrita no botão —
-      // mas só quando ela rendeu alguma coisa: valendo 0 não há botão, e
-      // esconder o número deixaria a Intenção invisível no card.
-      const daRegra = !!PYRO.regrasDeIntencao[chave] && valor > 0;
-      if (chave === CHAVE_ND || ehBonusDeMira(sc.nome) || daRegra) {
-        publicar(sc.nome, valor);
-        continue;
-      }
-      somarNumero(sc.nome || loc("PYRO.Scaling.Efeito"), valor, nomeRuna);
-    }
-
-    if (elCfg?.efeito) efeitosDeTexto.push(loc(elCfg.efeito));
-  }
+  /* --- Números e dados da frase, já juntados ------------------------------ */
+  const resumo = resumoDaFrase(calc, { bonusDano: rolarDano ? bonusDeDano(actor, itemMagia) : [] });
 
   /* --- Números, um por escalonamento --------------------------------------- */
-  /*
-   * Os passos do Longo já entraram na conta de cada runa, na base e no ganho
-   * por Intenção — o que chega aqui é o valor final, e só a nota lembra que o
-   * alcance subiu de degrau.
-   */
-  const subiuDegrau = calc.passosAlcance > 0;
-  for (const [nome, grupo] of numeros) {
-    publicar(nome, grupo.valor);
-    const nota = subiuDegrau && chaveVariavel(nome) === "alcance"
-      ? ` <em>${loc("PYRO.Magia.PorPassos", { passos: calc.passosAlcance })}</em>` : "";
-    const origens = [...grupo.origens].map(esc).join(", ");
-    partes.push(`<p class="pyro-forma"><strong>${esc(nome)}</strong> — ${origens}: ${grupo.valor}${nota}</p>`);
-  }
-
-  /*
-   * Bônus de dano de efeitos ("Foco em Fogo: 2d6") entram no grupo do tipo
-   * deles, e não como uma rolagem à parte: quem recebe o dano soma uma vez só.
-   */
-  if (rolarDano) {
-    for (const bonus of bonusDeDano(actor, itemMagia)) {
-      somarDano(bonus.tipo || [...gruposDeDano.keys()][0] || "", bonus.formula, bonus.nome);
-    }
+  for (const { nome, valor } of resumo.publicados) publicar(nome, valor);
+  for (const numero of resumo.numeros) {
+    publicar(numero.nome, numero.valor);
+    const nota = numero.porPassos
+      ? ` <em>${loc("PYRO.Magia.PorPassos", { passos: numero.porPassos })}</em>` : "";
+    const origens = numero.origens.map(esc).join(", ");
+    partes.push(`<p class="pyro-forma"><strong>${esc(numero.nome)}</strong> — ${origens}: ${numero.valor}${nota}</p>`);
   }
 
   /* --- Dano, um bloco por tipo -------------------------------------------- */
@@ -690,12 +728,8 @@ export async function conjurar(actor, escolhas, {
   // Os 6 contam por tipo de dano: o Queimando do fogo nasce dos dados de calor,
   // e não de um 6 rolado no gelo que veio junto na mesma frase.
   const seisPorTipo = new Map();
-  for (const [tipo, grupo] of gruposDeDano) {
-    const formula = juntarDados(grupo.partes);
-    const rotulo = tipo
-      ? loc(PYRO.tiposDano[tipo]?.label ?? `PYRO.Dano.${tipo}`)
-      : loc("PYRO.Item.Dano");
-    const origens = [...grupo.origens].map(esc).join(", ");
+  for (const { tipo, rotulo, formula, scalings, origens: nomes } of resumo.danos) {
+    const origens = nomes.map(esc).join(", ");
     if (!rolarDano) {
       partes.push(`<p class="pyro-forma"><strong>${rotulo}</strong> — ${origens}: ${formula} (${loc("PYRO.Chat.NaoRolado")})</p>`);
       continue;
@@ -712,7 +746,7 @@ export async function conjurar(actor, escolhas, {
     }
     // O total do grupo vale para cada escalonamento que entrou nele: um efeito
     // que escreve "@dano" recebe o dano daquele tipo, já somado.
-    for (const nomeSc of grupo.scalings) publicar(nomeSc, roll.total);
+    for (const nomeSc of scalings) publicar(nomeSc, roll.total);
     partes.push(`<div class="pyro-dano dano-${tipo || "simples"}">
       <p><strong>${rotulo}</strong> — ${origens}: ${formula}</p>
       ${await roll.render()}
@@ -734,7 +768,7 @@ export async function conjurar(actor, escolhas, {
   }
 
   /* --- Subjulgar: a rolagem é comparada com a vida do alvo ---------------- */
-  for (const sub of subjulgares) {
+  for (const sub of resumo.subjulgares) {
     if (!rolarDano) {
       partes.push(`<p class="pyro-forma"><strong>${esc(sub.nomeRuna)}:</strong> ${sub.formula} (${loc("PYRO.Chat.NaoRolado")})</p>`);
       continue;
@@ -749,7 +783,7 @@ export async function conjurar(actor, escolhas, {
   }
 
   // Efeito de referência de cada elemento, depois dos números que ele rendeu.
-  for (const texto of efeitosDeTexto) partes.push(`<p class="pyro-efeito">${texto}</p>`);
+  for (const texto of resumo.efeitos) partes.push(`<p class="pyro-efeito">${texto}</p>`);
 
   /* --- Efeitos que o card aplica em um clique ----------------------------- */
   /*

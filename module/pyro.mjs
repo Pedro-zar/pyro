@@ -87,7 +87,8 @@ Hooks.once("init", () => {
   foundry.applications.handlebars.loadTemplates({
     "pyro.item-linha": caminho("templates/actor/partials/item-linha.hbs"),
     "pyro.secao": caminho("templates/actor/partials/secao.hbs"),
-    "pyro.progresso": caminho("templates/item/partials/progresso.hbs")
+    "pyro.progresso": caminho("templates/item/partials/progresso.hbs"),
+    "pyro.previa": caminho("templates/apps/previa.hbs")
   });
 
   const { Actors, Items } = foundry.documents.collections;

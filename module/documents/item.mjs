@@ -188,6 +188,27 @@ export class PyroItem extends Item {
       changed.system = sys;
     }
 
+    /*
+     * Técnica: a arma escolhida traz junto o custo em ações dela, que é a base
+     * da conta de pontos. Guardar o número aqui, e não ler a arma toda vez,
+     * mantém a técnica fechando a conta depois que a arma sai da ficha, e numa
+     * técnica que vive fora de um personagem.
+     *
+     * Por isso o retrato só é refeito quando há uma arma para retratar: apagar
+     * a arma, arrastar a técnica para o diretório ou abri-la num compêndio não
+     * pode apagar pontos que já estavam contados. Quem zera é escolher "sem
+     * arma" no seletor, que é uma decisão de quem edita.
+     */
+    if (this.type === "tecnica" && "ataque" in sys) {
+      const id = sys.ataque.id ?? this.system.ataque.id;
+      const arma = id ? this.actor?.items?.get(id) : null;
+      if (!id) sys.ataque = { ...sys.ataque, nome: "", acoes: 0 };
+      else if (arma?.type === "arma") {
+        sys.ataque = { ...sys.ataque, nome: arma.name, acoes: Math.max(1, arma.system.acoes ?? 2) };
+      }
+      changed.system = sys;
+    }
+
     if (this.type !== "caminho") return;
 
     if (sys.raca && sys.raca !== this.system.raca) {

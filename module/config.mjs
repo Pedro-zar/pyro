@@ -753,20 +753,20 @@ PYRO.tiposCusto = {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Ações base (SRD Técnicas): a técnica herda os dados, o alcance e o custo da
- * ação em que foi construída. `acoes` é o custo padrão dela — o que a técnica
- * cobrar a mais ou a menos vira ponto de criação.
+ * Ações base (SRD Técnicas): a ação em que a técnica foi construída, e de onde
+ * ela herda os dados e o alcance. O custo em ações não sai daqui — quem dá a
+ * base dele é a arma escolhida (ver PYRO.pontosDeAcoes).
  *
  *   ataca      a técnica rola um ataque da ficha (arma ou desarmado).
  *   reacao     é usada fora do próprio turno, e gasta reação em vez de ação.
  */
 PYRO.acoesBaseTecnica = {
-  atacar:   { label: "PYRO.Tecnica.Base.atacar",   acoes: 2, ataca: true },
-  agarrar:  { label: "PYRO.Tecnica.Base.agarrar",  acoes: 2, ataca: true },
-  mover:    { label: "PYRO.Tecnica.Base.mover",    acoes: 1 },
-  saltar:   { label: "PYRO.Tecnica.Base.saltar",   acoes: 1 },
-  bloquear: { label: "PYRO.Tecnica.Base.bloquear", acoes: 1, reacao: true },
-  esquivar: { label: "PYRO.Tecnica.Base.esquivar", acoes: 1, reacao: true }
+  atacar:   { label: "PYRO.Tecnica.Base.atacar",   ataca: true },
+  agarrar:  { label: "PYRO.Tecnica.Base.agarrar",  ataca: true },
+  mover:    { label: "PYRO.Tecnica.Base.mover" },
+  saltar:   { label: "PYRO.Tecnica.Base.saltar" },
+  bloquear: { label: "PYRO.Tecnica.Base.bloquear", reacao: true },
+  esquivar: { label: "PYRO.Tecnica.Base.esquivar", reacao: true }
 };
 
 /**
@@ -782,6 +782,50 @@ PYRO.especificidades = {
   tipo:       { label: "PYRO.Tecnica.Espec.tipo",       pontos: 3, filtro: "tipo" },
   especifica: { label: "PYRO.Tecnica.Espec.especifica", pontos: 4, filtro: "ataque" }
 };
+
+/**
+ * Quanto vale mexer no número de ações de uma técnica (SRD Técnicas).
+ *
+ * Não é um por ação: o que pesa é a fração do turno que a mudança representa.
+ * Sair de 1 para 2 ações dobra o custo do golpe, e por isso devolve muito;
+ * sair de 4 para 5 acrescenta um quarto, e devolve pouco. Descer é o caminho
+ * inverso, e cobra na mesma proporção — uma técnica que faz em 1 ação o que a
+ * arma faz em 2 é o que há de mais caro.
+ *
+ *   subir[n]   pontos que a técnica ganha ao ir de n para n+1 ações
+ *   descer[n]  pontos que ela gasta ao ir de n para n-1
+ *
+ * De 5 para 6 vale o mesmo que de 4 para 5, e não menos: seis ações são o
+ * turno inteiro, e abrir mão dele custa mais do que a fração sugere.
+ */
+PYRO.custoDeAcoes = {
+  1: { subir: 5 },
+  2: { subir: 3, descer: 5 },
+  3: { subir: 2, descer: 3 },
+  4: { subir: 1, descer: 2 },
+  5: { subir: 1, descer: 1 },
+  6: { descer: 1 }
+};
+
+/** Um turno tem seis ações: é o teto do que uma técnica pode custar. */
+PYRO.ACOES_MAX_TECNICA = 6;
+
+/**
+ * Pontos que a diferença entre as ações da arma e as da técnica rende. Positivo
+ * quando a técnica é mais lenta que a arma (sobra ponto), negativo quando é
+ * mais rápida (custa ponto). Cada degrau é cobrado no seu próprio preço, então
+ * ir de 3 para 1 ação custa o degrau 3→2 mais o degrau 2→1.
+ */
+PYRO.pontosDeAcoes = (base, alvo) => {
+  const teto = PYRO.ACOES_MAX_TECNICA;
+  const de = Math.min(teto, Math.max(1, Math.round(Number(base) || 0)));
+  const para = Math.min(teto, Math.max(1, Math.round(Number(alvo) || 0)));
+  let total = 0;
+  for (let n = de; n < para; n++) total += PYRO.custoDeAcoes[n]?.subir ?? 0;
+  for (let n = de; n > para; n--) total -= PYRO.custoDeAcoes[n]?.descer ?? 0;
+  return total;
+};
+
 
 /**
  * Opções de cada filtro automático. Alcance e família saem de números que a
@@ -832,11 +876,13 @@ const OFENSIVAS = ["atacar", "agarrar"];
 
 PYRO.tracosTecnicaPadrao = {
   // Ofensivos (ação base Atacar ou Agarrar).
-  potencia:     traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.multDano", { bases: OFENSIVAS, regra: "danoMult" }),
+  // Um quarto de multiplicador por vez: os dados da arma só crescem quando o
+  // acumulado fecha um 1x inteiro (ver multiplicarDados).
+  potencia:     traco("ofensivo", 0.25, 0.25, "PYRO.Tecnica.Un.multDano", { bases: OFENSIVAS, regra: "danoMult" }),
   area:         traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.raio", { bases: OFENSIVAS }),
-  cone:         traco("ofensivo", 2, 2, "PYRO.Tecnica.Un.cone", { bases: OFENSIVAS }),
-  linha:        traco("ofensivo", 3, 3, "PYRO.Tecnica.Un.linha", { bases: OFENSIVAS }),
-  alcance:      traco("ofensivo", 3, 3, "PYRO.Tecnica.Un.metros", { bases: OFENSIVAS, regra: "mira" }),
+  cone:         traco("ofensivo", 2, 1, "PYRO.Tecnica.Un.cone", { bases: OFENSIVAS }),
+  linha:        traco("ofensivo", 2, 1, "PYRO.Tecnica.Un.linha", { bases: OFENSIVAS }),
+  alcance:      traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.metros", { bases: OFENSIVAS, regra: "mira" }),
   alvos:        traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.alvos", { bases: OFENSIVAS }),
   empurrao:     traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.metros", { bases: OFENSIVAS }),
   // O grau 1 é o teste em si; os dados extras começam no grau 2.

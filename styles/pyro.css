@@ -639,6 +639,55 @@
   display: flex; flex-direction: column; gap: var(--pyro-e-3);
 }
 
+/*
+ * Corpo à esquerda, prévia do resultado à direita. A coluna da prévia tem
+ * largura fixa: ela lê como uma ficha de resumo, e não como um segundo painel
+ * que disputa espaço com a frase.
+ */
+.pyro .com-previa {
+  display: grid; grid-template-columns: minmax(0, 1fr) 15rem;
+  gap: var(--pyro-e-3); align-items: start;
+}
+/* Janela estreita (o jogador arrastou a borda): a prévia desce para baixo. */
+@container pyro-ficha (max-width: 42rem) {
+  .pyro .com-previa { grid-template-columns: minmax(0, 1fr); }
+}
+.pyro .previa-final {
+  display: flex; flex-direction: column; gap: var(--pyro-e-2);
+  padding: var(--pyro-e-3);
+  background: var(--pyro-painel); border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-md);
+}
+.pyro .previa-final ul { list-style: none; margin: 0; padding: 0; }
+/*
+ * Nome à esquerda, valor à direita — e o valor desce para a linha de baixo
+ * quando é uma frase inteira ("6 dados em furtividade durante a ação"), em vez
+ * de espremer o nome até ele passar por cima. Por isso flex com quebra, e não
+ * duas colunas de grade: a coluna fixa não tem para onde ceder.
+ */
+.pyro .previa-final li {
+  display: flex; flex-wrap: wrap; align-items: baseline;
+  justify-content: space-between; gap: 0 var(--pyro-e-2);
+  padding: var(--pyro-e-1) 0;
+  border-bottom: 1px solid var(--pyro-borda);
+}
+.pyro .previa-final li:last-child { border-bottom: none; }
+.pyro .previa-rotulo {
+  flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere;
+  color: var(--pyro-texto-2); font-size: var(--pyro-t-sm);
+}
+.pyro .previa-valor, .pyro .previa-formula {
+  flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; text-align: right;
+}
+.pyro .previa-valor { font-size: var(--pyro-t-sm); }
+.pyro .previa-formula { font-size: var(--pyro-t-md); }
+/* De onde o número veio: é o que denuncia uma runa somando sozinha. */
+.pyro .previa-origem {
+  flex: 0 0 100%;
+  font-size: var(--pyro-t-xs); color: var(--pyro-texto-3);
+}
+.pyro .previa-dano li { border-bottom: none; }
+
 /* A frase montada: fichas encadeadas com "+" entre elas. */
 .pyro .frase {
   list-style: none; margin: 0; padding: 0;

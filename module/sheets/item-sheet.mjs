@@ -10,7 +10,10 @@ import { caminho, flagsDe } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
 import { descreverRequisito } from "../progressao.mjs";
 import { rotuloCurtoDoCaminho } from "../data/item-data.mjs";
-import { tracosCompativeis, valorDoTraco, ataquesDoAtor, posturasDoAtor, opcoesDoFiltro } from "../tecnica.mjs";
+import {
+  tracosCompativeis, valorDoTraco, textoDoValor, ataquesDoAtor, posturasDoAtor, opcoesDoFiltro,
+  acoesBaseDaArma
+} from "../tecnica.mjs";
 
 /**
  * Opções de tipo de dano de um elemento. A primeira herda o tipo do próprio
@@ -361,8 +364,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     const opcoesFiltro = opcoesDoFiltro(sys.especificidade);
 
+    // O custo em ações vem junto: é ele que vira a base da conta de pontos, e
+    // o seletor mostra o número ao lado do nome para a escolha ser informada.
     const ataques = espec?.filtro === "ataque" && actor
-      ? ataquesDoAtor(actor).map(a => ({ id: a.id, nome: a.nome }))
+      ? ataquesDoAtor(actor).map(a => ({ id: a.id, nome: a.nome, acoes: a.acoes }))
       : null;
 
     return {
@@ -371,16 +376,38 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // montada, e a que passou do teto é uma conversa com o mestre.
       pontosSobrando: sys.pontos.restantes > 0,
       pontosExcedidos: sys.pontos.restantes < 0,
+      /*
+       * Total negativo é outra coisa que gastar demais: a técnica é mais rápida
+       * do que a arma aguenta, e nem sem traço nenhum ela fecha. O aviso diz
+       * isso, senão o jogador procuraria o erro nos traços.
+       */
+      pontosImpossiveis: sys.pontos.disponiveis < 0,
       acoesBaseOpts: Object.fromEntries(
         Object.entries(PYRO.acoesBaseTecnica).map(([k, v]) => [k, v.label])),
-      acoesDaBase: PYRO.acoesBaseTecnica[sys.acaoBase]?.acoes ?? 1,
+      /*
+       * A base da conta de ações é a arma escolhida, e só existe na
+       * especificidade "arma específica" (ver acoesBaseDaArma em tecnica.mjs).
+       * Sem ela o campo mostra o porquê, em vez de um número que não vale.
+       */
+      acoesDaBase: acoesBaseDaArma(sys),
+      // Com sinal: o número diz sozinho se a diferença dá ou custa ponto.
+      pontosDeAcoes: sys.pontos?.dasAcoes
+        ? `${sys.pontos.dasAcoes > 0 ? "+" : ""}${sys.pontos.dasAcoes}`
+        : "",
       especificidadeOpts: Object.fromEntries(Object.entries(PYRO.especificidades)
         .map(([k, v]) => [k, `${loc(v.label)} (+${v.pontos})`])),
       filtroOpts: opcoesFiltro
         ? Object.fromEntries(Object.entries(opcoesFiltro).map(([k, v]) => [k, loc(v)]))
         : null,
+      /*
+       * A opção vazia é o estado inicial de verdade: sem ela o seletor mostra
+       * a primeira arma da ficha enquanto o dado gravado é "", e escolher
+       * justamente essa arma não dispara mudança nenhuma — a técnica ficaria
+       * sem arma para sempre, e o Executor abriria sem ataque disponível.
+       */
       ataquesOpts: ataques
-        ? Object.fromEntries(ataques.map(a => [a.id, a.nome]))
+        ? { "": loc("PYRO.Tecnica.EscolherArma"),
+            ...Object.fromEntries(ataques.map(a => [a.id, `${a.nome} (${a.acoes})`])) }
         : null,
       tracosDaTecnica: (sys.tracos ?? []).map((t, indice) => {
         const cfg = PYRO.tracosTecnica[t.chave];
@@ -392,7 +419,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
           desconhecido: !cfg,
           // O que o grau comprado rende com Esforço 1, que é a leitura útil
           // na hora de montar: o Esforço é escolha da execução.
-          efeito: cfg ? `${valorDoTraco(cfg, t.grau, 1)} ${loc(cfg.unidade)}` : "",
+          efeito: cfg ? textoDoValor(cfg, valorDoTraco(cfg, t.grau, 1)) : "",
           // A lista de cada linha traz os traços livres mais o próprio, senão
           // o select mostraria vazio no traço já escolhido.
           opcoes: Object.fromEntries(compativeis

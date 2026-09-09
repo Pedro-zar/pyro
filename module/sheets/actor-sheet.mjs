@@ -22,7 +22,9 @@ import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
 import { descreverRequisito } from "../progressao.mjs";
-import { posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDaCondicao } from "../tecnica.mjs";
+import {
+  posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDoValor, textoDaCondicao
+} from "../tecnica.mjs";
 
 /**
  * O que fazer com um drop que caiu em cima de uma linha do inventário.
@@ -383,7 +385,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const base = loc(PYRO.acoesBaseTecnica[sys.acaoBase]?.label ?? "");
       const condicao = textoDaCondicao(sys);
       const efeitos = tracosDaTecnica(sys).map(t =>
-        `${loc(t.cfg.label)} ${valorDoTraco(t.cfg, t.grau, 1)} ${loc(t.cfg.unidade)}`);
+        `${loc(t.cfg.label)} ${textoDoValor(t.cfg, valorDoTraco(t.cfg, t.grau, 1))}`);
       const acoes = `${sys.acoes} ${umOuVarios(sys.acoes,
         PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao ? "PYRO.Custos.reacao" : "PYRO.Custos.acao",
         PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao ? "PYRO.Custos.reacaoPlural" : "PYRO.Custos.acaoPlural")}`;
