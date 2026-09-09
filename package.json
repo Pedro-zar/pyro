@@ -6,10 +6,12 @@
   "scripts": {
     "gerar": "node tools/gerar-itens.mjs",
     "gerar:runas": "node tools/gerar-runas.mjs",
+    "gerar:icones": "node tools/gerar-icones.mjs",
     "packs": "node tools/compilar-packs.mjs",
     "build": "npm run gerar && npm run gerar:runas && npm run packs"
   },
   "devDependencies": {
-    "@foundryvtt/foundryvtt-cli": "^3.0.4"
+    "@foundryvtt/foundryvtt-cli": "^3.0.4",
+    "@iconify-json/game-icons": "^1.2.4"
   }
 }

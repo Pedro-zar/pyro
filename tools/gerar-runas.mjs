@@ -10,7 +10,7 @@
  *
  *   node tools/gerar-runas.mjs && node tools/compilar-packs.mjs
  */
-import fs from "node:fs";
+import fs, { readFileSync } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
@@ -18,17 +18,22 @@ const RAIZ = path.resolve(import.meta.dirname, "..");
 const SAIDA = path.join(RAIZ, "packs", "_source", "runas");
 
 /** Ícones do conjunto svg do núcleo, que existe em qualquer instalação. */
-const ICONES = {
-  fogo: "icons/svg/fire.svg", agua: "icons/svg/aura.svg", gelo: "icons/svg/frozen.svg",
-  vento: "icons/svg/direction.svg", terra: "icons/svg/shield.svg", raio: "icons/svg/lightning.svg",
-  vida: "icons/svg/heal.svg", mente: "icons/svg/eye.svg", morte: "icons/svg/skull.svg",
-  espaco: "icons/svg/circle.svg",
-  projetil: "icons/svg/target.svg", explosao: "icons/svg/explosion.svg", cone: "icons/svg/light.svg",
-  linha: "icons/svg/direction.svg", muro: "icons/svg/shield.svg", aura: "icons/svg/aura.svg",
-  toque: "icons/svg/upgrade.svg",
-  amplo: "icons/svg/net.svg", longo: "icons/svg/target.svg", persistente: "icons/svg/aura.svg",
-  preciso: "icons/svg/eye.svg", dividir: "icons/svg/combat.svg"
-};
+/*
+ * Ícones do conjunto do sistema (ver tools/gerar-icones.mjs). O caminho é
+ * absoluto porque o Foundry resolve imagem a partir da raiz de dados, e o id
+ * sai do system.json: numa cópia de desenvolvimento ("pyro-dev") os packs
+ * precisam apontar para ela, e é por isso que eles são regerados junto.
+ */
+const SISTEMA = JSON.parse(
+  readFileSync(new URL("../system.json", import.meta.url), "utf8")
+).id;
+const icone = nome => `systems/${SISTEMA}/icons/${nome}.svg`;
+
+const ICONES = Object.fromEntries([
+  "fogo", "agua", "gelo", "vento", "terra", "raio", "vida", "mente", "morte", "espaco",
+  "projetil", "explosao", "cone", "linha", "muro", "aura", "toque",
+  "amplo", "longo", "persistente", "preciso", "dividir"
+].map(chave => [chave, icone(chave)]));
 
 const escala = (nome, base, porIntencao, faces = 0) => ({ nome, base, porIntencao, faces });
 
@@ -104,7 +109,7 @@ function documento({ tipoRuna, chave, nome, scalings, desc, subjulgar = false, t
     _key: `!items!${id}`,
     name: nome,
     type: "runa",
-    img: ICONES[chave] ?? "icons/svg/book.svg",
+    img: ICONES[chave] ?? icone("aura"),
     folder,
     sort,
     system: {

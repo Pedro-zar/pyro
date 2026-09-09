@@ -4,6 +4,8 @@
  * configurações do mundo (ver settings.mjs) — por isso são dados puros,
  * sem funções, e reconstruídos no init.
  */
+import { caminho } from "./sistema.mjs";
+
 export const PYRO = {};
 
 /* -------------------------------------------------------------------------- */
@@ -381,6 +383,25 @@ PYRO.regrasDeIntencao = {
  * rolados no dano, e por isso continua presa ao elemento.
  */
 PYRO.regraDosSeis = { fogo: { regra: "queimando" } };
+
+/**
+ * Ícone padrão de cada tipo de item, do conjunto do sistema (ver icons/).
+ *
+ * O Foundry dá a mesma sacola a tudo que nasce, e uma lista de vinte itens com
+ * o mesmo desenho não diz nada.
+ */
+PYRO.iconePorTipo = {
+  arma: "arma", equipamento: "equipamento", consumivel: "consumivel",
+  habilidade: "habilidade", tecnica: "tecnica", pericia: "pericia",
+  magia: "magia", runa: "runa", caminho: "caminho", feitico: "feitico"
+};
+
+/**
+ * Caminho de um ícone do sistema, pelo nome do arquivo sem extensão. Passa por
+ * caminho() porque o Foundry resolve imagem a partir da raiz de dados, e o id
+ * do sistema muda entre a mesa e a cópia de desenvolvimento.
+ */
+PYRO.icone = nome => caminho(`icons/${nome}.svg`);
 
 PYRO.tiposRuna = {
   elemento:    "PYRO.Runas.elemento",
@@ -917,7 +938,7 @@ PYRO.multiplicadorSubjulgar = dif => {
  */
 PYRO.condicoes = {
   queimando: { label: "PYRO.Condicoes.queimando", img: "icons/svg/fire.svg" },
-  molhado:   { label: "PYRO.Condicoes.molhado",   img: "icons/svg/water.svg" },
+  molhado:   { label: "PYRO.Condicoes.molhado",   img: "icons/svg/acid.svg" },
   friagem:   { label: "PYRO.Condicoes.friagem",   img: "icons/svg/frozen.svg" },
   irritado:  { label: "PYRO.Condicoes.irritado",  img: "icons/svg/combat.svg" },
   inseguro:  { label: "PYRO.Condicoes.inseguro",  img: "icons/svg/downgrade.svg" },

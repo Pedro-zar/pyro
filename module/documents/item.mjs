@@ -74,6 +74,16 @@ export class PyroItem extends Item {
   async _preCreate(data, options, user) {
     const permitido = await super._preCreate(data, options, user);
     if (permitido === false) return false;
+
+    /*
+     * Ícone do tipo, quando ninguém escolheu um. O Foundry dá a mesma sacola a
+     * tudo que nasce, e uma lista de vinte itens com o mesmo desenho não diz
+     * nada. Item vindo de compêndio ou duplicado já traz o seu e passa direto.
+     */
+    const padraoDoTipo = PYRO.iconePorTipo[this.type];
+    if (padraoDoTipo && (!data.img || data.img === this.constructor.DEFAULT_ICON)) {
+      this.updateSource({ img: PYRO.icone(padraoDoTipo) });
+    }
     if (this.type === "runa" && this.actor) {
       const alteracoes = {};
       if (!data.system?.lingua) {

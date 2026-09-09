@@ -12,7 +12,7 @@
  *
  *   node tools/gerar-itens.mjs
  */
-import fs from "node:fs";
+import fs, { readFileSync } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 
@@ -74,19 +74,27 @@ const ATRIBUTOS = {
 };
 
 /*
- * Ícones: só o conjunto svg do núcleo do Foundry, que existe em qualquer
- * instalação. São propositalmente sóbrios — trocar por arte de verdade é
- * mexer neste mapa e regerar.
+ * Ícones do conjunto do sistema (ver tools/gerar-icones.mjs). Caminho absoluto
+ * com o id do system.json: o Foundry resolve imagem a partir da raiz de dados,
+ * e a cópia de desenvolvimento tem id próprio.
  */
+const SISTEMA = JSON.parse(
+  readFileSync(new URL("../system.json", import.meta.url), "utf8")
+).id;
+const icone = nome => `systems/${SISTEMA}/icons/${nome}.svg`;
+
 const ICONES = {
-  arma: "icons/svg/sword.svg",
-  armaDistancia: "icons/svg/target.svg",
-  equipamento: "icons/svg/shield.svg",
-  municao: "icons/svg/target.svg",
-  artefato: "icons/svg/mystery-man.svg",
-  arcano: "icons/svg/aura.svg",
+  arma: icone("arma"),
+  // Arma de alcance leva a lança arremessada, a mesma marca da forma Projétil.
+  armaDistancia: icone("projetil"),
+  equipamento: icone("equipamento"),
+  municao: icone("projetil"),
+  // Artefato e item arcano são mágicos: levam a marca da magia.
+  artefato: icone("magia"),
+  arcano: icone("magia"),
+  // Mochila continua na sacola do próprio Foundry: não há marca nossa para ela.
   mochila: "icons/svg/item-bag.svg",
-  consumivel: "icons/svg/heal.svg"
+  consumivel: icone("consumivel")
 };
 
 /* -------------------------------------------------------------------------- */
