@@ -465,12 +465,16 @@ PYRO.COR_DO_VAZIO = [0.25, 0.25, 0.3, 1.0];
  * menor ordem. Numa cripta sem mana dentro de uma floresta abundante, quem
  * está na cripta está sem mana.
  */
-PYRO.densidades = {
+PYRO.densidadesPadrao = {
   nenhuma:   { label: "PYRO.Densidade.nenhuma",   ordem: 0, multRecuperacao: 0,   multAlcance: 0 },
   escassa:   { label: "PYRO.Densidade.escassa",   ordem: 1, multRecuperacao: 0.5, multAlcance: 0.5 },
   normal:    { label: "PYRO.Densidade.normal",    ordem: 2, multRecuperacao: 1,   multAlcance: 1 },
   abundante: { label: "PYRO.Densidade.abundante", ordem: 3, multRecuperacao: 2,   multAlcance: 1.5 }
 };
+
+// As quatro densidades são fixas (a ordem é regra); o mestre edita os
+// multiplicadores de cada uma em Configurações > Caminhos Raciais.
+PYRO.densidades = foundry.utils.deepClone(PYRO.densidadesPadrao);
 
 /** A que recurso a densidade de uma região se aplica. */
 PYRO.recursosDeDensidade = {

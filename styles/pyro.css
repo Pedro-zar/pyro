@@ -1244,6 +1244,11 @@
   grid-template-columns: 1fr 1.6fr 5rem 6rem 1.9rem;
 }
 .pyro .config-linha.progressoes input[type=checkbox] { width: auto; justify-self: center; }
+/* Densidades espirituais: nome e os dois multiplicadores. */
+.pyro .config-cab.densidades, .pyro .config-linha.densidades {
+  grid-template-columns: 1fr 7rem 7rem;
+}
+
 /* Tabelas de nível por uso: nível, RR, RD, RMD e o modo da linha. */
 .pyro .config-cab.avanco, .pyro .config-linha.avanco {
   grid-template-columns: 3rem 4.5rem 4.5rem 4.5rem 1fr;

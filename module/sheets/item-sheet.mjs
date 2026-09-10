@@ -378,6 +378,13 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       sentidoTipoOpts: Object.fromEntries(
         Object.entries(PYRO.sentidos).map(([k, cfg]) => [k, cfg.label])),
       aparenciaOpts: PYRO.aparenciasSentido,
+      // O alcance que a fórmula dá nesta ficha, para conferir na hora de
+      // escrever. Item solto não tem em quem calcular, e a linha não sai.
+      temSentidoAlcance: item.type === "habilidade" && !!sys.sentido?.tipo && !!actor,
+      sentidoAlcance: item.type === "habilidade" && sys.sentido?.tipo && actor
+        ? calcularFormula(sys.sentido.alcance,
+            { ...actor.getRollData(), nvl: Number(sys.nivel) || 0 })
+        : 0,
       ...this.#contextoTecnica(),
       requisito: descreverRequisito(item),
       valoresRapidos: this.#valoresRapidos(),

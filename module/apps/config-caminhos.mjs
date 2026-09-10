@@ -42,7 +42,13 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
     this.#dados ??= {
       linguas: foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "linguas")),
       racas: foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "racas")),
-      recursos: foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "recursosCustom"))
+      recursos: foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "recursosCustom")),
+      // As quatro densidades são fixas; o padrão por baixo garante que uma
+      // configuração antiga não deixe nenhuma sem multiplicador.
+      densidades: foundry.utils.mergeObject(
+        foundry.utils.deepClone(PYRO.densidadesPadrao),
+        game.settings.get(SYSTEM_ID, "densidades") ?? {},
+        { inplace: false })
     };
     return this.#dados;
   }
@@ -63,6 +69,9 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
     }));
     context.recursos = Object.entries(config.recursos).map(([chave, v]) => ({
       chave, ...v, label: game.i18n.localize(v.label)
+    }));
+    context.densidades = Object.entries(config.densidades).map(([chave, v]) => ({
+      chave, ...v, label: game.i18n.localize(PYRO.densidadesPadrao[chave]?.label ?? chave)
     }));
     context.atributos = Object.fromEntries(
       Object.entries(PYRO.atributos).map(([k, v]) => [k, game.i18n.localize(v)])
@@ -103,6 +112,14 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
       recurso.recAtributo = dados[`recurso.${chave}.recAtributo`] ?? recurso.recAtributo;
       recurso.recPorPonto =
         Number(dados[`recurso.${chave}.recPorPonto`] ?? recurso.recPorPonto) || 0;
+    }
+    for (const [chave, densidade] of Object.entries(config.densidades)) {
+      const numero = campo => {
+        const n = Number(dados[`densidade.${chave}.${campo}`]);
+        return Number.isFinite(n) ? Math.max(0, n) : densidade[campo];
+      };
+      densidade.multRecuperacao = numero("multRecuperacao");
+      densidade.multAlcance = numero("multAlcance");
     }
     for (const [chave, raca] of Object.entries(config.racas)) {
       raca.label = dados[`raca.${chave}.label`] ?? raca.label;
@@ -184,7 +201,8 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
     this.#dados = {
       linguas: foundry.utils.deepClone(PYRO.linguasPadrao),
       racas: foundry.utils.deepClone(PYRO.racasPadrao),
-      recursos: foundry.utils.deepClone(PYRO.recursosCustomPadrao)
+      recursos: foundry.utils.deepClone(PYRO.recursosCustomPadrao),
+      densidades: foundry.utils.deepClone(PYRO.densidadesPadrao)
     };
     this.render();
   }
@@ -194,6 +212,7 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
     await game.settings.set(SYSTEM_ID, "linguas", config.linguas);
     await game.settings.set(SYSTEM_ID, "racas", config.racas);
     await game.settings.set(SYSTEM_ID, "recursosCustom", config.recursos);
+    await game.settings.set(SYSTEM_ID, "densidades", config.densidades);
     ui.notifications.info(game.i18n.localize("PYRO.Config.Salvo"));
   }
 }

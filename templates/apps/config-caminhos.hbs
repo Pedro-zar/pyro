@@ -62,6 +62,29 @@
     {{/each}}
   </section>
 
+  {{!-- As quatro densidades são fixas (a ordem entre elas é regra); o que a
+        mesa calibra são os multiplicadores de cada uma. --}}
+  <section>
+    <header class="lista-cabecalho">
+      <h3>{{localize "PYRO.Densidade.Secao"}}</h3>
+    </header>
+    <p class="pyro-nota">{{localize "PYRO.Densidade.SecaoDica"}}</p>
+    <div class="config-cab densidades">
+      <span>{{localize "PYRO.Densidade.FIELDS.densidade.label"}}</span>
+      <span>{{localize "PYRO.Densidade.MultRecuperacao"}}</span>
+      <span>{{localize "PYRO.Densidade.MultAlcance"}}</span>
+    </div>
+    {{#each densidades as |dn|}}
+    <div class="config-linha densidades">
+      <span>{{dn.label}}</span>
+      <input type="number" step="any" min="0" name="densidade.{{dn.chave}}.multRecuperacao"
+             value="{{dn.multRecuperacao}}" />
+      <input type="number" step="any" min="0" name="densidade.{{dn.chave}}.multAlcance"
+             value="{{dn.multAlcance}}" />
+    </div>
+    {{/each}}
+  </section>
+
   <section>
     <header class="lista-cabecalho">
       <h3>{{localize "PYRO.Config.Racas"}}</h3>

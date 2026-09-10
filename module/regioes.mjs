@@ -115,6 +115,19 @@ export function registrarRegioes() {
       // A ficha aberta anuncia a recuperação por cena com a densidade nova.
       if (token.actor?.sheet?.rendered) token.actor.sheet.render();
       canvas.perception.update({ initializeVision: true });
+
+      /*
+       * Quem joga com o token fica sabendo em que ar entrou. Só o dono, e só
+       * jogador: o mestre desenhou a região, e ser dono de tudo faria cada
+       * NPC que ele move soltar um aviso.
+       */
+      if (event.name !== CONST.REGION_EVENTS.TOKEN_ENTER) return;
+      if (this.densidade === "normal") return;
+      if (game.user.isGM || !token.actor?.isOwner) return;
+      ui.notifications.info(game.i18n.format("PYRO.Densidade.AvisoEntrada", {
+        recurso: game.i18n.localize(PYRO.recursosDeDensidade[this.recurso] ?? ""),
+        densidade: game.i18n.localize(PYRO.densidades[this.densidade]?.label ?? this.densidade)
+      }));
     }
   }
 

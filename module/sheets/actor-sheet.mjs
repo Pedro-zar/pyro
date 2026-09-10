@@ -21,7 +21,7 @@ const ICONES_DE_CONDICAO = {
 import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
-import { comUnidade } from "../dados.mjs";
+import { comUnidade, calcularFormula } from "../dados.mjs";
 import { custoDeCaminhoNovo } from "../data/item-data.mjs";
 import { multRecuperacaoDoAtor, comDensidade } from "../regioes.mjs";
 import { descreverRequisito } from "../progressao.mjs";
@@ -340,10 +340,24 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
        * deles (técnicas, aba do caminho próprio, favoritos) o caminho abre a
        * lista.
        */
+      /*
+       * O alcance do sentido, calculado para ESTA habilidade nesta ficha —
+       * é a resposta de "até onde eu sinto?" sem abrir item nenhum. A
+       * densidade da região não entra aqui: a ficha mostra o sentido do
+       * personagem, e a região é circunstância do mapa.
+       */
+      const sentido = sys.sentido?.tipo && PYRO.sentidos[sys.sentido.tipo]
+        ? loc("PYRO.Sentidos.LinhaFicha", {
+            tipo: loc(`PYRO.Recursos.${sys.sentido.tipo}`).toLocaleLowerCase(),
+            alcance: calcularFormula(sys.sentido.alcance,
+              { ...actor.getRollData(), nvl: Number(sys.nivel) || 0 })
+          })
+        : null;
       const detalheTexto = [
         agrupada ? null : caminhoNome,
         sys.adormecidaAtiva ? loc("PYRO.Despertar.Tag") : null,
         loc(PYRO.categoriasHabilidade[sys.categoria] ?? ""),
+        sentido,
         ...custosPartes,
         `${loc("PYRO.Item.Ranque").toLocaleLowerCase()} ${sys.ranque}`,
         `${loc("PYRO.Uso.NivelAbrev")} ${sys.nivel}`
@@ -360,7 +374,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           { label: loc("PYRO.Uso.Nivel"), valor: `${sys.nivel} / ${sys.nivelMax}` },
           ...(sys.escalaPorNivel ? [{ label: loc("PYRO.Item.EscalaPorNivel"), valor: sys.escalaPorNivel }] : []),
           { label: loc("PYRO.Item.Custos"), valor: custos || "—" },
-          { label: loc("PYRO.Item.Formula"), valor: comUnidade(sys.formula, sys.unidadeFormula) || "—" }
+          { label: loc("PYRO.Item.Formula"), valor: comUnidade(sys.formula, sys.unidadeFormula) || "—" },
+          ...(sentido ? [{ label: loc("PYRO.Sentidos.Bloco"), valor: sentido }] : [])
         ]
       };
     };

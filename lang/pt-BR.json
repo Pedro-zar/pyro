@@ -1056,5 +1056,12 @@
   "PYRO.Densidade.abundante": "Abundante",
   "PYRO.Densidade.FIELDS.recurso.label": "Recurso",
   "PYRO.Densidade.FIELDS.densidade.label": "Densidade",
-  "PYRO.Densidade.FIELDS.densidade.hint": "Quanta mana ou energia há no ar desta região. Multiplica a recuperação por cena do recurso e o alcance do sentido espiritual; com regiões sobrepostas vale a mais restritiva."
+  "PYRO.Densidade.FIELDS.densidade.hint": "Quanta mana ou energia há no ar desta região. Multiplica a recuperação por cena do recurso e o alcance do sentido espiritual; com regiões sobrepostas vale a mais restritiva.",
+  "PYRO.Densidade.Secao": "Densidades espirituais",
+  "PYRO.Densidade.SecaoDica": "Multiplicadores de cada densidade de mana/energia no ar, usados pelas regiões de cena: recuperação por cena do recurso e alcance do sentido espiritual. Com regiões sobrepostas vale a mais restritiva.",
+  "PYRO.Densidade.MultRecuperacao": "× recuperação",
+  "PYRO.Densidade.MultAlcance": "× alcance",
+  "PYRO.Densidade.AvisoEntrada": "{recurso} nesta área: {densidade}.",
+  "PYRO.Sentidos.LinhaFicha": "sente {tipo} a {alcance} m",
+  "PYRO.Sentidos.NestaFicha": "Nesta ficha:"
 }

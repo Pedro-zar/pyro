@@ -206,6 +206,10 @@
       {{/if}}
     </div>
     {{#if system.sentido.tipo}}
+    {{#if temSentidoAlcance}}
+    <p class="pyro-nota">{{localize "PYRO.Sentidos.NestaFicha"}}
+      <strong class="numero">{{sentidoAlcance}} m</strong></p>
+    {{/if}}
     <p class="pyro-nota">{{localize "PYRO.Sentidos.Dica"}}</p>
     {{/if}}
   </div>

@@ -44,6 +44,14 @@ export function registrarSettings() {
     requiresReload: true
   });
 
+  game.settings.register(SYSTEM_ID, "densidades", {
+    scope: "world",
+    config: false,
+    type: Object,
+    default: foundry.utils.deepClone(PYRO.densidadesPadrao),
+    requiresReload: true
+  });
+
   /*
    * Regras de progressão: uma habilidade com o nome certo troca a curva de
    * custo do Caminho inteiro. Fica em setting próprio, e não junto das tabelas
@@ -198,6 +206,7 @@ export function aplicarSettings() {
   PYRO.racas = mesclar(PYRO.racasPadrao, game.settings.get(SYSTEM_ID, "racas"));
   PYRO.recursosCustom = comFormula(
     mesclar(PYRO.recursosCustomPadrao, game.settings.get(SYSTEM_ID, "recursosCustom")));
+  PYRO.densidades = mesclar(PYRO.densidadesPadrao, game.settings.get(SYSTEM_ID, "densidades"));
   // A lista de progressões nasce vazia, então vale o que o mestre salvou.
   PYRO.progressoes = foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "progressoes") ?? {});
   PYRO.indexarProgressoes();
