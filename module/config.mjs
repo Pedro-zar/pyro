@@ -457,6 +457,29 @@ PYRO.sentidos = {
 PYRO.COR_DO_VAZIO = [0.25, 0.25, 0.3, 1.0];
 
 /**
+ * Densidades espirituais de uma região (o comportamento de região do sistema):
+ * quanta mana ou energia há no ar dali. A densidade multiplica duas coisas —
+ * a recuperação por cena do recurso e o alcance do sentido espiritual.
+ *
+ * `ordem` desempata regiões sobrepostas: vence a mais restritiva, que é a de
+ * menor ordem. Numa cripta sem mana dentro de uma floresta abundante, quem
+ * está na cripta está sem mana.
+ */
+PYRO.densidades = {
+  nenhuma:   { label: "PYRO.Densidade.nenhuma",   ordem: 0, multRecuperacao: 0,   multAlcance: 0 },
+  escassa:   { label: "PYRO.Densidade.escassa",   ordem: 1, multRecuperacao: 0.5, multAlcance: 0.5 },
+  normal:    { label: "PYRO.Densidade.normal",    ordem: 2, multRecuperacao: 1,   multAlcance: 1 },
+  abundante: { label: "PYRO.Densidade.abundante", ordem: 3, multRecuperacao: 2,   multAlcance: 1.5 }
+};
+
+/** A que recurso a densidade de uma região se aplica. */
+PYRO.recursosDeDensidade = {
+  ambos: "PYRO.Densidade.ambos",
+  mana: "PYRO.Recursos.mana",
+  energia: "PYRO.Recursos.energia"
+};
+
+/**
  * Aparências do sentido espiritual — os modos de visão registrados no canvas.
  * Três por enquanto, de propósito: a mesa escolhe olhando a cena, e as que
  * sobrarem saem daqui.

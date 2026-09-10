@@ -4,11 +4,26 @@
  * habilidade que dá o sentido já muda o token junto.
  */
 import { idDoSentido, idDoVazio } from "../percepcao.mjs";
+import { multAlcanceDoToken, comDensidade } from "../regioes.mjs";
 
 export class PyroTokenDocument extends TokenDocument {
+  /**
+   * Os sentidos do ator já com a densidade da região aplicada ao alcance:
+   * onde a mana do ar é abundante o sentido vai mais longe, e onde não há
+   * mana nenhuma ele some — o cego fica de fato cego ali.
+   */
+  #sentidosNaRegiao() {
+    const ajustados = {};
+    for (const [tipo, sentido] of Object.entries(this.actor?.system?.sentidos ?? {})) {
+      const alcance = comDensidade(sentido.alcance, multAlcanceDoToken(this, tipo));
+      if (alcance > 0) ajustados[tipo] = { ...sentido, alcance };
+    }
+    return ajustados;
+  }
+
   /** @override */
   _prepareDetectionModes() {
-    const sentidos = this.actor?.system?.sentidos ?? {};
+    const sentidos = this.#sentidosNaRegiao();
     // Sem visão ligada não há fonte de percepção nenhuma neste token, e o
     // sentido não tem por onde entrar.
     const aplicar = this.sight.enabled && !foundry.utils.isEmpty(sentidos);

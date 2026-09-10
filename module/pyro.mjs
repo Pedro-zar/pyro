@@ -19,6 +19,7 @@ import { registrarSettings, aplicarSettings } from "./settings.mjs";
 import { registrarMenuChat } from "./chat.mjs";
 import { registrarRelogio } from "./tempo.mjs";
 import { registrarPercepcao } from "./percepcao.mjs";
+import { registrarRegioes } from "./regioes.mjs";
 import { SYSTEM_ID, caminho } from "./sistema.mjs";
 
 Hooks.once("init", () => {
@@ -51,6 +52,8 @@ Hooks.once("init", () => {
 
   // Sentidos espirituais: detecção através de paredes e as aparências.
   registrarPercepcao();
+  // Regiões de densidade espiritual (quanta mana há no ar de cada lugar).
+  registrarRegioes();
 
   CONFIG.Actor.dataModels = {
     personagem: PersonagemData,

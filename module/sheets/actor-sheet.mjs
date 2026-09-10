@@ -23,6 +23,7 @@ import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
 import { comUnidade } from "../dados.mjs";
 import { custoDeCaminhoNovo } from "../data/item-data.mjs";
+import { multRecuperacaoDoAtor, comDensidade } from "../regioes.mjs";
 import { descreverRequisito } from "../progressao.mjs";
 import {
   posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDoValor, textoDaCondicao
@@ -645,6 +646,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       actor,
       system: actor.system,
       systemFields: actor.system.schema.fields,
+      // A recuperação anunciada na aba de magia é a que a região deixa vir.
+      recuperacaoMana: this.#recuperacaoNaRegiao("mana", actor.system.recursos.mana),
       config: PYRO,
       tamanhoOpts: Object.fromEntries(Object.entries(PYRO.tamanhos).map(([k, v]) => [k, v.label])),
       secoes,
@@ -885,6 +888,17 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     };
   }
 
+  /**
+   * Recuperação por cena de um recurso já com a densidade da região aplicada:
+   * é este número que recuperarCena vai dar, e é ele que a ficha mostra —
+   * anunciar o cheio numa região escassa seria prometer mana que não vem.
+   * Mana e recursos de raça respiram a mana do ar; energia, a energia.
+   */
+  #recuperacaoNaRegiao(chave, rec) {
+    const recurso = chave === "energia" ? "energia" : "mana";
+    return comDensidade(rec.recuperacao ?? 0, multRecuperacaoDoAtor(this.actor, recurso));
+  }
+
   /** Mana só aparece pra usuários de magia; energia, pra feitiçaria. */
   #recursosVisiveis() {
     const sys = this.actor.system;
@@ -897,8 +911,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // Recursos personalizados só aparecem pra quem tem o caminho que concede.
       if (custom && !concedidos.includes(chave)) continue;
 
+      // Com recuperação base e densidade que a apaga, o "+0/cena" fica à
+      // vista: é a região dizendo que aqui não se recupera.
       const nota = rec.recuperacao
-        ? game.i18n.format("PYRO.RecuperaPorCena", { valor: rec.recuperacao })
+        ? game.i18n.format("PYRO.RecuperaPorCena", { valor: this.#recuperacaoNaRegiao(chave, rec) })
         : null;
 
       out.push({

@@ -1047,5 +1047,14 @@
   "PYRO.Aparencia.azulEtereo": "Azul etéreo",
   "PYRO.Aparencia.brancoBrilho": "Apagado com brilho",
   "PYRO.Aparencia.ecoOnda": "Eco de onda",
-  "PYRO.Sentidos.Vazio": "Ausência (vultos sólidos)"
+  "PYRO.Sentidos.Vazio": "Ausência (vultos sólidos)",
+  "TYPES.RegionBehavior.densidadeEspiritual": "Densidade espiritual",
+  "PYRO.Densidade.ambos": "Mana e energia",
+  "PYRO.Densidade.nenhuma": "Nenhuma",
+  "PYRO.Densidade.escassa": "Escassa",
+  "PYRO.Densidade.normal": "Normal",
+  "PYRO.Densidade.abundante": "Abundante",
+  "PYRO.Densidade.FIELDS.recurso.label": "Recurso",
+  "PYRO.Densidade.FIELDS.densidade.label": "Densidade",
+  "PYRO.Densidade.FIELDS.densidade.hint": "Quanta mana ou energia há no ar desta região. Multiplica a recuperação por cena do recurso e o alcance do sentido espiritual; com regiões sobrepostas vale a mais restritiva."
 }

@@ -17,6 +17,7 @@ import {
 import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
 import { SYSTEM_ID, flagsDoSistema } from "../sistema.mjs";
 import { donosDe, temDonoJogador } from "../tecnica.mjs";
+import { multRecuperacaoDoAtor, comDensidade } from "../regioes.mjs";
 
 export class PyroActor extends Actor {
   /**
@@ -726,20 +727,28 @@ export class PyroActor extends Actor {
   async recuperarCena() {
     const recursos = this.system.recursos;
     const vig = this.system.atributos.vig.total;
+    /*
+     * A densidade da região onde o token está multiplica a recuperação: em
+     * mana abundante recupera-se em dobro, sem mana nenhuma não se recupera.
+     * Os recursos de raça (a Energia Natural do elfo) respiram a mesma mana
+     * do ar, então seguem o fator dela.
+     */
+    const fMana = multRecuperacaoDoAtor(this, "mana");
+    const fEnergia = multRecuperacaoDoAtor(this, "energia");
     const extras = {};
     for (const chave of this.#recursosExtras()) {
       const rec = recursos[chave];
       extras[`system.recursos.${chave}.value`] =
-        Math.min(rec.max, rec.value + (rec.recuperacao ?? 0));
+        Math.min(rec.max, rec.value + comDensidade(rec.recuperacao ?? 0, fMana));
     }
     await this.update({
       ...extras,
       "system.recursos.estamina.value": recursos.estamina.max,
       "system.recursos.pv.value": Math.min(recursos.pv.max, recursos.pv.value + vig),
-      "system.recursos.mana.value":
-        Math.min(recursos.mana.max, recursos.mana.value + recursos.mana.recuperacao),
-      "system.recursos.energia.value":
-        Math.min(recursos.energia.max, recursos.energia.value + recursos.energia.recuperacao)
+      "system.recursos.mana.value": Math.min(recursos.mana.max,
+        recursos.mana.value + comDensidade(recursos.mana.recuperacao, fMana)),
+      "system.recursos.energia.value": Math.min(recursos.energia.max,
+        recursos.energia.value + comDensidade(recursos.energia.recuperacao, fEnergia))
     });
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),

@@ -47,6 +47,9 @@
       "caminho": {},
       "feitico": {},
       "pericia": {}
+    },
+    "RegionBehavior": {
+      "densidadeEspiritual": {}
     }
   },
   "packs": [
