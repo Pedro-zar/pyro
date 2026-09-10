@@ -16,6 +16,7 @@ import {
 } from "../teste.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
 import { SYSTEM_ID, flagsDoSistema } from "../sistema.mjs";
+import { donosDe, temDonoJogador } from "../tecnica.mjs";
 
 export class PyroActor extends Actor {
   /**
@@ -564,9 +565,19 @@ export class PyroActor extends Actor {
     // Entrar é o mesmo card de qualquer habilidade: o que a postura rende e a
     // descrição dela, que é o que a mesa precisa reler enquanto ela durar.
     // Sair não tem o que mostrar além do aviso.
-    if (!saindo) return item.cardDeHabilidade(game.i18n.localize("PYRO.Postura.EntrouMeta"));
+    /*
+     * Postura de NPC não vai para o chat aberto: o card traz a fórmula e a
+     * descrição inteira, e o mestre trocando de guarda no meio da luta não
+     * precisa entregar o que o inimigo faz. Personagem de jogador continua
+     * anunciando na mesa, que é onde a postura importa.
+     */
+    const sussurro = temDonoJogador(this) ? [] : donosDe(this);
+    if (!saindo) {
+      return item.cardDeHabilidade(game.i18n.localize("PYRO.Postura.EntrouMeta"), sussurro);
+    }
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
+      whisper: sussurro,
       content: `<p class="pyro-postura">${game.i18n.localize("PYRO.Postura.Saiu")}</p>`
     });
   }

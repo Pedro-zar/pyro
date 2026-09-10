@@ -1033,6 +1033,21 @@
 }
 .pyro-chat .pyro-aplicar:hover { border-color: var(--pyro-brasa); color: var(--pyro-brasa-alta); }
 
+/* Lembrete de postura: uma pastilha por postura, com o ícone da habilidade. */
+.pyro-chat .pyro-entrar-postura {
+  display: inline-flex; align-items: center; gap: 0.35rem;
+  width: auto; height: var(--pyro-toque); padding: 0 10px 0 4px; line-height: 1;
+  font-size: 0.78rem; border: 1px solid var(--pyro-borda);
+  border-radius: 999px; background: var(--pyro-painel-alto);
+  color: var(--pyro-texto); cursor: pointer;
+}
+.pyro-chat .pyro-entrar-postura img {
+  width: 1.4rem; height: 1.4rem; border: none; border-radius: 999px; object-fit: cover;
+}
+.pyro-chat .pyro-entrar-postura:hover { border-color: var(--pyro-brasa); color: var(--pyro-brasa-alta); }
+/* A que já está ativa: clicar nela sai da postura, e o destaque diz qual é. */
+.pyro-chat .pyro-entrar-postura.ativa { border-color: var(--pyro-acento-alto); }
+
 /* Linha de contexto sob o nome, no cabeçalho dos cards. */
 .pyro-chat .pyro-item-meta { font-size: 0.75rem; opacity: 0.75; }
 

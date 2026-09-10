@@ -247,6 +247,24 @@ function injetarRodape(message, element) {
       aplicarEm(message, b.dataset.modo, Number(b.dataset.mult) || 1)));
 }
 
+/**
+ * Botão do lembrete de postura: entra na postura clicada, ou troca para ela.
+ *
+ * O card fica no chat depois de clicado, e o destaque dele é o de quando foi
+ * criado. Por isso este botão só entra: se ele alternasse, clicar de novo na
+ * postura já ativa tiraria o personagem dela sem ninguém pedir.
+ */
+async function entrarNaPostura({ atorUuid, itemId }) {
+  const actor = await fromUuid(atorUuid);
+  if (!actor?.isOwner) return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemPermissao"));
+  const postura = actor.items.get(itemId);
+  if (!postura) return ui.notifications.warn(game.i18n.localize("PYRO.Postura.Sumiu"));
+  if (actor.posturaAtiva?.id === postura.id) {
+    return ui.notifications.info(game.i18n.format("PYRO.Postura.JaEsta", { nome: postura.name }));
+  }
+  return actor.alternarPostura(postura);
+}
+
 export function registrarMenuChat() {
   Hooks.on("getChatMessageContextOptions", (html, options) => options.push(...opcoes()));
 
@@ -258,6 +276,10 @@ export function registrarMenuChat() {
     // Efeitos que a regra do elemento oferece (a defesa da pedra, por exemplo).
     for (const botao of element.querySelectorAll(".pyro-efeito-regra")) {
       botao.addEventListener("click", () => aplicarEfeitoDeRegra(message, Number(botao.dataset.indice)));
+    }
+    // Lembrete de postura do começo do combate: um clique entra na postura.
+    for (const botao of element.querySelectorAll(".pyro-entrar-postura")) {
+      botao.addEventListener("click", () => entrarNaPostura(botao.dataset));
     }
     prepararBotaoContarUso(message, element);
     prepararBotaoSorte(message, element);

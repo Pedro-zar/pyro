@@ -15,6 +15,7 @@ import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
 import { pilhasDe } from "./condicoes.mjs";
+import { lembrarPosturas } from "./tecnica.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -209,6 +210,20 @@ export function registrarRelogio() {
   // seria descartado, deixando de queimar quem estava queimando.
   Hooks.once("ready", () => {
     for (const combate of game.combats ?? []) posicoes.set(combate.id, posicaoDe(combate));
+  });
+
+  /*
+   * Começo do combate: cada ficha com posturas recebe o lembrete para entrar
+   * numa. Sai do mesmo cliente que roda o relógio, senão a mesa inteira
+   * criaria o mesmo card.
+   */
+  Hooks.on("combatStart", async combate => {
+    if (!(game.users.activeGM?.isSelf ?? game.user.isGM)) return;
+    // Zerar e recomeçar o mesmo combate dispararia o lembrete de novo; a marca
+    // no próprio combate diz que essa luta já foi lembrada.
+    if (combate.getFlag(SYSTEM_ID, "lembrouPosturas")) return;
+    await combate.setFlag(SYSTEM_ID, "lembrouPosturas", true);
+    await lembrarPosturas(combate);
   });
 
   Hooks.on("updateCombat", async (combate, mudanca, opcoes) => {

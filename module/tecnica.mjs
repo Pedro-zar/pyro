@@ -220,6 +220,67 @@ export function posturasDoAtor(actor) {
     .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)) ?? [];
 }
 
+/**
+ * Quem recebe um sussurro sobre este ator: quem joga com ele, mais os mestres.
+ * Lista vazia é mensagem pública no Foundry, então quem chama precisa tratar
+ * o caso — um card de NPC no chat aberto entrega o inimigo antes da luta.
+ */
+export function donosDe(actor) {
+  const donos = game.users.filter(u => u.isGM || actor.testUserPermission(u, "OWNER"));
+  return donos.map(u => u.id);
+}
+
+/** O ator é de jogador, ou é do mestre? Decide o que pode sair no chat aberto. */
+export function temDonoJogador(actor) {
+  return game.users.some(u => !u.isGM && actor?.testUserPermission(u, "OWNER"));
+}
+
+/**
+ * Lembrete de postura no começo do combate: um card por ficha que tem
+ * posturas, sussurrado para quem joga com ela, com um botão por postura.
+ *
+ * Entrar numa postura é a coisa mais fácil de esquecer na primeira rodada, e
+ * o preço de lembrar depois é uma ação. Quem já está numa continua recebendo
+ * o card, com a ativa marcada: trocar de guarda no início da luta é uma
+ * decisão tão comum quanto entrar na primeira.
+ */
+export async function lembrarPosturas(combate) {
+  const vistos = new Set();
+  for (const combatente of combate?.combatants ?? []) {
+    const actor = combatente.actor;
+    if (!actor || vistos.has(actor.uuid)) continue;
+    vistos.add(actor.uuid);
+
+    const posturas = posturasDoAtor(actor);
+    if (!posturas.length) continue;
+
+    // Sem ninguém para sussurrar, o card seria público — e um lembrete público
+    // com as posturas de um NPC entrega a luta antes dela começar.
+    const ouvintes = donosDe(actor);
+    if (!ouvintes.length) continue;
+
+    const ativa = actor.posturaAtiva?.id;
+    const botoes = posturas.map(p => `<button type="button" class="pyro-entrar-postura${
+      p.id === ativa ? " ativa" : ""}" data-ator-uuid="${actor.uuid}" data-item-id="${p.id}">
+      <img src="${esc(p.img)}" alt="" /> ${esc(p.name)}
+    </button>`).join("");
+
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      whisper: ouvintes,
+      content: `<div class="pyro-chat pyro-lembrete-postura">
+        <header class="pyro-item-topo">
+          <img src="${esc(actor.img)}" alt="" />
+          <div><h3>${esc(actor.name)}</h3>
+            <span class="pyro-item-meta">${loc("PYRO.Postura.LembreteMeta")}</span></div>
+        </header>
+        <p class="pyro-nota">${loc("PYRO.Postura.LembreteDica")}</p>
+        <div class="pyro-acoes-card">${botoes}</div>
+      </div>`
+    });
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Execução                                                                  */
 /* -------------------------------------------------------------------------- */

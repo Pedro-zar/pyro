@@ -662,8 +662,9 @@ export class PyroItem extends Item {
    * botões de aplicar dano ou cura: a habilidade diz "1 minuto antes de ser
    * percebido", e isso não é dano de ninguém.
    * @param {string} meta linha de contexto no cabeçalho do card.
+   * @param {string[]} [sussurro] ids de quem recebe; vazio publica na mesa.
    */
-  async cardDeHabilidade(meta) {
+  async cardDeHabilidade(meta, sussurro = []) {
     const sys = this.system;
     const partes = [this.#topoHTML(meta)];
     const rolls = [];
@@ -685,6 +686,7 @@ export class PyroItem extends Item {
 
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+      whisper: sussurro,
       content: `<div class="pyro-chat pyro-item-card">${partes.join("")}</div>`,
       rolls,
       sound: rolls.length ? CONFIG.sounds.dice : undefined

@@ -1027,5 +1027,9 @@
   "PYRO.Item.FormulaDica": "Nas fórmulas: [FOR], [VIG], [DES], [AGI], [INT], [SAB] e [PRE] são os atributos de quem usa, e [NVL] é o nível deste item. [NVL5=X;Y] vale X do nível 5 em diante e Y antes dele — por exemplo \"[NVL] * [NVL5=2;1] * [NVL10=2;1]\" rende 1 por nível e dobra nos níveis 5 e 10.",
   "PYRO.Progressao.SoDoCaminho": "Só neste caminho",
   "PYRO.Progressao.SoDoCaminhoDica": "Marcada, a regra vale só para as habilidades do Caminho que a dispara. Desmarcada, vale para todos os Caminhos do personagem e também para o preço de um Caminho novo.",
-  "PYRO.Postura.EntrouMeta": "Entrou na postura"
+  "PYRO.Postura.EntrouMeta": "Entrou na postura",
+  "PYRO.Postura.LembreteMeta": "Combate iniciado",
+  "PYRO.Postura.LembreteDica": "Entre numa postura antes do primeiro turno — depois custa uma ação.",
+  "PYRO.Postura.Sumiu": "Esta postura não está mais na ficha.",
+  "PYRO.Postura.JaEsta": "{nome} já é a postura ativa."
 }
