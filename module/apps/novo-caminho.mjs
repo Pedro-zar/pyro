@@ -7,8 +7,8 @@
  * num campo da ficha, porque é uma repartição entre pools — quem tem 20 num
  * caminho e 15 em outro precisa dizer quanto sai de cada.
  */
-import { PYRO } from "../config.mjs";
 import { caminho } from "../sistema.mjs";
+import { custoDeCaminhoNovo } from "../data/item-data.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -48,7 +48,7 @@ export class NovoCaminhoApp extends HandlebarsApplicationMixin(ApplicationV2) {
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const caminhos = this.#caminhos();
-    const custo = PYRO.custoDoCaminhoNovo(caminhos.length);
+    const custo = custoDeCaminhoNovo(this.actor, caminhos.length);
 
     const fontes = caminhos.map(c => {
       const disponivel = Math.max(0, c.system.xpDisponivel ?? 0);
@@ -64,7 +64,10 @@ export class NovoCaminhoApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const somado = fontes.reduce((t, f) => t + f.valor, 0);
     const total = fontes.reduce((t, f) => t + f.disponivel, 0);
-    this._podeComprar = somado === custo && custo > 0;
+    // Sem caminho nenhum não há de onde tirar XP, e a compra não é por aqui.
+    // Com uma regra de progressão generosa o custo pode ser 0, e aí fechar em
+    // 0 é fechar: travar o botão seria esconder um caminho de graça.
+    this._podeComprar = somado === custo && caminhos.length > 0;
 
     Object.assign(context, {
       actor: this.actor,
@@ -96,7 +99,7 @@ export class NovoCaminhoApp extends HandlebarsApplicationMixin(ApplicationV2) {
    */
   static #distribuir() {
     const caminhos = this.#caminhos();
-    let falta = PYRO.custoDoCaminhoNovo(caminhos.length);
+    let falta = custoDeCaminhoNovo(this.actor, caminhos.length);
     for (const c of caminhos) {
       const usa = Math.min(falta, Math.max(0, c.system.xpDisponivel ?? 0));
       this.pagamento[c.id] = usa;
@@ -132,6 +135,11 @@ export class NovoCaminhoApp extends HandlebarsApplicationMixin(ApplicationV2) {
      * `xp` é o total ganho, e descontar dele é o que mantém "disponível =
      * ganho − gasto" verdadeiro depois da compra.
      */
+    // O preço é lido antes de mexer no ator: depois da compra a contagem de
+    // caminhos já é outra, e recalcular aqui anunciaria um número diferente
+    // do que saiu da ficha.
+    const custo = custoDeCaminhoNovo(this.actor, this.#caminhos().length);
+
     const updates = [];
     for (const c of this.#caminhos()) {
       const valor = Math.min(Math.max(0, this.pagamento[c.id] ?? 0), c.system.xpDisponivel ?? 0);
@@ -144,9 +152,7 @@ export class NovoCaminhoApp extends HandlebarsApplicationMixin(ApplicationV2) {
       type: "caminho"
     }, { parent: this.actor, renderSheet: true });
 
-    ui.notifications.info(game.i18n.format("PYRO.NovoCaminho.Comprado", {
-      custo: PYRO.custoDoCaminhoNovo(this.#caminhos().length - 1)
-    }));
+    if (novo) ui.notifications.info(game.i18n.format("PYRO.NovoCaminho.Comprado", { custo }));
     await this.close();
     return novo;
   }

@@ -4,7 +4,7 @@
  */
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { formulaTeste, poolDoAtributo, juntarDados, expandirAtributos } from "./dados.mjs";
+import { formulaTeste, poolDoAtributo, juntarDados, prepararFormula } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, htmlEfeitosDeRegra, bonusDeDano, ajustesDeCusto, custoAjustado,
   aplicarExaustao, penalidadeExaustao
@@ -736,8 +736,8 @@ export async function conjurar(actor, escolhas, {
     }
     // Os dados da magia salva, quando a conjuração veio de uma: é dela que
     // [NVL] tira o nível. Frase montada na hora não tem nível nenhum.
-    const roll = await new Roll(expandirAtributos(formula),
-      (itemMagia ?? actor).getRollData()).evaluate();
+    const dados = (itemMagia ?? actor).getRollData();
+    const roll = await new Roll(prepararFormula(formula, dados), dados).evaluate();
     rolls.push(roll);
     if (tipo === "cura") totalCura += roll.total;
     else {

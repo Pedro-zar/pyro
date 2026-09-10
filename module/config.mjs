@@ -598,7 +598,12 @@ PYRO.indexarProgressoes = () => {
         // arbitrária demais para servir de critério.
         posicao,
         label: regra.label || chave,
-        multiplicador: Number(regra.multiplicador ?? 1)
+        // Número ruim (setting editado à mão) vale 1: a regra não faz nada,
+        // em vez de espalhar NaN pelo custo de tudo.
+        multiplicador: Number.isFinite(Number(regra.multiplicador)) ? Number(regra.multiplicador) : 1,
+        // Presa ao Caminho de origem, ou valendo para o personagem inteiro?
+        // Regra escrita antes deste campo continua presa, que era o que ela fazia.
+        soDoCaminho: regra.soDoCaminho !== false
       });
     }
     posicao += 1;

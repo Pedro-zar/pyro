@@ -55,17 +55,43 @@ export function formulaReacao(formula, faces, { vantagem = 0, desvantagem = 0, b
   return !bonus ? f : bonus > 0 ? `${f} + ${bonus}` : `${f} - ${-bonus}`;
 }
 
-/**
- * Atalho de escrita nas fórmulas: [VIG], [FOR]... viram @vig, @for — o MOD
- * (o atributo em jogo, com os efeitos somados) entra na conta via getRollData.
- *
- * [NVL] é o nível do próprio item (a magia, a habilidade, a técnica que está
- * sendo usada), e não um atributo de quem usa: é o que faz "1d6 + [NVL]"
- * crescer com o uso, sem o jogador reescrever a fórmula a cada nível.
+/*
+ * Um ramo de degrau vai até o ";" ou até o "]" que fecha o degrau — mas um
+ * atalho escrito dentro dele ("[NVL10=2d6 + [FOR];1d6]") traz o próprio par de
+ * colchetes, que não pode encerrar nada.
  */
-export function expandirAtributos(formula) {
-  return String(formula ?? "").replace(/\[(FOR|VIG|DES|AGI|INT|SAB|PRE|NVL)\]/gi,
-    (m, sigla) => `@${sigla.toLowerCase()}`);
+const RAMO = String.raw`(?:\[[A-Za-z]+\]|[^;\]])*`;
+const DEGRAU_DE_NIVEL = new RegExp(String.raw`\[NVL(\d+)\s*=\s*(${RAMO});(${RAMO})\]`, "gi");
+
+/**
+ * Prepara a fórmula escrita na ficha para o Roll do Foundry.
+ *
+ * Atalhos de atributo: [VIG], [FOR]... viram @vig, @for — o atributo em jogo
+ * (com os efeitos somados) entra na conta via getRollData. [NVL] é o nível do
+ * próprio item (a magia, a habilidade, a técnica que está sendo usada), e não
+ * um atributo de quem usa: é o que faz "1d6 + [NVL]" crescer com o uso, sem o
+ * jogador reescrever a fórmula a cada nível.
+ *
+ * Degraus de nível: [NVL5=X;Y] vale X do nível 5 em diante e Y antes dele —
+ * assim uma habilidade que dobra nos níveis 5, 10, 15 e 20 se escreve
+ * "[NVL] * [NVL5=2;1] * [NVL10=2;1] * [NVL15=2;1] * [NVL20=2;1]". Os dois
+ * lados podem ser qualquer expressão ("[NVL10=2d6;1d6]"), e por isso entram
+ * entre parênteses; lado vazio vale 0.
+ *
+ * O degrau é resolvido aqui, e não pelo Roll, porque o Foundry não tem "se"
+ * nas fórmulas — o que chega nele já é o ramo escolhido.
+ *
+ * @param {object} [dados] os mesmos dados da rolagem (getRollData), de onde
+ *   sai o nível. Sem eles, todo degrau cai no ramo de antes.
+ */
+export function prepararFormula(formula, dados = null) {
+  const nivel = Number(dados?.nvl) || 0;
+  return String(formula ?? "")
+    .replace(DEGRAU_DE_NIVEL, (m, degrau, sim, nao) => {
+      const ramo = (nivel >= Number(degrau) ? sim : nao).trim();
+      return `(${ramo || 0})`;
+    })
+    .replace(/\[(FOR|VIG|DES|AGI|INT|SAB|PRE|NVL)\]/gi, (m, sigla) => `@${sigla.toLowerCase()}`);
 }
 
 /**

@@ -3,7 +3,7 @@
  * de recursos, dano/cura vindos do chat e recuperação por passagem de tempo.
  */
 import { PYRO } from "../config.mjs";
-import { formulaTeste, formulaReacao, expandirAtributos, poolDoAtributo } from "../dados.mjs";
+import { formulaTeste, formulaReacao, prepararFormula, poolDoAtributo } from "../dados.mjs";
 import {
   classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse, bonusPorNivel, ndAjustado
 } from "../progressao.mjs";
@@ -426,7 +426,8 @@ export class PyroActor extends Actor {
       return this.#falhaAutomatica(flavor, htmlVontadeGasta(vontade) + avisoFriagem);
     }
 
-    const roll = await new Roll(expandirAtributos(formula), this.getRollData()).evaluate();
+    const dados = this.getRollData();
+    const roll = await new Roll(prepararFormula(formula, dados), dados).evaluate();
     return this.#cardDeTeste(roll, {
       flavor,
       html: (opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : "")

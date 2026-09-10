@@ -18,32 +18,61 @@ class BaseItemData extends foundry.abstract.TypeDataModel {
 /* ---------------------- Vínculo habilidade <-> caminho --------------------- */
 
 /**
+ * A regra de progressão que vale, entre as habilidades do personagem que o
+ * filtro aceita.
+ *
+ * Quando mais de uma habilidade dispara regras diferentes, vale a que vem
+ * antes na lista de configuração, e não a que estiver antes na ficha: a ordem
+ * dos itens muda com arraste e criação, a da lista o mestre controla.
+ */
+function melhorProgressao(actor, aceita) {
+  const indice = PYRO.progressaoPorNome;
+  if (!actor || !indice?.size) return null;
+
+  let escolhida = null;
+  for (const item of actor.items) {
+    if (item.type !== "habilidade") continue;
+    const regra = indice.get(PYRO.normalizarTexto(item.name));
+    if (!regra || !aceita(regra, item)) continue;
+    if (regra.posicao === 0) return regra;
+    if (!escolhida || regra.posicao < escolhida.posicao) escolhida = regra;
+  }
+  return escolhida;
+}
+
+/**
  * Curva de um Caminho: qual regra de progressão ele está usando.
  *
- * A regra é disparada pelo nome de uma habilidade do próprio Caminho, e a
- * varredura inclui a habilidade base de propósito: é ela que costuma carregar
- * o traço do Caminho.
+ * A regra é disparada pelo nome de uma habilidade, e a varredura inclui a
+ * habilidade base de propósito: é ela que costuma carregar o traço do Caminho.
+ * Regra presa ao Caminho só vale para o Caminho da própria habilidade; regra
+ * solta vale para todos os Caminhos do personagem, venha ela de onde vier.
  *
  * Quando nada bate, vale o custo cheio do ranque.
  */
 export function progressaoDoCaminho(actor, caminho) {
-  const indice = PYRO.progressaoPorNome;
-  const padrao = PYRO.progressaoPadrao;
-  if (!actor || !caminho || !indice?.size) return padrao;
+  return melhorProgressao(actor, (regra, item) =>
+    !regra.soDoCaminho || (!!caminho && item.system.caminho === caminho))
+    ?? PYRO.progressaoPadrao;
+}
 
-  // Quando mais de uma habilidade dispara regras diferentes, vale a que vem
-  // antes na lista de configuração, e não a que estiver antes na ficha: a
-  // ordem dos itens muda com arraste e criação, a da lista o mestre controla.
-  let escolhida = null;
-  for (const item of actor.items) {
-    if (item.type !== "habilidade") continue;
-    if (item.system.caminho !== caminho) continue;
-    const regra = indice.get(PYRO.normalizarTexto(item.name));
-    if (!regra) continue;
-    if (regra.posicao === 0) return regra;
-    if (!escolhida || regra.posicao < escolhida.posicao) escolhida = regra;
-  }
-  return escolhida ?? padrao;
+/**
+ * A regra solta que o personagem carrega — a que não está presa ao Caminho de
+ * origem. É ela que barateia um Caminho novo, que não pertence a Caminho
+ * nenhum e por isso não teria regra de onde puxar.
+ */
+export function progressaoGlobal(actor) {
+  return melhorProgressao(actor, regra => !regra.soDoCaminho) ?? PYRO.progressaoPadrao;
+}
+
+/**
+ * Custo de um Caminho novo já com a regra solta do personagem (SRD §2).
+ * @param {number} quantos Caminhos que ele já tem.
+ */
+export function custoDeCaminhoNovo(actor, quantos) {
+  const base = PYRO.custoDoCaminhoNovo(quantos);
+  const mult = Number(progressaoGlobal(actor).multiplicador);
+  return Math.ceil(base * (Number.isFinite(mult) ? mult : 1));
 }
 
 /**
@@ -209,9 +238,10 @@ export class HabilidadeData extends BaseItemData {
       /*
        * O que o resultado da fórmula é, colado nele sem espaço nenhum: "% de
        * chance" vira "10% de chance" e " de dano" vira "10 de dano". O espaço
-       * é do texto porque só quem escreve sabe se ele cabe ali.
+       * da frente é do texto, porque só quem escreve sabe se ele cabe ali — e
+       * por isso o campo não apara, ao contrário do padrão do StringField.
        */
-      unidadeFormula: str("")
+      unidadeFormula: str("", { trim: false })
     };
   }
 

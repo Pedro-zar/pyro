@@ -1221,10 +1221,14 @@
 .pyro .config-linha input[type=text] { text-align: left; }
 .pyro .config-linha code { font-size: 0.72rem; opacity: 0.7; }
 
-/* Regras de progressão: rótulo, nomes que disparam e multiplicador. */
+/*
+ * Regras de progressão: rótulo, nomes que disparam, multiplicador e a caixa
+ * que prende a regra ao Caminho de origem.
+ */
 .pyro .config-cab.progressoes, .pyro .config-linha.progressoes {
-  grid-template-columns: 1fr 1.6fr 5rem 1.9rem;
+  grid-template-columns: 1fr 1.6fr 5rem 6rem 1.9rem;
 }
+.pyro .config-linha.progressoes input[type=checkbox] { width: auto; justify-self: center; }
 /* Tabelas de nível por uso: nível, RR, RD, RMD e o modo da linha. */
 .pyro .config-cab.avanco, .pyro .config-linha.avanco {
   grid-template-columns: 3rem 4.5rem 4.5rem 4.5rem 1fr;

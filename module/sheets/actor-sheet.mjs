@@ -22,6 +22,7 @@ import { selosDePoder, pintarTema } from "../tema.mjs";
 import { SYSTEM_ID, caminho } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
 import { comUnidade } from "../dados.mjs";
+import { custoDeCaminhoNovo } from "../data/item-data.mjs";
 import { descreverRequisito } from "../progressao.mjs";
 import {
   posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDoValor, textoDaCondicao
@@ -665,9 +666,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       podeVontadeDeViver: actor.system.caido
         && actor.system.recursos.vontade.value >= PYRO.CUSTO_VONTADE_DE_VIVER,
       custoVontadeDeViver: PYRO.CUSTO_VONTADE_DE_VIVER,
-      // Caminho novo custa 10 x os que já tem (SRD §2), e o botão mostra o
-      // preço antes de abrir a janela de repartir a XP.
-      custoNovoCaminho: PYRO.custoDoCaminhoNovo(caminhos.length),
+      // Caminho novo custa 10 x os que já tem (SRD §2), já com a regra de
+      // progressão solta do personagem; o botão mostra o preço antes de abrir
+      // a janela de repartir a XP.
+      custoNovoCaminho: custoDeCaminhoNovo(actor, caminhos.length),
       /*
        * Barra de posturas: uma por habilidade marcada como postura, com a
        * ativa em destaque. Só uma vale por vez (SRD Técnicas), e é por isso

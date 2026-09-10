@@ -8,7 +8,7 @@
  */
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { formulaTeste, poolDoAtributo, multiplicarDados, expandirAtributos, juntarDados } from "./dados.mjs";
+import { formulaTeste, poolDoAtributo, multiplicarDados, prepararFormula, juntarDados } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeCusto, custoAjustado,
   aplicarExaustao, penalidadeExaustao
@@ -432,14 +432,16 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     for (const dano of ataque.danos) {
       // "+1x dados de dano" soma uma cópia dos dados, não substitui a original.
       const formula = multiplicarDados(dano.formula, mult);
-      const roll = await new Roll(expandirAtributos(formula), item.getRollData()).evaluate();
+      const dados = item.getRollData();
+      const roll = await new Roll(prepararFormula(formula, dados), dados).evaluate();
       rolls.push(roll);
       danos.push({ tipo: dano.tipo, total: roll.total, formula });
       const rotulo = loc(PYRO.tiposDano[dano.tipo]?.label ?? dano.tipo ?? "");
       partes.push(`<p class="pyro-linha-dano dano-${dano.tipo}">${rotulo}</p>`, await roll.render());
     }
     for (const bonus of bonusDeDano(actor, item)) {
-      const roll = await new Roll(expandirAtributos(bonus.formula), item.getRollData()).evaluate();
+      const dados = item.getRollData();
+      const roll = await new Roll(prepararFormula(bonus.formula, dados), dados).evaluate();
       rolls.push(roll);
       danos.push({
         tipo: bonus.tipo || ataque.danos[0]?.tipo || "",

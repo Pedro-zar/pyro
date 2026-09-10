@@ -51,6 +51,7 @@ export class ConfigProgressaoApp extends HandlebarsApplicationMixin(ApplicationV
     context.exemploCurva = ConfigProgressaoApp.#exemplo(curva, 1);
     context.regras = Object.entries(regras).map(([chave, regra]) => ({
       chave, ...regra,
+      soDoCaminho: regra.soDoCaminho !== false,
       // Prévia dos custos: o mestre vê o efeito da regra sem abrir uma ficha.
       exemplo: ConfigProgressaoApp.#exemplo(curva, regra.multiplicador)
     }));
@@ -89,6 +90,8 @@ export class ConfigProgressaoApp extends HandlebarsApplicationMixin(ApplicationV
       regra.label = form[`regra.${chave}.label`] ?? regra.label;
       regra.nomes = form[`regra.${chave}.nomes`] ?? regra.nomes;
       regra.multiplicador = numero(`regra.${chave}.multiplicador`, regra.multiplicador);
+      const soDoCaminho = form[`regra.${chave}.soDoCaminho`];
+      regra.soDoCaminho = soDoCaminho === undefined ? regra.soDoCaminho !== false : !!soDoCaminho;
     }
 
     for (const trilha of TRILHAS) {
@@ -110,7 +113,10 @@ export class ConfigProgressaoApp extends HandlebarsApplicationMixin(ApplicationV
     regras[`progressao${n}`] = {
       label: game.i18n.localize("PYRO.Progressao.RegraNova"),
       nomes: "",
-      multiplicador: 0.5
+      multiplicador: 0.5,
+      // Nasce presa ao Caminho de origem: é o caso comum, e soltar a regra
+      // barateia o personagem inteiro.
+      soDoCaminho: true
     };
     this.render();
   }

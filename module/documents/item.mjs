@@ -5,7 +5,7 @@
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { executarTecnica } from "../tecnica.mjs";
-import { formulaTeste, formulaPool, expandirAtributos, comUnidade } from "../dados.mjs";
+import { formulaTeste, formulaPool, prepararFormula, comUnidade } from "../dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado
 } from "../efeitos.mjs";
@@ -320,7 +320,8 @@ export class PyroItem extends Item {
     const rolls = [];
 
     for (const bonus of bonusDeDano(this.actor, this)) {
-      const roll = await new Roll(expandirAtributos(bonus.formula), this.getRollData()).evaluate();
+      const dados = this.getRollData();
+      const roll = await new Roll(prepararFormula(bonus.formula, dados), dados).evaluate();
       rolls.push(roll);
       // Sem tipo escolhido, o bônus herda o tipo do ataque que ele acompanha.
       const tipo = bonus.tipo || tipoPadrao || "";
@@ -452,7 +453,8 @@ export class PyroItem extends Item {
     const danos = [];
     for (const dano of sys.danos ?? []) {
       if (!dano.formula?.trim()) continue;
-      const roll = await new Roll(expandirAtributos(dano.formula), this.getRollData()).evaluate();
+      const dados = this.getRollData();
+      const roll = await new Roll(prepararFormula(dano.formula, dados), dados).evaluate();
       rolls.push(roll);
       danos.push({ tipo: dano.tipo, total: roll.total, formula: dano.formula });
       const tipo = game.i18n.localize(PYRO.tiposDano[dano.tipo]?.label ?? dano.tipo ?? "");
@@ -469,7 +471,8 @@ export class PyroItem extends Item {
       partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: esc(municao.name) })}</p>`);
       // Munição com fórmula (ex.: Flechas de Raio) rola o dano adicional.
       if (municao.system.formula) {
-        const extra = await new Roll(expandirAtributos(municao.system.formula), this.getRollData()).evaluate();
+        const dadosMun = this.getRollData();
+        const extra = await new Roll(prepararFormula(municao.system.formula, dadosMun), dadosMun).evaluate();
         rolls.push(extra);
         danos.push({ tipo: municao.system.tipoDano, total: extra.total, formula: municao.system.formula });
         const tipoMun = game.i18n.localize(PYRO.tiposDano[municao.system.tipoDano]?.label ?? "");
@@ -595,7 +598,8 @@ export class PyroItem extends Item {
 
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
     if (!sys.formula) return this.#postar();
-    const roll = await new Roll(expandirAtributos(sys.formula), this.getRollData()).evaluate();
+    const dados = this.getRollData();
+    const roll = await new Roll(prepararFormula(sys.formula, dados), dados).evaluate();
     return ChatMessage.create({
       speaker,
       content: `<div class="pyro-chat">
@@ -614,7 +618,6 @@ export class PyroItem extends Item {
 
   async #usarHabilidade() {
     const sys = this.system;
-    const speaker = ChatMessage.getSpeaker({ actor: this.actor });
 
     /*
      * Custos já ajustados pelos efeitos: um "Conjuração Econômica: -2 mana"
@@ -646,34 +649,43 @@ export class PyroItem extends Item {
       ...custos
     ].filter(Boolean).join(" · ");
 
+    return this.#cardDeHabilidade(cab);
+  }
+
+  /**
+   * Card de habilidade: o resultado da fórmula em uma linha de texto e a
+   * descrição embaixo.
+   *
+   * Usar e mostrar no chat produzem o mesmo card de propósito — o que muda
+   * entre os dois é o que acontece antes (o custo cobrado), não o que a mesa
+   * lê depois. Fica sem os botões de aplicar dano ou cura: a habilidade diz
+   * "1 minuto antes de ser percebido", e isso não é dano de ninguém.
+   */
+  async #cardDeHabilidade(meta) {
+    const sys = this.system;
+    const partes = [this.#topoHTML(meta)];
+    const rolls = [];
+
     if (sys.formula) {
-      const roll = await new Roll(expandirAtributos(sys.formula), this.getRollData()).evaluate();
-      // "10% de chance": o que o número é, escrito na habilidade, embaixo da
-      // rolagem — o total sozinho não diz se são metros, dano ou chance.
-      const unidade = sys.unidadeFormula
-        ? `<p class="pyro-total-unidade">${esc(comUnidade(roll.total, sys.unidadeFormula))}</p>`
-        : "";
-      return ChatMessage.create({
-        speaker,
-        content: `<div class="pyro-chat">
-          ${this.#topoHTML(cab)}
-          ${await roll.render()}
-          ${unidade}
-          ${htmlEfeitosDeUso(this)}
-        </div>`,
-        rolls: [roll],
-        // Sem tipo definido: o rodapé oferece dano (sem defesa), cura e estamina.
-        flags: flagsDoSistema({ danos: [{ tipo: "", total: roll.total }], cura: roll.total }),
-        sound: CONFIG.sounds.dice
-      });
+      const dados = this.getRollData();
+    const roll = await new Roll(prepararFormula(sys.formula, dados), dados).evaluate();
+      rolls.push(roll);
+      // A fórmula não aparece: o que interessa é o número com o que ele é
+      // ("1 minuto antes de ser percebido"). Ela fica na dica, para quem
+      // quiser conferir de onde saiu.
+      partes.push(`<p class="pyro-total-unidade" title="${esc(`${roll.formula} = ${roll.total}`)}">
+        ${esc(comUnidade(roll.total, sys.unidadeFormula))}</p>`);
     }
+
+    const descricao = await enriquecer(sys.descricao, this);
+    partes.push(descricao || `<p class="pyro-nota">${game.i18n.localize("PYRO.SemDescricao")}</p>`);
+    partes.push(htmlEfeitosDeUso(this));
+
     return ChatMessage.create({
-      speaker,
-      content: `<div class="pyro-chat">
-        ${this.#topoHTML(cab)}
-        ${this.system.descricao ?? ""}
-        ${htmlEfeitosDeUso(this)}
-      </div>`
+      speaker: ChatMessage.getSpeaker({ actor: this.actor }),
+      content: `<div class="pyro-chat pyro-item-card">${partes.join("")}</div>`,
+      rolls,
+      sound: rolls.length ? CONFIG.sounds.dice : undefined
     });
   }
 
@@ -686,7 +698,8 @@ export class PyroItem extends Item {
         }) : "";
 
     if (sys.formula) {
-      const roll = await new Roll(expandirAtributos(sys.formula), this.getRollData()).evaluate();
+      const dados = this.getRollData();
+    const roll = await new Roll(prepararFormula(sys.formula, dados), dados).evaluate();
       return ChatMessage.create({
         speaker,
         content: `<div class="pyro-chat">
@@ -729,6 +742,10 @@ export class PyroItem extends Item {
 
   /** Card de consulta no chat: nome, resumo mecânico e descrição. */
   async mostrarNoChat() {
+    // Habilidade tem card próprio, e mostrar é o mesmo que usar sem cobrar.
+    if (this.type === "habilidade") {
+      return this.#cardDeHabilidade(game.i18n.localize("TYPES.Item.habilidade"));
+    }
     const descricao = await enriquecer(this.system.descricao, this);
 
     return ChatMessage.create({

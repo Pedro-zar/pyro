@@ -29,6 +29,7 @@
       <span>{{localize "PYRO.Progressao.Rotulo"}}</span>
       <span>{{localize "PYRO.Progressao.Nomes"}}</span>
       <span>{{localize "PYRO.Progressao.Multiplicador"}}</span>
+      <span title="{{localize 'PYRO.Progressao.SoDoCaminhoDica'}}">{{localize "PYRO.Progressao.SoDoCaminho"}}</span>
       <span></span>
     </div>
     {{#each regras as |r|}}
@@ -38,6 +39,10 @@
              placeholder="{{localize 'PYRO.Progressao.NomesPlaceholder'}}" />
       <input type="number" step="any" name="regra.{{r.chave}}.multiplicador"
              value="{{r.multiplicador}}" min="0" />
+      {{!-- Desmarcada, a regra vale para todos os Caminhos do personagem e
+            também para o preço de um Caminho novo. --}}
+      <input type="checkbox" name="regra.{{r.chave}}.soDoCaminho" {{checked r.soDoCaminho}}
+             title="{{localize 'PYRO.Progressao.SoDoCaminhoDica'}}" />
       <button type="button" class="icone perigo" data-action="removerRegra" data-chave="{{r.chave}}"
               title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
     </div>
