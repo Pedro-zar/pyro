@@ -561,11 +561,13 @@ export class PyroActor extends Actor {
     if (item && !item.system?.ehPostura) return;
     const saindo = !item || this.posturaAtiva?.id === item.id;
     await this.setFlag(SYSTEM_ID, "postura", saindo ? "" : item.id);
+    // Entrar é o mesmo card de qualquer habilidade: o que a postura rende e a
+    // descrição dela, que é o que a mesa precisa reler enquanto ela durar.
+    // Sair não tem o que mostrar além do aviso.
+    if (!saindo) return item.cardDeHabilidade(game.i18n.localize("PYRO.Postura.EntrouMeta"));
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      content: `<p class="pyro-postura">${saindo
-        ? game.i18n.localize("PYRO.Postura.Saiu")
-        : game.i18n.format("PYRO.Postura.Entrou", { nome: Handlebars.escapeExpression(item.name) })}</p>`
+      content: `<p class="pyro-postura">${game.i18n.localize("PYRO.Postura.Saiu")}</p>`
     });
   }
 

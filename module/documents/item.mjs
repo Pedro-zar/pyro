@@ -649,19 +649,21 @@ export class PyroItem extends Item {
       ...custos
     ].filter(Boolean).join(" · ");
 
-    return this.#cardDeHabilidade(cab);
+    return this.cardDeHabilidade(cab);
   }
 
   /**
    * Card de habilidade: o resultado da fórmula em uma linha de texto e a
    * descrição embaixo.
    *
-   * Usar e mostrar no chat produzem o mesmo card de propósito — o que muda
-   * entre os dois é o que acontece antes (o custo cobrado), não o que a mesa
-   * lê depois. Fica sem os botões de aplicar dano ou cura: a habilidade diz
-   * "1 minuto antes de ser percebido", e isso não é dano de ninguém.
+   * Usar, mostrar no chat e entrar numa postura produzem o mesmo card de
+   * propósito — o que muda entre eles é o que acontece antes (o custo cobrado,
+   * a postura que passa a valer), não o que a mesa lê depois. Fica sem os
+   * botões de aplicar dano ou cura: a habilidade diz "1 minuto antes de ser
+   * percebido", e isso não é dano de ninguém.
+   * @param {string} meta linha de contexto no cabeçalho do card.
    */
-  async #cardDeHabilidade(meta) {
+  async cardDeHabilidade(meta) {
     const sys = this.system;
     const partes = [this.#topoHTML(meta)];
     const rolls = [];
@@ -744,7 +746,7 @@ export class PyroItem extends Item {
   async mostrarNoChat() {
     // Habilidade tem card próprio, e mostrar é o mesmo que usar sem cobrar.
     if (this.type === "habilidade") {
-      return this.#cardDeHabilidade(game.i18n.localize("TYPES.Item.habilidade"));
+      return this.cardDeHabilidade(game.i18n.localize("TYPES.Item.habilidade"));
     }
     const descricao = await enriquecer(this.system.descricao, this);
 

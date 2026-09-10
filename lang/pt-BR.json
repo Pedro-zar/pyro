@@ -868,7 +868,6 @@
   "PYRO.Postura.Dica": "Enquanto ativa, os efeitos desta habilidade valem. Só uma postura por vez.",
   "PYRO.Postura.Entrar": "Entrar nesta postura",
   "PYRO.Postura.Sair": "Sair da postura",
-  "PYRO.Postura.Entrou": "Entrou na postura {nome}.",
   "PYRO.Postura.Saiu": "Saiu da postura.",
   "PYRO.Postura.Custo": "Entrar ou trocar de postura custa 1 ação. O personagem sai dela ao ser derrubado ou agarrado.",
   "PYRO.Tracos.Nome": "Traços de técnica",
@@ -1027,5 +1026,6 @@
   "PYRO.Item.UnidadeFormulaDica": "Cola no resultado sem espaço: \"% de chance\" dá \"10% de chance\", \" de dano\" dá \"10 de dano\".",
   "PYRO.Item.FormulaDica": "Nas fórmulas: [FOR], [VIG], [DES], [AGI], [INT], [SAB] e [PRE] são os atributos de quem usa, e [NVL] é o nível deste item. [NVL5=X;Y] vale X do nível 5 em diante e Y antes dele — por exemplo \"[NVL] * [NVL5=2;1] * [NVL10=2;1]\" rende 1 por nível e dobra nos níveis 5 e 10.",
   "PYRO.Progressao.SoDoCaminho": "Só neste caminho",
-  "PYRO.Progressao.SoDoCaminhoDica": "Marcada, a regra vale só para as habilidades do Caminho que a dispara. Desmarcada, vale para todos os Caminhos do personagem e também para o preço de um Caminho novo."
+  "PYRO.Progressao.SoDoCaminhoDica": "Marcada, a regra vale só para as habilidades do Caminho que a dispara. Desmarcada, vale para todos os Caminhos do personagem e também para o preço de um Caminho novo.",
+  "PYRO.Postura.EntrouMeta": "Entrou na postura"
 }
