@@ -1151,7 +1151,11 @@ PYRO.alvosEfeito = {
     label: "PYRO.Efeitos.Cat.movimento",
     alvos: {
       "system.velocidadeBonus": "PYRO.Efeitos.Alvo.velocidadeBonus",
-      "system.velocidadeMult": "PYRO.Efeitos.Alvo.velocidadeMult"
+      "system.velocidadeMult": "PYRO.Efeitos.Alvo.velocidadeMult",
+      // Voo e natação são deslocamentos próprios, fora do bônus terrestre
+      // (ver actor-data): o efeito mexe direto no campo de cada um.
+      "system.deslocamentoAereo": "PYRO.Efeitos.Alvo.deslocamentoAereo",
+      "system.deslocamentoNatacao": "PYRO.Efeitos.Alvo.deslocamentoNatacao"
     }
   },
   outros: {

@@ -555,6 +555,8 @@
   "PYRO.Efeitos.Alvo.potencialBonus": "Potencial mágico (degraus na escada de línguas)",
   "PYRO.Efeitos.Alvo.velocidadeBonus": "Velocidade (metros somados)",
   "PYRO.Efeitos.Alvo.velocidadeMult": "Velocidade (multiplicador)",
+  "PYRO.Efeitos.Alvo.deslocamentoAereo": "Voo (m)",
+  "PYRO.Efeitos.Alvo.deslocamentoNatacao": "Natação (m)",
   "PYRO.Efeitos.Modo.somar": "Somar",
   "PYRO.Efeitos.Modo.multiplicar": "Multiplicar",
   "PYRO.Efeitos.Modo.substituir": "Substituir",
