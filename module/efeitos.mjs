@@ -421,7 +421,7 @@ export async function sincronizarEstadoDeVida(actor) {
  */
 export async function sincronizarDesmaio(actor) {
   if (!actor) return;
-  const vig = actor.system?.atributos?.vig?.efetivo;
+  const vig = actor.system?.atributos?.vig?.total;
   if (!vig) return;
   const deveEstar = nivelExaustao(actor) >= vig;
   const nosso = actor.effects?.find?.(e => flagsDe(e)?.desmaioPorExaustao);

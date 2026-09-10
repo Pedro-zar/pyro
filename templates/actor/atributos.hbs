@@ -5,7 +5,7 @@
 <div class="painel painel-atributos">
   <div class="grade-atributos">
     {{#each system.atributos as |attr chave|}}
-    <div class="atributo {{#if attr.acimaDoLimite}}acima-limite{{/if}}">
+    <div class="atributo">
       <button type="button" class="rolagem" data-action="rolarAtributo" data-atributo="{{chave}}"
               title="{{localize 'PYRO.RolarTooltip'}}">
         <span class="rotulo">{{localize (concat "PYRO.Atributos." chave)}}</span>

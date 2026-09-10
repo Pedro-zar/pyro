@@ -353,7 +353,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   let classe = "rotineira";
   if (calc.excesso > 0) {
     const pen = penalidadeExaustao(actor);
-    const vig = actor.system.atributos.vig.efetivo;
+    const vig = actor.system.atributos.vig.total;
     const ajustes = { bonus: pen.bonus, desvantagem: pen.desvantagem };
     const formula = formulaTeste(vig, ajustes);
     classe = classificarRolagem({ ...poolDoTeste(poolDoAtributo(vig), ajustes), nd: calc.nd });

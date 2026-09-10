@@ -1,6 +1,6 @@
 /**
  * Data models dos atores (criatura, personagem, NPC): schema e valores
- * derivados — atributos efetivos, recursos, tamanho, carga, defesas e reações.
+ * derivados — atributos em jogo, recursos, tamanho, carga, defesas e reações.
  */
 import { PYRO } from "../config.mjs";
 import { formulaPool, juntarDados } from "../dados.mjs";
@@ -172,10 +172,8 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     // Multiplicador de patamar: +10% por DET acima de 1, e −10% na DET 0.
     this.multi = 1 + 0.1 * (det - 1);
 
-    /* --- Atributos: limite por DET e valor efetivo (SRD Atributos) ------- */
+    /* --- Atributos: base mais o que os efeitos somaram ------------------- */
     for (const [chave, attr] of Object.entries(this.atributos)) {
-      // O total é o que vale em jogo: base digitada mais o que os efeitos
-      // somaram em .bonus.
       attr.bonusTotal = attr.bonus ?? 0;
       // Piso 1: um efeito negativo forte não derruba o atributo abaixo da
       // primeira linha da Tabela de Dados.
@@ -186,33 +184,20 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
         game.i18n.format("PYRO.BonusOrigem.base", { valor: attr.valor }),
         attr.bonusTotal ? game.i18n.format("PYRO.BonusOrigem.efeitos", { valor: comSinal(attr.bonusTotal) }) : null
       ].filter(Boolean).join(" · ");
-      attr.limite = PYRO.tetoDeAtributo(det);
-      attr.efetivo = attr.total <= attr.limite
-        ? attr.total
-        : attr.limite + Math.floor((attr.total - attr.limite) / 2);
-      attr.acimaDoLimite = attr.total > attr.limite;
 
       /*
        * A ficha em repouso mostra um número por atributo: o que vale em jogo.
-       * Acima do limite de DET esse número é o efetivo, com a metade já
-       * descontada — mostrar a soma crua ali mentiria sobre a pool.
-       *
        * O hover troca esse número pela conta que chegou nele, "14 +1", e o
        * clique cai no campo, que continua editando só a base. Sem bônus não
        * há conta a mostrar, e a célula não troca nada no hover.
        */
-      attr.totalTexto = String(attr.efetivo);
+      attr.totalTexto = String(attr.total);
       attr.mostrarDetalhe = attr.bonusTotal !== 0;
       attr.detalheTexto = `${attr.valor} ${comSinal(attr.bonusTotal)}`;
-      attr.classeTotal = attr.acimaDoLimite ? "limitado"
-        : attr.bonusNegativo ? "negativo"
-        : attr.bonusTotal > 0 ? "somado" : "";
-      attr.dicaTotal = attr.acimaDoLimite
-        ? game.i18n.localize("PYRO.EfetivoTooltip")
-        : attr.bonusDica;
+      attr.classeTotal = attr.bonusNegativo ? "negativo" : attr.bonusTotal > 0 ? "somado" : "";
+      attr.dicaTotal = attr.bonusDica;
 
-      attr.pool = formulaPool(attr.efetivo);
-      attr.poolCheia = formulaPool(attr.total); // usada em "Passar seus Limites"
+      attr.pool = formulaPool(attr.total);
     }
 
     const atributos = this.atributos;
@@ -260,11 +245,11 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     /* --- Recursos --------------------------------------------------------- */
     const recursos = this.recursos;
     const vidaPorVig = PYRO.tamanhos[this.tamanho]?.vidaPorVig ?? 7;
-    recursos.pv.max = Math.floor(atributos.vig.efetivo * vidaPorVig * this.multi)
+    recursos.pv.max = Math.floor(atributos.vig.total * vidaPorVig * this.multi)
       + recursos.pv.bonus;
-    recursos.estamina.max = Math.floor(atributos.vig.efetivo * 10 * this.multi)
+    recursos.estamina.max = Math.floor(atributos.vig.total * 10 * this.multi)
       + recursos.estamina.bonus;
-    recursos.mana.max = Math.floor(atributos.sab.efetivo * 5 * this.multi)
+    recursos.mana.max = Math.floor(atributos.sab.total * 5 * this.multi)
       + recursos.mana.bonus;
     /*
      * A recuperação é metade do atributo, e só. O multiplicador de patamar
@@ -272,9 +257,9 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
      * antiga aplicava os 10% aqui também e fazia a recuperação pular a cada
      * ponto de Determinação.
      */
-    const recuperacao = Math.floor(atributos.int.efetivo / 2);
+    const recuperacao = Math.floor(atributos.int.total / 2);
     recursos.mana.recuperacao = recuperacao;
-    recursos.energia.max = Math.floor(atributos.pre.efetivo * 5 * this.multi)
+    recursos.energia.max = Math.floor(atributos.pre.total * 5 * this.multi)
       + recursos.energia.bonus;
     recursos.energia.recuperacao = recuperacao;
     recursos.vontade.max = det * 5 + recursos.vontade.bonus;
@@ -300,9 +285,9 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
       const rec = recursos[chave];
       if (!rec) continue;
-      const attr = atributos[cfg.atributo]?.efetivo ?? 0;
+      const attr = atributos[cfg.atributo]?.total ?? 0;
       rec.max = Math.floor((cfg.base + attr * cfg.porPonto) * this.multi) + rec.bonus;
-      const attrRec = atributos[cfg.recAtributo]?.efetivo;
+      const attrRec = atributos[cfg.recAtributo]?.total;
       rec.recuperacao = attrRec
         ? Math.floor((attrRec * (cfg.recPorPonto ?? 0)) / 2) : 0;
     }
@@ -395,13 +380,13 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     /* --- Deslocamento e carga --------------------------------------------- */
     // Metros por ação de Mover, sem meio metro. Bônus entra antes do
     // multiplicador, então "+3m" e "metade" resultam em (base + 3) / 2.
-    this.velocidadeBase = Math.floor(atributos.agi.efetivo / 2);
+    this.velocidadeBase = Math.floor(atributos.agi.total / 2);
     this.velocidade = Math.max(0, Math.floor(
       (this.velocidadeBase + (this.velocidadeBonus ?? 0)) * (this.velocidadeMult ?? 1)
     ));
     const multCarga = PYRO.tamanhos[this.tamanho]?.multCarga ?? 2;
     // Minúsculo carrega meia FOR, e meio quilo de capacidade não existe.
-    this.carga = { max: Math.floor(atributos.for.efetivo * multCarga), atual: 0 };
+    this.carga = { max: Math.floor(atributos.for.total * multCarga), atual: 0 };
 
     /* --- Soma de itens carregados/equipados ------------------------------- */
     const equipBonus = { fisico: 0, energetico: 0, mental: 0 };

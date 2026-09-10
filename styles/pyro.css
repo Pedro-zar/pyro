@@ -283,7 +283,6 @@
   border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
   background: var(--pyro-painel-alto); overflow: hidden;
 }
-.pyro .atributo.acima-limite { border-color: var(--pyro-acento-ficha); }
 
 .pyro .atributo .rolagem {
   display: flex; flex-direction: column; gap: 3px;
@@ -298,7 +297,6 @@
   font-size: var(--pyro-t-xs); letter-spacing: 0.08em; font-weight: 700;
   line-height: 1.4; color: var(--pyro-texto-2); overflow: visible;
 }
-.pyro .atributo.acima-limite .rotulo { color: var(--pyro-acento-alto); }
 .pyro .atributo .pool {
   font-size: var(--pyro-t-md); font-weight: 700; line-height: 1.25;
 }
@@ -332,7 +330,6 @@
 /* Cor só quando o número não é a base crua, para dizer que há conta por trás. */
 .pyro :is(.atributo-total, .atributo-detalhe).somado { color: var(--pyro-sucesso); }
 .pyro :is(.atributo-total, .atributo-detalhe).negativo { color: var(--pyro-perigo); }
-.pyro :is(.atributo-total, .atributo-detalhe).limitado { color: var(--pyro-acento-alto); }
 
 /* Sem bônus não há troca a fazer: o total fica onde está. */
 .pyro .atributo:hover .com-detalhe .atributo-total { opacity: 0; }

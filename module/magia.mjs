@@ -540,7 +540,7 @@ export function calcular(actor, escolhas, itemMagia = null) {
     nd: 10 + somaIntencoes,
     // DT para resistir à magia: a SAB de quem conjura (SRD Magia), mais o que
     // as runas de precisão somarem.
-    dt: actor.system.atributos.sab.efetivo + bonus.nd,
+    dt: actor.system.atributos.sab.total + bonus.nd,
     temElemento: escolhas.some(e => e.item.system.tipoRuna === "elemento"),
     temForma: escolhas.some(e => e.item.system.tipoRuna === "forma")
   };
@@ -606,7 +606,7 @@ export async function conjurar(actor, escolhas, {
   let classe = "rotineira";
   if (calc.sobrecarga > 0) {
     const pen = penalidadeExaustao(actor);
-    const sab = actor.system.atributos.sab.efetivo;
+    const sab = actor.system.atributos.sab.total;
     const ajustes = { bonus: pen.bonus, desvantagem: pen.desvantagem };
     const formula = formulaTeste(sab, ajustes);
     classe = classificarRolagem({ ...poolDoTeste(poolDoAtributo(sab), ajustes), nd: calc.nd });

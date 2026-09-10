@@ -57,7 +57,7 @@ export function formulaReacao(formula, faces, { vantagem = 0, desvantagem = 0, b
 
 /**
  * Atalho de escrita nas fórmulas: [VIG], [FOR]... viram @vig, @for — o MOD
- * (valor efetivo) do atributo entra na conta via getRollData.
+ * (o atributo em jogo, com os efeitos somados) entra na conta via getRollData.
  *
  * [NVL] é o nível do próprio item (a magia, a habilidade, a técnica que está
  * sendo usada), e não um atributo de quem usa: é o que faz "1d6 + [NVL]"

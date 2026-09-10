@@ -556,7 +556,7 @@ export class PyroItem extends Item {
 
     const des = actor?.system.atributos.des;
     const formula = des
-      ? formulaTeste(valorComInspiracao(des.efetivo, vontade), opts)
+      ? formulaTeste(valorComInspiracao(des.total, vontade), opts)
       : null;
 
     // Pool zerada por desvantagens: erra sem rolar (mesma regra dos testes).

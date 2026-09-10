@@ -7,14 +7,12 @@ import { formulaTeste, formulaReacao, expandirAtributos, poolDoAtributo } from "
 import {
   classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse, bonusPorNivel, ndAjustado
 } from "../progressao.mjs";
-import {
-  sincronizarSobrepeso, sincronizarDesmaio, sincronizarEstadoDeVida, aplicarExaustao
-} from "../efeitos.mjs";
+import { sincronizarSobrepeso, sincronizarDesmaio, sincronizarEstadoDeVida } from "../efeitos.mjs";
 import { formularioDoAtor, esc } from "../ui.mjs";
 import { custoDeFriagem, dadosDeMolhado, reduzirCondicao, pilhasDe } from "../condicoes.mjs";
 import {
   campoCheckbox, campoSelect, camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste,
-  valorComInspiracao, htmlVontadeGasta, vontadeDisponivel, sufixoND
+  valorComInspiracao, htmlVontadeGasta, sufixoND
 } from "../teste.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
 import { SYSTEM_ID, flagsDoSistema } from "../sistema.mjs";
@@ -103,14 +101,14 @@ export class PyroActor extends Actor {
   }
 
   /**
-   * @for, @vig... = valor efetivo (MOD). @dados.for = fórmula da pool
+   * @for, @vig... = o atributo em jogo (base mais efeitos). @dados.for = fórmula da pool
    * (string, inline na Roll — é assim que a iniciativa "@dados.agi" funciona).
    */
   getRollData() {
     const data = { ...super.getRollData() };
     data.dados = {};
     for (const [chave, attr] of Object.entries(this.system.atributos ?? {})) {
-      data[chave] = attr.efetivo;
+      data[chave] = attr.total;
       data.dados[chave] = attr.pool;
     }
     data.det = this.system.det;
@@ -208,34 +206,26 @@ export class PyroActor extends Actor {
   /* ---------------------------------------------------------------------- */
 
   /**
-   * Teste de atributo com diálogo (bônus, vantagem/desvantagem, ND,
-   * Passar seus Limites). `rapido` pula o diálogo.
+   * Teste de atributo com diálogo (bônus, vantagem/desvantagem, ND).
+   * `rapido` pula o diálogo.
    */
   async rolarAtributo(chave, { rapido = false } = {}) {
     const attr = this.system.atributos?.[chave];
     if (!attr) return;
     const label = game.i18n.localize(PYRO.atributos[chave]);
 
-    let opts = { bonus: 0, vantagem: 0, desvantagem: 0, nd: null, passarLimites: false };
+    let opts = { bonus: 0, vantagem: 0, desvantagem: 0, nd: null };
     if (!rapido) {
-      const extras = attr.acimaDoLimite
-        ? campoCheckbox("passarLimites", "PYRO.Teste.PassarLimites") : "";
       const res = await formularioDoAtor(this, {
         titulo: game.i18n.format("PYRO.Teste.Titulo", { atributo: label }),
-        conteudo: camposDeTeste(this, { extras })
+        conteudo: camposDeTeste(this)
       });
       if (!res) return;
       opts = { ...opts, ...res, nd: res.nd || null };
     }
     aplicarExaustaoNoTeste(this, opts);
 
-    /*
-     * Passar seus Limites usa o atributo cheio, sem o desconto do limite de
-     * DET. O rebote vem depois: 1 exaustão por rolagem feita assim (SRD
-     * Atributos), inclusive quando a pool zera e o teste falha sozinho — o
-     * corpo foi forçado do mesmo jeito.
-     */
-    const valorBase = opts.passarLimites ? attr.total : attr.efetivo;
+    const valorBase = attr.total;
 
     /*
      * A classe da rolagem é medida antes da Força de Vontade entrar: por
@@ -252,8 +242,7 @@ export class PyroActor extends Actor {
     const valor = valorComInspiracao(valorBase, vontade);
     const formula = formulaTeste(valor, opts);
     const flavor = game.i18n.format("PYRO.Chat.TesteDe", { atributo: label }) + sufixoND(opts.nd);
-    const rebote = opts.passarLimites ? await aplicarExaustao(this, 1) : 0;
-    const extra = htmlVontadeGasta(vontade) + this.#avisoLimites(opts, rebote);
+    const extra = htmlVontadeGasta(vontade);
     if (formula === null) return this.#falhaAutomatica(flavor, extra);
 
     const roll = await new Roll(formula).evaluate();
@@ -313,7 +302,7 @@ export class PyroActor extends Actor {
     const semFerramentas = sys.exigeFerramentas && !!res.semFerramentas;
     const nd = ndAjustado(ndOriginal, { semTreino: !sys.aprendida, semFerramentas });
     const classe = ndOriginal
-      ? classificarRolagem({ ...poolDoTeste(poolDoAtributo(attr.efetivo), opts), nd: ndOriginal })
+      ? classificarRolagem({ ...poolDoTeste(poolDoAtributo(attr.total), opts), nd: ndOriginal })
       : null;
     const rotuloAtributo = loc(PYRO.atributos[chave]);
     const ajustes = [
@@ -332,7 +321,7 @@ export class PyroActor extends Actor {
     opts.vantagem += vontade.beneficio;
 
     const flavor = game.i18n.format("PYRO.Pericia.TesteDe", { nome: pericia.name, atributo: rotuloAtributo }) + textoND;
-    const formula = formulaTeste(valorComInspiracao(attr.efetivo, vontade), opts);
+    const formula = formulaTeste(valorComInspiracao(attr.total, vontade), opts);
     if (formula === null) return this.#falhaAutomatica(flavor, htmlVontadeGasta(vontade));
 
     const roll = await new Roll(formula).evaluate();
@@ -471,16 +460,6 @@ export class PyroActor extends Actor {
     });
   }
 
-  /**
-   * Linha do card quando o teste passou dos limites do corpo: diz que o
-   * atributo cheio foi usado e quanta exaustão isso custou (SRD Atributos).
-   */
-  #avisoLimites(opts, total) {
-    if (!opts.passarLimites) return "";
-    return `<p class="pyro-aviso">${game.i18n.localize("PYRO.Chat.PassouLimites")}
-      ${game.i18n.format("PYRO.Chat.ReboteLimites", { total })}</p>`;
-  }
-
   /* ---------------------------------------------------------------------- */
   /*  Força de Vontade                                                      */
   /* ---------------------------------------------------------------------- */
@@ -592,7 +571,7 @@ export class PyroActor extends Actor {
   /** Tomar Ar: recupera VIG/2 de estamina, até o máximo. */
   async tomarAr() {
     const estamina = this.system.recursos.estamina;
-    const rec = Math.floor(this.system.atributos.vig.efetivo / 2);
+    const rec = Math.floor(this.system.atributos.vig.total / 2);
     await this.update({
       "system.recursos.estamina.value": Math.min(estamina.max, estamina.value + rec)
     });
@@ -732,7 +711,7 @@ export class PyroActor extends Actor {
   /** Início de cena: estamina cheia, +VIG de PV, +recuperação de mana. */
   async recuperarCena() {
     const recursos = this.system.recursos;
-    const vig = this.system.atributos.vig.efetivo;
+    const vig = this.system.atributos.vig.total;
     const extras = {};
     for (const chave of this.#recursosExtras()) {
       const rec = recursos[chave];

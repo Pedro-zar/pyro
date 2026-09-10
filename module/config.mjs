@@ -22,21 +22,6 @@ PYRO.atributos = {
   pre: "PYRO.Atributos.pre"
 };
 
-/**
- * Teto de atributo por Determinação (SRD Atributos). O SRD lista 15, 15, 20,
- * 30, 45, 65, 90 e 120 até a DET 7, e a regra por trás é "cada degrau soma
- * 5 × (DET − 1) ao anterior" — é ela que está aqui, e não a lista, para uma
- * campanha que passe da DET 7 continuar tendo teto.
- *
- * DET 0 e DET 1 param no mesmo 15: o primeiro degrau soma 5 × 0.
- */
-PYRO.tetoDeAtributo = det => {
-  const alvo = Math.max(0, Math.round(Number(det) || 0));
-  let teto = 15;
-  for (let d = 1; d <= alvo; d++) teto += 5 * (d - 1);
-  return teto;
-};
-
 /** Tabela de Dados (SRD): índice = valor do atributo (1–50). */
 PYRO.tabelaDados = [null,
   "1",    "1d2",  "1d4",  "1d6",  "1d8",  "1d10", "1d12", "2d6",  "2d8",  "3d6",
