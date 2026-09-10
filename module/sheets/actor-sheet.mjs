@@ -346,8 +346,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
        * densidade da região não entra aqui: a ficha mostra o sentido do
        * personagem, e a região é circunstância do mapa.
        */
+      // loc é localize (um argumento): a linha tem placeholders, então format.
       const sentido = sys.sentido?.tipo && PYRO.sentidos[sys.sentido.tipo]
-        ? loc("PYRO.Sentidos.LinhaFicha", {
+        ? game.i18n.format("PYRO.Sentidos.LinhaFicha", {
             tipo: loc(`PYRO.Recursos.${sys.sentido.tipo}`).toLocaleLowerCase(),
             alcance: calcularFormula(sys.sentido.alcance,
               { ...actor.getRollData(), nvl: Number(sys.nivel) || 0 })

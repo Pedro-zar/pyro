@@ -377,7 +377,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       recursosDoCaminho: this.#recursosDoCaminho(),
       sentidoTipoOpts: Object.fromEntries(
         Object.entries(PYRO.sentidos).map(([k, cfg]) => [k, cfg.label])),
-      aparenciaOpts: PYRO.aparenciasSentido,
+      // O bloco do sentido é da habilidade única "Sentido Espiritual" do
+      // cenário; nas outras habilidades ele só confundia a ficha.
+      mostrarSentido: item.type === "habilidade"
+        && PYRO.normalizarTexto(item.name) === "sentido espiritual",
       // O alcance que a fórmula dá nesta ficha, para conferir na hora de
       // escrever. Item solto não tem em quem calcular, e a linha não sai.
       temSentidoAlcance: item.type === "habilidade" && !!sys.sentido?.tipo && !!actor,

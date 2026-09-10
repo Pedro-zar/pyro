@@ -398,6 +398,71 @@ export function registrarPercepcao() {
     }
   };
 
+  /* --- Auras: o contorno em quem carrega mana ou energia -------------------- */
+  /*
+   * O filtro de detecção do core só aparece quando o token é visto APENAS
+   * pelo modo de detecção; quem está na linha de visão normal fica sem nada.
+   * A aura é permanente: todo token que algum sentido ativo deste cliente
+   * alcança ganha um contorno na cor do que carrega — azul de mana por
+   * dentro e verde de energia por fora quando carrega os dois (o segundo
+   * filtro contorna o resultado do primeiro), e nada em quem não carrega
+   * nada. Cada cliente vê só o que os próprios sentidos alcançam.
+   */
+  const filtrosDeAura = {};
+  const filtroDaAura = tipo => {
+    if (filtrosDeAura[tipo] !== undefined) return filtrosDeAura[tipo];
+    const Contorno = F.OutlineOverlayFilter;
+    const cor = PYRO.sentidos[tipo]?.cor;
+    // knockout comeria a arte do token: aqui o filtro é aplicado direto no
+    // mesh, e não numa passada extra como o filtro de detecção do core.
+    return filtrosDeAura[tipo] = Contorno && cor
+      ? Contorno.create({ outlineColor: cor, knockout: false }) : null;
+  };
+
+  const aplicarAuras = () => {
+    const fontes = [];
+    for (const fonte of canvas.effects.visionSources) {
+      if (!fonte.active) continue;
+      const doc = fonte.object?.document;
+      if (!doc || doc.hasStatusEffect?.("desmaiado")) continue;
+      // O alcance por tipo já saiu preparado (e com densidade) nos modos de
+      // detecção do token; daqui ele só vira pixels.
+      const alcances = {};
+      for (const tipo of Object.keys(PYRO.sentidos)) {
+        const alcance = doc.detectionModes?.[idDoSentido(tipo)]?.range;
+        if (alcance > 0) {
+          alcances[tipo] = fonte.object.getLightRadius?.(alcance)
+            ?? alcance * canvas.dimensions.distancePixels;
+        }
+      }
+      if (!foundry.utils.isEmpty(alcances)) {
+        fontes.push({ objeto: fonte.object, origem: fonte.origin ?? fonte.object.center, alcances });
+      }
+    }
+
+    for (const token of canvas.tokens?.placeables ?? []) {
+      const mesh = token.mesh;
+      if (!mesh || mesh.destroyed) continue;
+      const semAura = (mesh.filters ?? []).filter(f => !f.pyroAura);
+      const tipos = [];
+      if (fontes.length && !token.document.hidden) {
+        const { x, y } = token.center;
+        for (const [tipo, cfg] of Object.entries(PYRO.sentidos)) {
+          if (!cfg.brilha(token.actor?.system)) continue;
+          // O próprio token da fonte não se contorna: sentir a si mesmo não
+          // é informação.
+          const alcancado = fontes.some(f => f.objeto !== token
+            && f.alcances[tipo] !== undefined
+            && Math.hypot(x - f.origem.x, y - f.origem.y) <= f.alcances[tipo]);
+          if (alcancado) tipos.push(tipo);
+        }
+      }
+      const filtros = tipos.map(filtroDaAura).filter(Boolean);
+      for (const filtro of filtros) filtro.pyroAura = true;
+      mesh.filters = [...semAura, ...filtros];
+    }
+  };
+
   // O véu renasce a cada cena: o tearDown do canvas leva os filhos embora.
   let veu = null;
   Hooks.on("canvasReady", () => {
@@ -407,13 +472,20 @@ export function registrarPercepcao() {
     veu.eventMode = "none";
     // A visão inicial da cena pode ter se refeito antes do véu existir.
     desenharVeu(veu);
+    aplicarAuras();
   });
   Hooks.on("canvasTearDown", () => {
     if (veu && !veu.destroyed) veu.destroy();
     veu = null;
   });
   Hooks.on("sightRefresh", () => {
+    if (!canvas?.ready) return;
     if (veu && !veu.destroyed) desenharVeu(veu);
+    aplicarAuras();
+  });
+  // Token andando entra e sai do alcance sem refazer a visão de ninguém.
+  Hooks.on("refreshToken", (token, flags) => {
+    if (canvas?.ready && flags?.refreshPosition) aplicarAuras();
   });
 
   /* --- Invalidação: mudou o sentido, o canvas refaz a visão ---------------- */
