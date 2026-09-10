@@ -196,4 +196,115 @@ export function registrarPercepcao() {
   for (const modo of Object.values(aparencias)) {
     CONFIG.Canvas.visionModes[modo.id] = modo;
   }
+
+  /* --- Ver o mapa através das paredes -------------------------------------- */
+  /*
+   * O modo de detecção revela tokens; o terreno é outro caminho — o polígono
+   * de visão do token, que o Foundry sempre corta nas paredes. Aqui a fonte
+   * de visão ganha um segundo polígono que ignora paredes, limitado ao
+   * alcance do sentido, e o une ao normal: dentro desse raio o jogador vê o
+   * mapa como quem sente a mana do ar, paredes inclusas como sólidos.
+   *
+   * É a única parte disto tudo sobre API protegida do Foundry (o mesmo
+   * território do módulo vision-5e, de onde vem a técnica), então tudo é
+   * montado em variáveis locais e só atribuído no fim: uma falha no meio
+   * deixa a visão normal intacta, em vez de um polígono pela metade.
+   *
+   * Efeito colateral assumido: dentro do raio, a névoa explorada atravessa
+   * paredes junto. O controle disso é o próprio alcance da fórmula — e, nas
+   * cenas em que incomodar, desligar a exploração de névoa da cena.
+   *
+   * A classe estende o que estiver registrado, e não a base do Foundry:
+   * módulos de visão disputam esta chave, e partir da base apagaria o que
+   * outro já instalou.
+   */
+  CONFIG.Canvas.visionSourceClass = class extends CONFIG.Canvas.visionSourceClass {
+    /**
+     * Alcance do sentido em pixels, lido do token — 0 desliga tudo isto.
+     * getLightRadius soma o raio do próprio corpo: num token 2x2 o sentido
+     * é medido da pele para fora, como os raios de luz do core.
+     */
+    #raioSemParedes() {
+      const alcance = this.object?.document?.alcanceEspiritual ?? 0;
+      return alcance > 0 ? (this.object.getLightRadius?.(alcance)
+        ?? alcance * canvas.dimensions.distancePixels) : 0;
+    }
+
+    /** @override */
+    _createShapes() {
+      super._createShapes();
+      const raio = this.#raioSemParedes();
+      if (!(raio > 0)) return;
+      try {
+        const config = this._getPolygonConfiguration();
+        config.radius = Math.min(raio, this.los.config.radius ?? canvas.dimensions.maxR);
+        config.edgeTypes = foundry.utils.deepClone(this.los.config.edgeTypes ?? {});
+        // Parede é um tipo de edge com modo, e 0 é "não corta".
+        config.edgeTypes.wall = { mode: 0, priority: -Infinity };
+        const semExposure = { threshold: 0 };
+        const exposureOriginal = config.surfaceExposure;
+        config.surfaceExposure = semExposure;
+
+        const polygonClass = CONFIG.Canvas.polygonBackends[this.constructor.sourceType];
+        const semParedes = polygonClass.create(this.origin, config);
+        const uniao = semParedes.intersectPolygon(this.los, {
+          clipType: ClipperLib.ClipType.ctUnion,
+          scalingFactor: CONST.CLIPPER_SCALING_FACTOR
+        });
+
+        // Só agora o los muda, com tudo já calculado: a exposure de
+        // superfície (Levels) é refeita sobre o polígono novo, senão a
+        // visibilidade por elevação seria testada contra a área antiga.
+        this.los.points = uniao.points;
+        this.los.bounds = this.los.getBounds();
+        this.los.config.surfaceExposure = exposureOriginal;
+        this.los.surfaceExposure = foundry.canvas.geometry.ElevatedSurfaceExposureGenerator
+          .compute(this.los, exposureOriginal);
+
+        // O campo de visão e a luz foram cortados pelo polígono antigo; com o
+        // los alargado, os dois precisam nascer de novo.
+        this.light = this._createLightPolygon();
+        this.shape = this._createRestrictedPolygon();
+      } catch (erro) {
+        console.error("PYRO | O polígono sem paredes do sentido espiritual falhou; ficou a visão normal.", erro);
+      }
+    }
+  };
+
+  /* --- Invalidação: mudou o sentido, o canvas refaz a visão ---------------- */
+  /*
+   * O dado do token é derivado e recalcula sozinho, mas a fonte de visão já
+   * desenhada não se refaz sem este empurrão. O alcance depende da habilidade
+   * E dos dados do ator (a fórmula lê atributos), então efeitos e edições do
+   * ator também contam. Roda em todos os clientes de propósito: cada um
+   * atualiza a própria percepção.
+   */
+  const refazerVisao = () => {
+    if (!canvas?.ready) return;
+    canvas.perception.update({ initializeVision: true });
+  };
+  const temSentidos = actor =>
+    actor instanceof Actor && !foundry.utils.isEmpty(actor.system?.sentidos ?? {});
+
+  Hooks.on("updateItem", (doc, changed) => {
+    if (doc?.type !== "habilidade") return;
+    // Só o que mexe no sentido: renomear a habilidade não refaz cena nenhuma.
+    const relevante = changed.system && ("sentido" in changed.system
+      || "nivel" in changed.system || "adormecida" in changed.system);
+    if (!relevante) return;
+    if (doc.system?.sentido?.tipo || temSentidos(doc.parent)) refazerVisao();
+  });
+  for (const gancho of ["createItem", "deleteItem"]) {
+    Hooks.on(gancho, doc => {
+      if (doc?.type !== "habilidade" || !doc.system?.sentido?.tipo) return;
+      if (doc.parent instanceof Actor) refazerVisao();
+    });
+  }
+  Hooks.on("updateActor", actor => { if (temSentidos(actor)) refazerVisao(); });
+  for (const gancho of ["createActiveEffect", "updateActiveEffect", "deleteActiveEffect"]) {
+    Hooks.on(gancho, doc => {
+      const actor = doc?.parent instanceof Actor ? doc.parent : doc?.parent?.parent;
+      if (temSentidos(actor)) refazerVisao();
+    });
+  }
 }

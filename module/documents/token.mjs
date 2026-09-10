@@ -20,6 +20,9 @@ export class PyroTokenDocument extends TokenDocument {
      */
     const principal = aplicar
       ? Object.values(sentidos).sort((a, b) => b.alcance - a.alcance)[0] : null;
+    // A fonte de visão lê daqui o raio em que o polígono ignora paredes: o
+    // sentido enxerga o mapa, não só as criaturas (ver percepcao.mjs).
+    this.alcanceEspiritual = principal?.alcance ?? 0;
     const aparencia = principal ? CONFIG.Canvas.visionModes[principal.aparencia] : null;
     if (aparencia) {
       // Quem sente é assim que enxerga o mundo, e o raio de visão acompanha o
