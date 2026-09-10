@@ -4,7 +4,7 @@
  */
 import { PYRO } from "../config.mjs";
 import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
-import { scalingsPadrao, valorScaling, chaveVariavel, SEM_DANO } from "../magia.mjs";
+import { scalingsPadrao, chaveVariavel, SEM_DANO } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho, flagsDe } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
@@ -417,8 +417,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
             return {
               nome: sc.nome || game.i18n.localize("PYRO.Scaling.Efeito"),
               valores: [1, 2, 3, 4, 5].map(n => {
-                let v = valorScaling(sc, n);
-                if (mult !== 1) v = Math.max(sc.faces > 0 ? 1 : 0, Math.floor(v * mult));
+                // O multiplicador entra antes do arredondamento único, a
+                // mesma conta de valorEfetivo na conjuração.
+                let v = Math.floor((sc.base + sc.porIntencao * (n - 1)) * mult);
+                if (mult !== 1) v = Math.max(sc.faces > 0 ? 1 : 0, v);
                 return sc.faces > 0 ? `${Math.max(0, v)}d${sc.faces}` : v;
               })
             };

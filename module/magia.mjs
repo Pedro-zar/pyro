@@ -78,8 +78,14 @@ export function escalonamentoComPassos(scaling, passos = 0) {
  */
 export function valorEfetivo(pr, scaling, passos = 0) {
   const ajustado = escalonamentoComPassos(scaling, passos);
-  const bruto = valorScaling(ajustado, pr.intencaoEfetiva ?? pr.intencao);
-  return pr.efeitoMult !== 1 ? Math.floor(bruto * pr.efeitoMult) : bruto;
+  const intencao = pr.intencaoEfetiva ?? pr.intencao;
+  /*
+   * O multiplicador da língua entra ANTES do arredondamento, que é um só e
+   * do total: base 2,25 élfica (x2) na Intenção 2 é 4,5 x 2 = 9 — arredondar
+   * o 4,5 primeiro comeria um dado.
+   */
+  const cru = ajustado.base + ajustado.porIntencao * (intencao - 1);
+  return Math.floor(cru * (pr.efeitoMult ?? 1));
 }
 
 /** Escalonamento de uma runa pela chave de variável ("passos", "alvos"). */
