@@ -118,15 +118,19 @@ export function registrarPercepcao() {
 
   /* --- Aparências: como o mundo se parece para quem sente ----------------- */
   /*
-   * Três candidatas de propósito: a mesa compara olhando a cena e as que
-   * sobrarem saem de PYRO.aparenciasSentido. Nenhuma escreve shader novo —
-   * tudo é combinação do que o core já tem (os ajustes de cor do canvas, os
-   * defaults de visão e os shaders de onda do tremorsense, aqui domados com
-   * cor fria e atenuação leve em vez do cinza chapado).
+   * Nenhuma escreve shader novo — tudo é combinação do que o core já tem: os
+   * ajustes de cor do canvas, a dessaturação com tinta das camadas de luz e
+   * os defaults de visão. Nada de shader de onda do tremorsense: a luz parada
+   * é que pinta a área, sem tremor. Estas aparências valem para quem é cego e
+   * vive dentro do sentido; para quem também enxerga, a tonalidade entra só
+   * na área além da visão (o véu, mais abaixo).
    */
   const aparencias = {
-    // Cena dessaturada com tinta azul fria e ondulação lenta; o brilho nas
-    // pessoas vem do filtro de detecção, não daqui.
+    // Cena dessaturada com tinta azul fria; o brilho nas pessoas vem do
+    // filtro de detecção, não daqui. Os defaults não trazem cor nem brilho de
+    // propósito: a camada de coloração do Foundry é aditiva, e qualquer cor
+    // ali SOMA luz — em chão claro vira disco estourado. O azul do entorno é
+    // o halo desenhado pelo sistema (ver o véu, mais abaixo).
     azulEtereo: new VisionMode({
       id: "azulEtereo",
       label: "PYRO.Aparencia.azulEtereo",
@@ -149,34 +153,35 @@ export function registrarPercepcao() {
         }
       },
       vision: {
-        background: { shader: S.WaveBackgroundVisionShader },
-        coloration: { shader: S.WaveColorationVisionShader },
         darkness: { adaptive: false },
-        defaults: { color: 0x4d79ff, attenuation: 0.25, brightness: 0.4, saturation: -0.75, contrast: 0.15 }
+        defaults: { attenuation: 0.25, brightness: 0, saturation: -0.75, contrast: 0.1 }
       }
-    }, { animated: true }),
+    }),
 
-    // Mundo quase apagado, cinza escuro e parado: "eu não vejo, eu sinto".
-    // Só as fontes de mana acendem, pelo contorno do modo de detecção.
+    // O mundo apagado do azulEtereo, mais escuro e quieto: "eu não vejo, eu
+    // sinto". Sem cor de visão pelo mesmo motivo do azulEtereo.
     brancoBrilho: new VisionMode({
       id: "brancoBrilho",
       label: "PYRO.Aparencia.brancoBrilho",
       canvas: {
         shader: S.ColorAdjustmentsSamplerShader,
-        uniforms: { contrast: 0.2, saturation: -1, exposure: -0.35 }
+        uniforms: { contrast: 0.15, saturation: -1, exposure: -0.25 }
       },
       lighting: {
-        background: { postProcessingModes: ["SATURATION"], uniforms: { saturation: -1 } },
+        background: {
+          postProcessingModes: ["SATURATION"],
+          uniforms: { saturation: -1, tint: [0.55, 0.65, 0.95] }
+        },
         illumination: { postProcessingModes: ["SATURATION"], uniforms: { saturation: -1 } },
         coloration: { postProcessingModes: ["SATURATION"], uniforms: { saturation: -1 } }
       },
       vision: {
         darkness: { adaptive: false },
-        defaults: { color: 0xdfe8ff, attenuation: 0.4, brightness: -0.35, saturation: -1, contrast: 0.25 }
+        defaults: { attenuation: 0.5, brightness: -0.25, saturation: -1, contrast: 0.15 }
       }
     }),
 
-    // O parente educado do tremorsense: a mesma onda, bem mais sutil, sem cor.
+    // Neutro: cinza dessaturado com um sopro de luz fria, sem tinta azul.
     ecoOnda: new VisionMode({
       id: "ecoOnda",
       label: "PYRO.Aparencia.ecoOnda",
@@ -184,13 +189,16 @@ export function registrarPercepcao() {
         shader: S.ColorAdjustmentsSamplerShader,
         uniforms: { contrast: 0.15, saturation: -0.9, exposure: -0.1 }
       },
+      lighting: {
+        background: { postProcessingModes: ["SATURATION"], uniforms: { saturation: -0.9 } },
+        illumination: { postProcessingModes: ["SATURATION"], uniforms: { saturation: -0.9 } },
+        coloration: { postProcessingModes: ["SATURATION"], uniforms: { saturation: -0.9 } }
+      },
       vision: {
-        background: { shader: S.WaveBackgroundVisionShader },
-        coloration: { shader: S.WaveColorationVisionShader },
         darkness: { adaptive: false },
-        defaults: { color: 0x9db4c0, attenuation: 0.4, brightness: 0.15, saturation: -0.9, contrast: 0.3 }
+        defaults: { attenuation: 0.4, brightness: 0, saturation: -0.9, contrast: 0.2 }
       }
-    }, { animated: true })
+    })
   };
 
   for (const modo of Object.values(aparencias)) {
@@ -233,6 +241,7 @@ export function registrarPercepcao() {
     /** @override */
     _createShapes() {
       super._createShapes();
+      this.areaDoSentido = null;
       const raio = this.#raioSemParedes();
       if (!(raio > 0)) return;
       try {
@@ -247,15 +256,30 @@ export function registrarPercepcao() {
 
         const polygonClass = CONFIG.Canvas.polygonBackends[this.constructor.sourceType];
         const semParedes = polygonClass.create(this.origin, config);
-        const uniao = semParedes.intersectPolygon(this.los, {
-          clipType: ClipperLib.ClipType.ctUnion,
-          scalingFactor: CONST.CLIPPER_SCALING_FACTOR
-        });
+
+        /*
+         * Visão normal vence o sentido: para quem enxerga, o los vira a
+         * união (visão + círculo do sentido), e só o que a visão com paredes
+         * NÃO cobre ganha a tonalidade espiritual — a diferença é guardada
+         * para o véu desenhar no sightRefresh. O cego é outro caso: o mundo
+         * dele É o círculo do sentido, e só ele — sem união com o los de
+         * visão, uma cena com luz global não entrega o mapa inteiro a quem
+         * não vê. Fora do alcance não existe nada.
+         */
+        const cego = Object.hasOwn(aparencias, this.object?.document?.sight?.visionMode ?? "");
+        let final = semParedes;
+        if (!cego) {
+          final = semParedes.intersectPolygon(this.los, {
+            clipType: ClipperLib.ClipType.ctUnion,
+            scalingFactor: CONST.CLIPPER_SCALING_FACTOR
+          });
+          this.areaDoSentido = subtrairPoligono(semParedes, this.los);
+        }
 
         // Só agora o los muda, com tudo já calculado: a exposure de
         // superfície (Levels) é refeita sobre o polígono novo, senão a
         // visibilidade por elevação seria testada contra a área antiga.
-        this.los.points = uniao.points;
+        this.los.points = final.points;
         this.los.bounds = this.los.getBounds();
         this.los.config.surfaceExposure = exposureOriginal;
         this.los.surfaceExposure = foundry.canvas.geometry.ElevatedSurfaceExposureGenerator
@@ -270,6 +294,127 @@ export function registrarPercepcao() {
       }
     }
   };
+
+  /* --- O véu: a tonalidade do sentido onde a visão não chega ---------------- */
+  /*
+   * Um modo de visão pinta a fonte inteira, e para quem enxerga isso tingia
+   * até a visão direta. O véu é o caminho do meio: um Graphics translúcido
+   * desenhado só sobre a área que apenas o sentido cobre, logo acima do grupo
+   * de visibilidade — acima da névoa, abaixo da interface (grade, bordas de
+   * token). A área já é a parte visível do los, então ficar fora da máscara
+   * de visão não vaza nada.
+   *
+   * O mesmo Graphics desenha o halo do cego: o azul no entorno do alcance,
+   * como degradê que nasce transparente no centro. É desenhado aqui, e não
+   * pela cor de visão do Foundry, porque a camada de coloração é aditiva —
+   * cor lá soma luz e estoura chão claro; o halo só tinge.
+   */
+  const COR_DO_VEU = 0x8fa0b8;
+  const ALFA_DO_VEU = 0.4;
+  const COR_DO_HALO = [77, 121, 255];
+  const TAM_HALO = 512;
+
+  let texturaDoHalo = null;
+  const criarTexturaDoHalo = () => {
+    const cv = document.createElement("canvas");
+    cv.width = cv.height = TAM_HALO;
+    const ctx = cv.getContext("2d");
+    const meio = TAM_HALO / 2;
+    const grad = ctx.createRadialGradient(meio, meio, 0, meio, meio, meio);
+    const [r, g, b] = COR_DO_HALO;
+    grad.addColorStop(0, `rgba(${r},${g},${b},0)`);
+    grad.addColorStop(0.55, `rgba(${r},${g},${b},0.1)`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0.55)`);
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, 0, TAM_HALO, TAM_HALO);
+    return PIXI.Texture.from(cv);
+  };
+
+  const desenharHalo = (veu, fonte) => {
+    const objeto = fonte.object;
+    const alcance = objeto?.document?.alcanceEspiritual ?? 0;
+    if (!(alcance > 0) || !fonte.los) return;
+    // O mesmo raio em pixels do polígono sem paredes: o los do cego é
+    // exatamente este círculo, então a textura cobre o polígono inteiro e
+    // não se repete (textura repetida vira um padrão de bolhas na cena).
+    const raio = objeto.getLightRadius?.(alcance)
+      ?? alcance * canvas.dimensions.distancePixels;
+    if (!(raio > 0)) return;
+    texturaDoHalo ??= criarTexturaDoHalo();
+    const { x, y } = fonte.origin ?? fonte;
+    const matriz = new PIXI.Matrix()
+      .scale((2 * raio) / TAM_HALO, (2 * raio) / TAM_HALO)
+      .translate(x - raio, y - raio);
+    veu.beginTextureFill({ texture: texturaDoHalo, matrix: matriz });
+    veu.drawPolygon(fonte.los);
+    veu.endFill();
+  };
+
+  /**
+   * a - b como peças prontas para desenhar: contorno + buracos (o los inteiro
+   * dentro do círculo do sentido vira um anel, e o miolo é buraco de verdade).
+   * A PolyTree preserva essa hierarquia; sem o conversor dela, cada caminho
+   * vira contorno — o anel pinta o miolo junto, feio mas inofensivo.
+   */
+  const subtrairPoligono = (a, b) => {
+    const fator = CONST.CLIPPER_SCALING_FACTOR;
+    const clipper = new ClipperLib.Clipper();
+    clipper.AddPath(a.toClipperPoints({ scalingFactor: fator }), ClipperLib.PolyType.ptSubject, true);
+    clipper.AddPath(b.toClipperPoints({ scalingFactor: fator }), ClipperLib.PolyType.ptClip, true);
+    const arvore = new ClipperLib.PolyTree();
+    clipper.Execute(ClipperLib.ClipType.ctDifference, arvore,
+      ClipperLib.PolyFillType.pftNonZero, ClipperLib.PolyFillType.pftNonZero);
+    const daClipper = pontos =>
+      new PIXI.Polygon(pontos.flatMap(p => [p.X / fator, p.Y / fator]));
+    const pecas = ClipperLib.JS?.PolyTreeToExPolygons?.(arvore)
+      ?? ClipperLib.Clipper.PolyTreeToPaths(arvore).map(c => ({ outer: c, holes: [] }));
+    return pecas.map(p => ({
+      contorno: daClipper(p.outer),
+      buracos: (p.holes ?? []).map(daClipper)
+    }));
+  };
+
+  const desenharVeu = veu => {
+    veu.clear();
+    for (const fonte of canvas.effects.visionSources) {
+      if (!fonte.active) continue;
+      // O cego, com a cena inteira na aparência do sentido, ganha o halo azul
+      // no entorno em vez do véu cinza.
+      if (Object.hasOwn(aparencias, fonte.object?.document?.sight?.visionMode ?? "")) {
+        desenharHalo(veu, fonte);
+        continue;
+      }
+      if (!fonte.areaDoSentido?.length) continue;
+      for (const peca of fonte.areaDoSentido) {
+        veu.beginFill(COR_DO_VEU, ALFA_DO_VEU);
+        veu.drawPolygon(peca.contorno);
+        for (const buraco of peca.buracos) {
+          veu.beginHole();
+          veu.drawPolygon(buraco);
+          veu.endHole();
+        }
+        veu.endFill();
+      }
+    }
+  };
+
+  // O véu renasce a cada cena: o tearDown do canvas leva os filhos embora.
+  let veu = null;
+  Hooks.on("canvasReady", () => {
+    const pai = canvas.visibility?.parent;
+    if (!pai) return;
+    veu = pai.addChildAt(new PIXI.Graphics(), pai.getChildIndex(canvas.visibility) + 1);
+    veu.eventMode = "none";
+    // A visão inicial da cena pode ter se refeito antes do véu existir.
+    desenharVeu(veu);
+  });
+  Hooks.on("canvasTearDown", () => {
+    if (veu && !veu.destroyed) veu.destroy();
+    veu = null;
+  });
+  Hooks.on("sightRefresh", () => {
+    if (veu && !veu.destroyed) desenharVeu(veu);
+  });
 
   /* --- Invalidação: mudou o sentido, o canvas refaz a visão ---------------- */
   /*
