@@ -630,17 +630,31 @@ export class PyroItem extends Item {
       mana: custoAjustado(sys.custoMana, ajustes.mana),
       energia: custoAjustado(sys.custoEnergia, ajustes.energia)
     };
+    // Recursos de raça (energia natural etc.): os efeitos de desconto usam a
+    // mesma chave do recurso, então o ajuste entra igual ao dos fixos.
+    for (const [chave, valor] of Object.entries(sys.custosCustom ?? {})) {
+      if (PYRO.recursosCustom?.[chave] && Number(valor) > 0) {
+        cobra[chave] = custoAjustado(Number(valor), ajustes[chave]);
+      }
+    }
     const custoAcoes = custoAjustado(sys.custoAcoes, ajustes.acoes);
 
     const custos = [];
-    if (this.actor && (cobra.estamina || cobra.mana || cobra.energia)) {
+    if (this.actor && Object.values(cobra).some(v => v > 0)) {
       const pago = await this.actor.pagarCustos(cobra);
-      if (!pago) return; // faltou mana ou energia
+      if (!pago) return; // faltou algum recurso
       if (pago.daEstamina) custos.push(game.i18n.format("PYRO.Chat.CustoEstamina", { valor: pago.daEstamina }));
       // Sem estamina suficiente, o resto sai dos PV (SRD Recursos).
       if (pago.dosPv) custos.push(game.i18n.format("PYRO.Chat.CustoPv", { valor: pago.dosPv }));
       if (pago.mana) custos.push(game.i18n.format("PYRO.Chat.CustoManaHab", { valor: pago.mana }));
       if (pago.energia) custos.push(game.i18n.format("PYRO.Chat.CustoEnergia", { valor: pago.energia }));
+      for (const chave of Object.keys(PYRO.recursosCustom ?? {})) {
+        if (!pago[chave]) continue;
+        custos.push(game.i18n.format("PYRO.Chat.CustoRecurso", {
+          valor: pago[chave],
+          recurso: game.i18n.localize(PYRO.recursosCustom[chave].label)
+        }));
+      }
     }
 
     const chaveCusto = sys.tipoCusto === "reacao" ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";

@@ -350,6 +350,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // Passiva, postura e perícia não gastam ação nem recurso ao serem
       // usadas: sem bloco de Custos.
       temCustos: item.type === "habilidade" && PYRO.cobraCustoDeUso(sys),
+      camposDeCusto: this.#camposDeCusto(),
       // Ranque com a descrição de escopo do SRD como dica de cada opção.
       ranqueOpts: Object.fromEntries(Object.entries(PYRO.ranques)
         .map(([t, label]) => [t, `${t} — ${game.i18n.localize(label)}`])),
@@ -545,6 +546,37 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   /* ---------------------------------------------------------------------- */
 
   /** Linha sob o nome: o essencial do item numa frase ("2d8 cortante · 15/30m"). */
+  /**
+   * Os campos de custo em recurso da habilidade, só com o que a ficha do dono
+   * tem: mana para magos, energia para feiticeiros e os recursos de raça
+   * concedidos (energia natural do elfo, etc.). Item sem dono mostra tudo —
+   * não há ficha para filtrar, e um item de compêndio precisa dos campos.
+   */
+  #camposDeCusto() {
+    const item = this.item;
+    if (item.type !== "habilidade") return [];
+    const sys = item.system;
+    const ator = item.actor?.system ?? null;
+    const loc = k => game.i18n.localize(k);
+    const campos = [];
+    const fixo = (chave, campo, tem) => {
+      if (ator && !tem) return;
+      campos.push({ name: `system.${campo}`, label: loc(`PYRO.Recursos.${chave}`), valor: sys[campo] });
+    };
+    fixo("estamina", "custoEstamina", true);
+    fixo("mana", "custoMana", !!ator?.temMagia);
+    fixo("energia", "custoEnergia", !!ator?.temFeiticos);
+    for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
+      if (ator && !(ator.recursosConcedidos ?? []).includes(chave)) continue;
+      campos.push({
+        name: `system.custosCustom.${chave}`,
+        label: loc(cfg.label),
+        valor: Number(sys.custosCustom?.[chave]) || 0
+      });
+    }
+    return campos;
+  }
+
   #subtitulo() {
     const sys = this.item.system;
     const loc = k => game.i18n.localize(k);
@@ -600,6 +632,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         if (sys.custoEstamina) partes.push(`${sys.custoEstamina} ${loc("PYRO.Abrev.estamina")}`);
         if (sys.custoMana) partes.push(`${sys.custoMana} ${loc("PYRO.Abrev.mana")}`);
         if (sys.custoEnergia) partes.push(`${sys.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
+        for (const [chave, valor] of Object.entries(sys.custosCustom ?? {})) {
+          const cfg = PYRO.recursosCustom?.[chave];
+          if (cfg && Number(valor) > 0) partes.push(`${Number(valor)} ${loc(cfg.label)}`);
+        }
         if (sys.adormecidaAtiva) partes.push(loc("PYRO.Despertar.Tag"));
         break;
       }

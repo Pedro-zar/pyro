@@ -255,6 +255,9 @@ export class HabilidadeData extends BaseItemData {
       custoEstamina: num(0, { min: 0 }),
       custoMana: num(0, { min: 0 }),
       custoEnergia: num(0, { min: 0 }),
+      // Custos em recursos de raça ({ energiaNatural: 5, ... }): as chaves
+      // vêm de PYRO.recursosCustom, e a ficha só oferece as que o dono tem.
+      custosCustom: new fields.ObjectField(),
       custoAcoes: num(0, { min: 0 }),
       // A habilidade gasta ações do próprio turno ou reações fora dele.
       tipoCusto: str("acao", { choices: Object.keys(PYRO.tiposCusto) }),

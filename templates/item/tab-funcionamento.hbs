@@ -160,12 +160,13 @@
         <select name="system.tipoCusto">{{selectOptions tipoCustoOpts selected=system.tipoCusto localize=true}}</select></label>
       <label class="campo"><span class="rotulo">{{localize "PYRO.Item.Quantas"}}</span>
         <input type="number" name="system.custoAcoes" value="{{system.custoAcoes}}" min="0" /></label>
-      <label class="campo"><span class="rotulo">{{localize "PYRO.Recursos.estamina"}}</span>
-        <input type="number" name="system.custoEstamina" value="{{system.custoEstamina}}" min="0" /></label>
-      <label class="campo"><span class="rotulo">{{localize "PYRO.Recursos.mana"}}</span>
-        <input type="number" name="system.custoMana" value="{{system.custoMana}}" min="0" /></label>
-      <label class="campo"><span class="rotulo">{{localize "PYRO.Recursos.energia"}}</span>
-        <input type="number" name="system.custoEnergia" value="{{system.custoEnergia}}" min="0" /></label>
+      {{!-- Um campo por recurso que a ficha do dono tem, montado na sheet:
+            mana só para mago, energia só para feiticeiro, e os recursos de
+            raça concedidos (energia natural etc.). --}}
+      {{#each camposDeCusto as |c|}}
+      <label class="campo"><span class="rotulo">{{c.label}}</span>
+        <input type="number" name="{{c.name}}" value="{{c.valor}}" min="0" /></label>
+      {{/each}}
     </div>
   </div>
   {{/if}}

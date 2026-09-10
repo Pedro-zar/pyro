@@ -515,28 +515,39 @@ export class PyroActor extends Actor {
    * Mana e energia não têm transbordo: sem o total, a habilidade não sai.
    * Retorna null se faltar recurso.
    */
-  async pagarCustos({ estamina = 0, mana = 0, energia = 0 } = {}) {
+  /**
+   * Cobra custos em recursos: { estamina, mana, energia, energiaNatural... }.
+   * Estamina é a única que transborda para PV quando falta (SRD Recursos);
+   * qualquer outro recurso precisa existir na ficha e bastar, senão nada é
+   * cobrado. Devolve o que saiu de cada um, ou null quando faltou.
+   */
+  async pagarCustos(cobra = {}) {
     const recursos = this.system.recursos;
-    if (mana > recursos.mana.value) {
-      ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemMana",
-        { custo: mana, mana: recursos.mana.value }));
-      return null;
-    }
-    if (energia > recursos.energia.value) {
-      ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemEnergia",
-        { custo: energia, energia: recursos.energia.value }));
-      return null;
+    const { estamina = 0, ...resto } = cobra;
+
+    const pagos = {};
+    const update = {};
+    for (const [chave, valor] of Object.entries(resto)) {
+      if (!(valor > 0)) continue;
+      const atual = recursos[chave]?.value ?? 0;
+      if (valor > atual) {
+        ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemRecurso", {
+          recurso: game.i18n.localize(
+            PYRO.recursosCustom?.[chave]?.label ?? `PYRO.Recursos.${chave}`),
+          custo: valor, atual
+        }));
+        return null;
+      }
+      pagos[chave] = valor;
+      update[`system.recursos.${chave}.value`] = atual - valor;
     }
 
     const daEstamina = Math.min(recursos.estamina.value, estamina);
     const dosPv = estamina - daEstamina;
-    await this.update({
-      "system.recursos.estamina.value": recursos.estamina.value - daEstamina,
-      "system.recursos.pv.value": Math.max(0, recursos.pv.value - dosPv),
-      "system.recursos.mana.value": recursos.mana.value - mana,
-      "system.recursos.energia.value": recursos.energia.value - energia
-    });
-    return { daEstamina, dosPv, mana, energia };
+    update["system.recursos.estamina.value"] = recursos.estamina.value - daEstamina;
+    update["system.recursos.pv.value"] = Math.max(0, recursos.pv.value - dosPv);
+    await this.update(update);
+    return { daEstamina, dosPv, ...pagos };
   }
 
   /* ---------------------------------------------------------------------- */

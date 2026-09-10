@@ -329,6 +329,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         sys.custoEstamina ? `${sys.custoEstamina} ${loc("PYRO.Recursos.estamina").toLocaleLowerCase()}` : null,
         sys.custoMana ? `${sys.custoMana} ${loc("PYRO.Recursos.mana").toLocaleLowerCase()}` : null,
         sys.custoEnergia ? `${sys.custoEnergia} ${loc("PYRO.Recursos.energia").toLocaleLowerCase()}` : null,
+        ...Object.entries(sys.custosCustom ?? {}).map(([chave, valor]) =>
+          PYRO.recursosCustom?.[chave] && Number(valor) > 0
+            ? `${Number(valor)} ${loc(PYRO.recursosCustom[chave].label).toLocaleLowerCase()}` : null),
         sys.custoAcoes
           ? `${sys.custoAcoes} ${umOuVarios(sys.custoAcoes, `PYRO.Custos.${sys.tipoCusto}`, `PYRO.Custos.${sys.tipoCusto}Plural`)}`
           : null
