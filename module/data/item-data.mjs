@@ -76,6 +76,30 @@ export function custoDeCaminhoNovo(actor, quantos) {
 }
 
 /**
+ * Como um Caminho calcula um recurso que ele concede: a fórmula escrita nele,
+ * ou a padrão do mundo enquanto ninguém a reescreveu, e a habilidade que dá o
+ * nível para a fórmula.
+ */
+export function configDoRecurso(caminho, chave) {
+  const gravado = (caminho?.system?.recursosConfig ?? []).find(r => r.chave === chave);
+  const padrao = PYRO.recursosCustom?.[chave]?.formula ?? "";
+  return {
+    formula: gravado?.formula?.trim() || padrao,
+    habilidadeId: gravado?.habilidadeId ?? "",
+    // A fórmula é a do mundo, ou esta ficha reescreveu a dela?
+    propria: !!gravado?.formula?.trim()
+  };
+}
+
+/** Nível que alimenta [NVL] na fórmula de um recurso: o da habilidade escolhida. */
+export function nivelDoRecurso(actor, caminho, chave) {
+  const { habilidadeId } = configDoRecurso(caminho, chave);
+  if (!habilidadeId) return 0;
+  const habilidade = actor?.items?.get(habilidadeId);
+  return Number(habilidade?.system?.nivel) || 0;
+}
+
+/**
  * Custo em XP de uma habilidade (SRD §3): o custo do ranque na curva do mundo,
  * vezes o multiplicador da regra do Caminho. A habilidade base vem junto do
  * Caminho e não custa nada.
@@ -479,6 +503,17 @@ export class CaminhoData extends BaseItemData {
       potencial: str("humana"),
       // Recursos personalizados concedidos por este caminho (Energia Natural etc).
       recursos: new fields.ArrayField(new fields.StringField({ required: true }), { initial: [] }),
+      /*
+       * Como cada recurso concedido é calculado nesta ficha: a fórmula do
+       * máximo (herdada da configuração do mundo enquanto ninguém a reescreve)
+       * e a habilidade de onde sai o [NVL] dela — é assim que a Energia Natural
+       * de um elfo cresce junto com a habilidade que a usa.
+       */
+      recursosConfig: new fields.ArrayField(new fields.SchemaField({
+        chave: str(""),
+        formula: str(""),
+        habilidadeId: str("")
+      }), { initial: [] }),
       // Afinidades elementais do mago: lista de opções, "outro" com texto livre.
       afinidades: new fields.ArrayField(new fields.SchemaField({
         // Sem choices: as afinidades derivam dos elementos, que o mestre edita

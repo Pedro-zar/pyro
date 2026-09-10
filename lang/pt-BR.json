@@ -585,7 +585,7 @@
   "PYRO.Avisos.SemPermissao": "Sem permissão para alterar {nome}.",
   "PYRO.Item.Concede": "Concede:",
   "PYRO.Config.Recursos": "Recursos personalizados",
-  "PYRO.Config.RecursosDica": "",
+  "PYRO.Config.RecursosDica": "Recursos próprios de raça ou classe. A fórmula é o máximo, com os mesmos atalhos das fichas ([SAB], [NVL], [NVL5=x;y]) — cada Caminho que concede o recurso começa com ela e pode reescrever a sua. O total ainda recebe os +10% por patamar de Determinação.",
   "PYRO.Config.Atributo": "Atributo",
   "PYRO.Config.PorPonto": "Por ponto",
   "PYRO.Config.AtributoRec": "Atrib. recuperação",
@@ -1031,5 +1031,9 @@
   "PYRO.Postura.LembreteMeta": "Combate iniciado",
   "PYRO.Postura.LembreteDica": "Entre numa postura antes do primeiro turno — depois custa uma ação.",
   "PYRO.Postura.Sumiu": "Esta postura não está mais na ficha.",
-  "PYRO.Postura.JaEsta": "{nome} já é a postura ativa."
+  "PYRO.Postura.JaEsta": "{nome} já é a postura ativa.",
+  "PYRO.Recurso.HabilidadeNivel": "Habilidade que dá o nível",
+  "PYRO.Recurso.SemHabilidade": "Nenhuma ([NVL] vale 0)",
+  "PYRO.Recurso.ValorAtual": "Nesta ficha:",
+  "PYRO.ItemTabs.recursos": "Recursos"
 }

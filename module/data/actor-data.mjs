@@ -3,8 +3,8 @@
  * derivados — atributos em jogo, recursos, tamanho, carga, defesas e reações.
  */
 import { PYRO } from "../config.mjs";
-import { formulaPool, juntarDados } from "../dados.mjs";
-import { rotuloCurtoDoCaminho } from "./item-data.mjs";
+import { formulaPool, juntarDados, calcularFormula } from "../dados.mjs";
+import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "./item-data.mjs";
 import { num, dec } from "./campos.mjs";
 
 const fields = foundry.data.fields;
@@ -280,13 +280,25 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.machucado = recursos.pv.value > 0 && recursos.pv.value < this.limiaresPv.machucado;
     this.caido = recursos.pv.value <= 0;
 
-    // Recursos personalizados: (base + atributo x porPonto) +10% por patamar.
     // A recuperação fica fora do multiplicador, como a da mana.
+    /*
+     * Recurso de raça: o máximo sai de uma fórmula, e quem manda nela é o
+     * Caminho que concede o recurso — a configuração do mundo só dá o ponto de
+     * partida. [NVL] na fórmula é o nível da habilidade apontada lá.
+     */
+    // Os mesmos dados de uma rolagem, para a fórmula do recurso enxergar o que
+    // uma fórmula de habilidade enxerga — inclusive @dados.sab.
+    const daFormula = this.parent.getRollData();
+
     for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
       const rec = recursos[chave];
       if (!rec) continue;
-      const attr = atributos[cfg.atributo]?.total ?? 0;
-      rec.max = Math.floor((cfg.base + attr * cfg.porPonto) * this.multi) + rec.bonus;
+      const dono = caminhos.find(c => (c.system.recursos ?? []).includes(chave));
+      const { formula } = configDoRecurso(dono, chave);
+      const bruto = calcularFormula(formula, {
+        ...daFormula, nvl: nivelDoRecurso(this.parent, dono, chave)
+      });
+      rec.max = Math.floor(bruto * this.multi) + rec.bonus;
       const attrRec = atributos[cfg.recAtributo]?.total;
       rec.recuperacao = attrRec
         ? Math.floor((attrRec * (cfg.recPorPonto ?? 0)) / 2) : 0;

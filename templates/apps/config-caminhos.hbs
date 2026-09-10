@@ -48,12 +48,11 @@
                 title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
       </div>
       <div class="config-el-campos">
-        <label><span>{{localize "PYRO.Config.Atributo"}}</span>
-          <select name="recurso.{{rc.chave}}.atributo">{{selectOptions @root.atributos selected=rc.atributo}}</select></label>
-        <label><span>{{localize "PYRO.Config.PorPonto"}}</span>
-          <input type="number" step="any" name="recurso.{{rc.chave}}.porPonto" value="{{rc.porPonto}}" /></label>
-        <label><span>{{localize "PYRO.Item.Base"}}</span>
-          <input type="number" step="any" name="recurso.{{rc.chave}}.base" value="{{rc.base}}" /></label>
+        {{!-- Fórmula padrão: cada Caminho que concede o recurso começa com ela
+              e pode reescrever a sua na aba do próprio recurso. --}}
+        <label class="largo"><span>{{localize "PYRO.Item.Formula"}}</span>
+          <input type="text" name="recurso.{{rc.chave}}.formula" value="{{rc.formula}}"
+                 placeholder="[SAB] * 5" /></label>
         <label><span>{{localize "PYRO.Config.AtributoRec"}}</span>
           <select name="recurso.{{rc.chave}}.recAtributo">{{selectOptions @root.atributosOpcionais selected=rc.recAtributo}}</select></label>
         <label><span>{{localize "PYRO.Config.RecPorPonto"}}</span>

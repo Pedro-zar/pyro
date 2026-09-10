@@ -8,8 +8,9 @@ import { scalingsPadrao, valorScaling, chaveVariavel, SEM_DANO } from "../magia.
 import { pintarTema } from "../tema.mjs";
 import { caminho, flagsDe } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
+import { calcularFormula } from "../dados.mjs";
 import { descreverRequisito } from "../progressao.mjs";
-import { rotuloCurtoDoCaminho } from "../data/item-data.mjs";
+import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "../data/item-data.mjs";
 import {
   tracosCompativeis, valorDoTraco, textoDoValor, ataquesDoAtor, posturasDoAtor, opcoesDoFiltro,
   acoesBaseDaArma
@@ -92,7 +93,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     tabs: { template: "templates/generic/tab-navigation.hbs" },
     descricao: { template: caminho("templates/item/tab-descricao.hbs") },
     funcionamento: { template: caminho("templates/item/tab-funcionamento.hbs") },
-    efeitos: { template: caminho("templates/item/tab-efeitos.hbs") }
+    efeitos: { template: caminho("templates/item/tab-efeitos.hbs") },
+    recursos: { template: caminho("templates/item/tab-recursos.hbs") }
   };
 
   static TABS = {
@@ -100,12 +102,88 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       tabs: [
         { id: "descricao", icon: "fa-solid fa-align-left" },
         { id: "funcionamento", icon: "fa-solid fa-sliders" },
-        { id: "efeitos", icon: "fa-solid fa-bolt" }
+        { id: "efeitos", icon: "fa-solid fa-bolt" },
+        // Só nasce em Caminho que concede recurso; ver #recursosDoCaminho.
+        { id: "recursos", icon: "fa-solid fa-droplet" }
       ],
       initial: "descricao",
       labelPrefix: "PYRO.ItemTabs"
     }
   };
+
+  /**
+   * Recursos que este Caminho concede, com a fórmula e a habilidade de nível
+   * de cada um. Vazio em qualquer outro item — é o que decide se a aba existe.
+   */
+  #recursosDoCaminho() {
+    const item = this.item;
+    if (item.type !== "caminho") return [];
+    const actor = item.actor;
+    const daFicha = actor?.items.filter(i =>
+      i.type === "habilidade" && i.system.caminho === item.id) ?? [];
+
+    return (item.system.recursos ?? [])
+      .filter(chave => PYRO.recursosCustom?.[chave])
+      .map(chave => {
+        const cfg = PYRO.recursosCustom[chave];
+        const conf = configDoRecurso(item, chave);
+        const dados = actor ? { ...actor.getRollData(), nvl: nivelDoRecurso(actor, item, chave) } : null;
+        // A habilidade gravada entra na lista mesmo que ela tenha trocado de
+        // Caminho: sumir da lista faria o select gravar "nenhuma" sozinho.
+        const escolhida = actor?.items.get(conf.habilidadeId);
+        const lista = escolhida && !daFicha.includes(escolhida) ? [...daFicha, escolhida] : daFicha;
+        return {
+          chave,
+          nome: game.i18n.localize(cfg.label),
+          formula: conf.propria ? conf.formula : "",
+          padrao: cfg.formula ?? "",
+          habilidadeId: conf.habilidadeId,
+          // Fora de uma ficha não há habilidade nenhuma para apontar, e o
+          // select nem aparece (ver o template).
+          temHabilidades: !!actor,
+          habilidades: Object.fromEntries(lista.map(h => [h.id, h.name])),
+          // O número que a fórmula dá nesta ficha: confere na hora de escrever.
+          // Item fora de ficha não tem em quem calcular, e a linha não sai.
+          temValor: !!dados,
+          valor: dados
+            ? Math.floor(calcularFormula(conf.formula, dados) * (actor.system.multi ?? 1))
+              + (actor.system.recursos?.[chave]?.bonus ?? 0)
+            : 0
+        };
+      });
+  }
+
+  /**
+   * A aba de recursos só existe no Caminho que concede algum.
+   *
+   * A parte continua sendo renderizada mesmo sem recurso nenhum: tirá-la da
+   * lista de partes não a apaga do DOM, e a seção velha continuaria mandando
+   * os campos dela no próximo salvamento. Sem recurso, o template não desenha
+   * campo algum.
+   */
+  _prepareTabs(group) {
+    const tabs = super._prepareTabs(group);
+    if (group !== "primary") return tabs;
+
+    const recursos = this.#recursosDoCaminho();
+    if (!recursos.length) {
+      delete tabs.recursos;
+      // Aba ativa que deixou de existir (o recurso saiu da raça) deixaria a
+      // ficha em branco: a Descrição é o lugar de sempre.
+      if (this.tabGroups.primary === "recursos" && tabs.descricao) {
+        this.tabGroups.primary = "descricao";
+        tabs.descricao.active = true;
+        tabs.descricao.cssClass = "active";
+      }
+      return tabs;
+    }
+    /*
+     * Com um recurso só, a aba leva o nome dele ("Energia Natural"): é assim
+     * que a mesa chama a coisa, e "Recursos" seria um rótulo a mais para ler.
+     */
+    if (recursos.length === 1) tabs.recursos.label = recursos[0].nome;
+    return tabs;
+  }
 
   async _preparePartContext(partId, context) {
     if (partId in (context.tabs ?? {})) context.tab = context.tabs[partId];
@@ -296,6 +374,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
             chave, label: game.i18n.localize(label), marcado: sys.atributos.includes(chave)
           }))
         : null,
+      recursosDoCaminho: this.#recursosDoCaminho(),
       ...this.#contextoTecnica(),
       requisito: descreverRequisito(item),
       valoresRapidos: this.#valoresRapidos(),
@@ -611,6 +690,25 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     if (this.item.type === "pericia" && sys.atributos && !Array.isArray(sys.atributos)) {
       // Checkboxes chegam como { chave: true/false }.
       sys.atributos = Object.entries(sys.atributos).filter(([, v]) => v).map(([k]) => k);
+    }
+
+    if (this.item.type === "caminho" && sys.recursosConfig && !Array.isArray(sys.recursosConfig)) {
+      /*
+       * Os campos vêm indexados pela chave do recurso; o schema guarda lista.
+       * O que já estava gravado e não apareceu na tela — recurso que o mestre
+       * tirou do mundo, ou o select de habilidade que não existe fora de uma
+       * ficha — é mantido, senão salvar qualquer outro campo apagaria isso.
+       */
+      const gravado = new Map(
+        (this.item.system.recursosConfig ?? []).map(r => [r.chave, r]));
+      for (const [chave, r] of Object.entries(sys.recursosConfig)) {
+        gravado.set(chave, { ...gravado.get(chave), chave, ...r });
+      }
+      sys.recursosConfig = [...gravado.values()].map(r => ({
+        chave: r.chave,
+        formula: r.formula ?? "",
+        habilidadeId: r.habilidadeId ?? ""
+      }));
     }
 
     if (this.item.type === "caminho" && sys.afinidades && !Array.isArray(sys.afinidades)) {

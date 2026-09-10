@@ -171,12 +171,33 @@ function mesclar(padrao, salvo) {
   return saida;
 }
 
+/**
+ * Recurso guardado antes de o máximo virar fórmula vale o que valia: os
+ * campos antigos viram a fórmula equivalente, em vez de o personagem acordar
+ * com o recurso zerado. Recurso que já tem fórmula passa intacto.
+ */
+function comFormula(recursos) {
+  for (const cfg of Object.values(recursos)) {
+    if (cfg.formula) continue;
+    const atributo = String(cfg.atributo ?? "").toUpperCase();
+    const porPonto = Number(cfg.porPonto) || 0;
+    const base = Number(cfg.base) || 0;
+    const partes = [
+      atributo && porPonto ? `[${atributo}] * ${porPonto}` : null,
+      base || !porPonto ? String(base) : null
+    ].filter(Boolean);
+    cfg.formula = partes.join(" + ");
+  }
+  return recursos;
+}
+
 /** Aplica o que estiver salvo por cima das tabelas padrão. */
 export function aplicarSettings() {
   PYRO.linguas = mesclar(PYRO.linguasPadrao, game.settings.get(SYSTEM_ID, "linguas"));
   PYRO.elementos = mesclar(PYRO.elementosPadrao, game.settings.get(SYSTEM_ID, "elementos"));
   PYRO.racas = mesclar(PYRO.racasPadrao, game.settings.get(SYSTEM_ID, "racas"));
-  PYRO.recursosCustom = mesclar(PYRO.recursosCustomPadrao, game.settings.get(SYSTEM_ID, "recursosCustom"));
+  PYRO.recursosCustom = comFormula(
+    mesclar(PYRO.recursosCustomPadrao, game.settings.get(SYSTEM_ID, "recursosCustom")));
   // A lista de progressões nasce vazia, então vale o que o mestre salvou.
   PYRO.progressoes = foundry.utils.deepClone(game.settings.get(SYSTEM_ID, "progressoes") ?? {});
   PYRO.indexarProgressoes();

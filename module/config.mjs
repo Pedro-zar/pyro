@@ -402,15 +402,21 @@ PYRO.custoIntencao = N => (N * (N + 1)) / 2;
 /* -------------------------------------------------------------------------- */
 
 /**
- * Recursos personalizados de raça/classe, além de PV, Estamina, Mana,
- * Energia e Vontade. Máximo = (base + atributo x porPonto) +10% por patamar.
- * recAtributo/recPorPonto definem a recuperação por cena (vazio = não recupera).
+ * Recursos personalizados de raça/classe, além de PV, Estamina, Mana, Energia
+ * e Vontade.
+ *
+ * O máximo é uma fórmula, com os mesmos atalhos das fichas ([SAB], [NVL] e os
+ * degraus de nível) — o Caminho que concede o recurso herda esta fórmula e
+ * pode reescrevê-la. O total ainda recebe os +10% por patamar de Determinação,
+ * como os outros recursos. recAtributo/recPorPonto definem a recuperação por
+ * cena (vazio = não recupera).
+ *
  * A Energia Natural ainda não tem regra no SRD; SAB x 5 espelha a mana até lá.
  */
 PYRO.recursosCustomPadrao = {
   energiaNatural: {
     label: "PYRO.Recursos.energiaNatural",
-    atributo: "sab", porPonto: 5, base: 0,
+    formula: "[SAB] * 5",
     recAtributo: "int", recPorPonto: 1
   }
 };

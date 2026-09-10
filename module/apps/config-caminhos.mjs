@@ -99,9 +99,7 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
     }
     for (const [chave, recurso] of Object.entries(config.recursos)) {
       recurso.label = dados[`recurso.${chave}.label`] ?? recurso.label;
-      recurso.atributo = dados[`recurso.${chave}.atributo`] ?? recurso.atributo;
-      recurso.porPonto = Number(dados[`recurso.${chave}.porPonto`] ?? recurso.porPonto) || 0;
-      recurso.base = Number(dados[`recurso.${chave}.base`] ?? recurso.base) || 0;
+      recurso.formula = dados[`recurso.${chave}.formula`] ?? recurso.formula;
       recurso.recAtributo = dados[`recurso.${chave}.recAtributo`] ?? recurso.recAtributo;
       recurso.recPorPonto =
         Number(dados[`recurso.${chave}.recPorPonto`] ?? recurso.recPorPonto) || 0;
@@ -166,7 +164,7 @@ export class ConfigCaminhosApp extends HandlebarsApplicationMixin(ApplicationV2)
     while (config.recursos[`recurso${n}`]) n++;
     config.recursos[`recurso${n}`] = {
       label: game.i18n.localize("PYRO.Config.RecursoNovo"),
-      atributo: "sab", porPonto: 5, base: 0, recAtributo: "int", recPorPonto: 1
+      formula: "[SAB] * 5", recAtributo: "int", recPorPonto: 1
     };
     this.render();
   }

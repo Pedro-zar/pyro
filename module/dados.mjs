@@ -94,6 +94,35 @@ export function prepararFormula(formula, dados = null) {
     .replace(/\[(FOR|VIG|DES|AGI|INT|SAB|PRE|NVL)\]/gi, (m, sigla) => `@${sigla.toLowerCase()}`);
 }
 
+/* Depois dos atalhos e das @variáveis, uma conta só tem número e operador. */
+const SO_ARITMETICA = /^[\d\s+\-*/().,]+$/;
+
+/**
+ * Valor de uma fórmula que precisa sair pronta na hora: o máximo de um recurso
+ * é calculado na preparação da ficha, onde não dá para esperar uma rolagem.
+ *
+ * Por isso ela é só aritmética — atalhos, números e contas. Dado escrito aqui
+ * não rola: a fórmula inteira vira 0, porque um recurso máximo sorteado a cada
+ * preparação da ficha seria pior do que um recurso zerado à vista.
+ *
+ * A conta é conferida antes de ser avaliada. O avaliador do Foundry só exige
+ * que o resultado seja um número, e esta fórmula é escrita num campo de ficha
+ * que roda no cliente de todo mundo que a abre: o que não for aritmética pura
+ * não chega lá.
+ */
+export function calcularFormula(formula, dados = null) {
+  const texto = prepararFormula(formula, dados).trim();
+  if (!texto) return 0;
+  const conta = Roll.replaceFormulaData(texto, dados ?? {}, { missing: "0" });
+  if (!SO_ARITMETICA.test(conta)) return 0;
+  try {
+    const valor = Roll.safeEval(conta);
+    return Number.isFinite(valor) ? valor : 0;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Cola a unidade no número, sem espaço nenhum: quem escreveu "% de chance"
  * quer "10% de chance", e quem escreveu " de dano" já pôs o espaço.

@@ -1,0 +1,29 @@
+{{!--
+  Um bloco por recurso que este Caminho concede. A fórmula nasce igual à do
+  mundo e pode ser reescrita aqui; [NVL] nela é o nível da habilidade escolhida
+  ao lado, que é como um recurso racial cresce junto com quem o usa.
+--}}
+<section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+  {{#each recursosDoCaminho as |r|}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{r.nome}}</h4>
+    <div class="grade-campos">
+      <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Item.Formula"}}</span>
+        <input type="text" name="system.recursosConfig.{{r.chave}}.formula"
+               value="{{r.formula}}" placeholder="{{r.padrao}}" /></label>
+      {{#if r.temHabilidades}}
+      <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Recurso.HabilidadeNivel"}}</span>
+        <select name="system.recursosConfig.{{r.chave}}.habilidadeId">
+          <option value="">{{localize "PYRO.Recurso.SemHabilidade"}}</option>
+          {{selectOptions r.habilidades selected=r.habilidadeId}}
+        </select></label>
+      {{/if}}
+    </div>
+    {{#if r.temValor}}
+    <p class="pyro-nota">{{localize "PYRO.Recurso.ValorAtual"}}
+      <strong class="numero">{{r.valor}}</strong></p>
+    {{/if}}
+    <p class="pyro-nota">{{localize "PYRO.Item.FormulaDica"}}</p>
+  </div>
+  {{/each}}
+</section>
