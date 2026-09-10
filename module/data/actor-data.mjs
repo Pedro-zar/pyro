@@ -5,6 +5,7 @@
 import { PYRO } from "../config.mjs";
 import { formulaPool, juntarDados, calcularFormula } from "../dados.mjs";
 import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "./item-data.mjs";
+import { sentidosDoAtor } from "../percepcao.mjs";
 import { num, dec } from "./campos.mjs";
 
 const fields = foundry.data.fields;
@@ -316,6 +317,10 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.temTecnicas = this.parent.items.some(i =>
       i.type === "tecnica" || (i.type === "habilidade" && i.system.ehPostura)
     );
+
+    // Sentidos espirituais, um por tipo, das habilidades que os concedem
+    // (a regra e os porquês vivem em sentidosDoAtor).
+    this.sentidos = sentidosDoAtor(this.parent.items, daFormula);
 
     /*
      * Efeito de potencial (o Milagre) sobe cada caminho na escada das

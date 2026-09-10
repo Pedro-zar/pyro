@@ -12,11 +12,13 @@ import {
 import { PyroActor } from "./documents/actor.mjs";
 import { PyroItem } from "./documents/item.mjs";
 import { PyroActiveEffect } from "./documents/active-effect.mjs";
+import { PyroTokenDocument } from "./documents/token.mjs";
 import { PyroActorSheet } from "./sheets/actor-sheet.mjs";
 import { PyroItemSheet } from "./sheets/item-sheet.mjs";
 import { registrarSettings, aplicarSettings } from "./settings.mjs";
 import { registrarMenuChat } from "./chat.mjs";
 import { registrarRelogio } from "./tempo.mjs";
+import { registrarPercepcao } from "./percepcao.mjs";
 import { SYSTEM_ID, caminho } from "./sistema.mjs";
 
 Hooks.once("init", () => {
@@ -45,6 +47,10 @@ Hooks.once("init", () => {
   CONFIG.Actor.documentClass = PyroActor;
   CONFIG.Item.documentClass = PyroItem;
   CONFIG.ActiveEffect.documentClass = PyroActiveEffect;
+  CONFIG.Token.documentClass = PyroTokenDocument;
+
+  // Sentidos espirituais: detecção através de paredes e as aparências.
+  registrarPercepcao();
 
   CONFIG.Actor.dataModels = {
     personagem: PersonagemData,

@@ -265,7 +265,18 @@ export class HabilidadeData extends BaseItemData {
        * da frente é do texto, porque só quem escreve sabe se ele cabe ali — e
        * por isso o campo não apara, ao contrário do padrão do StringField.
        */
-      unidadeFormula: str("", { trim: false })
+      unidadeFormula: str("", { trim: false }),
+      /*
+       * Sentido espiritual (perceber o mundo pela mana ou pela energia no
+       * ar): a habilidade que o concede diz o tipo, o alcance por fórmula
+       * ([SAB] / 2, [NVL]...) e a aparência no canvas. Tipo vazio é o caso
+       * comum — habilidade nenhuma vira sentido sem pedir.
+       */
+      sentido: new fields.SchemaField({
+        tipo: str(""),
+        alcance: str(""),
+        aparencia: str("azulEtereo")
+      })
     };
   }
 

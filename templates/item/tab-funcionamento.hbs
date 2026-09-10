@@ -184,6 +184,31 @@
     </div>
     <p class="pyro-nota">{{localize "PYRO.Item.FormulaDica"}}</p>
   </div>
+
+  {{!-- Sentido espiritual: perceber o mundo pela mana ou pela energia.
+        Tipo vazio é habilidade comum, e o resto do bloco nem aparece. --}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Sentidos.Bloco"}}</h4>
+    <div class="grade-campos">
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Sentidos.Tipo"}}</span>
+        <select name="system.sentido.tipo">
+          <option value="">{{localize "PYRO.Sentidos.Nenhum"}}</option>
+          {{selectOptions sentidoTipoOpts selected=system.sentido.tipo localize=true}}
+        </select></label>
+      {{#if system.sentido.tipo}}
+      <label class="campo cresce"><span class="rotulo">{{localize "PYRO.Sentidos.Alcance"}}</span>
+        <input type="text" name="system.sentido.alcance" value="{{system.sentido.alcance}}"
+               placeholder="[SAB] / 2" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Sentidos.Aparencia"}}</span>
+        <select name="system.sentido.aparencia">
+          {{selectOptions aparenciaOpts selected=system.sentido.aparencia localize=true}}
+        </select></label>
+      {{/if}}
+    </div>
+    {{#if system.sentido.tipo}}
+    <p class="pyro-nota">{{localize "PYRO.Sentidos.Dica"}}</p>
+    {{/if}}
+  </div>
 {{/if}}
 
 {{#if isTecnica}}

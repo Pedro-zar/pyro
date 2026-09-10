@@ -1035,5 +1035,17 @@
   "PYRO.Recurso.HabilidadeNivel": "Habilidade que dá o nível",
   "PYRO.Recurso.SemHabilidade": "Nenhuma ([NVL] vale 0)",
   "PYRO.Recurso.ValorAtual": "Nesta ficha:",
-  "PYRO.ItemTabs.recursos": "Recursos"
+  "PYRO.ItemTabs.recursos": "Recursos",
+  "PYRO.Sentidos.Bloco": "Sentido espiritual",
+  "PYRO.Sentidos.Tipo": "Sente",
+  "PYRO.Sentidos.Nenhum": "Nada (habilidade comum)",
+  "PYRO.Sentidos.Alcance": "Alcance (m)",
+  "PYRO.Sentidos.Aparencia": "Aparência",
+  "PYRO.Sentidos.Dica": "O personagem percebe o mundo por este sentido, mesmo através de paredes e dentro do alcance: quem carrega o recurso acende, e quem não carrega aparece como um vulto sólido — o buraco que ele faz na mana do ar. A fórmula aceita [SAB], [NVL] e os degraus de nível; [NVL] é o nível desta habilidade.",
+  "PYRO.Sentidos.mana": "Mana (magos)",
+  "PYRO.Sentidos.energia": "Energia (feiticeiros)",
+  "PYRO.Aparencia.azulEtereo": "Azul etéreo",
+  "PYRO.Aparencia.brancoBrilho": "Apagado com brilho",
+  "PYRO.Aparencia.ecoOnda": "Eco de onda",
+  "PYRO.Sentidos.Vazio": "Ausência (vultos sólidos)"
 }

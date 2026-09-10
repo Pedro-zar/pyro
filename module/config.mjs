@@ -423,6 +423,50 @@ PYRO.recursosCustomPadrao = {
 
 PYRO.recursosCustom = foundry.utils.deepClone(PYRO.recursosCustomPadrao);
 
+/* -------------------------------------------------------------------------- */
+/*  Sentidos espirituais                                                      */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Sentidos que percebem o mundo pela mana ou pela energia no ar, e não pela
+ * luz — o cego que sente onde estão as coisas porque o ar em volta delas
+ * carrega mana.
+ *
+ * Por isso o sentido revela todo mundo dentro do alcance, e o que muda é a
+ * leitura: quem carrega o recurso acende (`brilha` diz quem, olhando o system
+ * derivado do ator), e quem não carrega aparece como um sólido — o sentido
+ * nota o buraco que a pessoa faz na mana do ar, do mesmo jeito que nota uma
+ * parede. Um humano comum não é invisível para quem sente mana: ele é um
+ * vulto sem brilho, indistinguível de um móvel até se mexer.
+ */
+PYRO.sentidos = {
+  mana: {
+    label: "PYRO.Sentidos.mana",
+    brilha: sys => !!sys?.temMagia,
+    // Contorno de quem acende, no tom arcano da mana.
+    cor: [0.35, 0.55, 1.0, 1.0]
+  },
+  energia: {
+    label: "PYRO.Sentidos.energia",
+    brilha: sys => !!sys?.temFeiticos,
+    cor: [0.35, 1.0, 0.6, 1.0]
+  }
+};
+
+/** Cor de quem não carrega o recurso: o vulto sólido, igual para todo sentido. */
+PYRO.COR_DO_VAZIO = [0.25, 0.25, 0.3, 1.0];
+
+/**
+ * Aparências do sentido espiritual — os modos de visão registrados no canvas.
+ * Três por enquanto, de propósito: a mesa escolhe olhando a cena, e as que
+ * sobrarem saem daqui.
+ */
+PYRO.aparenciasSentido = {
+  azulEtereo: "PYRO.Aparencia.azulEtereo",
+  brancoBrilho: "PYRO.Aparencia.brancoBrilho",
+  ecoOnda: "PYRO.Aparencia.ecoOnda"
+};
+
 /**
  * Raças pré-definidas (editáveis nas configurações do mundo).
  * label: texto do dropdown.  nome: padrão do nome automático do caminho,

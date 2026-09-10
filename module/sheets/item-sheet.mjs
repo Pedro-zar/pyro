@@ -375,6 +375,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
           }))
         : null,
       recursosDoCaminho: this.#recursosDoCaminho(),
+      sentidoTipoOpts: Object.fromEntries(
+        Object.entries(PYRO.sentidos).map(([k, cfg]) => [k, cfg.label])),
+      aparenciaOpts: PYRO.aparenciasSentido,
       ...this.#contextoTecnica(),
       requisito: descreverRequisito(item),
       valoresRapidos: this.#valoresRapidos(),
