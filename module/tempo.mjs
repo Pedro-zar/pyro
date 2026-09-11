@@ -108,6 +108,74 @@ async function vencerPrazos(actor, relatos, ehSeuTurno, virouRodada) {
 }
 
 /**
+ * Tempo corrido fora do combate: avança o relógio do mundo e desconta o que
+ * passou dos efeitos com prazo dos atores dados, num card só.
+ *
+ * Diferente do turno de combate, aqui ninguém queima: o Queimando é ritmo de
+ * luta, e uma hora de estrada queimando seria uma sentença de morte por
+ * aritmética. E a rodada, que em combate estica com a quantidade de gente,
+ * fora dele vale um turno — não há fila esticando nada.
+ * @param {Actor[]} atores quem sente o tempo passar.
+ * @param {number} segundos quanto tempo corre.
+ * @param {string} rotulo o que o card anuncia ("1 hora").
+ */
+export async function passarTempo(atores, segundos, rotulo) {
+  if (game.user.isGM) await game.time.advance(segundos);
+  const turnos = PYRO.turnosDeSegundos(segundos);
+  const relatos = [];
+  for (const actor of atores) {
+    if (!actor?.isOwner) continue;
+    await naFila(actor, () => vencerTempoCorrido(actor, turnos, relatos));
+  }
+  return ChatMessage.create({
+    content: `<div class="pyro-chat pyro-turno">
+      <header class="pyro-turno-topo">
+        <h3>${loc("PYRO.Tempo.TituloTempo")}</h3>
+        <span class="pyro-item-meta">${esc(rotulo)}</span>
+      </header>
+      ${relatos.length
+        ? `<ul class="pyro-turno-lista">${relatos.map(r => `<li>${r}</li>`).join("")}</ul>`
+        : `<p class="pyro-nota">${loc("PYRO.Tempo.NadaExpirou")}</p>`}
+    </div>`
+  });
+}
+
+/** Desconta os turnos corridos dos prazos de um ator e recolhe o que venceu. */
+async function vencerTempoCorrido(actor, turnos, relatos) {
+  for (const efeito of [...(actor.effects ?? [])]) {
+    const flags = flagsDe(efeito);
+    const emTurnos = flags && flags.turnos !== null && flags.turnos !== undefined;
+    const emRodadas = flags && !emTurnos
+      && flags.rodadas !== null && flags.rodadas !== undefined;
+    if (emTurnos || emRodadas) {
+      const campo = emTurnos ? "turnos" : "rodadas";
+      const restam = (Number(flags[campo]) || 0) - turnos;
+      if (restam > 0) {
+        await efeito.update({ [`flags.${SYSTEM_ID}.${campo}`]: restam });
+        continue;
+      }
+      await efeito.delete();
+      relatos.push(loc("PYRO.Tempo.Expirou", {
+        nome: esc(actor.name), condicao: nomeDoEfeito(efeito, flags)
+      }));
+      continue;
+    }
+    /*
+     * Efeito de fora do sistema com duração nativa em segundos: o relógio
+     * avançado já o venceu (ele deixou de valer sozinho), aqui só se recolhe
+     * o cadáver para a ficha não acumular efeitos mortos.
+     */
+    const d = efeito.duration;
+    if (d?.seconds && Number(d.remaining) <= 0) {
+      await efeito.delete();
+      relatos.push(loc("PYRO.Tempo.Expirou", {
+        nome: esc(actor.name), condicao: esc(efeito.name)
+      }));
+    }
+  }
+}
+
+/**
  * Um turno passou: 6 segundos correm para todos os que estão em cena.
  * Publica um card só com tudo que aconteceu, e nada quando nada aconteceu.
  */

@@ -505,3 +505,18 @@ export class NpcData extends CriaturaData {
   }
 
 }
+
+/**
+ * O Grupo: um ator que junta a party numa tela só — peso, vida, exaustão,
+ * vontade, DET e caminhos de cada membro, com os botões de passar tempo e de
+ * recuperação da mesa. Ele não entra em cena nem rola nada: só guarda quem
+ * são os membros, por uuid, e a ficha lê o resto direto de cada um.
+ */
+export class GrupoData extends foundry.abstract.TypeDataModel {
+  static defineSchema() {
+    return {
+      membros: new fields.ArrayField(new fields.StringField({ required: true, blank: false })),
+      notas: new fields.HTMLField()
+    };
+  }
+}

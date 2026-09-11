@@ -1,0 +1,73 @@
+{{!-- Ficha do Grupo: ações da mesa no topo, um cartão por membro abaixo. --}}
+<section class="grupo-corpo">
+  {{#if ehGM}}
+  <div class="grupo-acoes">
+    <div class="grupo-acao-bloco">
+      <span class="grupo-acao-rotulo">{{localize "PYRO.Grupo.PassarTempo"}}</span>
+      <div class="grupo-botoes">
+        {{#each temposDoGrupo as |t|}}
+        <button type="button" data-action="passarTempo" data-tempo="{{t.chave}}">{{t.label}}</button>
+        {{/each}}
+      </div>
+    </div>
+    <div class="grupo-acao-bloco">
+      <span class="grupo-acao-rotulo">{{localize "PYRO.Grupo.Recuperacao"}}</span>
+      <div class="grupo-botoes">
+        <button type="button" data-action="recuperar" data-tipo="cena">{{localize "PYRO.Grupo.NovaCena"}}</button>
+        <button type="button" data-action="recuperar" data-tipo="capitulo">{{localize "PYRO.Grupo.NovoCapitulo"}}</button>
+        <button type="button" data-action="recuperar" data-tipo="arco">{{localize "PYRO.Grupo.NovoArco"}}</button>
+      </div>
+    </div>
+  </div>
+  {{/if}}
+
+  <ul class="grupo-membros">
+    {{#each membros as |m|}}
+    <li class="grupo-membro" data-uuid="{{m.uuid}}">
+      <img class="grupo-retrato" src="{{m.img}}" alt="" data-action="abrirMembro" />
+      <div class="grupo-identidade">
+        <strong class="grupo-nome" data-action="abrirMembro">{{m.nome}}</strong>
+        {{#if m.caminhos}}<span class="grupo-caminhos">{{m.caminhos}}</span>{{/if}}
+        <div class="grupo-pv">
+          <div class="grupo-pv-barra"><span style="width: {{m.pvPct}}%"></span></div>
+          <span class="grupo-pv-num numero">{{m.pv.value}} / {{m.pv.max}}</span>
+        </div>
+        {{#each m.barras as |b|}}
+        <div class="grupo-pv grupo-recurso grupo-recurso-{{b.chave}}" title="{{b.label}}">
+          <div class="grupo-pv-barra"><span style="width: {{b.pct}}%"></span></div>
+          <span class="grupo-pv-num numero">{{b.value}} / {{b.max}}</span>
+        </div>
+        {{/each}}
+      </div>
+      <div class="grupo-lado">
+        <div class="grupo-stats">
+          <span class="grupo-stat" title="{{localize 'PYRO.DET'}}">
+            <label>{{localize "PYRO.DET"}}</label>
+            <strong class="numero">{{m.det}}</strong></span>
+          <span class="grupo-stat" title="{{localize 'PYRO.Recursos.vontade'}}">
+            <label>{{localize "PYRO.Grupo.VontadeAbrev"}}</label>
+            <strong class="numero">{{m.vontade.value}}/{{m.vontade.max}}</strong></span>
+          <span class="grupo-stat {{#if m.sobrepeso}}sobrepeso{{/if}}" title="{{localize 'PYRO.Carga'}}">
+            <label>{{localize "PYRO.Grupo.CargaAbrev"}}</label>
+            <strong class="numero">{{m.carga.atual}}/{{m.carga.max}}</strong></span>
+          <span class="grupo-stat {{#if m.exaustao}}exausto{{/if}}" title="{{localize 'PYRO.Condicoes.exausto'}}">
+            <label>{{localize "PYRO.Grupo.ExaustaoAbrev"}}</label>
+            <strong class="numero">{{m.exaustao}}</strong></span>
+        </div>
+        <div class="grupo-atributos">
+          {{#each m.atributos as |a|}}
+          <span class="grupo-atributo"><label>{{a.label}}</label>
+            <strong class="numero">{{a.total}}</strong></span>
+          {{/each}}
+        </div>
+      </div>
+      {{#if @root.editavel}}
+      <button type="button" class="grupo-remover" data-action="removerMembro"
+              title="{{localize 'PYRO.Grupo.Remover'}}"><i class="fa-solid fa-xmark"></i></button>
+      {{/if}}
+    </li>
+    {{else}}
+    <li class="grupo-vazio">{{localize "PYRO.Grupo.Arraste"}}</li>
+    {{/each}}
+  </ul>
+</section>

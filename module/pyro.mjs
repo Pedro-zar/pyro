@@ -4,7 +4,7 @@
  */
 
 import { PYRO } from "./config.mjs";
-import { PersonagemData, NpcData } from "./data/actor-data.mjs";
+import { PersonagemData, NpcData, GrupoData } from "./data/actor-data.mjs";
 import {
   ArmaData, EquipamentoData, ConsumivelData, HabilidadeData, TecnicaData,
   FeiticoData, RunaData, MagiaData, CaminhoData, PericiaData
@@ -14,6 +14,7 @@ import { PyroItem } from "./documents/item.mjs";
 import { PyroActiveEffect } from "./documents/active-effect.mjs";
 import { PyroTokenDocument } from "./documents/token.mjs";
 import { PyroActorSheet } from "./sheets/actor-sheet.mjs";
+import { PyroGrupoSheet } from "./sheets/grupo-sheet.mjs";
 import { PyroItemSheet } from "./sheets/item-sheet.mjs";
 import { registrarSettings, aplicarSettings } from "./settings.mjs";
 import { registrarMenuChat } from "./chat.mjs";
@@ -57,7 +58,8 @@ Hooks.once("init", () => {
 
   CONFIG.Actor.dataModels = {
     personagem: PersonagemData,
-    npc: NpcData
+    npc: NpcData,
+    grupo: GrupoData
   };
   CONFIG.Item.dataModels = {
     arma: ArmaData,
@@ -102,7 +104,12 @@ Hooks.once("init", () => {
 
   const { Actors, Items } = foundry.documents.collections;
   Actors.unregisterSheet("core", foundry.appv1.sheets.ActorSheet);
-  Actors.registerSheet(SYSTEM_ID, PyroActorSheet, { makeDefault: true, label: "PYRO.FichaAtor" });
+  Actors.registerSheet(SYSTEM_ID, PyroActorSheet, {
+    types: ["personagem", "npc"], makeDefault: true, label: "PYRO.FichaAtor"
+  });
+  Actors.registerSheet(SYSTEM_ID, PyroGrupoSheet, {
+    types: ["grupo"], makeDefault: true, label: "PYRO.FichaGrupo"
+  });
   Items.unregisterSheet("core", foundry.appv1.sheets.ItemSheet);
   Items.registerSheet(SYSTEM_ID, PyroItemSheet, { makeDefault: true, label: "PYRO.FichaItem" });
 });

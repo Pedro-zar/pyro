@@ -1753,3 +1753,49 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 .pyro-turno-topo { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem; }
 .pyro-turno-lista { list-style: none; margin: 0.3rem 0 0; padding: 0; }
 .pyro-turno-lista li { padding: 0.2rem 0; border-top: 1px solid var(--pyro-borda); font-size: var(--pyro-t-sm); }
+
+/* ============================== Grupo ==================================== */
+/* A party numa tela: ações da mesa no topo, um cartão por membro. */
+.pyro.grupo .grupo-corpo { display: flex; flex-direction: column; gap: 0.6rem; padding: 0.6rem; overflow-y: auto; }
+.pyro.grupo .grupo-acoes { display: flex; flex-wrap: wrap; gap: 0.6rem 1.2rem; padding: 0.5rem 0.6rem; background: var(--pyro-fundo); border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-sm); }
+.pyro.grupo .grupo-acao-bloco { display: flex; flex-direction: column; gap: 0.25rem; }
+.pyro.grupo .grupo-acao-rotulo { font-size: var(--pyro-t-sm); text-transform: uppercase; letter-spacing: 0.06em; opacity: 0.75; }
+.pyro.grupo .grupo-botoes { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.pyro.grupo .grupo-botoes button { width: auto; padding: 0.2rem 0.6rem; font-size: var(--pyro-t-sm); line-height: 1.4; }
+.pyro.grupo .grupo-membros { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.pyro.grupo .grupo-membro { display: flex; align-items: center; gap: 0.6rem; padding: 0.45rem 0.6rem; background: var(--pyro-fundo); border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-sm); }
+.pyro.grupo .grupo-retrato { width: 44px; height: 44px; object-fit: cover; border-radius: var(--pyro-r-sm); border: 1px solid var(--pyro-borda); cursor: pointer; flex: 0 0 auto; }
+.pyro.grupo .grupo-identidade { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; flex: 1 1 auto; }
+.pyro.grupo .grupo-nome { cursor: pointer; }
+.pyro.grupo .grupo-nome:hover { color: var(--pyro-acento-alto); }
+.pyro.grupo .grupo-caminhos { font-size: var(--pyro-t-sm); opacity: 0.75; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pyro.grupo .grupo-pv { display: flex; align-items: center; gap: 0.4rem; }
+.pyro.grupo .grupo-pv-barra { flex: 1 1 auto; height: 6px; background: color-mix(in srgb, var(--pyro-pv) 18%, transparent); border-radius: 3px; overflow: hidden; }
+.pyro.grupo .grupo-pv-barra span { display: block; height: 100%; background: var(--pyro-pv); }
+.pyro.grupo .grupo-pv-num { font-size: var(--pyro-t-sm); white-space: nowrap; }
+.pyro.grupo .grupo-stats { display: flex; gap: 0.7rem; flex: 0 0 auto; }
+.pyro.grupo .grupo-stat { display: flex; flex-direction: column; align-items: center; gap: 0.05rem; min-width: 3.2rem; }
+.pyro.grupo .grupo-stat label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.05em; opacity: 0.7; }
+.pyro.grupo .grupo-stat.sobrepeso strong, .pyro.grupo .grupo-stat.exausto strong { color: var(--pyro-pv); }
+.pyro.grupo .grupo-remover { width: auto; flex: 0 0 auto; background: none; border: none; opacity: 0.5; cursor: pointer; padding: 0.2rem; }
+.pyro.grupo .grupo-remover:hover { opacity: 1; color: var(--pyro-pv); }
+.pyro.grupo .grupo-vazio { padding: 1.2rem; text-align: center; opacity: 0.7; border: 1px dashed var(--pyro-borda); border-radius: var(--pyro-r-sm); }
+
+/* Barras de recurso do membro do grupo, abaixo do PV, cada uma na sua cor. */
+.pyro.grupo .grupo-recurso .grupo-pv-barra { height: 4px; }
+.pyro.grupo .grupo-recurso .grupo-pv-num { font-size: 0.68rem; opacity: 0.85; }
+.pyro.grupo .grupo-recurso-estamina .grupo-pv-barra { background: color-mix(in srgb, var(--pyro-estamina) 18%, transparent); }
+.pyro.grupo .grupo-recurso-estamina .grupo-pv-barra span { background: var(--pyro-estamina); }
+.pyro.grupo .grupo-recurso-mana .grupo-pv-barra { background: color-mix(in srgb, var(--pyro-mana) 18%, transparent); }
+.pyro.grupo .grupo-recurso-mana .grupo-pv-barra span { background: var(--pyro-mana); }
+.pyro.grupo .grupo-recurso-energia .grupo-pv-barra { background: color-mix(in srgb, var(--pyro-energia) 18%, transparent); }
+.pyro.grupo .grupo-recurso-energia .grupo-pv-barra span { background: var(--pyro-energia); }
+.pyro.grupo .grupo-recurso-custom .grupo-pv-barra { background: color-mix(in srgb, var(--pyro-recurso-custom) 18%, transparent); }
+.pyro.grupo .grupo-recurso-custom .grupo-pv-barra span { background: var(--pyro-recurso-custom); }
+
+/* Coluna direita do membro: stats em cima, atributos brutos embaixo. */
+.pyro.grupo .grupo-lado { display: flex; flex-direction: column; gap: 0.35rem; flex: 0 0 auto; align-items: stretch; }
+.pyro.grupo .grupo-atributos { display: flex; gap: 0.45rem; justify-content: space-between; border-top: 1px solid var(--pyro-borda); padding-top: 0.3rem; }
+.pyro.grupo .grupo-atributo { display: flex; flex-direction: column; align-items: center; gap: 0.05rem; min-width: 1.8rem; }
+.pyro.grupo .grupo-atributo label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.6; }
+.pyro.grupo .grupo-atributo strong { font-size: var(--pyro-t-sm); }

@@ -34,7 +34,8 @@
   "documentTypes": {
     "Actor": {
       "personagem": {},
-      "npc": {}
+      "npc": {},
+      "grupo": {}
     },
     "Item": {
       "arma": {},
