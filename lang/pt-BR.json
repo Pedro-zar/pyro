@@ -509,7 +509,7 @@
   "PYRO.Efeitos.OQueMuda": "O que este efeito altera",
   "PYRO.Efeitos.Categoria": "Categoria",
   "PYRO.Efeitos.Valor": "Valor",
-  "PYRO.Efeitos.ValorDica": "O valor aceita números (2, -1), fórmulas do alvo (@det, @vig) e as variáveis da conjuração listadas abaixo. Em linha de Dano o campo é uma fórmula de rolagem: 2, 2d6, 2d6+2, 2d6+1d4. Em linha de Custo é um número com sinal: -2 barateia, +1 encarece.",
+  "PYRO.Efeitos.ValorDica": "O valor aceita números (2, -1), fórmulas do alvo (@det, @vig), @nvl (o nível do item deste efeito, resolvido na aplicação) e as variáveis da conjuração listadas abaixo. Em linha de Dano o campo é uma fórmula de rolagem: 2, 2d6, 2d6+2, 2d6+1d4. Em linha de Custo é um número com sinal: -2 barateia, +1 encarece.",
   "PYRO.Efeitos.Variaveis": "Variáveis desta conjuração",
   "PYRO.Efeitos.VariaveisDica": "Clique numa variável para escrevê-la no último campo em que você mexeu. Ela é trocada pelo número daquela conjuração na hora em que alguém aplica o efeito, então a mesma magia rende efeitos diferentes conforme a Intenção. Aceita conta: @alcance / 2.",
   "PYRO.Efeitos.InserirVariavel": "Escrever no campo",

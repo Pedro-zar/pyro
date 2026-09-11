@@ -49,4 +49,18 @@ export class PyroActiveEffect extends ActiveEffect {
     if (this.#presoAItem || this.#posturaInativa || this.#prazoVencido) return false;
     return super.shouldApplyChange?.(change, options) ?? true;
   }
+
+  /**
+   * As @variáveis dos valores de efeito, somando o que o item dono empresta:
+   * @nvl é o nível do item que carrega o efeito (o do progresso, numa
+   * técnica), então "@nvl * 2" numa habilidade escala sozinho quando ela
+   * sobe. Só entra na aplicação — o valor guardado e a ficha do efeito
+   * continuam mostrando "@nvl".
+   */
+  getReplacementData(baseData) {
+    const dados = super.getReplacementData?.(baseData) ?? { ...(baseData ?? {}) };
+    const sys = this.parent instanceof Item ? this.parent.system : null;
+    if (sys) dados.nvl = Number(sys.progresso?.nivel ?? sys.nivel) || 0;
+    return dados;
+  }
 }

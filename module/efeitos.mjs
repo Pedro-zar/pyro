@@ -84,7 +84,7 @@ export function ajustesDeCusto(actor, item) {
   for (const efeito of efeitosAtivos(actor)) {
     if (!efeitoValeParaItem(efeito, item)) continue;
     for (const custo of flagsDe(efeito)?.custos ?? []) {
-      const valor = Number(custo.valor);
+      const valor = Number(resolverValorEfeito(custo.valor, varsDoEfeito(efeito)));
       if (custo.chave && Number.isFinite(valor)) {
         ajustes[custo.chave] = (ajustes[custo.chave] ?? 0) + valor;
       }
@@ -124,6 +124,17 @@ export function custoAjustado(base, delta) {
  * rolagem daquele item. Só atributos, e só no modo Somar: é o que faz sentido
  * numa rolagem isolada.
  */
+/**
+ * As variáveis que o item dono de um efeito empresta aos valores dele: @nvl
+ * é o nível do item onde o efeito mora (o do progresso, numa técnica). O
+ * mesmo @nvl que o core resolve na aplicação (ver getReplacementData no
+ * PyroActiveEffect), para os valores que o sistema lê por conta própria.
+ */
+const varsDoEfeito = efeito => {
+  const sys = efeito?.parent instanceof Item ? efeito.parent.system : null;
+  return sys ? { nvl: Number(sys.progresso?.nivel ?? sys.nivel) || 0 } : {};
+};
+
 export function ajustesDeAtributo(actor, item) {
   const ALVO = /^system\.atributos\.(\w+)\.(?:valor|bonus)$/;
   const ajustes = {};
@@ -133,7 +144,7 @@ export function ajustesDeAtributo(actor, item) {
     for (const mudanca of efeito.system?.changes ?? []) {
       if (mudanca.type !== "add") continue;
       const chave = ALVO.exec(mudanca.key)?.[1];
-      const valor = Number(mudanca.value);
+      const valor = Number(resolverValorEfeito(mudanca.value, varsDoEfeito(efeito)));
       if (chave && Number.isFinite(valor)) ajustes[chave] = (ajustes[chave] ?? 0) + valor;
     }
   }
@@ -244,6 +255,10 @@ export function resolverValorEfeito(valor, vars) {
  * não mexe em quem já recebeu.
  */
 export function dadosDoEfeitoAplicado(efeito, vars) {
+  // O nível do item que carrega o efeito entra junto das variáveis do card:
+  // "@nvl" num efeito de uso congela no nível que o item tinha ao aplicar —
+  // o alvo não herda um @nvl dele mesmo.
+  vars = { ...varsDoEfeito(efeito), ...vars };
   const dados = efeito.toObject();
   delete dados._id;
   dados.origin = efeito.uuid;
