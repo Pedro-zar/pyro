@@ -208,30 +208,31 @@ PYRO.itemNaCategoria = (item, chave) => {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Elementos. Os dados de dano seguem a mesma fórmula dos escalonamentos:
- *   nº de dados = base + floor(porIntencao x (Intenção - 1))
- * Conferindo com a tabela do SRD: fogo 3N d6 (3/3), água e vento 4N d4 (4/4),
- * gelo (2N+2) d8 (4/2), terra (2N+1) d12 (3/2), raio 2+floor((N-1)/2) d10
- * (2/0.5), vida (2N+2) d8 (4/2), mente N d6 (1/1), morte 2N d12 (2/2).
+ * Elementos. O dano NÃO escala em dados: a base é o número fixo de dados, e a
+ * Intenção multiplica o TOTAL rolado —
+ *   dano = floor(base d faces x (1 + porIntencao x (Intenção - 1)))
+ * Conferindo com a tabela: fogo 3d6 x N (por 1), água e vento 4d4 x N, mente
+ * 1d6 x N, vida 2d8 x N, morte 2d12 x N; gelo 4d8 e terra 3d12 sobem meio
+ * multiplicador por Intenção (por 0.5); raio 2d10 um quarto (por 0.25).
  * faces 0 = elemento sem dano padrão (Espaço).
  * grupo = afinidade que libera este elemento (Água e Gelo compartilham).
  */
 PYRO.elementosPadrao = {
-  fogo:   { label: "PYRO.Elementos.fogo",   grupo: "fogo",       tipoDano: "calor",   base: 3, porIntencao: 3,   faces: 6,  efeito: "PYRO.Elementos.Efeito.fogo" },
-  agua:   { label: "PYRO.Elementos.agua",   grupo: "aguaGelo",   tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.agua",
+  fogo:   { label: "PYRO.Elementos.fogo",   grupo: "fogo",       tipoDano: "calor",   base: 3, porIntencao: 1,    faces: 6,  efeito: "PYRO.Elementos.Efeito.fogo" },
+  agua:   { label: "PYRO.Elementos.agua",   grupo: "aguaGelo",   tipoDano: "impacto", base: 4, porIntencao: 1,    faces: 4,  efeito: "PYRO.Elementos.Efeito.agua",
             extras: [{ nome: "PYRO.Scaling.Molhado", base: 1, porIntencao: 1, faces: 0 }] },
-  gelo:   { label: "PYRO.Elementos.gelo",   grupo: "aguaGelo",   tipoDano: "frio",    base: 4, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.gelo",
+  gelo:   { label: "PYRO.Elementos.gelo",   grupo: "aguaGelo",   tipoDano: "frio",    base: 4, porIntencao: 0.5,  faces: 8,  efeito: "PYRO.Elementos.Efeito.gelo",
             extras: [{ nome: "PYRO.Scaling.Friagem", base: 1, porIntencao: 1, faces: 0 }] },
-  vento:  { label: "PYRO.Elementos.vento",  grupo: "arVento",    tipoDano: "impacto", base: 4, porIntencao: 4,   faces: 4,  efeito: "PYRO.Elementos.Efeito.vento",
+  vento:  { label: "PYRO.Elementos.vento",  grupo: "arVento",    tipoDano: "impacto", base: 4, porIntencao: 1,    faces: 4,  efeito: "PYRO.Elementos.Efeito.vento",
             extras: [{ nome: "PYRO.Scaling.Empurrado", base: 1, porIntencao: 1, faces: 0 }] },
-  terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 2,   faces: 12, efeito: "PYRO.Elementos.Efeito.terra",
+  terra:  { label: "PYRO.Elementos.terra",  grupo: "pedraTerra", tipoDano: "impacto", base: 3, porIntencao: 0.5,  faces: 12, efeito: "PYRO.Elementos.Efeito.terra",
             extras: [{ nome: "PYRO.Scaling.DefesaFisica", base: 1, porIntencao: 1, faces: 0 }] },
-  raio:   { label: "PYRO.Elementos.raio",   grupo: "raio",       tipoDano: "energia", base: 2, porIntencao: 0.5, faces: 10, efeito: "PYRO.Elementos.Efeito.raio",
+  raio:   { label: "PYRO.Elementos.raio",   grupo: "raio",       tipoDano: "energia", base: 2, porIntencao: 0.25, faces: 10, efeito: "PYRO.Elementos.Efeito.raio",
             extras: [{ nome: "PYRO.Scaling.Corrente", base: 0.5, porIntencao: 0.5, faces: 0 }] },
-  vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 2, porIntencao: 2,   faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
-  mente:  { label: "PYRO.Elementos.mente",  grupo: "mente",      tipoDano: "mental",  base: 1, porIntencao: 1,   faces: 6,  efeito: "PYRO.Elementos.Efeito.mente",
+  vida:   { label: "PYRO.Elementos.vida",   grupo: "vida",       tipoDano: "cura",    base: 2, porIntencao: 1,    faces: 8,  efeito: "PYRO.Elementos.Efeito.vida" },
+  mente:  { label: "PYRO.Elementos.mente",  grupo: "mente",      tipoDano: "mental",  base: 1, porIntencao: 1,    faces: 6,  efeito: "PYRO.Elementos.Efeito.mente",
             extras: [{ nome: "PYRO.Scaling.CondicoesMentais", base: 1, porIntencao: 1, faces: 0 }] },
-  morte:  { label: "PYRO.Elementos.morte",  grupo: "morte",      tipoDano: "indefinido", base: 2, porIntencao: 2, faces: 12, efeito: "PYRO.Elementos.Efeito.morte", subjulgar: true },
+  morte:  { label: "PYRO.Elementos.morte",  grupo: "morte",      tipoDano: "indefinido", base: 2, porIntencao: 1, faces: 12, efeito: "PYRO.Elementos.Efeito.morte", subjulgar: true },
   espaco: { label: "PYRO.Elementos.espaco", grupo: "espaco",     tipoDano: "",        base: 0, porIntencao: 0,   faces: 0,  efeito: "PYRO.Elementos.Efeito.espaco" }
 };
 

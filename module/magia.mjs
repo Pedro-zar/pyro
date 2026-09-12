@@ -88,6 +88,27 @@ export function valorEfetivo(pr, scaling, passos = 0) {
   return Math.floor(cru * (pr.efeitoMult ?? 1));
 }
 
+/**
+ * Multiplicador do dano de um escalonamento com dados: a Intenção não soma
+ * dados, ela multiplica o total rolado — 1 + porIntencao x (Intenção - 1).
+ * A língua fica de fora de propósito: potencial mágico multiplica a
+ * QUANTIDADE de dados (ver dadosDeDano) — o elfo rola 6d6 onde o humano rola
+ * 3d6, que é mais forte e mais bonito de ver na mesa.
+ */
+export function fatorDeDano(pr, scaling) {
+  const intencao = pr.intencaoEfetiva ?? pr.intencao;
+  return 1 + (Number(scaling.porIntencao) || 0) * (intencao - 1);
+}
+
+/** Quantos dados o dano rola: a base vezes o potencial mágico da língua. */
+export function dadosDeDano(pr, scaling) {
+  return Math.max(1, Math.round((Number(scaling.base) || 0) * (pr.efeitoMult ?? 1)));
+}
+
+/** O fator como texto pt-BR para a mesa ler ("2", "1,75"). */
+export const fatorPtBR = fator =>
+  fator.toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+
 /** Escalonamento de uma runa pela chave de variável ("passos", "alvos"). */
 export function scalingPorChave(scalings, chave) {
   return (scalings ?? []).find(sc => chaveVariavel(sc.nome) === chave) ?? null;
@@ -261,8 +282,13 @@ export function previaRuna(pr, passos = 0) {
     if (sc.faces > 0 && semDano) return null;
     // Os passos do Longo entram dentro da conta, na base e no ganho por
     // Intenção, e não sobre o total já somado.
+    if (sc.faces > 0) {
+      const dados = dadosDeDano(pr, sc);
+      const fator = fatorDeDano(pr, sc);
+      const mult = fator === 1 ? "" : ` x${fatorPtBR(fator)}`;
+      return `${dados}d${sc.faces}${mult}${tipo ? ` ${tipo}` : ""}`;
+    }
     const valor = valorEfetivo(pr, sc, passos);
-    if (sc.faces > 0) return `${Math.max(1, valor)}d${sc.faces}${tipo ? ` ${tipo}` : ""}`;
     const nome = sc.nome?.trim();
     return nome ? `${nome} ${valor}` : String(valor);
   }).filter(Boolean).join(" · ");
@@ -291,12 +317,19 @@ export function resumoDaFrase(calc, { bonusDano = [] } = {}) {
   const publicados = [];
   const regras = [];
 
-  const somarDano = (tipo, parte, origem, nomeScaling = null) => {
-    const grupo = gruposDeDano.get(tipo) ?? { partes: [], origens: new Set(), scalings: new Set() };
+  /*
+   * O grupo junta parcelas do mesmo tipo E mesmo multiplicador: a rolagem é
+   * uma só por grupo, e um fator diferente não teria como multiplicar só a
+   * parte dele de um total já somado. Bônus de efeito entram com fator 1.
+   */
+  const somarDano = (tipo, parte, origem, nomeScaling = null, fator = 1) => {
+    const chave = `${tipo}|${fator}`;
+    const grupo = gruposDeDano.get(chave)
+      ?? { tipo, fator, partes: [], origens: new Set(), scalings: new Set() };
     grupo.partes.push(parte);
     grupo.origens.add(origem);
     if (nomeScaling) grupo.scalings.add(nomeScaling);
-    gruposDeDano.set(tipo, grupo);
+    gruposDeDano.set(chave, grupo);
   };
 
   const somarNumero = (nome, valor, origem) => {
@@ -320,16 +353,27 @@ export function resumoDaFrase(calc, { bonusDano = [] } = {}) {
     const tipoDano = pr.tipoDano || elCfg?.tipoDano || "";
 
     for (const sc of pr.scalings) {
-      const valor = valorEfetivo(pr, sc, calc.passosAlcance);
       if (sc.faces > 0) {
         if (semDano) continue;
-        const formula = `${Math.max(1, valor)}d${sc.faces}`;
+        /*
+         * Dano não escala em dados: a base é fixa e a Intenção (com a
+         * língua) multiplica o TOTAL. O floor mora na própria fórmula,
+         * então o total da rolagem já sai certo para tudo que o lê — os
+         * botões de aplicar, as @variáveis, os 6 do fogo.
+         */
+        const dados = dadosDeDano(pr, sc);
+        const fator = fatorDeDano(pr, sc);
+        // A fórmula fica só com os dados (já com o potencial da língua); o
+        // fator da Intenção viaja ao lado e multiplica o total na hora de
+        // rolar — o card mostra "6d6" e a linha do multiplicador embaixo.
+        const formula = `${dados}d${sc.faces}`;
         // Subjulgar não causa dano direto: cada rolagem é comparada com a
         // vida do alvo por si, então fica fora do agrupamento.
-        if (pr.subjulgar) subjulgares.push({ nomeRuna, formula });
-        else somarDano(tipoDano, formula, nomeRuna, sc.nome);
+        if (pr.subjulgar) subjulgares.push({ nomeRuna, formula, fator });
+        else somarDano(tipoDano, formula, nomeRuna, sc.nome, fator);
         continue;
       }
+      const valor = valorEfetivo(pr, sc, calc.passosAlcance);
       /*
        * Três Intenções não viram número solto no card, porque já apareceram
        * em outro lugar: ND e bônus de mira entraram nos testes, e a que
@@ -371,10 +415,11 @@ export function resumoDaFrase(calc, { bonusDano = [] } = {}) {
   const subiuDegrau = calc.passosAlcance > 0;
 
   return {
-    danos: [...gruposDeDano].map(([tipo, grupo]) => ({
-      tipo,
-      rotulo: tipo
-        ? loc(PYRO.tiposDano[tipo]?.label ?? `PYRO.Dano.${tipo}`)
+    danos: [...gruposDeDano.values()].map(grupo => ({
+      tipo: grupo.tipo,
+      fator: grupo.fator,
+      rotulo: grupo.tipo
+        ? loc(PYRO.tiposDano[grupo.tipo]?.label ?? `PYRO.Dano.${grupo.tipo}`)
         : loc("PYRO.Item.Dano"),
       origens: [...grupo.origens],
       scalings: [...grupo.scalings],
@@ -734,10 +779,12 @@ export async function conjurar(actor, escolhas, {
   // Os 6 contam por tipo de dano: o Queimando do fogo nasce dos dados de calor,
   // e não de um 6 rolado no gelo que veio junto na mesma frase.
   const seisPorTipo = new Map();
-  for (const { tipo, rotulo, formula, scalings, origens: nomes } of resumo.danos) {
+  for (const { tipo, fator, rotulo, formula, scalings, origens: nomes } of resumo.danos) {
     const origens = nomes.map(esc).join(", ");
+    const multTexto = fator !== 1
+      ? loc("PYRO.Magia.MultDanoLinha", { fator: fatorPtBR(fator) }) : "";
     if (!rolarDano) {
-      partes.push(`<p class="pyro-forma"><strong>${rotulo}</strong> — ${origens}: ${formula} (${loc("PYRO.Chat.NaoRolado")})</p>`);
+      partes.push(`<p class="pyro-forma"><strong>${rotulo}</strong> — ${origens}: ${formula}${multTexto ? ` · ${multTexto}` : ""} (${loc("PYRO.Chat.NaoRolado")})</p>`);
       continue;
     }
     // Os dados da magia salva, quando a conjuração veio de uma: é dela que
@@ -745,20 +792,26 @@ export async function conjurar(actor, escolhas, {
     const dados = (itemMagia ?? actor).getRollData();
     const roll = await new Roll(prepararFormula(formula, dados), dados).evaluate();
     rolls.push(roll);
-    if (tipo === "cura") totalCura += roll.total;
+    // A Intenção (com a língua) multiplica o total rolado; o card mostra a
+    // rolagem crua e a linha do multiplicador embaixo explica o número final.
+    const total = fator === 1 ? roll.total : Math.floor(roll.total * fator);
+    if (tipo === "cura") totalCura += total;
     else {
       // A fórmula acompanha o total: é dela que o Molhado tira o dado a somar.
-      danos.push({ tipo, total: roll.total, formula });
+      danos.push({ tipo, total, formula });
       const doGrupo = contarSeis(roll);
       seis += doGrupo;
       seisPorTipo.set(tipo, (seisPorTipo.get(tipo) ?? 0) + doGrupo);
     }
     // O total do grupo vale para cada escalonamento que entrou nele: um efeito
     // que escreve "@dano" recebe o dano daquele tipo, já somado.
-    for (const nomeSc of scalings) publicar(nomeSc, roll.total);
+    for (const nomeSc of scalings) publicar(nomeSc, total);
     partes.push(`<div class="pyro-dano dano-${tipo || "simples"}">
       <p><strong>${rotulo}</strong> — ${origens}: ${formula}</p>
       ${await roll.render()}
+      ${fator !== 1 ? `<p class="pyro-nota">${loc("PYRO.Magia.MultDano", {
+        fator: fatorPtBR(fator), antes: roll.total, depois: total
+      })}</p>` : ""}
     </div>`);
   }
 
@@ -790,11 +843,16 @@ export async function conjurar(actor, escolhas, {
     }
     const roll = await new Roll(sub.formula).evaluate();
     rolls.push(roll);
+    const fator = sub.fator ?? 1;
+    const total = fator === 1 ? roll.total : Math.floor(roll.total * fator);
     partes.push(`<div class="pyro-dano">
       <p><strong>${esc(sub.nomeRuna)}</strong>: ${sub.formula}</p>
       ${await roll.render()}
+      ${fator !== 1 ? `<p class="pyro-nota">${loc("PYRO.Magia.MultDano", {
+        fator: fatorPtBR(fator), antes: roll.total, depois: total
+      })}</p>` : ""}
     </div>`);
-    partes.push(tabelaSubjulgar(actor.system.det, roll.total));
+    partes.push(tabelaSubjulgar(actor.system.det, total));
   }
 
   // Efeito de referência de cada elemento, depois dos números que ele rendeu.
@@ -831,7 +889,14 @@ export async function conjurar(actor, escolhas, {
 
   // Os 6 já vêm somados por tipo de dano: contar o mesmo tipo uma vez por runa
   // faria duas runas de Fogo darem o dobro do Queimando que a frase rendeu.
-  const tiposContados = new Set();
+  /*
+   * Queimando é a exceção: ele conta os 6 do dano, não uma Intenção — e cada
+   * 6 vale a Intenção da runa em pilhas, para a queimadura andar no passo do
+   * dano novo, que multiplica o total em vez de somar dados: Intenção 3 com
+   * três 6 é Queimando 9. Com duas runas do mesmo tipo os 6 são contados uma
+   * vez só, e vale a maior Intenção entre elas.
+   */
+  const regraDosSeis = new Map();
   for (const pr of calc.porRuna) {
     const sys = pr.item.system;
     // Uma Intenção com nome de regra vale a regra, venha ela da runa que vier.
@@ -839,14 +904,16 @@ export async function conjurar(actor, escolhas, {
       const cfg = PYRO.regrasDeIntencao[chaveVariavel(sc.nome)];
       if (cfg) somarRegra(cfg, valorEfetivo(pr, sc, calc.passosAlcance), sys);
     }
-    // Queimando é a exceção: ele conta os 6 do dano, não uma Intenção.
     const seisCfg = sys.tipoRuna === "elemento" ? PYRO.regraDosSeis[sys.subtipo] : null;
     if (!seisCfg) continue;
     const tipo = pr.tipoDano || PYRO.elementos[sys.subtipo]?.tipoDano;
-    if (tiposContados.has(tipo)) continue;
-    tiposContados.add(tipo);
+    const intencao = pr.intencaoEfetiva ?? pr.intencao;
+    const atual = regraDosSeis.get(tipo);
+    if (!atual || intencao > atual.intencao) regraDosSeis.set(tipo, { seisCfg, sys, intencao });
+  }
+  for (const [tipo, { seisCfg, sys, intencao }] of regraDosSeis) {
     // Botão de zero só engana: fogo sem nenhum 6 não rendeu Queimando.
-    somarRegra(seisCfg, seisPorTipo.get(tipo) ?? 0, sys);
+    somarRegra(seisCfg, (seisPorTipo.get(tipo) ?? 0) * Math.max(1, intencao), sys);
   }
 
   const efeitosRegra = [...porRegra.values()].map(e => ({

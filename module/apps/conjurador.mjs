@@ -1,8 +1,9 @@
 import { PYRO } from "../config.mjs";
 import {
-  calcular, conjurar, previaRuna, emprestaIntencao, temDanoMental, resumoDaFrase
+  calcular, conjurar, previaRuna, emprestaIntencao, temDanoMental, resumoDaFrase, fatorPtBR
 } from "../magia.mjs";
 import { bonusDeDano } from "../efeitos.mjs";
+import { juntarDados } from "../dados.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
 
@@ -134,14 +135,34 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     // Subjulgar não soma no dano: a rolagem dele é comparada com a vida do
     // alvo, então fica numa linha própria, como no card.
-    const dano = [
-      ...resumo.danos.map(d => ({
-        rotulo: d.rotulo, texto: d.formula, origens: d.origens.join(", ")
-      })),
-      ...resumo.subjulgares.map(s => ({
-        rotulo: loc("PYRO.Previa.Subjulgar"), texto: s.formula, origens: s.nomeRuna
-      }))
-    ];
+    /*
+     * O dano do mesmo tipo sai numa linha só ("Calor 2d6 + 3d4 — Abrasar,
+     * Sopro"), mesmo quando os multiplicadores diferem — aí cada fator vira
+     * a própria linha de "Multiplicador de dano", com a origem dele. Menos
+     * linhas, e fica claro qual runa multiplica quanto; a rolagem em si
+     * continua separada por fator, mas isso é assunto do card.
+     */
+    const dano = [];
+    const porTipo = new Map();
+    for (const d of resumo.danos) {
+      const g = porTipo.get(d.rotulo) ?? { formulas: [], origens: new Set(), mults: [] };
+      g.formulas.push(d.formula);
+      for (const o of d.origens) g.origens.add(o);
+      if ((d.fator ?? 1) !== 1) g.mults.push({ fator: d.fator, origens: d.origens.join(", ") });
+      porTipo.set(d.rotulo, g);
+    }
+    for (const [rotulo, g] of porTipo) {
+      dano.push({ rotulo, texto: juntarDados(g.formulas), origens: [...g.origens].join(", ") });
+      for (const m of g.mults) {
+        dano.push({ rotulo: loc("PYRO.Previa.MultDano"), texto: `x${fatorPtBR(m.fator)}`, origens: m.origens });
+      }
+    }
+    for (const sub of resumo.subjulgares) {
+      dano.push({ rotulo: loc("PYRO.Previa.Subjulgar"), texto: sub.formula, origens: sub.nomeRuna });
+      if ((sub.fator ?? 1) !== 1) {
+        dano.push({ rotulo: loc("PYRO.Previa.MultDano"), texto: `x${fatorPtBR(sub.fator)}`, origens: sub.nomeRuna });
+      }
+    }
 
     return {
       titulo: loc("PYRO.Previa.Magia"),

@@ -418,11 +418,24 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
             return {
               nome: sc.nome || game.i18n.localize("PYRO.Scaling.Efeito"),
               valores: [1, 2, 3, 4, 5].map(n => {
-                // O multiplicador entra antes do arredondamento único, a
-                // mesma conta de valorEfetivo na conjuração.
+                /*
+                 * Dano: base fixa de dados, e a Intenção (com a língua)
+                 * multiplica o total — a mesma conta de fatorDeDano na
+                 * conjuração. O resto segue somando por Intenção, com o
+                 * multiplicador antes do arredondamento único.
+                 */
+                if (sc.faces > 0) {
+                  // A língua multiplica os DADOS (elfo rola 6d6); só a
+                  // Intenção multiplica o total.
+                  const dados = Math.max(1, Math.round(sc.base * mult));
+                  const fator = 1 + (Number(sc.porIntencao) || 0) * (n - 1);
+                  const x = fator === 1 ? "" :
+                    ` x${fator.toLocaleString("pt-BR", { maximumFractionDigits: 2 })}`;
+                  return `${dados}d${sc.faces}${x}`;
+                }
                 let v = Math.floor((sc.base + sc.porIntencao * (n - 1)) * mult);
-                if (mult !== 1) v = Math.max(sc.faces > 0 ? 1 : 0, v);
-                return sc.faces > 0 ? `${Math.max(0, v)}d${sc.faces}` : v;
+                if (mult !== 1) v = Math.max(0, v);
+                return v;
               })
             };
           })

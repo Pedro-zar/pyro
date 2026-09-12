@@ -37,6 +37,9 @@ Hooks.once("init", () => {
   Handlebars.registerHelper("pyroInclui", (lista, valor) => Array.isArray(lista) && lista.includes(valor));
   // Ternário inline: {{localize (pyroSe editando "A" "B")}}.
   Handlebars.registerHelper("pyroSe", (cond, sim, nao) => (cond ? sim : nao));
+  // A linha de escalonamento chamada "Dano" é a única com dados (faces) e
+  // multiplicador por Intenção; as outras são números que somam.
+  Handlebars.registerHelper("pyroEhDano", nome => PYRO.normalizarTexto(nome) === "dano");
 
   CONFIG.PYRO = PYRO;
 

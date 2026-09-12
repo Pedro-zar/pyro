@@ -420,13 +420,21 @@
       <span class="rotulo">{{localize "PYRO.Item.Faces"}}</span>
       <span></span>
     </div>
+    {{!-- Na linha Dano a base é o número FIXO de dados e o "+/Intenção" é o
+          multiplicador do total por Intenção além da 1ª; Faces só existe
+          nela. Nas outras, base soma com o ganho por Intenção, sem dados. --}}
     {{#each system.scalings as |sc si|}}
     <div class="scaling-linha">
       <input type="text" name="system.scalings.{{si}}.nome" value="{{sc.nome}}"
              placeholder="{{localize 'PYRO.Item.ScalingPlaceholder'}}" />
       <input type="number" step="any" name="system.scalings.{{si}}.base" value="{{sc.base}}" />
-      <input type="number" step="any" name="system.scalings.{{si}}.porIntencao" value="{{sc.porIntencao}}" />
+      <input type="number" step="any" name="system.scalings.{{si}}.porIntencao" value="{{sc.porIntencao}}"
+             title="{{localize (pyroSe (pyroEhDano sc.nome) 'PYRO.Item.MultiplicadorDica' 'PYRO.Item.PorIntencao')}}" />
+      {{#if (pyroEhDano sc.nome)}}
       <input type="number" name="system.scalings.{{si}}.faces" value="{{sc.faces}}" min="0" />
+      {{else}}
+      <span></span>
+      {{/if}}
       <button type="button" class="icone perigo" data-action="removerScaling" data-index="{{si}}"
               title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
     </div>
@@ -565,8 +573,13 @@
           <input type="text" name="system.runas.{{ri}}.scalings.{{si}}.nome" value="{{sc.nome}}"
                  placeholder="{{localize 'PYRO.Item.ScalingPlaceholder'}}" />
           <input type="number" step="any" name="system.runas.{{ri}}.scalings.{{si}}.base" value="{{sc.base}}" />
-          <input type="number" step="any" name="system.runas.{{ri}}.scalings.{{si}}.porIntencao" value="{{sc.porIntencao}}" />
+          <input type="number" step="any" name="system.runas.{{ri}}.scalings.{{si}}.porIntencao" value="{{sc.porIntencao}}"
+                 title="{{localize (pyroSe (pyroEhDano sc.nome) 'PYRO.Item.MultiplicadorDica' 'PYRO.Item.PorIntencao')}}" />
+          {{#if (pyroEhDano sc.nome)}}
           <input type="number" name="system.runas.{{ri}}.scalings.{{si}}.faces" value="{{sc.faces}}" min="0" />
+          {{else}}
+          <span></span>
+          {{/if}}
           <button type="button" class="icone perigo" data-action="removerScalingMagia"
                   data-runa="{{ri}}" data-index="{{si}}"
                   title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
