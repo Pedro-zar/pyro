@@ -1133,6 +1133,15 @@ PYRO.alvosEfeito = {
       ...Object.fromEntries(Object.entries(PYRO.tiposDano).map(([k, cfg]) => [k, cfg.label]))
     }
   },
+  // Multiplica o TOTAL rolado, não os dados: o Pugilista de +25% por nível é
+  // "1 + 0.25 * @nvl", e um efeito que corta dano pela metade é "0.5".
+  multDano: {
+    label: "PYRO.Efeitos.Cat.multDano",
+    alvos: {
+      "": "PYRO.Efeitos.MultDanoTodos",
+      ...Object.fromEntries(Object.entries(PYRO.tiposDano).map(([k, cfg]) => [k, cfg.label]))
+    }
+  },
   /*
    * Custo de usar alguma coisa: ações e os recursos que o sistema realmente
    * cobra hoje. PV e Força de Vontade não entram porque nada os cobra como

@@ -73,10 +73,19 @@ function efeitosAtivos(actor) {
  * Rolagens de dano que os efeitos somam a este item. A fórmula aceita dado,
  * número plano ou os dois ("2d6", "2", "2d6+2", "2d6+1d4").
  */
+/**
+ * O efeito vale para algum destes itens? Uma técnica golpeia COM uma arma,
+ * então o dano extra preso à katana entra também na técnica que a usa —
+ * quem chama passa [tecnica, arma] e o efeito vale se casar com qualquer um.
+ */
+const valeParaAlgum = (efeito, itens) =>
+  itens.some(i => efeitoValeParaItem(efeito, i));
+
 export function bonusDeDano(actor, item) {
+  const itens = (Array.isArray(item) ? item : [item]).filter(Boolean);
   const saida = [];
   for (const efeito of efeitosAtivos(actor)) {
-    if (!efeitoValeParaItem(efeito, item)) continue;
+    if (!valeParaAlgum(efeito, itens)) continue;
     for (const dano of flagsDe(efeito)?.danos ?? []) {
       if (!dano.formula?.trim()) continue;
       /*
@@ -95,6 +104,51 @@ export function bonusDeDano(actor, item) {
 }
 
 /**
+ * Multiplicadores de dano que os efeitos aplicam às rolagens deste item
+ * (Pugilista: "1 + 0.25 * @nvl"). A fórmula resolve aqui, com o @nvl do item
+ * dono do efeito; tipo vazio multiplica todo dano, tipo preenchido só aquela
+ * parcela. Fator 1 é ausência e fator negativo é erro de digitação — nenhum
+ * dos dois entra.
+ */
+export function multiplicadoresDeDano(actor, item) {
+  const itens = (Array.isArray(item) ? item : [item]).filter(Boolean);
+  const saida = [];
+  for (const efeito of efeitosAtivos(actor)) {
+    if (!valeParaAlgum(efeito, itens)) continue;
+    for (const m of flagsDe(efeito)?.multsDano ?? []) {
+      const fator = Number(resolverValorEfeito(m.formula, varsDoEfeito(efeito)));
+      if (!Number.isFinite(fator) || fator < 0 || fator === 1) continue;
+      saida.push({ tipo: m.tipo || "", fator, nome: efeito.name });
+    }
+  }
+  return saida;
+}
+
+/**
+ * Aplica os multiplicadores às parcelas de dano JÁ ROLADAS, mexendo no total
+ * (arredondado para baixo) — é o total das flags que os botões de aplicar
+ * dano usam. Devolve uma linha de texto por parcela alterada, para o card
+ * explicar por que o número não bate com a rolagem mostrada.
+ */
+export function aplicarMultDeDano(danos, mults) {
+  const notas = [];
+  if (!mults.length) return notas;
+  for (const dano of danos) {
+    const aplicaveis = mults.filter(m => !m.tipo || m.tipo === dano.tipo);
+    const fator = aplicaveis.reduce((f, m) => f * m.fator, 1);
+    if (fator === 1 || !(dano.total > 0)) continue;
+    const antes = dano.total;
+    dano.total = Math.max(0, Math.floor(dano.total * fator));
+    notas.push(game.i18n.format("PYRO.Efeitos.MultAplicado", {
+      nomes: esc([...new Set(aplicaveis.map(m => m.nome))].join(", ")),
+      fator: fator.toLocaleString("pt-BR", { maximumFractionDigits: 2 }),
+      antes, depois: dano.total
+    }));
+  }
+  return notas;
+}
+
+/**
  * Quanto os efeitos somam ou tiram do custo de usar este item. Chaves são as
  * de PYRO.alvosEfeito.custo: acoes, mana, estamina, energia.
  *
@@ -103,9 +157,10 @@ export function bonusDeDano(actor, item) {
  * efeitos que não vale a complexidade enquanto ninguém precisar.
  */
 export function ajustesDeCusto(actor, item) {
+  const itens = (Array.isArray(item) ? item : [item]).filter(Boolean);
   const ajustes = {};
   for (const efeito of efeitosAtivos(actor)) {
-    if (!efeitoValeParaItem(efeito, item)) continue;
+    if (!valeParaAlgum(efeito, itens)) continue;
     for (const custo of flagsDe(efeito)?.custos ?? []) {
       const valor = Number(resolverValorEfeito(custo.valor, varsDoEfeito(efeito)));
       if (custo.chave && Number.isFinite(valor)) {
@@ -159,11 +214,12 @@ const varsDoEfeito = efeito => {
 };
 
 export function ajustesDeAtributo(actor, item) {
+  const itens = (Array.isArray(item) ? item : [item]).filter(Boolean);
   const ALVO = /^system\.atributos\.(\w+)\.(?:valor|bonus)$/;
   const ajustes = {};
   for (const efeito of efeitosAtivos(actor)) {
     if (!restricaoDoEfeito(efeito).length) continue; // sem restrição já entrou na ficha
-    if (!efeitoValeParaItem(efeito, item)) continue;
+    if (!valeParaAlgum(efeito, itens)) continue;
     for (const mudanca of efeito.system?.changes ?? []) {
       if (mudanca.type !== "add") continue;
       const chave = ALVO.exec(mudanca.key)?.[1];

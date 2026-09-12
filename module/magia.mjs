@@ -6,8 +6,8 @@ import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
 import { formulaTeste, poolDoAtributo, juntarDados, prepararFormula } from "./dados.mjs";
 import {
-  htmlEfeitosDeUso, htmlEfeitosDeRegra, bonusDeDano, ajustesDeCusto, custoAjustado,
-  aplicarExaustao, penalidadeExaustao
+  htmlEfeitosDeUso, htmlEfeitosDeRegra, bonusDeDano, multiplicadoresDeDano,
+  aplicarMultDeDano, ajustesDeCusto, custoAjustado, aplicarExaustao, penalidadeExaustao
 } from "./efeitos.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
@@ -760,6 +760,12 @@ export async function conjurar(actor, escolhas, {
       <p><strong>${rotulo}</strong> — ${origens}: ${formula}</p>
       ${await roll.render()}
     </div>`);
+  }
+
+  // Multiplicadores de dano dos efeitos, sobre o total já rolado — antes do
+  // danoTotal, que alimenta o Dividir e as @variáveis.
+  for (const nota of aplicarMultDeDano(danos, multiplicadoresDeDano(actor, itemMagia))) {
+    partes.push(`<p class="pyro-nota">${nota}</p>`);
   }
 
   variaveis.danoTotal = danos.reduce((total, d) => total + d.total, 0);

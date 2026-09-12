@@ -55,6 +55,10 @@
             fórmula. O "alvo" da linha já é o tipo do dano. --}}
       <span class="pyro-nota">{{localize "PYRO.Efeitos.DanoModo"}}</span>
       <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="2d6+2" />
+      {{else if m.ehMultDano}}
+      {{!-- Multiplica o total rolado, não os dados; abaixo de 1 reduz. --}}
+      <span class="pyro-nota">{{localize "PYRO.Efeitos.MultDanoModo"}}</span>
+      <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="1 + 0.25 * @nvl" />
       {{else if m.ehCusto}}
       {{!-- Custo é sempre soma com sinal: -2 barateia, +1 encarece. --}}
       <span class="pyro-nota">{{localize "PYRO.Efeitos.CustoModo"}}</span>

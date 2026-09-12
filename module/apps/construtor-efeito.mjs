@@ -53,13 +53,16 @@ export function estadoDeEfeito(efeito) {
   for (const d of flags.danos ?? []) {
     mudancas.push({ categoria: "dano", alvo: d.tipo ?? "", modo: "add", valor: d.formula ?? "" });
   }
+  for (const m of flags.multsDano ?? []) {
+    mudancas.push({ categoria: "multDano", alvo: m.tipo ?? "", modo: "add", valor: m.formula ?? "" });
+  }
   for (const c of flags.custos ?? []) {
     mudancas.push({ categoria: "custo", alvo: c.chave, modo: "add", valor: String(c.valor) });
   }
   for (const ch of efeito.system?.changes ?? []) {
     const chave = ch.key;
     const categoria = Object.entries(PYRO.alvosEfeito).find(([k, cfg]) =>
-      !["condicao", "dano", "custo"].includes(k) && chave in (cfg.alvos ?? {}))?.[0];
+      !["condicao", "dano", "multDano", "custo"].includes(k) && chave in (cfg.alvos ?? {}))?.[0];
     if (categoria) {
       mudancas.push({ categoria, alvo: chave, modo: ch.type ?? "add", valor: String(ch.value ?? "") });
     } else {
@@ -262,6 +265,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       ehExausto: m.categoria === "condicao" && m.alvo === "exausto",
       // Dano troca o modo por uma fórmula, e o "alvo" vira o tipo do dano.
       ehDano: m.categoria === "dano",
+      ehMultDano: m.categoria === "multDano",
       // Custo é sempre soma com sinal: sem escolher modo.
       ehCusto: m.categoria === "custo",
       alvos: PYRO.alvosEfeito[m.categoria]?.alvos ?? {}
@@ -409,11 +413,14 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     const danos = this.mudancas
       .filter(m => m.categoria === "dano" && String(m.valor ?? "").trim())
       .map(m => ({ formula: String(m.valor).trim(), tipo: m.alvo || "" }));
+    const multsDano = this.mudancas
+      .filter(m => m.categoria === "multDano" && String(m.valor ?? "").trim())
+      .map(m => ({ formula: String(m.valor).trim(), tipo: m.alvo || "" }));
     const custos = this.mudancas
       .filter(m => m.categoria === "custo" && m.alvo && Number.isFinite(Number(m.valor)))
       .map(m => ({ chave: m.alvo, valor: Number(m.valor) }));
     const mudancas = this.mudancas
-      .filter(m => !["condicao", "dano", "custo"].includes(m.categoria) && m.alvo);
+      .filter(m => !["condicao", "dano", "multDano", "custo"].includes(m.categoria) && m.alvo);
     // Níveis de exaustão: o campo numérico da linha Exausto vira a flag que a
     // ficha lê (e que a sobrecarga e o sobrepeso somam). Sem a linha, nada.
     const exausto = condicoes.find(m => m.alvo === "exausto");
@@ -461,6 +468,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
         ...dadosDePrazo(prazoEhFormula ? 1 : Math.max(0, prazoFixo || 0), unidade)
           .flags[SYSTEM_ID],
         danos,
+        multsDano,
         custos,
         alvosItem,
         ...(exaustao !== null ? { exaustao } : {})

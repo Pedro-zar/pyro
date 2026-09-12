@@ -7,7 +7,8 @@ import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { executarTecnica } from "../tecnica.mjs";
 import { formulaTeste, formulaPool, prepararFormula, comUnidade } from "../dados.mjs";
 import {
-  htmlEfeitosDeUso, bonusDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado
+  htmlEfeitosDeUso, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
+  ajustesDeAtributo, ajustesDeCusto, custoAjustado
 } from "../efeitos.mjs";
 import { esc, enriquecer, formularioDoAtor } from "../ui.mjs";
 import {
@@ -478,6 +479,12 @@ export class PyroItem extends Item {
         const tipoMun = game.i18n.localize(PYRO.tiposDano[municao.system.tipoDano]?.label ?? "");
         partes.push(`<p><strong>${esc(municao.name)}</strong> — ${game.i18n.localize("PYRO.Municao.DanoExtra")}${tipoMun ? ` (${tipoMun})` : ""}</p>`, await extra.render());
       }
+    }
+
+    // Multiplicadores de dano dos efeitos (Pugilista ×1,25 por nível) mexem
+    // no total que os botões de aplicar usam; a nota explica o número novo.
+    for (const nota of aplicarMultDeDano(danos, multiplicadoresDeDano(actor, this))) {
+      partes.push(`<p class="pyro-nota">${nota}</p>`);
     }
 
     partes.push(htmlEfeitosDeUso(this));

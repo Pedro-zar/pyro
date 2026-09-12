@@ -10,8 +10,8 @@ import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
 import { formulaTeste, poolDoAtributo, multiplicarDados, prepararFormula, juntarDados } from "./dados.mjs";
 import {
-  htmlEfeitosDeUso, bonusDeDano, ajustesDeCusto, custoAjustado,
-  aplicarExaustao, penalidadeExaustao
+  htmlEfeitosDeUso, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
+  ajustesDeAtributo, ajustesDeCusto, custoAjustado, aplicarExaustao, penalidadeExaustao
 } from "./efeitos.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
@@ -353,7 +353,7 @@ export function resumoDaTecnica(actor, item, calc, ataque) {
   for (const dano of ataque?.danos ?? []) somar(dano.tipo, multiplicarDados(dano.formula, mult));
   // O bônus de dano de um efeito entra inteiro: ele não é dado da arma, e a
   // Potência multiplica o golpe, não o que vem de fora dele.
-  for (const bonus of ataque ? bonusDeDano(actor, item) : []) {
+  for (const bonus of ataque ? bonusDeDano(actor, [item, ataque.item]) : []) {
     somar(bonus.tipo || ataque.danos[0]?.tipo || "", bonus.formula);
   }
 
@@ -414,7 +414,9 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   let classe = "rotineira";
   if (calc.excesso > 0) {
     const pen = penalidadeExaustao(actor);
-    const vig = actor.system.atributos.vig.total;
+    // "+2 VIG com a katana" vale no teste da técnica que golpeia com ela.
+    const vig = actor.system.atributos.vig.total
+      + (ajustesDeAtributo(actor, [item, ataque?.item]).vig ?? 0);
     const ajustes = { bonus: pen.bonus, desvantagem: pen.desvantagem };
     const formula = formulaTeste(vig, ajustes);
     classe = classificarRolagem({ ...poolDoTeste(poolDoAtributo(vig), ajustes), nd: calc.nd });
@@ -433,7 +435,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   const partes = [];
   const danos = [];
 
-  const acoes = custoAjustado(sys.acoes, ajustesDeCusto(actor, item).acoes);
+  const acoes = custoAjustado(sys.acoes, ajustesDeCusto(actor, [item, ataque?.item]).acoes);
   const chaveCusto = base?.reacao ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";
   const meta = [
     loc(chaveCusto, { acoes }),
@@ -500,7 +502,8 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
       const rotulo = loc(PYRO.tiposDano[dano.tipo]?.label ?? dano.tipo ?? "");
       partes.push(`<p class="pyro-linha-dano dano-${dano.tipo}">${rotulo}</p>`, await roll.render());
     }
-    for (const bonus of bonusDeDano(actor, item)) {
+    // A arma do golpe entra junto: dano extra preso a ela vale na técnica.
+    for (const bonus of bonusDeDano(actor, [item, ataque.item])) {
       const dados = item.getRollData();
       const roll = await new Roll(prepararFormula(bonus.formula, dados), dados).evaluate();
       rolls.push(roll);
@@ -510,6 +513,11 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
         formula: bonus.formula
       });
       partes.push(`<p class="pyro-linha-dano">${esc(bonus.nome)}</p>`, await roll.render());
+    }
+    // Multiplicadores de dano dos efeitos, sobre o total já rolado (a
+    // Potência da técnica multiplica DADOS e já entrou lá em cima).
+    for (const nota of aplicarMultDeDano(danos, multiplicadoresDeDano(actor, [item, ataque.item]))) {
+      partes.push(`<p class="pyro-nota">${nota}</p>`);
     }
   }
 
@@ -522,7 +530,8 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   // continua avisado à parte do ônus que cobra vida de propósito.
   if (pago.dosPv) partes.push(`<p class="pyro-nota">${loc("PYRO.Chat.CustoPv", { valor: pago.dosPv })}</p>`);
 
-  partes.push(htmlEfeitosDeUso(item));
+  // Os efeitos de uso da arma do golpe também entram no card da técnica.
+  partes.push(htmlEfeitosDeUso(item, ataque?.item));
   partes.push(htmlClasseDaRolagem(classe, item));
 
   return ChatMessage.create({
