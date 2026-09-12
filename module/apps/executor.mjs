@@ -63,8 +63,8 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   }
 
   /**
-   * A coluna da direita: o ataque como ele vai sair, com o dano da arma já
-   * multiplicado e uma linha por característica.
+   * A coluna da direita: o ataque como ele vai sair, com as fórmulas cruas,
+   * o multiplicador do total e uma linha por característica.
    *
    * Sai do mesmo calc que a execução usa, e não de uma segunda conta: se um
    * traço estiver rendendo o número errado, é aqui que aparece antes de virar
@@ -75,8 +75,8 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const resumo = resumoDaTecnica(this.actor, this.item, calc, ataque);
     const linhas = [];
 
-    // O multiplicador em si, além do dano já multiplicado: é o que diz se a
-    // Potência fechou mais um dado ou parou no meio do caminho.
+    // O multiplicador do total: a Potência não mexe nos dados, o produto
+    // final é floor(total rolado x este número x mults de efeito).
     if (resumo.mult !== 1) {
       linhas.push({
         nome: loc("PYRO.Previa.Multiplicador"),

@@ -8,7 +8,7 @@
  */
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { formulaTeste, poolDoAtributo, multiplicarDados, prepararFormula, juntarDados } from "./dados.mjs";
+import { formulaTeste, poolDoAtributo, prepararFormula, juntarDados } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
   ajustesDeAtributo, ajustesDeCusto, custoAjustado, aplicarExaustao, penalidadeExaustao
@@ -328,7 +328,11 @@ export function textoDoTraco(linha) {
 /*  Prévia do ataque final                                                    */
 /* -------------------------------------------------------------------------- */
 
-/** Multiplicador de dano da execução: 1 mais o que a Potência somar. */
+/**
+ * Multiplicador de dano da execução: 1 mais o que a Potência somar. Ele não
+ * mexe nos dados — multiplica o TOTAL rolado, na mesma conta dos
+ * multiplicadores de efeito: floor(base x mult da técnica x mult do efeito).
+ */
 export function multiplicadorDeDano(calc) {
   return 1 + calc.linhas
     .filter(l => l.cfg.regra === "danoMult")
@@ -336,8 +340,8 @@ export function multiplicadorDeDano(calc) {
 }
 
 /**
- * O que a execução vai produzir, em texto: o dano final da arma já
- * multiplicado e uma linha por característica.
+ * O que a execução vai produzir, em texto: as fórmulas de dano da arma, o
+ * multiplicador do total e uma linha por característica.
  *
  * É a mesma conta de usarTecnica sobre o mesmo calc — a janela mostra o que
  * vai sair, e não uma segunda versão da regra que pode divergir dela.
@@ -350,9 +354,9 @@ export function resumoDaTecnica(actor, item, calc, ataque) {
   const porTipo = new Map();
   const somar = (tipo, formula) => porTipo.set(tipo, [...(porTipo.get(tipo) ?? []), formula]);
 
-  for (const dano of ataque?.danos ?? []) somar(dano.tipo, multiplicarDados(dano.formula, mult));
-  // O bônus de dano de um efeito entra inteiro: ele não é dado da arma, e a
-  // Potência multiplica o golpe, não o que vem de fora dele.
+  // As fórmulas saem cruas: a Potência multiplica o total rolado, e a prévia
+  // a anuncia como linha própria (resumo.mult), não dentro dos dados.
+  for (const dano of ataque?.danos ?? []) somar(dano.tipo, dano.formula);
   for (const bonus of ataque ? bonusDeDano(actor, [item, ataque.item]) : []) {
     somar(bonus.tipo || ataque.danos[0]?.tipo || "", bonus.formula);
   }
@@ -493,8 +497,8 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
 
   if (ataque) {
     for (const dano of ataque.danos) {
-      // "+1x dados de dano" soma uma cópia dos dados, não substitui a original.
-      const formula = multiplicarDados(dano.formula, mult);
+      // Os dados rolam crus: a Potência multiplica o total, mais abaixo.
+      const formula = dano.formula;
       const dados = item.getRollData();
       const roll = await new Roll(prepararFormula(formula, dados), dados).evaluate();
       rolls.push(roll);
@@ -514,9 +518,19 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
       });
       partes.push(`<p class="pyro-linha-dano">${esc(bonus.nome)}</p>`, await roll.render());
     }
-    // Multiplicadores de dano dos efeitos, sobre o total já rolado (a
-    // Potência da técnica multiplica DADOS e já entrou lá em cima).
-    for (const nota of aplicarMultDeDano(danos, multiplicadoresDeDano(actor, [item, ataque.item]))) {
+    /*
+     * A Potência e os multiplicadores de efeito entram na MESMA aplicação,
+     * cada um como fator próprio: floor(base x mult1 x mult2), um
+     * arredondamento só do produto — multiplicar arredondado sobre
+     * arredondado comeria dano à toa.
+     */
+    const mults = multiplicadoresDeDano(actor, [item, ataque.item]);
+    if (mult !== 1) {
+      const nomes = calc.linhas.filter(l => l.cfg.regra === "danoMult" && l.valor)
+        .map(l => loc(l.cfg.label ?? l.chave)).join(", ");
+      mults.push({ tipo: "", fator: mult, nome: nomes || loc("PYRO.Previa.Multiplicador") });
+    }
+    for (const nota of aplicarMultDeDano(danos, mults)) {
       partes.push(`<p class="pyro-nota">${nota}</p>`);
     }
   }

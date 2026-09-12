@@ -943,8 +943,8 @@ const OFENSIVAS = ["atacar", "agarrar"];
 
 PYRO.tracosTecnicaPadrao = {
   // Ofensivos (ação base Atacar ou Agarrar).
-  // Um quarto de multiplicador por vez: os dados da arma só crescem quando o
-  // acumulado fecha um 1x inteiro (ver multiplicarDados).
+  // Um quarto de multiplicador por vez, aplicado ao TOTAL rolado do golpe:
+  // floor(base x mult), junto com os multiplicadores de efeito.
   potencia:     traco("ofensivo", 0.25, 0.25, "PYRO.Tecnica.Un.multDano", { bases: OFENSIVAS, regra: "danoMult" }),
   area:         traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.raio", { bases: OFENSIVAS }),
   cone:         traco("ofensivo", 2, 1, "PYRO.Tecnica.Un.cone", { bases: OFENSIVAS }),
