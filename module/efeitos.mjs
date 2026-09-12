@@ -46,12 +46,25 @@ export function efeitoValeParaItem(efeito, item) {
 }
 
 /** Efeitos ativos do ator, incluindo os que estão presos a algum item. */
+/**
+ * Efeito de uma postura que não é a postura ativa do dono. O mesmo portão do
+ * PyroActiveEffect, para o que o sistema lê por fora do core (bônus de dano,
+ * custos, atributos presos a item): sem ele, a guarda desligada seguiria
+ * dando o desconto dela.
+ */
+const dePosturaInativa = efeito => {
+  const item = efeito.parent;
+  if (!(item instanceof Item) || !item.system?.ehPostura) return false;
+  return item.actor?.getFlag(SYSTEM_ID, "postura") !== item.id;
+};
+
 function efeitosAtivos(actor) {
   const lista = [];
   for (const efeito of actor?.allApplicableEffects?.() ?? []) {
     // `disabled` é escolha do jogador. Efeito preso a item aparece aqui de
-    // propósito: ele está suprimido na ficha, mas vale na rolagem certa.
-    if (!efeito.disabled) lista.push(efeito);
+    // propósito: ele está suprimido na ficha, mas vale na rolagem certa. Já
+    // o de postura fora da postura não vale em canto nenhum.
+    if (!efeito.disabled && !dePosturaInativa(efeito)) lista.push(efeito);
   }
   return lista;
 }
@@ -65,7 +78,17 @@ export function bonusDeDano(actor, item) {
   for (const efeito of efeitosAtivos(actor)) {
     if (!efeitoValeParaItem(efeito, item)) continue;
     for (const dano of flagsDe(efeito)?.danos ?? []) {
-      if (dano.formula?.trim()) saida.push({ ...dano, nome: efeito.name });
+      if (!dano.formula?.trim()) continue;
+      /*
+       * O @nvl da fórmula é o do item DONO do efeito (a postura, a
+       * habilidade), resolvido aqui — na rolagem a fórmula corre com os
+       * dados do item atacante, onde @nvl seria o da arma ou viraria 0.
+       */
+      saida.push({
+        ...dano,
+        formula: resolverValorEfeito(dano.formula, varsDoEfeito(efeito)),
+        nome: efeito.name
+      });
     }
   }
   return saida;
