@@ -82,7 +82,8 @@ export function custoDeCaminhoNovo(actor, quantos) {
  */
 export function configDoRecurso(caminho, chave) {
   const gravado = (caminho?.system?.recursosConfig ?? []).find(r => r.chave === chave);
-  const padrao = PYRO.recursosCustom?.[chave]?.formula ?? "";
+  const padrao = PYRO.recursosCustom?.[chave]?.formula
+    ?? PYRO.formulasRecursoBase?.[chave] ?? "";
   return {
     formula: gravado?.formula?.trim() || padrao,
     habilidadeId: gravado?.habilidadeId ?? "",

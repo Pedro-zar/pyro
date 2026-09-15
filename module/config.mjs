@@ -414,6 +414,16 @@ PYRO.custoIntencao = N => (N * (N + 1)) / 2;
  *
  * A Energia Natural ainda não tem regra no SRD; SAB x 5 espelha a mana até lá.
  */
+/**
+ * Fórmulas base do máximo de mana e energia. O Caminho que concede o poder
+ * (magia/feitiçaria) pode reescrever a dele e apontar a habilidade cujo
+ * nível alimenta [NVL], como um recurso de raça.
+ */
+PYRO.formulasRecursoBase = {
+  mana: "[SAB] * 5",
+  energia: "[PRE] * 5"
+};
+
 PYRO.recursosCustomPadrao = {
   energiaNatural: {
     label: "PYRO.Recursos.energiaNatural",

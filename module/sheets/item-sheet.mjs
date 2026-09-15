@@ -122,10 +122,19 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const daFicha = actor?.items.filter(i =>
       i.type === "habilidade" && i.system.caminho === item.id) ?? [];
 
-    return (item.system.recursos ?? [])
-      .filter(chave => PYRO.recursosCustom?.[chave])
+    /*
+     * Mana e energia entram junto dos recursos de raça: o Caminho que usa
+     * magia configura a fórmula do máximo de mana (e o de feitiçaria, a de
+     * energia) do mesmo jeito que o do elfo configura a Energia Natural.
+     */
+    const chaves = [
+      ...(item.system.usaMagia ? ["mana"] : []),
+      ...(item.system.usaFeiticaria ? ["energia"] : []),
+      ...(item.system.recursos ?? []).filter(chave => PYRO.recursosCustom?.[chave])
+    ];
+    return chaves
       .map(chave => {
-        const cfg = PYRO.recursosCustom[chave];
+        const cfg = PYRO.recursosCustom?.[chave];
         const conf = configDoRecurso(item, chave);
         const dados = actor ? { ...actor.getRollData(), nvl: nivelDoRecurso(actor, item, chave) } : null;
         // A habilidade gravada entra na lista mesmo que ela tenha trocado de
@@ -134,9 +143,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         const lista = escolhida && !daFicha.includes(escolhida) ? [...daFicha, escolhida] : daFicha;
         return {
           chave,
-          nome: game.i18n.localize(cfg.label),
+          nome: game.i18n.localize(cfg?.label ?? `PYRO.Recursos.${chave}`),
           formula: conf.propria ? conf.formula : "",
-          padrao: cfg.formula ?? "",
+          padrao: cfg?.formula ?? PYRO.formulasRecursoBase?.[chave] ?? "",
           habilidadeId: conf.habilidadeId,
           // Fora de uma ficha não há habilidade nenhuma para apontar, e o
           // select nem aparece (ver o template).

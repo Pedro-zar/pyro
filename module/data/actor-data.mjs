@@ -250,8 +250,21 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       + recursos.pv.bonus;
     recursos.estamina.max = Math.floor(atributos.vig.total * 10 * this.multi)
       + recursos.estamina.bonus;
-    recursos.mana.max = Math.floor(atributos.sab.total * 5 * this.multi)
-      + recursos.mana.bonus;
+    /*
+     * Mana e energia saem de fórmula, como um recurso de raça: o Caminho de
+     * magia (ou feitiçaria) pode reescrever a do mundo na aba de recursos e
+     * apontar a habilidade cujo nível alimenta [NVL]. Sem caminho ou sem
+     * fórmula própria, vale a base ([SAB] x 5 / [PRE] x 5).
+     */
+    const daFormula = this.parent.getRollData();
+    const maxDeFormula = (chave, dono) => {
+      const { formula } = configDoRecurso(dono, chave);
+      return Math.floor(calcularFormula(formula, {
+        ...daFormula, nvl: nivelDoRecurso(this.parent, dono, chave)
+      }) * this.multi);
+    };
+    recursos.mana.max = maxDeFormula("mana",
+      caminhos.find(c => c.system.usaMagia) ?? null) + recursos.mana.bonus;
     /*
      * A recuperação é metade do atributo, e só. O multiplicador de patamar
      * mexe no que cabe no tanque, não no ritmo com que ele enche — a regra
@@ -260,8 +273,8 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
      */
     const recuperacao = Math.floor(atributos.int.total / 2);
     recursos.mana.recuperacao = recuperacao;
-    recursos.energia.max = Math.floor(atributos.pre.total * 5 * this.multi)
-      + recursos.energia.bonus;
+    recursos.energia.max = maxDeFormula("energia",
+      caminhos.find(c => c.system.usaFeiticaria) ?? null) + recursos.energia.bonus;
     recursos.energia.recuperacao = recuperacao;
     recursos.vontade.max = det * 5 + recursos.vontade.bonus;
 
@@ -287,10 +300,6 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
      * Caminho que concede o recurso — a configuração do mundo só dá o ponto de
      * partida. [NVL] na fórmula é o nível da habilidade apontada lá.
      */
-    // Os mesmos dados de uma rolagem, para a fórmula do recurso enxergar o que
-    // uma fórmula de habilidade enxerga — inclusive @dados.sab.
-    const daFormula = this.parent.getRollData();
-
     for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
       const rec = recursos[chave];
       if (!rec) continue;
