@@ -118,8 +118,10 @@ export function limiteSeguro(actor) {
  * Contabilidade de uma execução: estamina por traço, excesso além do limite
  * seguro e o ND do teste de VIG que o excesso obriga.
  * @param {object[]} usados [{ chave, cfg, grau, esforco }]
+ * @param {object[]} [itens] técnica e arma do golpe, para os efeitos que
+ *   mexem no custo de estamina (somam ou multiplicam) valerem aqui também.
  */
-export function calcularEsforco(actor, usados) {
+export function calcularEsforco(actor, usados, itens = []) {
   const limite = limiteSeguro(actor);
   let estamina = 0;
   let excesso = 0;
@@ -134,11 +136,51 @@ export function calcularEsforco(actor, usados) {
     return { ...u, custo, alem, valor: valorDoTraco(u.cfg, u.grau, u.esforco) };
   });
 
+  /*
+   * O ajuste é do TOTAL, e não de cada traço: "metade da estamina" aplicado
+   * traço a traço arredondaria para baixo várias vezes e daria um desconto
+   * maior que a metade. `estaminaBase` fica para a janela mostrar de onde
+   * saiu o número quando algum efeito mexe nele.
+   */
+  const estaminaBase = estamina;
+  estamina = custoAjustado(estamina, ajustesDeCusto(actor, itens).estamina);
+  // E então o total volta repartido para as linhas: o que a janela mostra em
+  // cada traço tem que somar o que vai ser cobrado.
+  if (estamina !== estaminaBase) repartirCusto(linhas, estamina, estaminaBase);
+
   return {
-    linhas, limite, estamina, excesso, somaEsforcos,
+    linhas, limite, estamina, estaminaBase, excesso, somaEsforcos,
     // Só o excesso obriga o teste; sem ele a execução é rotineira por regra.
     nd: 10 + somaEsforcos
   };
+}
+
+/**
+ * Reparte um total ajustado entre as linhas, na proporção do que cada uma
+ * custava, guardando o original em `custoBase`.
+ *
+ * Cada linha fica com a parte inteira da sua fatia e as sobras vão para quem
+ * ficou com a maior fração — assim a soma das linhas é exatamente o total,
+ * sem o centavo que se perde arredondando cada uma por si.
+ */
+function repartirCusto(linhas, total, base) {
+  if (!linhas.length || base <= 0) return;
+  const fatias = linhas.map(l => (total * l.custo) / base);
+  const inteiros = fatias.map(Math.floor);
+  let sobra = total - inteiros.reduce((t, n) => t + n, 0);
+  // Maior fração primeiro; empate fica com a linha mais cara, que é a que
+  // menos estranha um ponto a mais.
+  const ordem = linhas.map((l, i) => i).sort((a, b) =>
+    ((fatias[b] % 1) - (fatias[a] % 1)) || (linhas[b].custo - linhas[a].custo));
+  for (const i of ordem) {
+    if (sobra <= 0) break;
+    inteiros[i] += 1;
+    sobra -= 1;
+  }
+  linhas.forEach((l, i) => {
+    l.custoBase = l.custo;
+    l.custo = inteiros[i];
+  });
 }
 
 /* -------------------------------------------------------------------------- */
@@ -405,10 +447,10 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     // execução fazendo alguma coisa.
     .map(t => ({ ...t, esforco: Math.max(1, Math.round(Number(esforcos[t.chave]) || 0)) }));
 
-  const calc = calcularEsforco(actor, usados);
   const ataque = base?.ataca && ataqueId
     ? ataquesDaTecnica(actor, sys).find(a => a.id === ataqueId) ?? null
     : null;
+  const calc = calcularEsforco(actor, usados, [item, ataque?.item]);
 
   /* --- Custos: estamina do Esforço, e os PV do ônus que os pede ----------- */
   const custaPv = (sys.onus ?? []).some(o => PYRO.onusTecnica[o]?.regra === "custaPv");
@@ -465,6 +507,10 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
             // Os dois números são diferentes: a estamina sai da tabela de
             // custo do Esforço e a vida é o Esforço em si.
             { valor: calc.estamina, pv: calc.somaEsforcos })
+      : null,
+    // De onde veio o número, quando um efeito mexeu no custo.
+    calc.estamina !== calc.estaminaBase
+      ? loc("PYRO.Tecnica.EstaminaAjustada", { base: calc.estaminaBase })
       : null,
     ataque ? esc(ataque.nome) : null
   ].filter(Boolean).join(" · ");

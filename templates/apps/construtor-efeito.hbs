@@ -60,9 +60,14 @@
       <span class="pyro-nota">{{localize "PYRO.Efeitos.MultDanoModo"}}</span>
       <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="1 + 0.25 * @nvl" />
       {{else if m.ehCusto}}
-      {{!-- Custo é sempre soma com sinal: -2 barateia, +1 encarece. --}}
-      <span class="pyro-nota">{{localize "PYRO.Efeitos.CustoModo"}}</span>
-      <input type="number" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="-2" />
+      {{!-- Somar é um número com sinal (-2 barateia, +1 encarece);
+            multiplicar é um fator (0,5 corta pela metade, 2 dobra). --}}
+      <select name="mudanca.{{m.index}}.modo" data-campo="modo">
+        {{selectOptions @root.modosDeCusto selected=m.modo localize=true}}
+      </select>
+      <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}"
+             placeholder="{{pyroSe m.ehCustoMult '0.5' '-2'}}"
+             title="{{localize (pyroSe m.ehCustoMult 'PYRO.Efeitos.CustoMultDica' 'PYRO.Efeitos.CustoSomaDica')}}" />
       {{else}}
       <select name="mudanca.{{m.index}}.modo">
         {{selectOptions @root.modos selected=m.modo localize=true}}

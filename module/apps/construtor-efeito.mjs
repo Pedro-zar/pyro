@@ -6,6 +6,12 @@ import { UNIDADE_PADRAO, dadosDePrazo, opcoesDeUnidade } from "../duracao.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
+/** Os alvos de uma categoria; a lista de Custo é função (ver config.mjs). */
+const alvosDaCategoria = categoria => {
+  const alvos = PYRO.alvosEfeito[categoria]?.alvos;
+  return (typeof alvos === "function" ? alvos() : alvos) ?? {};
+};
+
 /**
  * Primeira linha de qualquer efeito novo: somar 1 ao bônus de Força. O alvo
  * sai da própria tabela de alvos, e não escrito à mão, para não apontar para
@@ -13,7 +19,7 @@ const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
  */
 const mudancaPadrao = () => ({
   categoria: "atributos",
-  alvo: Object.keys(PYRO.alvosEfeito.atributos.alvos)[0],
+  alvo: Object.keys(alvosDaCategoria("atributos"))[0],
   modo: "add",
   valor: "1"
 });
@@ -57,7 +63,10 @@ export function estadoDeEfeito(efeito) {
     mudancas.push({ categoria: "multDano", alvo: m.tipo ?? "", modo: "add", valor: m.formula ?? "" });
   }
   for (const c of flags.custos ?? []) {
-    mudancas.push({ categoria: "custo", alvo: c.chave, modo: "add", valor: String(c.valor) });
+    mudancas.push({
+      categoria: "custo", alvo: c.chave,
+      modo: c.modo === "multiply" ? "multiply" : "add", valor: String(c.valor)
+    });
   }
   for (const ch of efeito.system?.changes ?? []) {
     const chave = ch.key;
@@ -239,6 +248,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
 
     context.categorias = categorias;
     context.modos = PYRO.modosEfeito;
+    context.modosDeCusto = PYRO.modosDeCusto;
     context.temporario = this.categoria === "temporarios";
     context.inativo = this.categoria === "inativos";
     // Só itens podem ter efeito de uso: num ator, todo efeito é dele próprio.
@@ -266,9 +276,11 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       // Dano troca o modo por uma fórmula, e o "alvo" vira o tipo do dano.
       ehDano: m.categoria === "dano",
       ehMultDano: m.categoria === "multDano",
-      // Custo é sempre soma com sinal: sem escolher modo.
+      // Custo tem modo próprio (somar ou multiplicar), e não os cinco das
+      // mudanças de campo.
       ehCusto: m.categoria === "custo",
-      alvos: PYRO.alvosEfeito[m.categoria]?.alvos ?? {}
+      ehCustoMult: m.categoria === "custo" && m.modo === "multiply",
+      alvos: alvosDaCategoria(m.categoria)
     }));
     return context;
   }
@@ -287,7 +299,17 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
         const i = Number(alvo.closest("[data-index]").dataset.index);
         this.#capturar();
         this.mudancas[i].categoria = alvo.value;
-        this.mudancas[i].alvo = Object.keys(PYRO.alvosEfeito[alvo.value]?.alvos ?? {})[0] ?? "";
+        this.mudancas[i].alvo = Object.keys(alvosDaCategoria(alvo.value))[0] ?? "";
+        this.render();
+        return;
+      }
+      /*
+       * Trocar entre somar e multiplicar num Custo muda o que o campo espera
+       * (um número com sinal ou um fator), então a linha é redesenhada para
+       * o exemplo e a dica acompanharem.
+       */
+      if (alvo.matches("[data-campo=modo]")) {
+        this.#capturar();
         this.render();
         return;
       }
@@ -418,7 +440,11 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       .map(m => ({ formula: String(m.valor).trim(), tipo: m.alvo || "" }));
     const custos = this.mudancas
       .filter(m => m.categoria === "custo" && m.alvo && Number.isFinite(Number(m.valor)))
-      .map(m => ({ chave: m.alvo, valor: Number(m.valor) }));
+      .map(m => ({
+        chave: m.alvo,
+        valor: Number(m.valor),
+        modo: m.modo === "multiply" ? "multiply" : "add"
+      }));
     const mudancas = this.mudancas
       .filter(m => !["condicao", "dano", "multDano", "custo"].includes(m.categoria) && m.alvo);
     // Níveis de exaustão: o campo numérico da linha Exausto vira a flag que a

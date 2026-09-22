@@ -1156,16 +1156,19 @@ PYRO.alvosEfeito = {
   /*
    * Custo de usar alguma coisa: ações e os recursos que o sistema realmente
    * cobra hoje. PV e Força de Vontade não entram porque nada os cobra como
-   * custo, e recurso personalizado idem — opção morta na lista é ruído.
+   * custo. A lista é função porque os recursos de raça são configuração do
+   * mundo — um congelado no carregamento perderia o que a mesa criou depois.
    */
   custo: {
     label: "PYRO.Efeitos.Cat.custo",
-    alvos: {
+    alvos: () => ({
       acoes: "PYRO.Acoes",
       mana: "PYRO.Recursos.mana",
       estamina: "PYRO.Recursos.estamina",
-      energia: "PYRO.Recursos.energia"
-    }
+      energia: "PYRO.Recursos.energia",
+      ...Object.fromEntries(Object.entries(PYRO.recursosCustom ?? {})
+        .map(([chave, cfg]) => [chave, cfg.label]))
+    })
   },
   movimento: {
     label: "PYRO.Efeitos.Cat.movimento",
@@ -1204,6 +1207,17 @@ PYRO.modosEfeito = {
   override: "PYRO.Efeitos.Modo.substituir",
   upgrade: "PYRO.Efeitos.Modo.minimo",
   downgrade: "PYRO.Efeitos.Modo.maximo"
+};
+
+/**
+ * Modos de uma linha de Custo: somar com sinal ("-2 mana") ou multiplicar
+ * ("0.5" corta pela metade, "2" dobra). Substituir, mínimo e máximo ficam de
+ * fora — o custo de um item é dele, e reescrevê-lo por efeito apagaria a
+ * diferença entre uma magia barata e uma cara.
+ */
+PYRO.modosDeCusto = {
+  add: "PYRO.Efeitos.Modo.somar",
+  multiply: "PYRO.Efeitos.Modo.multiplicar"
 };
 
 /** Guia rápido de ações (SRD §5). */

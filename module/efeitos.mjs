@@ -79,7 +79,10 @@ function efeitosAtivos(actor) {
  * quem chama passa [tecnica, arma] e o efeito vale se casar com qualquer um.
  */
 const valeParaAlgum = (efeito, itens) =>
-  itens.some(i => efeitoValeParaItem(efeito, i));
+  // Sem item nenhum para casar (a frase de magia montada na hora não é um
+  // item), vale a mesma regra de sempre: efeito sem restrição entra, efeito
+  // preso a alguma coisa fica de fora.
+  (itens.length ? itens : [null]).some(i => efeitoValeParaItem(efeito, i));
 
 export function bonusDeDano(actor, item) {
   const itens = (Array.isArray(item) ? item : [item]).filter(Boolean);
@@ -149,22 +152,35 @@ export function aplicarMultDeDano(danos, mults) {
 }
 
 /**
- * Quanto os efeitos somam ou tiram do custo de usar este item. Chaves são as
- * de PYRO.alvosEfeito.custo: acoes, mana, estamina, energia.
+ * Quanto os efeitos mexem no custo de usar este item, por chave de
+ * PYRO.alvosEfeito.custo (acoes, mana, estamina, energia e os recursos de
+ * raça): `{ chave: { soma, mult } }`.
  *
- * Diferente do bônus de dano, aqui não há fórmula: é um número com sinal, e a
- * conta é sempre soma. "Metade do custo" pediria uma regra de ordem entre
- * efeitos que não vale a complexidade enquanto ninguém precisar.
+ * Cada linha de custo do efeito soma (um número com sinal, "-2 mana") ou
+ * multiplica ("0.5" corta pela metade, "2" dobra). O valor aceita @variáveis,
+ * então "metade do custo" e "-1 por nível" convivem na mesma lista.
  */
 export function ajustesDeCusto(actor, item) {
   const itens = (Array.isArray(item) ? item : [item]).filter(Boolean);
   const ajustes = {};
+  // Cada chave guarda os dois lados: o que somam e o que multiplicam.
+  const doAjuste = chave => (ajustes[chave] ??= { soma: 0, mult: 1 });
+
   for (const efeito of efeitosAtivos(actor)) {
     if (!valeParaAlgum(efeito, itens)) continue;
     for (const custo of flagsDe(efeito)?.custos ?? []) {
       const valor = Number(resolverValorEfeito(custo.valor, varsDoEfeito(efeito)));
-      if (custo.chave && Number.isFinite(valor)) {
-        ajustes[custo.chave] = (ajustes[custo.chave] ?? 0) + valor;
+      if (!custo.chave || !Number.isFinite(valor)) continue;
+      /*
+       * Multiplicadores se acumulam multiplicando entre si (metade de metade
+       * é um quarto), e os somatórios somando — cada um no seu lado, para a
+       * ordem entre dois efeitos não mudar a conta. Fator negativo é erro de
+       * digitação e fica de fora.
+       */
+      if (custo.modo === "multiply") {
+        if (valor >= 0) doAjuste(custo.chave).mult *= valor;
+      } else {
+        doAjuste(custo.chave).soma += valor;
       }
     }
   }
@@ -177,21 +193,28 @@ export function ajustesDeCusto(actor, item) {
   for (const equip of actor?.items ?? []) {
     const sys = equip.system;
     if (equip.type !== "equipamento" || !sys.equipado || sys.categoria !== "arcano") continue;
-    if (sys.reducaoMana) ajustes.mana = (ajustes.mana ?? 0) - sys.reducaoMana;
+    if (sys.reducaoMana) doAjuste("mana").soma -= sys.reducaoMana;
   }
   return ajustes;
 }
 
 /**
- * Custo já ajustado. Reduções diferentes acumulam (os deltas chegam aqui já
- * somados), mas nunca zeram um custo que existia: o piso é 1. Um custo que
- * já era zero segue zero — não há o que reduzir — e ajuste que encarece
- * continua livre.
+ * Custo já ajustado por um par { soma, mult } vindo de ajustesDeCusto (um
+ * número solto ainda é lido como soma).
+ *
+ * O multiplicador vem primeiro, arredondado para baixo como todo o resto do
+ * SRD, e os somatórios entram depois: quem tem "metade do custo" e "-2 mana"
+ * paga a metade e ainda abate os 2, e não o contrário. Reduções acumulam mas
+ * nunca zeram um custo que existia — o piso é 1, inclusive num fator 0, que
+ * aqui não é passe livre. Custo que já era zero segue zero, e ajuste que
+ * encarece continua livre.
  */
-export function custoAjustado(base, delta) {
+export function custoAjustado(base, ajuste) {
   const b = Math.round(base ?? 0);
-  const total = Math.max(0, Math.round(b + (delta ?? 0)));
-  return (delta ?? 0) < 0 && b > 0 ? Math.max(1, total) : total;
+  const { soma = 0, mult = 1 } = (ajuste && typeof ajuste === "object")
+    ? ajuste : { soma: Number(ajuste) || 0 };
+  const total = Math.max(0, Math.round(Math.floor(b * mult) + soma));
+  return (soma < 0 || mult < 1) && b > 0 ? Math.max(1, total) : total;
 }
 
 /**

@@ -110,8 +110,20 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const estamina = this.actor.system.recursos.estamina;
     const loc = k => game.i18n.localize(k);
 
+    /* --- Ataque: a técnica pergunta sempre, entre os que a condição aceita -- */
+    const ataques = base?.ataca ? ataquesDaTecnica(this.actor, sys) : [];
+    // Um ataque só continua sendo uma escolha: o jogador confere qual arma a
+    // técnica vai usar antes de gastar estamina.
+    if (base?.ataca && !ataques.some(a => a.id === this.ataqueId)) {
+      this.ataqueId = ataques[0]?.id ?? null;
+    }
+    const ataque = ataques.find(a => a.id === this.ataqueId) ?? null;
+
     const usados = this.#usados();
-    const calc = calcularEsforco(this.actor, usados);
+    // A arma entra na conta junto da técnica: efeitos de custo presos a ela
+    // valem aqui, e a janela precisa mostrar a mesma estamina que usarTecnica
+    // vai cobrar.
+    const calc = calcularEsforco(this.actor, usados, [this.item, ataque?.item]);
     // Todo traço entra na conta, porque o Esforço mínimo é 1: cada linha da
     // janela tem a sua em calc.
     const fichas = calc.linhas.map(l => ({
@@ -124,14 +136,6 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       alem: l.alem,
       efeito: textoDoTraco(l)
     }));
-
-    /* --- Ataque: a técnica pergunta sempre, entre os que a condição aceita -- */
-    const ataques = base?.ataca ? ataquesDaTecnica(this.actor, sys) : [];
-    // Um ataque só continua sendo uma escolha: o jogador confere qual arma a
-    // técnica vai usar antes de gastar estamina.
-    if (base?.ataca && !ataques.some(a => a.id === this.ataqueId)) {
-      this.ataqueId = ataques[0]?.id ?? null;
-    }
 
     /*
      * O ônus "custa PV" cobra vida além da estamina, e o que falta de estamina
@@ -148,7 +152,7 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     Object.assign(context, {
       actor: this.actor,
       item: this.item,
-      previa: this.#previa(calc, ataques.find(a => a.id === this.ataqueId) ?? null),
+      previa: this.#previa(calc, ataque),
       fichas,
       temTracos: fichas.length > 0,
       pedeAtaque: !!base?.ataca,
