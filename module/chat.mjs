@@ -282,6 +282,7 @@ export function registrarMenuChat() {
       botao.addEventListener("click", () => entrarNaPostura(botao.dataset));
     }
     prepararBotaoContarUso(message, element);
+    prepararBotaoSobrecarga(message, element);
     prepararBotaoSorte(message, element);
     injetarRodape(message, element);
   });
@@ -392,26 +393,97 @@ async function usarSorte(message) {
  * O botão de contar uso vale uma vez por card: depois de contado, a mensagem
  * guarda a marca e o botão fica travado em todos os clientes.
  */
+/**
+ * Grava no card que um botão já foi usado, relendo o estado da mensagem na
+ * hora — dois cliques quase juntos gravariam listas montadas antes um do
+ * outro, e a segunda apagaria a primeira.
+ *
+ * Só o autor e o mestre podem escrever numa mensagem: quando quem clicou não
+ * é nenhum dos dois, a trava vale para a sessão dele e o card volta a
+ * oferecer o botão depois de um F5. É o mesmo limite que o Foundry impõe a
+ * qualquer marca em mensagem alheia.
+ */
+async function gravarMarca(message, campo, valor) {
+  if (!(message.isAuthor || game.user.isGM)) return;
+  if (valor === true) return message.update({ [`flags.${SYSTEM_ID}.${campo}`]: true });
+  const atuais = new Set(flagsDe(message)?.[campo] ?? []);
+  atuais.add(valor);
+  return message.update({ [`flags.${SYSTEM_ID}.${campo}`]: [...atuais] });
+}
+
 function prepararBotaoContarUso(message, element) {
-  const botao = element.querySelector(".pyro-contar-uso");
-  if (!botao) return;
-  const marcar = () => {
-    botao.disabled = true;
-    botao.innerHTML = `<i class="fa-solid fa-check"></i> ${game.i18n.localize("PYRO.Uso.Contado")}`;
-  };
-  if (flagsDe(message)?.usoContado) return marcar();
-  botao.addEventListener("click", async () => {
-    const item = await fromUuid(botao.dataset.itemUuid);
-    if (!item?.isOwner) {
-      return ui.notifications.warn(game.i18n.localize("PYRO.Uso.SemPermissao"));
+  // Uma rolagem pode contar para dois itens (a magia e a perícia de
+  // sobrecarga), então cada botão se marca sozinho pelo uuid do seu item.
+  const contados = new Set(flagsDe(message)?.usosContados ?? []);
+  // Cards antigos guardavam só "já contou" sem dizer de quem; com um botão só
+  // dá no mesmo.
+  const tudoContado = !!flagsDe(message)?.usoContado;
+
+  for (const botao of element.querySelectorAll(".pyro-contar-uso")) {
+    const uuid = botao.dataset.itemUuid;
+    const marcar = () => {
+      botao.disabled = true;
+      botao.innerHTML = `<i class="fa-solid fa-check"></i> ${game.i18n.localize("PYRO.Uso.Contado")}`;
+    };
+    if (tudoContado || contados.has(uuid)) {
+      marcar();
+      continue;
     }
-    const resultado = await registrarUso(item, botao.dataset.classe);
-    if (!resultado) return;
-    marcar();
-    if (message.isAuthor || game.user.isGM) {
-      await message.update({ [`flags.${SYSTEM_ID}.usoContado`]: true });
+    botao.addEventListener("click", async () => {
+      const item = await fromUuid(uuid);
+      if (!item?.isOwner) {
+        return ui.notifications.warn(game.i18n.localize("PYRO.Uso.SemPermissao"));
+      }
+      // Trava antes de contar: contar uso é ida ao servidor, e um segundo
+      // clique no meio dela contaria duas vezes o mesmo teste.
+      botao.disabled = true;
+      const resultado = await registrarUso(item, botao.dataset.classe);
+      if (!resultado) {
+        botao.disabled = false;
+        return;
+      }
+      marcar();
+      await gravarMarca(message, "usosContados", uuid);
+    });
+  }
+}
+
+/**
+ * Teste de sobrecarga a partir do card: quem passou do limite clica quando
+ * estiver pronto, e o diálogo abre com o ND e a exaustão da falha já dentro.
+ */
+function prepararBotaoSobrecarga(message, element) {
+  for (const botao of element.querySelectorAll(".pyro-teste-sobrecarga")) {
+    if (flagsDe(message)?.sobrecargaFeita) {
+      botao.disabled = true;
+      botao.innerHTML = `<i class="fa-solid fa-check"></i> ${game.i18n.localize("PYRO.Sobrecarga.Feito")}`;
+      continue;
     }
-  });
+    botao.addEventListener("click", async () => {
+      const actor = await fromUuid(botao.dataset.atorUuid);
+      if (!actor?.isOwner) {
+        return ui.notifications.warn(game.i18n.localize("PYRO.Uso.SemPermissao"));
+      }
+      /*
+       * Trava enquanto o diálogo está aberto: ele não é modal, e o card fica
+       * clicável atrás dele — dois cliques virariam dois testes e exaustão
+       * cobrada em dobro. Cancelar devolve o botão.
+       */
+      botao.disabled = true;
+      const feito = await actor.rolarSobrecarga({
+        nd: Number(botao.dataset.nd) || 0,
+        exaustao: Number(botao.dataset.exaustao) || 0,
+        atributo: botao.dataset.atributo,
+        bonusAtributo: Number(botao.dataset.bonusAtributo) || 0,
+        itemUuid: botao.dataset.itemUuid || null
+      });
+      if (!feito) {
+        botao.disabled = false;
+        return;
+      }
+      await gravarMarca(message, "sobrecargaFeita", true);
+    });
+  }
 }
 
 /**

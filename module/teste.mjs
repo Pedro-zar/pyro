@@ -138,3 +138,51 @@ export function htmlVontadeGasta(vontade) {
 }
 
 export const sufixoND = nd => (nd ? ` (ND ${nd})` : "");
+
+/* -------------------------------------------------------------------------- */
+/*  Sobrecarga                                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A perícia que cobre o teste de sobrecarga, se o personagem tiver uma.
+ *
+ * Ela é achada pelo NOME, como as regras de progressão e o sentido espiritual:
+ * a mesa cria a perícia "Sobrecarga" e ela passa a valer sozinha, sem campo
+ * escondido para marcar. Sem a perícia o teste continua acontecendo, como
+ * qualquer teste sem treino (SRD 3b): o ND dobra acima de 10.
+ */
+export function periciaDeSobrecarga(actor) {
+  return actor?.items?.find(item => item.type === "pericia"
+    && PYRO.normalizarTexto(item.name) === PYRO.NOME_PERICIA_SOBRECARGA) ?? null;
+}
+
+/**
+ * O botão que abre o teste de sobrecarga a partir do card da conjuração ou da
+ * execução. O teste não sai sozinho de propósito: quem escolheu passar do
+ * limite é quem decide quando encarar o dado, e é no diálogo que ele gasta
+ * Força de Vontade, soma o que a mesa concedeu e vê o ND já ajustado.
+ *
+ * @param {object} dados
+ * @param {string} dados.atorUuid quem faz o teste.
+ * @param {string} [dados.itemUuid] magia ou técnica, para o card do teste
+ *   oferecer o "contar uso" dela — é o teste que mede a dificuldade (SRD).
+ * @param {string} dados.atributo atributo do teste (SAB na magia, VIG na técnica).
+ * @param {number} dados.nd dificuldade já calculada.
+ * @param {number} dados.exaustao exaustão que a falha custa.
+ * @param {number} [dados.bonusAtributo] o que um efeito preso ao item soma ao
+ *   atributo do teste ("+2 VIG com a katana").
+ * @param {string} dados.motivo linha que o diálogo e o card repetem.
+ */
+export function htmlBotaoSobrecarga({
+  atorUuid, itemUuid = "", atributo, nd, exaustao, bonusAtributo = 0, motivo
+}) {
+  return `<div class="pyro-sobrecarga pendente">
+    <p>${motivo}</p>
+    <button type="button" class="pyro-teste-sobrecarga"
+            data-ator-uuid="${atorUuid}" data-item-uuid="${itemUuid}"
+            data-atributo="${atributo}" data-nd="${nd}" data-exaustao="${exaustao}"
+            data-bonus-atributo="${bonusAtributo}">
+      <i class="fa-solid fa-dice-d20"></i> ${loc("PYRO.Sobrecarga.Botao")}
+    </button>
+  </div>`;
+}

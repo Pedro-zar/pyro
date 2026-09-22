@@ -7,12 +7,14 @@ import { formulaTeste, formulaReacao, prepararFormula, poolDoAtributo } from "..
 import {
   classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse, bonusPorNivel, ndAjustado
 } from "../progressao.mjs";
-import { sincronizarSobrepeso, sincronizarDesmaio, sincronizarEstadoDeVida } from "../efeitos.mjs";
+import {
+  sincronizarSobrepeso, sincronizarDesmaio, sincronizarEstadoDeVida, aplicarExaustao
+} from "../efeitos.mjs";
 import { formularioDoAtor, esc } from "../ui.mjs";
 import { custoDeFriagem, dadosDeMolhado, reduzirCondicao, pilhasDe } from "../condicoes.mjs";
 import {
-  campoCheckbox, campoSelect, camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste,
-  valorComInspiracao, htmlVontadeGasta, sufixoND
+  campoCheckbox, campoNumero, campoSelect, camposDeTeste, aplicarExaustaoNoTeste,
+  aplicarVontadeNoTeste, valorComInspiracao, htmlVontadeGasta, sufixoND, periciaDeSobrecarga
 } from "../teste.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
 import { SYSTEM_ID, flagsDoSistema } from "../sistema.mjs";
@@ -336,6 +338,121 @@ export class PyroActor extends Actor {
     }
     content += htmlVontadeGasta(vontade);
     return this.#cardDeTeste(roll, { flavor, html: content, flags: classe ? flagsDaClasse(classe, pericia) : null });
+  }
+
+  /**
+   * Teste de sobrecarga (SRD Magia e Técnicas), aberto pelo botão do card da
+   * conjuração ou da execução — nunca sozinho: quem passou do limite escolhe
+   * quando encarar o dado, e aqui ele ainda pode gastar Força de Vontade.
+   *
+   * É um teste de perícia como qualquer outro: se o personagem tiver a
+   * perícia "Sobrecarga", ela entra com o bônus e as vantagens do nível dela;
+   * se não tiver, vale a regra do sem treino e o ND dobra acima de 10. O
+   * atributo, porém, é o da regra que chamou (SAB na magia, VIG na técnica) e
+   * não se escolhe.
+   *
+   * @param {number} opcoes.nd dificuldade vinda do card.
+   * @param {number} opcoes.exaustao exaustão que a falha custa.
+   * @param {string} opcoes.atributo chave do atributo do teste.
+   * @param {number} [opcoes.bonusAtributo] o que um efeito preso ao item soma
+   *   ao ATRIBUTO ("+2 VIG com a katana") — entra na pool, como em toda
+   *   rolagem do sistema, e não como um somatório plano no total.
+   * @param {string} [opcoes.itemUuid] magia ou técnica que gerou a sobrecarga.
+   * @returns {Promise<boolean>} false quando o diálogo foi cancelado.
+   */
+  async rolarSobrecarga({ nd, exaustao, atributo, bonusAtributo = 0, itemUuid = null }) {
+    const loc = k => game.i18n.localize(k);
+    const pericia = periciaDeSobrecarga(this);
+    const nivel = pericia?.system?.progresso?.nivel ?? 0;
+    const porNivel = bonusPorNivel(nivel);
+    const aprendida = !!pericia?.system?.aprendida;
+    const chave = PYRO.atributos[atributo] ? atributo : "vig";
+    const rotuloAtributo = loc(PYRO.atributos[chave]);
+    const delta = Math.round(Number(bonusAtributo) || 0);
+    const valorAtributo = Math.max(1, this.system.atributos[chave].total + delta);
+
+    const dicas = [
+      !pericia ? loc("PYRO.Sobrecarga.SemPericia")
+        : nivel ? game.i18n.format("PYRO.Pericia.DicaNivel",
+            { nivel, bonus: porNivel.bonus, vantagens: porNivel.vantagens })
+        : loc("PYRO.Pericia.DicaSemTreino"),
+      delta ? game.i18n.format("PYRO.Sobrecarga.AtributoAjustado", {
+        atributo: rotuloAtributo, valor: valorAtributo, delta: delta > 0 ? `+${delta}` : delta
+      }) : null
+    ].filter(Boolean);
+
+    const res = await formularioDoAtor(this, {
+      titulo: loc("PYRO.Sobrecarga.Titulo"),
+      conteudo: camposDeTeste(this, {
+        dica: dicas.join("<br>"),
+        nd: Number(nd) || 0,
+        // Só o teste de sobrecarga tem este campo: é o preço da falha, e ele
+        // fica editável porque a mesa às vezes negocia o que o excesso custa.
+        extras: campoNumero("exaustao", "PYRO.Sobrecarga.ExaustaoAoFalhar",
+          Math.max(0, Math.round(Number(exaustao) || 0)), 0)
+      }),
+      rotuloOk: "PYRO.Rolar"
+    });
+    if (!res) return false;
+
+    const opts = { bonus: res.bonus, vantagem: res.vantagem, desvantagem: res.desvantagem };
+    aplicarExaustaoNoTeste(this, opts);
+    opts.bonus += porNivel.bonus;
+    opts.vantagem += porNivel.vantagens;
+
+    const ndOriginal = Number(res.nd) || 0;
+    const ndFinal = ndAjustado(ndOriginal, { semTreino: !aprendida });
+    /*
+     * A classe é medida antes da Força de Vontade, como em toda perícia — e
+     * só existe quando há ND: apagar o campo é rolar por rolar, e uma
+     * rolagem sem dificuldade não mede nada nem conta uso nenhum.
+     */
+    const classe = ndOriginal
+      ? classificarRolagem({ ...poolDoTeste(poolDoAtributo(valorAtributo), opts), nd: ndOriginal })
+      : null;
+    const textoND = !ndOriginal ? ""
+      : ndFinal !== ndOriginal
+        ? ` (ND ${ndOriginal} → ${ndFinal}, ${loc("PYRO.Pericia.SemTreinoTag")})`
+        : sufixoND(ndFinal);
+
+    const vontade = await aplicarVontadeNoTeste(this, res);
+    opts.vantagem += vontade.beneficio;
+
+    const flavor = game.i18n.format("PYRO.Sobrecarga.Flavor", { atributo: rotuloAtributo }) + textoND;
+    const formula = formulaTeste(valorComInspiracao(valorAtributo, vontade), opts);
+    const roll = formula === null ? null : await new Roll(formula).evaluate();
+    const sucesso = !!roll && roll.total >= ndFinal;
+
+    /*
+     * A exaustão é cobrada aqui, e não no card da magia: o card diz o que
+     * está em jogo, este teste é que decide. Pool zerada é falha automática
+     * (SRD Atributos) e custa igual.
+     */
+    const niveis = Math.max(0, Math.round(Number(res.exaustao) || 0));
+    // Sem rolagem o card já diz "falha automática": repetir "falhou" abaixo
+    // seria a mesma notícia duas vezes.
+    let html = roll && ndOriginal ? htmlResultadoND(sucesso) : "";
+    if (ndOriginal && !sucesso && niveis > 0) {
+      const total = await aplicarExaustao(this, niveis);
+      html += `<p>${game.i18n.format("PYRO.Sobrecarga.Exaustao", { niveis, total })}</p>`;
+    } else if (ndOriginal && sucesso) {
+      html += `<p>${loc("PYRO.Sobrecarga.Resistiu")}</p>`;
+    }
+    /*
+     * A mesma rolagem conta para dois: ela mede a dificuldade da magia ou da
+     * técnica (SRD: "considere o teste de sobrecarga") e é um teste da
+     * perícia que a fez.
+     */
+    const item = itemUuid ? await fromUuid(itemUuid) : null;
+    html += htmlClasseDaRolagem(classe, [item, pericia]);
+    html += htmlVontadeGasta(vontade);
+
+    if (!roll) {
+      await this.#falhaAutomatica(flavor, html);
+      return true;
+    }
+    await this.#cardDeTeste(roll, { flavor, html, flags: flagsDaClasse(classe, item) });
+    return true;
   }
 
   /**

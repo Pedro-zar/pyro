@@ -1088,8 +1088,9 @@
   background: color-mix(in srgb, var(--pyro-perigo) 8%, transparent);
   font-size: 0.85rem;
 }
-.pyro-chat .pyro-sobrecarga.sucesso { border-left-color: var(--pyro-sucesso); background: color-mix(in srgb, var(--pyro-sucesso) 8%, transparent); }
-.pyro-chat .pyro-sobrecarga ul { margin: 0.2rem 0 0; padding-left: 1.1rem; }
+/* Sobrecarga ainda por rolar: o botão que abre o teste. */
+.pyro-chat .pyro-sobrecarga.pendente p { margin: 0 0 0.3rem; }
+.pyro-chat .pyro-sobrecarga.pendente button { width: auto; padding: 0.15rem 0.7rem; font-size: 0.8rem; }
 
 .pyro-chat .pyro-classe-rolagem, .pyro-classe-rolagem {
   display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;

@@ -4,13 +4,14 @@
  */
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { formulaTeste, poolDoAtributo, juntarDados, prepararFormula } from "./dados.mjs";
+import { juntarDados, prepararFormula } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, htmlEfeitosDeRegra, bonusDeDano, multiplicadoresDeDano,
-  aplicarMultDeDano, ajustesDeCusto, custoAjustado, aplicarExaustao, penalidadeExaustao
+  aplicarMultDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado
 } from "./efeitos.mjs";
+import { htmlBotaoSobrecarga } from "./teste.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
-import { classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
+import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -651,43 +652,18 @@ export async function conjurar(actor, escolhas, {
 
   /* --- Teste de sobrecarga: SAB contra 10 + soma das Intenções ------------ */
   /* A exaustão que o personagem já carrega desconta do próprio teste. */
-  let testeRoll = null;
-  let falhou = false;
-  // Sem teste de sobrecarga a conjuração é rotineira por regra (SRD Magia).
-  let classe = "rotineira";
-  if (calc.sobrecarga > 0) {
-    const pen = penalidadeExaustao(actor);
-    const sab = actor.system.atributos.sab.total;
-    const ajustes = { bonus: pen.bonus, desvantagem: pen.desvantagem };
-    const formula = formulaTeste(sab, ajustes);
-    classe = classificarRolagem({ ...poolDoTeste(poolDoAtributo(sab), ajustes), nd: calc.nd });
-    if (formula === null) {
-      falhou = true; // pool zerada: falha automática, sem rolagem
-    } else {
-      testeRoll = await new Roll(formula).evaluate();
-      falhou = testeRoll.total < calc.nd;
-    }
-  }
+  /*
+   * Sem teste de sobrecarga a conjuração é rotineira por regra (SRD Magia).
+   * Com ele, quem mede a dificuldade é o próprio teste — e ele agora sai do
+   * botão do card, não sozinho: a classe e o "contar uso" vão junto para lá.
+   */
+  const classe = calc.sobrecarga > 0 ? null : "rotineira";
 
   /* --- Gasto de mana (a magia sai de qualquer jeito) ---------------------- */
   await actor.update({ "system.recursos.mana.value": recursos.mana.value - calc.custoTotal });
 
-  /* --- Sobrecarga: exaustão no lugar dos efeitos escalonados -------------- */
-  /*
-   * Falhou no teste, ganha exaustão igual ao nível da sobrecarga — somada à
-   * que já tinha (2 + 2 = 4). Cada nível tira 1 de todos os testes. A magia é
-   * conjurada mesmo assim: o preço é o corpo, não o feitiço.
-   */
-  const efeitosSobrecarga = [];
-  if (calc.sobrecarga > 0 && falhou) {
-    const total = await aplicarExaustao(actor, calc.sobrecarga);
-    efeitosSobrecarga.push(loc("PYRO.Sobrecarga.Exaustao", {
-      niveis: calc.sobrecarga, total
-    }));
-  }
-
   /* --- Montagem do card e rolagens ---------------------------------------- */
-  const rolls = testeRoll ? [testeRoll] : [];
+  const rolls = [];
   const partes = [];
   // Totais separados: o menu do chat aplica dano ou cura sem somar o teste.
   const danos = [];
@@ -751,14 +727,19 @@ export async function conjurar(actor, escolhas, {
     partes.push(`<p class="pyro-nota">${loc("PYRO.Magia.BonusMira", { valor: calc.bonusMira })}</p>`);
   }
 
-  // Teste de sobrecarga: falhar custa exaustão, nunca a magia.
+  // Teste de sobrecarga: falhar custa exaustão, nunca a magia. O dado é
+  // rolado pelo botão, quando o conjurador estiver pronto para encará-lo.
   if (calc.sobrecarga > 0) {
-    partes.push(`<div class="pyro-sobrecarga ${falhou ? "falha" : "sucesso"}">
-      <p>${loc("PYRO.Sobrecarga.Teste", { nivel: calc.sobrecarga, nd: calc.nd, total: testeRoll?.total ?? 0 })}
-      — <strong>${loc(falhou ? "PYRO.Chat.Falha" : "PYRO.Chat.Sucesso")}</strong></p>
-      ${!falhou ? `<p>${loc("PYRO.Sobrecarga.Resistiu")}</p>` : ""}
-      ${efeitosSobrecarga.length ? `<ul>${efeitosSobrecarga.map(e => `<li>${e}</li>`).join("")}</ul>` : ""}
-    </div>`);
+    partes.push(htmlBotaoSobrecarga({
+      atorUuid: actor.uuid,
+      itemUuid: itemMagia?.uuid ?? "",
+      atributo: "sab",
+      nd: calc.nd,
+      exaustao: calc.sobrecarga,
+      // "+2 SAB nesta magia" vale no teste que ela obriga.
+      bonusAtributo: ajustesDeAtributo(actor, itemMagia).sab ?? 0,
+      motivo: loc("PYRO.Sobrecarga.Pendente", { nivel: calc.sobrecarga, nd: calc.nd })
+    }));
   }
 
   /* --- Números e dados da frase, já juntados ------------------------------ */
@@ -929,7 +910,11 @@ export async function conjurar(actor, escolhas, {
 
   // Botões dos efeitos de uso: os da magia salva e os das runas da frase.
   partes.push(htmlEfeitosDeUso(itemMagia, calc.porRuna.map(pr => pr.item)));
-  // Só magia salva progride: frase montada na hora não tem onde contar o uso.
+  /*
+   * Só magia salva progride: frase montada na hora não tem onde contar o uso.
+   * Com sobrecarga a classe é null aqui — quem mede a dificuldade é o teste,
+   * e é no card dele que o botão de contar aparece.
+   */
   partes.push(htmlClasseDaRolagem(classe, itemMagia));
 
   return ChatMessage.create({

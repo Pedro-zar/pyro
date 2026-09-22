@@ -1215,6 +1215,12 @@ PYRO.modosEfeito = {
  * fora — o custo de um item é dele, e reescrevê-lo por efeito apagaria a
  * diferença entre uma magia barata e uma cara.
  */
+/**
+ * Nome (normalizado) da perícia que cobre os testes de sobrecarga de magia e
+ * de técnica. A mesa cria a perícia com esse nome e ela passa a valer.
+ */
+PYRO.NOME_PERICIA_SOBRECARGA = "sobrecarga";
+
 PYRO.modosDeCusto = {
   add: "PYRO.Efeitos.Modo.somar",
   multiply: "PYRO.Efeitos.Modo.multiplicar"

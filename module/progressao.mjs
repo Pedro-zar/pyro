@@ -240,15 +240,26 @@ export function rotuloDaClasse(classe) {
  * o botão de contar o uso. A contagem é manual por regra: várias conjurações
  * para o mesmo objetivo valem um uso só, e quem sabe disso é o jogador.
  */
-export function htmlClasseDaRolagem(classe, item = null) {
+export function htmlClasseDaRolagem(classe, itens = null) {
   if (!classe) return "";
-  const botao = item && tabelaDoItem(item)
-    ? `<button type="button" class="pyro-contar-uso" data-item-uuid="${item.uuid}" data-classe="${classe}">
-        <i class="fa-solid fa-plus"></i> ${game.i18n.localize("PYRO.Uso.Contar")}
-      </button>`
-    : "";
+  /*
+   * Mais de um item quando a mesma rolagem conta para dois: o teste de
+   * sobrecarga mede a dificuldade da magia E é um teste da perícia que o
+   * fez. Com dois botões cada um leva o nome do seu item, porque "contar
+   * uso" duas vezes seguidas não diz para onde vai.
+   */
+  const lista = (Array.isArray(itens) ? itens : [itens])
+    .filter(item => item && tabelaDoItem(item));
+  const botoes = lista.map(item => {
+    const rotulo = lista.length > 1
+      ? game.i18n.format("PYRO.Uso.ContarEm", { nome: Handlebars.escapeExpression(item.name) })
+      : game.i18n.localize("PYRO.Uso.Contar");
+    return `<button type="button" class="pyro-contar-uso" data-item-uuid="${item.uuid}" data-classe="${classe}">
+        <i class="fa-solid fa-plus"></i> ${rotulo}
+      </button>`;
+  }).join("");
   return `<div class="pyro-classe-rolagem classe-${classe}">
-    <span>${rotuloDaClasse(classe)}</span>${botao}
+    <span>${rotuloDaClasse(classe)}</span>${botoes}
   </div>`;
 }
 

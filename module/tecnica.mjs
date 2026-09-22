@@ -8,13 +8,14 @@
  */
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { formulaTeste, poolDoAtributo, prepararFormula, juntarDados } from "./dados.mjs";
+import { prepararFormula, juntarDados } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
-  ajustesDeAtributo, ajustesDeCusto, custoAjustado, aplicarExaustao, penalidadeExaustao
+  ajustesDeAtributo, ajustesDeCusto, custoAjustado
 } from "./efeitos.mjs";
+import { htmlBotaoSobrecarga } from "./teste.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
-import { classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
+import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -464,31 +465,15 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     await actor.update({ "system.recursos.pv.value": Math.max(0, pv.value - calc.somaEsforcos) });
   }
 
-  /* --- Teste de VIG pelo Esforço além do limite --------------------------- */
-  let testeRoll = null;
-  let falhou = false;
-  // Sem excesso não há teste, e sem teste a execução é rotineira (SRD 3b).
-  let classe = "rotineira";
-  if (calc.excesso > 0) {
-    const pen = penalidadeExaustao(actor);
-    // "+2 VIG com a katana" vale no teste da técnica que golpeia com ela.
-    const vig = actor.system.atributos.vig.total
-      + (ajustesDeAtributo(actor, [item, ataque?.item]).vig ?? 0);
-    const ajustes = { bonus: pen.bonus, desvantagem: pen.desvantagem };
-    const formula = formulaTeste(vig, ajustes);
-    classe = classificarRolagem({ ...poolDoTeste(poolDoAtributo(vig), ajustes), nd: calc.nd });
-    if (formula === null) falhou = true;
-    else {
-      testeRoll = await new Roll(formula).evaluate();
-      falhou = testeRoll.total < calc.nd;
-    }
-  }
-
-  let exaustaoTotal = 0;
-  if (calc.excesso > 0 && falhou) exaustaoTotal = await aplicarExaustao(actor, calc.excesso);
+  /*
+   * Sem excesso não há teste, e sem teste a execução é rotineira (SRD 3b).
+   * Com excesso, quem mede a dificuldade é o teste de sobrecarga — que sai do
+   * botão do card, e leva a classe e o "contar uso" junto.
+   */
+  const classe = calc.excesso > 0 ? null : "rotineira";
 
   /* --- Card ---------------------------------------------------------------- */
-  const rolls = testeRoll ? [testeRoll] : [];
+  const rolls = [];
   const partes = [];
   const danos = [];
 
@@ -539,14 +524,19 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     </li>`).join("")}</ul>`);
   }
 
+  // O Esforço além do limite cobra um teste de VIG; o dado é rolado no botão,
+  // quando quem se esforçou estiver pronto para encarar a conta.
   if (calc.excesso > 0) {
-    partes.push(`<div class="pyro-sobrecarga ${falhou ? "falha" : "sucesso"}">
-      <p>${loc("PYRO.Tecnica.TesteLimite", { excesso: calc.excesso, nd: calc.nd, total: testeRoll?.total ?? 0 })}
-        — <strong>${loc(falhou ? "PYRO.Chat.Falha" : "PYRO.Chat.Sucesso")}</strong></p>
-      ${falhou
-        ? `<p>${loc("PYRO.Tecnica.ExaustaoAlem", { niveis: calc.excesso, total: exaustaoTotal })}</p>`
-        : `<p>${loc("PYRO.Tecnica.Aguentou")}</p>`}
-    </div>`);
+    partes.push(htmlBotaoSobrecarga({
+      atorUuid: actor.uuid,
+      itemUuid: item.uuid,
+      atributo: "vig",
+      nd: calc.nd,
+      exaustao: calc.excesso,
+      // "+2 VIG com a katana" vale no teste da técnica que golpeia com ela.
+      bonusAtributo: ajustesDeAtributo(actor, [item, ataque?.item]).vig ?? 0,
+      motivo: loc("PYRO.Tecnica.LimitePendente", { excesso: calc.excesso, nd: calc.nd })
+    }));
   }
 
   /* --- Dano do ataque, com o multiplicador da Potência --------------------- */
