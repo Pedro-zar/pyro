@@ -84,18 +84,29 @@ export function tracosCompativeis(acaoBase) {
 }
 
 /**
- * O que um traço rende: (base + porGrau x (grau - 1)) x Esforço.
+ * O que um traço rende: base + porGrau x ((grau - 1) + grau x (Esforço - 1)).
  *
- * O grau move os dois lados da conta — a base e o quanto cada Esforço
- * acrescenta —, que é o que separa um traço caro de um barato levado no braço.
- * Esforço 0 é o traço não usado nesta execução.
+ * O grau move os dois lados da conta — quanto o traço já vale parado e quanto
+ * cada Esforço acrescenta —, que é o que separa um traço caro de um barato
+ * levado no braço. Esforço 0 é o traço não usado nesta execução.
  */
 export function valorDoTraco(cfg, grau, esforco) {
   if (!cfg || esforco <= 0) return 0;
   const porGrau = Number(cfg.porGrau) || 0;
-  const noGrau = (Number(cfg.base) || 0) + porGrau * (Math.max(1, grau) - 1);
+  const g = Math.max(1, grau);
+  /*
+   * O Esforço SOMA graus, não multiplica o valor: cada ponto além do
+   * primeiro rende o que `g` graus renderiam. Uma Linha de base 2 e +1 por
+   * grau, comprada no grau 2, vale 3 m no Esforço 1 e ganha 2 m por Esforço
+   * (3, 5, 7...). Multiplicar o valor inteiro — o que o sistema fazia —
+   * levava a base junto e dava 9 no Esforço 3, e pior: num traço de base
+   * negativa (o Desarmar, que começa em -1 dado) o Esforço afundava o valor
+   * em vez de melhorá-lo.
+   */
+  const graus = (g - 1) + g * (esforco - 1);
+  const valor = (Number(cfg.base) || 0) + porGrau * graus;
   // Traço de quarto em quarto (a Potência) não pode virar 0,7500000000000001.
-  return Math.round(noGrau * esforco * 1000) / 1000;
+  return Math.round(valor * 1000) / 1000;
 }
 
 /** Limite seguro de Esforço por traço (SRD Técnicas): DET x 2. */
