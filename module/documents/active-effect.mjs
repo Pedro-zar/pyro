@@ -1,8 +1,8 @@
 /**
  * Efeitos do PYRO: trava a aplicação dos efeitos que não valem o tempo todo —
- * os presos a itens e os de uma postura que não está ativa. No Foundry v14 a
- * aplicação passa por `shouldApplyChange` (portão por mudança, na instância) e
- * `applyChange` (a conta em si, estática); o travamento vai no portão.
+ * os presos a itens e os de uma postura ou transformação que não está ativa. No
+ * Foundry v14 a aplicação passa por `shouldApplyChange` (portão por mudança, na
+ * instância) e `applyChange` (a conta em si, estática); o travamento vai no portão.
  */
 import { flagsDe, SYSTEM_ID } from "../sistema.mjs";
 
@@ -18,14 +18,18 @@ export class PyroActiveEffect extends ActiveEffect {
   }
 
   /**
-   * Efeito de uma postura só vale enquanto ela é a postura ativa (SRD
-   * Técnicas). A postura é escolhida no ator, então a pergunta é feita de
-   * fora do item: a habilidade não sabe se é a guarda do momento.
+   * Efeito de uma postura ou de uma transformação só vale enquanto aquela
+   * forma está ativa (SRD Técnicas). Qual está ativa é escolha do ator, então
+   * a pergunta é feita de fora do item: a habilidade não sabe se é a guarda do
+   * momento nem se o personagem está transformado nela.
    */
-  get #posturaInativa() {
+  get #formaInativa() {
     const item = this.parent;
-    if (item?.documentName !== "Item" || !item.system?.ehPostura) return false;
-    return item.actor?.getFlag(SYSTEM_ID, "postura") !== item.id;
+    if (item?.documentName !== "Item") return false;
+    const chave = item.system?.ehPostura ? "postura"
+      : item.system?.ehTransformacao ? "transformacao" : null;
+    if (!chave) return false;
+    return item.actor?.getFlag(SYSTEM_ID, chave) !== item.id;
   }
 
   /**
@@ -40,13 +44,13 @@ export class PyroActiveEffect extends ActiveEffect {
   }
 
   get isSuppressed() {
-    if (this.#presoAItem || this.#posturaInativa || this.#prazoVencido) return true;
+    if (this.#presoAItem || this.#formaInativa || this.#prazoVencido) return true;
     return super.isSuppressed ?? false;
   }
 
   /** O mesmo travamento, no portão que o Foundry consulta por mudança. */
   shouldApplyChange(change, options) {
-    if (this.#presoAItem || this.#posturaInativa || this.#prazoVencido) return false;
+    if (this.#presoAItem || this.#formaInativa || this.#prazoVencido) return false;
     return super.shouldApplyChange?.(change, options) ?? true;
   }
 

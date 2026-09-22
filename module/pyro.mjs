@@ -21,7 +21,7 @@ import { registrarMenuChat } from "./chat.mjs";
 import { registrarRelogio } from "./tempo.mjs";
 import { registrarPercepcao } from "./percepcao.mjs";
 import { registrarRegioes } from "./regioes.mjs";
-import { SYSTEM_ID, caminho } from "./sistema.mjs";
+import { SYSTEM_ID, flagsDe, caminho } from "./sistema.mjs";
 
 Hooks.once("init", () => {
   console.log(`PYRO | Inicializando sistema (id: ${SYSTEM_ID})`);
@@ -137,6 +137,44 @@ Hooks.on("deleteItem", doc => sincronizarTamanho(atorDoDocumento(doc)));
 Hooks.on("createActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
 Hooks.on("updateActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
 Hooks.on("deleteActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
+
+/*
+ * O prazo da transformação mora num efeito marcador; quando ele morre — o
+ * relógio o venceu, ou alguém o apagou na ficha — a forma acaba junto.
+ *
+ * Quem responde é o cliente que apagou o marcador, e não o mestre: um jogador
+ * pode passar o tempo pelo Grupo e apagar o marcador da própria ficha numa
+ * mesa sem mestre conectado, e ali a forma ficaria ligada para sempre. Quem
+ * pôde apagar o efeito é dono do ator, então pode acabar a forma.
+ *
+ * A saída não é esperada de propósito: este gancho dispara de dentro do
+ * relógio, que já corre na fila do ator. Ela entra na fila e roda em seguida.
+ */
+Hooks.on("deleteActiveEffect", (efeito, opcoes, userId) => {
+  if (game.user.id !== userId) return;
+  const ator = efeito?.parent;
+  const forma = flagsDe(efeito)?.transformacao;
+  if (!forma || !(ator instanceof Actor)) return;
+  // Numa troca de forma a flag já aponta para a nova, e o marcador que está
+  // sendo apagado é o da antiga: nada acabou.
+  if (ator.getFlag(SYSTEM_ID, "transformacao") !== forma) return;
+  // O card do turno já anuncia o prazo vencido junto com os outros efeitos.
+  ator.sairDaTransformacao({ aviso: !opcoes?.pyroRelatado })
+    .catch(erro => console.error("PYRO | falha ao acabar a transformação", erro));
+});
+
+/*
+ * A habilidade que dá a forma sumiu da ficha: o marcador dela não tem mais
+ * dono, e uma forma sem prazo ficaria pendurada no ator para sempre.
+ */
+Hooks.on("deleteItem", (item, opcoes, userId) => {
+  if (game.user.id !== userId) return;
+  const ator = item?.parent;
+  if (!(ator instanceof Actor)) return;
+  if (ator.getFlag(SYSTEM_ID, "transformacao") !== item.id) return;
+  ator.sairDaTransformacao()
+    .catch(erro => console.error("PYRO | falha ao acabar a transformação", erro));
+});
 
 /**
  * Diagnóstico: se as chaves não resolverem, o arquivo de idioma não foi

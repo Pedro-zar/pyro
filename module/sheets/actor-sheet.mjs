@@ -25,6 +25,7 @@ import { comUnidade, calcularFormula } from "../dados.mjs";
 import { custoDeCaminhoNovo } from "../data/item-data.mjs";
 import { multRecuperacaoDoAtor, comDensidade } from "../regioes.mjs";
 import { descreverRequisito } from "../progressao.mjs";
+import { transformacoesDoAtor, marcadorDeForma } from "../documents/actor.mjs";
 import {
   posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDoValor, textoDaCondicao
 } from "../tecnica.mjs";
@@ -99,6 +100,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       abrirConjurador: PyroActorSheet.#abrirConjurador,
       abrirNovoCaminho: PyroActorSheet.#abrirNovoCaminho,
       alternarPostura: PyroActorSheet.#alternarPostura,
+      alternarTransformacao: PyroActorSheet.#alternarTransformacao,
       abrirGuiaAcoes: PyroActorSheet.#abrirGuiaAcoes,
       criarItem: PyroActorSheet.#criarItem,
       editarItem: PyroActorSheet.#editarItem,
@@ -703,6 +705,22 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         img: p.img,
         ativa: actor.posturaAtiva?.id === p.id
       })),
+      /*
+       * Barra de transformações: mesma pastilha da postura, com o que falta do
+       * prazo na ativa. O prazo é lido do efeito marcador, que é quem o relógio
+       * desconta — a habilidade guarda a duração escrita, não a que resta.
+       */
+      transformacoes: transformacoesDoAtor(actor).map(t => {
+        const ativa = actor.transformacaoAtiva?.id === t.id;
+        const marcador = ativa ? marcadorDeForma(actor, t.id) : null;
+        return {
+          id: t.id,
+          nome: t.name,
+          img: t.img,
+          ativa,
+          prazo: marcador ? rotuloDePrazo(marcador) : ""
+        };
+      }),
       recursosVisiveis,
       recursosCols,
       selosPoder,
@@ -786,6 +804,11 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /** Entrar na postura, ou sair dela ao clicar na que já está ativa. */
   static async #alternarPostura(event, target) {
     await this.actor.alternarPostura(this.actor.items.get(target.dataset.itemId));
+  }
+
+  /** Entrar na forma, ou desfazê-la ao clicar na que já está ativa. */
+  static async #alternarTransformacao(event, target) {
+    await this.actor.alternarTransformacao(this.actor.items.get(target.dataset.itemId));
   }
 
   static async #vontadeDeViver() {

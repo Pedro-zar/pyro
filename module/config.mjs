@@ -800,25 +800,29 @@ PYRO.CUSTO_INSPIRACAO = 5;
 
 /** Como a habilidade se comporta na ficha. */
 /*
- * Postura é uma categoria, e não uma marca à parte: uma habilidade é passiva,
- * ativável ou postura, e as três se excluem. Marcá-la num checkbox separado
- * deixava a ficha aceitar "passiva e postura ao mesmo tempo", que não existe.
+ * Postura e transformação são categorias, e não marcas à parte: uma habilidade
+ * é passiva, ativável, postura ou transformação, e as quatro se excluem.
+ * Marcá-las num checkbox separado deixava a ficha aceitar "passiva e postura ao
+ * mesmo tempo", que não existe.
  */
 PYRO.categoriasHabilidade = {
   passiva: "PYRO.Item.Cat.passiva",
   ativavel: "PYRO.Item.Cat.ativavel",
-  postura: "PYRO.Item.Cat.postura"
+  postura: "PYRO.Item.Cat.postura",
+  transformacao: "PYRO.Item.Cat.transformacao"
 };
 
 /**
- * A habilidade cobra recurso ao ser usada? Só a ativável.
+ * A habilidade cobra recurso ao ser usada? A ativável e a transformação.
  *
- * Passiva não é usada, e postura é trocada — quem entra em guarda não paga
- * nada por regra. É a mesma pergunta na ficha do item (o bloco de Custos) e na
- * linha do ator (o resumo de custos), senão a ficha mostraria um custo que
- * ninguém cobra.
+ * Passiva não é usada, e postura é trocada — quem entra em guarda não paga nada
+ * por regra. Já entrar numa forma é um uso como outro qualquer: gasta a ação e
+ * o recurso escritos na habilidade. É a mesma pergunta na ficha do item (o
+ * bloco de Custos) e na linha do ator (o resumo de custos), senão a ficha
+ * mostraria um custo que ninguém cobra.
  */
-PYRO.cobraCustoDeUso = sys => sys?.categoria === "ativavel";
+PYRO.cobraCustoDeUso = sys =>
+  sys?.categoria === "ativavel" || sys?.categoria === "transformacao";
 
 /** Habilidades gastam ações ou reações. */
 PYRO.tiposCusto = {

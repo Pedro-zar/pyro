@@ -100,7 +100,10 @@ async function vencerPrazos(actor, relatos, ehSeuTurno, virouRodada) {
       await efeito.update({ [`flags.${SYSTEM_ID}.${campo}`]: restam });
       continue;
     }
-    await efeito.delete();
+    // A marca diz a quem escuta a remoção que o card deste relógio já vai
+    // contar o que aconteceu (ver a transformação em pyro.mjs): sem ela o
+    // mesmo vencimento seria anunciado duas vezes, em duas caixas.
+    await efeito.delete({ pyroRelatado: true });
     relatos.push(loc("PYRO.Tempo.Expirou", {
       nome: esc(actor.name), condicao: nomeDoEfeito(efeito, flags)
     }));
@@ -154,7 +157,7 @@ async function vencerTempoCorrido(actor, turnos, relatos) {
         await efeito.update({ [`flags.${SYSTEM_ID}.${campo}`]: restam });
         continue;
       }
-      await efeito.delete();
+      await efeito.delete({ pyroRelatado: true });
       relatos.push(loc("PYRO.Tempo.Expirou", {
         nome: esc(actor.name), condicao: nomeDoEfeito(efeito, flags)
       }));
@@ -167,7 +170,7 @@ async function vencerTempoCorrido(actor, turnos, relatos) {
      */
     const d = efeito.duration;
     if (d?.seconds && Number(d.remaining) <= 0) {
-      await efeito.delete();
+      await efeito.delete({ pyroRelatado: true });
       relatos.push(loc("PYRO.Tempo.Expirou", {
         nome: esc(actor.name), condicao: esc(efeito.name)
       }));

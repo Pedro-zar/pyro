@@ -47,15 +47,18 @@ export function efeitoValeParaItem(efeito, item) {
 
 /** Efeitos ativos do ator, incluindo os que estão presos a algum item. */
 /**
- * Efeito de uma postura que não é a postura ativa do dono. O mesmo portão do
- * PyroActiveEffect, para o que o sistema lê por fora do core (bônus de dano,
- * custos, atributos presos a item): sem ele, a guarda desligada seguiria
- * dando o desconto dela.
+ * Efeito de uma postura ou de uma transformação que não é a forma ativa do
+ * dono. O mesmo portão do PyroActiveEffect, para o que o sistema lê por fora do
+ * core (bônus de dano, custos, atributos presos a item): sem ele, a guarda
+ * desligada seguiria dando o desconto dela.
  */
-const dePosturaInativa = efeito => {
+const deFormaInativa = efeito => {
   const item = efeito.parent;
-  if (!(item instanceof Item) || !item.system?.ehPostura) return false;
-  return item.actor?.getFlag(SYSTEM_ID, "postura") !== item.id;
+  if (!(item instanceof Item)) return false;
+  const chave = item.system?.ehPostura ? "postura"
+    : item.system?.ehTransformacao ? "transformacao" : null;
+  if (!chave) return false;
+  return item.actor?.getFlag(SYSTEM_ID, chave) !== item.id;
 };
 
 function efeitosAtivos(actor) {
@@ -63,8 +66,8 @@ function efeitosAtivos(actor) {
   for (const efeito of actor?.allApplicableEffects?.() ?? []) {
     // `disabled` é escolha do jogador. Efeito preso a item aparece aqui de
     // propósito: ele está suprimido na ficha, mas vale na rolagem certa. Já
-    // o de postura fora da postura não vale em canto nenhum.
-    if (!efeito.disabled && !dePosturaInativa(efeito)) lista.push(efeito);
+    // o de uma forma desligada não vale em canto nenhum.
+    if (!efeito.disabled && !deFormaInativa(efeito)) lista.push(efeito);
   }
   return lista;
 }

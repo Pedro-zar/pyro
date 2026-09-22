@@ -9,6 +9,7 @@ import { pintarTema } from "../tema.mjs";
 import { caminho, flagsDe } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
 import { calcularFormula } from "../dados.mjs";
+import { opcoesDeUnidade } from "../duracao.mjs";
 import { descreverRequisito } from "../progressao.mjs";
 import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "../data/item-data.mjs";
 import {
@@ -356,6 +357,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         marcado: (sys.recursos ?? []).includes(chave)
       })),
       tipoCustoOpts: PYRO.tiposCusto,
+      // Unidades do prazo da transformação; as mesmas do construtor de efeito,
+      // porque é o mesmo relógio que conta as duas coisas.
+      unidadesDuracao: opcoesDeUnidade(),
       // Passiva, postura e perícia não gastam ação nem recurso ao serem
       // usadas: sem bloco de Custos.
       temCustos: item.type === "habilidade" && PYRO.cobraCustoDeUso(sys),

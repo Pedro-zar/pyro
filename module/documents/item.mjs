@@ -346,9 +346,10 @@ export class PyroItem extends Item {
     switch (this.type) {
       case "arma": return this.#atacar();
       case "consumivel": return this.#consumir();
-      case "habilidade": return this.system.ehPostura
-        ? this.actor?.alternarPostura(this)
-        : this.#usarHabilidade();
+      case "habilidade":
+        if (this.system.ehPostura) return this.actor?.alternarPostura(this);
+        if (this.system.ehTransformacao) return this.actor?.alternarTransformacao(this);
+        return this.#usarHabilidade();
       case "tecnica": return executarTecnica(this.actor, this);
       case "pericia": return this.actor?.rolarPericia(this);
       case "feitico": return this.#usarFeitico();
@@ -623,7 +624,19 @@ export class PyroItem extends Item {
     });
   }
 
-  async #usarHabilidade() {
+  /**
+   * Cobra um uso desta habilidade — recursos e ações, já com os descontos dos
+   * efeitos — e devolve a linha que o card mostra no cabeçalho.
+   *
+   * Fica público porque entrar numa transformação é um uso como outro
+   * qualquer, e quem conduz a entrada é o ator (ver alternarTransformacao):
+   * sem isto a forma teria uma segunda cópia da mesma cobrança, que ia
+   * divergir da primeira no dia em que uma das duas mudasse.
+   *
+   * @returns {Promise<string|null>} a linha de custos (vazia quando nada foi
+   *   cobrado), ou null quando faltou recurso e nada foi gasto.
+   */
+  async cobrarUso() {
     const sys = this.system;
 
     /*
@@ -649,7 +662,7 @@ export class PyroItem extends Item {
     const custos = [];
     if (this.actor && Object.values(cobra).some(v => v > 0)) {
       const pago = await this.actor.pagarCustos(cobra);
-      if (!pago) return; // faltou algum recurso
+      if (!pago) return null; // faltou algum recurso
       if (pago.daEstamina) custos.push(game.i18n.format("PYRO.Chat.CustoEstamina", { valor: pago.daEstamina }));
       // Sem estamina suficiente, o resto sai dos PV (SRD Recursos).
       if (pago.dosPv) custos.push(game.i18n.format("PYRO.Chat.CustoPv", { valor: pago.dosPv }));
@@ -665,11 +678,15 @@ export class PyroItem extends Item {
     }
 
     const chaveCusto = sys.tipoCusto === "reacao" ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";
-    const cab = [
+    return [
       custoAcoes ? game.i18n.format(chaveCusto, { acoes: custoAcoes }) : null,
       ...custos
     ].filter(Boolean).join(" · ");
+  }
 
+  async #usarHabilidade() {
+    const cab = await this.cobrarUso();
+    if (cab === null) return;
     return this.cardDeHabilidade(cab);
   }
 

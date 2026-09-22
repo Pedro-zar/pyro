@@ -129,6 +129,16 @@
         <span class="rotulo">{{localize "PYRO.Item.Categoria"}}</span>
         <select name="system.categoria">{{selectOptions config.categoriasHabilidade selected=system.categoria localize=true}}</select></label>
       {{#if system.ehPostura}}<p class="pyro-nota">{{localize "PYRO.Postura.Dica"}}</p>{{/if}}
+      {{!-- Transformação: quanto a forma dura. O valor aceita fórmula (@nvl),
+            e vazio é forma sem prazo, que acaba quando o jogador sair. --}}
+      {{#if system.ehTransformacao}}
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Transformacao.Duracao"}}</span>
+        <input type="text" name="system.duracao.valor" value="{{system.duracao.valor}}"
+               placeholder="{{localize 'PYRO.Transformacao.DuracaoPlaceholder'}}" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Efeitos.Unidade"}}</span>
+        <select name="system.duracao.unidade">{{selectOptions unidadesDuracao selected=system.duracao.unidade}}</select></label>
+      <p class="pyro-nota">{{localize "PYRO.Transformacao.Dica"}}</p>
+      {{/if}}
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Ranque"}}</span>
         <select name="system.ranque">{{selectOptions ranqueOpts selected=system.ranque}}</select></label>
       <div class="campo"><span class="rotulo">{{localize "PYRO.Item.CustoXp"}}</span>

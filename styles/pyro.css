@@ -1647,22 +1647,29 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 /*  Técnicas                                                                  */
 /* -------------------------------------------------------------------------- */
 
-/* Barra de posturas: a ativa em destaque, e só uma pode estar. */
-.pyro .painel.posturas { margin-top: var(--pyro-e-3); }
-.pyro .barra-posturas { display: flex; flex-wrap: wrap; gap: var(--pyro-e-2); }
-.pyro .barra-posturas .postura {
+/* Barra de posturas e de transformações: a ativa em destaque. */
+.pyro .painel.posturas, .pyro .painel.transformacoes { margin-top: var(--pyro-e-3); }
+.pyro .barra-posturas, .pyro .barra-formas {
+  display: flex; flex-wrap: wrap; gap: var(--pyro-e-2);
+}
+.pyro .barra-posturas .postura, .pyro .barra-formas .forma {
   display: flex; align-items: center; gap: var(--pyro-e-2);
   padding: 0.25rem 0.6rem 0.25rem 0.25rem;
   background: var(--pyro-painel);
   border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-md);
   font-size: var(--pyro-t-sm); line-height: 1.1; width: auto;
 }
-.pyro .barra-posturas .postura img {
+.pyro .barra-posturas .postura img, .pyro .barra-formas .forma img {
   width: 1.6rem; height: 1.6rem; border: none; border-radius: 4px; object-fit: cover;
 }
-.pyro .barra-posturas .postura.ativa {
+.pyro .barra-posturas .postura.ativa, .pyro .barra-formas .forma.ativa {
   border-color: var(--pyro-acento-ficha); font-weight: 700;
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--pyro-acento-ficha) 40%, transparent);
+}
+/* Quanto falta da forma, ao lado do nome. */
+.pyro .barra-formas .forma .prazo {
+  font-style: normal; font-weight: 400; font-size: var(--pyro-t-xs);
+  color: var(--pyro-texto-3); white-space: nowrap;
 }
 
 /* Executor: mesma barra em duas camadas do conjurador, na cor da estamina. */

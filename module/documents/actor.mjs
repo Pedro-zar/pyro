@@ -3,7 +3,9 @@
  * de recursos, dano/cura vindos do chat e recuperação por passagem de tempo.
  */
 import { PYRO } from "../config.mjs";
-import { formulaTeste, formulaReacao, prepararFormula, poolDoAtributo } from "../dados.mjs";
+import {
+  formulaTeste, formulaReacao, prepararFormula, poolDoAtributo, calcularFormula
+} from "../dados.mjs";
 import {
   classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse, bonusPorNivel, ndAjustado
 } from "../progressao.mjs";
@@ -17,7 +19,10 @@ import {
   aplicarVontadeNoTeste, valorComInspiracao, htmlVontadeGasta, sufixoND, periciaDeSobrecarga
 } from "../teste.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
-import { SYSTEM_ID, flagsDoSistema } from "../sistema.mjs";
+import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "../sistema.mjs";
+import {
+  dadosDePrazo, UNIDADE_PADRAO, contaEmTurnos, daUnidade, turnosDe
+} from "../duracao.mjs";
 import { donosDe, temDonoJogador } from "../tecnica.mjs";
 import { multRecuperacaoDoAtor, comDensidade } from "../regioes.mjs";
 
@@ -711,6 +716,111 @@ export class PyroActor extends Actor {
     });
   }
 
+  /* ---------------------------------------------------------------------- */
+  /*  Transformações                                                        */
+  /* ---------------------------------------------------------------------- */
+
+  /**
+   * A forma em que o personagem está, ou null. Mesma flag única da postura, e
+   * pelo mesmo motivo: duas formas ligadas ao mesmo tempo empilhariam efeitos
+   * que foram escritos para valer sozinhos. Entrar numa segunda troca a
+   * primeira.
+   */
+  get transformacaoAtiva() {
+    const id = this.getFlag(SYSTEM_ID, "transformacao");
+    const item = id ? this.items.get(id) : null;
+    return item?.system?.ehTransformacao ? item : null;
+  }
+
+  /**
+   * Entra numa transformação, ou sai dela ao repetir a que já está ativa.
+   *
+   * Diferente da postura, entrar é um uso: os custos da habilidade são
+   * cobrados antes, e uma forma que o personagem não pode pagar não começa.
+   * O prazo vive num efeito marcador no ator (ver marcadorDeForma) porque é o
+   * relógio de tempo.mjs que sabe descontar turno, e é a morte dele que acaba
+   * a forma — inclusive quando o mestre o apaga à mão.
+   */
+  async alternarTransformacao(item) {
+    return naFila(this, () => this.#entrarOuSairDaForma(item));
+  }
+
+  async #entrarOuSairDaForma(item) {
+    if (item && !item.system?.ehTransformacao) return;
+    if (!item || this.transformacaoAtiva?.id === item.id) return this.#acabarForma({});
+    // O botão da ficha entra direto na forma, sem passar por usar(): sem esta
+    // linha uma habilidade comprada e ainda não recebida seria cobrada aqui.
+    if (item.system.adormecidaAtiva) {
+      return ui.notifications.warn(
+        game.i18n.format("PYRO.Despertar.AdormecidaAviso", { nome: item.name }));
+    }
+
+    const custos = await item.cobrarUso();
+    if (custos === null) return; // faltou recurso: a forma não começa
+
+    /*
+     * A flag muda antes dos marcadores: apagar o marcador da forma anterior
+     * com a flag ainda apontando para ela faria o ouvinte de expiração
+     * entender que a forma acabou e anunciar uma saída no meio de uma troca.
+     */
+    await this.setFlag(SYSTEM_ID, "transformacao", item.id);
+    await this.#limparMarcadoresDeForma();
+
+    const prazo = duracaoDaForma(item);
+    await ActiveEffect.implementation.create(foundry.utils.mergeObject(
+      dadosDePrazo(prazo?.valor ?? 0, prazo?.unidade ?? UNIDADE_PADRAO, {
+        transformacao: item.id, rotulo: item.name
+      }),
+      { name: item.name, img: item.img, origin: item.uuid }
+    ), { parent: this });
+
+    const meta = [
+      game.i18n.localize("PYRO.Transformacao.EntrouMeta"),
+      prazo ? textoDePrazo(prazo) : null,
+      custos || null
+    ].filter(Boolean).join(" · ");
+    // NPC transformado não entrega a descrição inteira da forma à mesa, pelo
+    // mesmo motivo da postura: o card traz tudo o que ela faz.
+    const sussurro = temDonoJogador(this) ? [] : donosDe(this);
+    return item.cardDeHabilidade(meta, sussurro);
+  }
+
+  /**
+   * Acaba a forma ativa: apaga a flag, o marcador de prazo e avisa a mesa.
+   * Sem forma ligada não faz nada, porque é chamada também pela morte do
+   * marcador, que pode chegar depois de alguém já ter saído pela ficha.
+   *
+   * @param {boolean} [opcoes.aviso] false quando quem chamou já contou o que
+   *   aconteceu — o card do turno anuncia o prazo vencido com todos os outros,
+   *   e um segundo aviso só repetiria a mesma linha noutra caixa.
+   */
+  async sairDaTransformacao(opcoes = {}) {
+    return naFila(this, () => this.#acabarForma(opcoes));
+  }
+
+  async #acabarForma({ aviso = true }) {
+    const item = this.transformacaoAtiva;
+    if (!item && !this.getFlag(SYSTEM_ID, "transformacao")) return;
+    await this.setFlag(SYSTEM_ID, "transformacao", "");
+    await this.#limparMarcadoresDeForma();
+    if (!aviso) return;
+    return ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor: this }),
+      whisper: temDonoJogador(this) ? [] : donosDe(this),
+      content: `<div class="pyro-chat"><p>${game.i18n.format("PYRO.Transformacao.Saiu", {
+        nome: esc(item?.name ?? game.i18n.localize("PYRO.Transformacao.Nome"))
+      })}</p></div>`
+    });
+  }
+
+  /** Apaga os marcadores de forma que sobraram, seja qual for a habilidade. */
+  async #limparMarcadoresDeForma() {
+    const ids = (this.effects ?? [])
+      .filter(e => flagsDe(e)?.transformacao)
+      .map(e => e.id);
+    if (ids.length) await this.deleteEmbeddedDocuments("ActiveEffect", ids);
+  }
+
   /** Tomar Ar: recupera VIG/2 de estamina, até o máximo. */
   async tomarAr() {
     const estamina = this.system.recursos.estamina;
@@ -919,4 +1029,46 @@ export class PyroActor extends Actor {
       content: `<p>${game.i18n.localize("PYRO.Chat.NovoArco")}</p>`
     });
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Transformações: seleção e prazo                                           */
+/* -------------------------------------------------------------------------- */
+
+/** Habilidades marcadas como transformação, na ordem da ficha. */
+export function transformacoesDoAtor(actor) {
+  return actor?.items
+    .filter(i => i.type === "habilidade" && i.system.ehTransformacao)
+    .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)) ?? [];
+}
+
+/** O efeito que conta o prazo de uma forma, se ela estiver ligada. */
+export function marcadorDeForma(actor, itemId) {
+  return (actor?.effects ?? []).find(e => flagsDe(e)?.transformacao === itemId) ?? null;
+}
+
+/**
+ * Quanto a forma dura, com a fórmula já resolvida no nível atual da
+ * habilidade. Null quando a forma não tem prazo — ela fica até o jogador sair.
+ */
+export function duracaoDaForma(item) {
+  const escrito = String(item?.system?.duracao?.valor ?? "").trim();
+  if (!escrito) return null;
+  const bruto = Math.floor(calcularFormula(escrito, item.getRollData()));
+  if (!(bruto > 0)) return null;
+  const unidade = item.system.duracao.unidade || UNIDADE_PADRAO;
+  /*
+   * Em segundos o prazo é arredondado para os turnos que o relógio vai contar
+   * (10s cabem em 2 turnos, ou seja 12s), que é o número guardado no
+   * marcador. Anunciar o escrito faria o card dizer 10 e a ficha mostrar 12
+   * no instante seguinte.
+   */
+  const valor = contaEmTurnos(unidade) ? daUnidade(turnosDe(bruto, unidade), unidade) : bruto;
+  return { valor, unidade };
+}
+
+/** "12 turnos", na unidade em que o prazo foi escrito. */
+export function textoDePrazo({ valor, unidade }) {
+  return `${valor} ${game.i18n.localize(
+    PYRO.unidadesDeDuracao[unidade]?.curto ?? unidade)}`;
 }

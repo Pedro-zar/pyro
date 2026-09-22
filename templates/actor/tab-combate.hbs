@@ -116,6 +116,26 @@
   </div>
   {{/if}}
 
+  {{!-- Transformações: a forma ativa e quanto falta dela. Ao contrário da
+        postura, entrar cobra o custo da habilidade e o prazo corre sozinho. --}}
+  {{#if transformacoes.length}}
+  <div class="painel transformacoes">
+    <h3 class="titulo-secao">{{localize "PYRO.Transformacao.Nome"}}</h3>
+    <div class="barra-formas">
+      {{#each transformacoes as |t|}}
+      <button type="button" class="forma {{#if t.ativa}}ativa{{/if}}"
+              data-action="alternarTransformacao" data-item-id="{{t.id}}"
+              title="{{localize (pyroSe t.ativa 'PYRO.Transformacao.Sair' 'PYRO.Transformacao.Entrar')}}">
+        <img src="{{t.img}}" alt="" />
+        <span>{{t.nome}}</span>
+        {{#if t.prazo}}<em class="prazo">{{t.prazo}}</em>{{/if}}
+      </button>
+      {{/each}}
+    </div>
+    <p class="pyro-nota">{{localize "PYRO.Transformacao.Custo"}}</p>
+  </div>
+  {{/if}}
+
   {{> "pyro.secao" secao=secoes.favoritos}}
 
   {{#if system.temTecnicas}}

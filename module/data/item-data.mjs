@@ -226,13 +226,34 @@ export class HabilidadeData extends BaseItemData {
     return this.categoria === "postura";
   }
 
+  /**
+   * Transformação: uma forma em que o personagem entra por vontade própria e
+   * que acaba sozinha quando o prazo vence. Como a postura, os efeitos dela só
+   * valem enquanto ela está ativa; diferente da postura, ela é cobrada como um
+   * uso, tem duração e não é lembrada no começo do combate — quem transforma
+   * escolhe a hora.
+   */
+  get ehTransformacao() {
+    return this.categoria === "transformacao";
+  }
+
   static defineSchema() {
     return {
       ...super.defineSchema(),
       caminho: str(""), // id do Caminho de origem ("geral" para habilidades gerais)
-      // Passiva, ativável ou postura — organiza a lista da ficha e, no caso da
-      // postura, decide quando os efeitos da habilidade valem.
+      // Passiva, ativável, postura ou transformação — organiza a lista da ficha
+      // e, nas duas últimas, decide quando os efeitos da habilidade valem.
       categoria: str("ativavel", { choices: Object.keys(PYRO.categoriasHabilidade) }),
+      /*
+       * Quanto tempo a transformação dura. O valor é texto porque aceita
+       * fórmula ("@nvl", "@nvl * 2"): a forma costuma esticar conforme a
+       * habilidade sobe, e um número fixo obrigaria a reescrever a cada nível.
+       * Vazio ou zero é forma sem prazo — ela só acaba quando o jogador sai.
+       */
+      duracao: new fields.SchemaField({
+        valor: str(""),
+        unidade: str("turnos", { choices: Object.keys(PYRO.unidadesDeDuracao) })
+      }),
       // A habilidade base vem junto do caminho e não custa XP.
       ehBase: new fields.BooleanField({ initial: false }),
       // Habilidades de caminhos que concedem recurso próprio (Energia Natural)
