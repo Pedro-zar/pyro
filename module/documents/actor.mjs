@@ -10,7 +10,8 @@ import {
   classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse, bonusPorNivel, ndAjustado
 } from "../progressao.mjs";
 import {
-  sincronizarSobrepeso, sincronizarDesmaio, sincronizarEstadoDeVida, aplicarExaustao
+  sincronizarSobrepeso, sincronizarDesmaio, sincronizarEstadoDeVida, aplicarExaustao,
+  dadosDoEfeitoAplicado
 } from "../efeitos.mjs";
 import { formularioDoAtor, esc } from "../ui.mjs";
 import { custoDeFriagem, dadosDeMolhado, reduzirCondicao, pilhasDe } from "../condicoes.mjs";
@@ -759,9 +760,17 @@ export class PyroActor extends Actor {
     if (custos === null) return; // faltou recurso: a forma não começa
 
     /*
-     * A flag muda antes dos marcadores: apagar o marcador da forma anterior
-     * com a flag ainda apontando para ela faria o ouvinte de expiração
-     * entender que a forma acabou e anunciar uma saída no meio de uma troca.
+     * Trocar de forma acaba a anterior por inteiro, com o preço da volta: uma
+     * forma que saísse de graça só por encadear numa segunda tornaria o "ao
+     * acabar" opcional. O custo da nova já foi pago acima, então a troca
+     * acontece mesmo que a conta do fim deixe o personagem sem recurso.
+     */
+    await this.#acabarForma({});
+
+    /*
+     * A flag muda antes dos marcadores: apagar um marcador com ela ainda
+     * apontando para a forma dele faria o ouvinte de expiração entender que a
+     * forma acabou e anunciar uma saída no meio de uma troca.
      */
     await this.setFlag(SYSTEM_ID, "transformacao", item.id);
     await this.#limparMarcadoresDeForma();
@@ -803,14 +812,79 @@ export class PyroActor extends Actor {
     if (!item && !this.getFlag(SYSTEM_ID, "transformacao")) return;
     await this.setFlag(SYSTEM_ID, "transformacao", "");
     await this.#limparMarcadoresDeForma();
-    if (!aviso) return;
+
+    // O preço da volta é cobrado depois que a forma cai, e não antes: os
+    // efeitos dela não devem valer sobre a própria conta do que ela custou.
+    const notas = await this.#cobrarFimDaForma(item);
+    notas.push(...await this.#aplicarEfeitosDoFim(item));
+
+    /*
+     * Mesmo com o relógio anunciando o vencimento, o aviso sai quando a forma
+     * cobrou algo: o card do turno diz que o prazo acabou, não que o
+     * personagem ficou sem mana e com dois de exaustão.
+     */
+    if (!aviso && !notas.length) return;
+    const linhas = [
+      game.i18n.format("PYRO.Transformacao.Saiu", {
+        nome: esc(item?.name ?? game.i18n.localize("PYRO.Transformacao.Nome"))
+      }),
+      ...notas
+    ];
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       whisper: temDonoJogador(this) ? [] : donosDe(this),
-      content: `<div class="pyro-chat"><p>${game.i18n.format("PYRO.Transformacao.Saiu", {
-        nome: esc(item?.name ?? game.i18n.localize("PYRO.Transformacao.Nome"))
-      })}</p></div>`
+      content: `<div class="pyro-chat">${linhas.map(l => `<p>${l}</p>`).join("")}</div>`
     });
+  }
+
+  /**
+   * Cobra o que a forma leva embora ao cair (SRD não tem isto: é da mesa).
+   * Cada linha é um recurso, tirando um tanto ou tudo o que houver. O que o
+   * personagem não tem não vira dívida nem cai em PV — a forma já acabou, e
+   * cobrar o que não existe mataria por engano.
+   */
+  async #cobrarFimDaForma(item) {
+    const linhas = Object.entries(item?.system?.fimDaForma ?? {});
+    if (!linhas.length) return [];
+    const recursos = this.system.recursos ?? {};
+    const dados = item.getRollData();
+    const update = {};
+    const notas = [];
+    for (const [chave, linha] of linhas) {
+      // Só os recursos que a ficha oferece. PV e Força de Vontade ficam de
+      // fora: tirar PV por aqui passaria por cima do caminho do dano (e do
+      // desmaio que ele dispara), e Vontade não se gasta com o tempo, se
+      // conquista em jogo (SRD Atributos).
+      if (!PYRO.recursosDeGasto().includes(chave)) continue;
+      const atual = Number(recursos[chave]?.value);
+      const tirado = gastoDoFim(linha, atual, dados);
+      if (tirado <= 0) continue;
+      update[`system.recursos.${chave}.value`] = atual - tirado;
+      notas.push(game.i18n.format("PYRO.Transformacao.Fim.Gastou", {
+        valor: tirado,
+        recurso: game.i18n.localize(
+          PYRO.recursosCustom?.[chave]?.label ?? `PYRO.Recursos.${chave}`)
+      }));
+    }
+    if (Object.keys(update).length) await this.update(update);
+    return notas;
+  }
+
+  /**
+   * Aplica os efeitos marcados como "ao acabar" na habilidade: é por eles que
+   * a forma deixa exaustão, queimando ou qualquer outra condição de ressaca.
+   * Vão como cópia, pelo mesmo caminho do efeito de uso, para o prazo começar
+   * a contar agora e o @nvl congelar no nível de hoje.
+   */
+  async #aplicarEfeitosDoFim(item) {
+    const notas = [];
+    for (const efeito of item?.effects ?? []) {
+      if (!flagsDe(efeito)?.aoAcabar || efeito.disabled) continue;
+      await ActiveEffect.implementation.create(
+        dadosDoEfeitoAplicado(efeito, {}), { parent: this });
+      notas.push(game.i18n.format("PYRO.Transformacao.Fim.Efeito", { nome: esc(efeito.name) }));
+    }
+    return notas;
   }
 
   /** Apaga os marcadores de forma que sobraram, seja qual for a habilidade. */
@@ -1071,4 +1145,20 @@ export function duracaoDaForma(item) {
 export function textoDePrazo({ valor, unidade }) {
   return `${valor} ${game.i18n.localize(
     PYRO.unidadesDeDuracao[unidade]?.curto ?? unidade)}`;
+}
+
+/**
+ * Quanto sai de um recurso quando a forma acaba: o que a linha pede, limitado
+ * ao que o personagem tem. "Zerar" leva tudo o que sobrou; "gastar" resolve a
+ * fórmula escrita (aceita @nvl, como a duração) e arredonda.
+ *
+ * O limite é do lado do personagem de propósito: a forma já caiu, e cobrar
+ * mais do que existe viraria dívida ou dano que ninguém pediu.
+ */
+export function gastoDoFim(linha, atual, dados = null) {
+  const valor = Number(atual);
+  if (!Number.isFinite(valor) || valor <= 0) return 0;
+  if (linha?.modo === "zerar") return valor;
+  const pedido = Math.max(0, Math.round(calcularFormula(String(linha?.valor ?? ""), dados)));
+  return Math.min(valor, pedido);
 }

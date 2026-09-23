@@ -15,23 +15,7 @@
     {{#if efeitosDeUso.length}}
     <ol class="lista-itens">
       {{#each efeitosDeUso as |ef|}}
-      <li class="linha-item" data-effect-id="{{ef.id}}">
-        <div class="linha-1 grade-linha">
-          <img src="{{ef.img}}" alt="" />
-          <span class="nome-item {{#if ef.disabled}}inativo{{/if}}">{{ef.name}}</span>
-          <span class="detalhes"></span>
-          <span class="cauda">
-            <button type="button" class="icone" data-action="alternarEfeito"
-                    title="{{localize 'PYRO.Efeitos.Alternar'}}">
-              <i class="fa-solid {{#if ef.disabled}}fa-toggle-off{{else}}fa-toggle-on{{/if}}"></i>
-            </button>
-            <button type="button" class="icone" data-action="editarEfeito"
-                    title="{{localize 'PYRO.Editar'}}"><i class="fa-solid fa-pen"></i></button>
-            <button type="button" class="icone perigo" data-action="excluirEfeito"
-                    title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-trash"></i></button>
-          </span>
-        </div>
-      </li>
+      {{> "pyro.efeito-linha" ef=ef}}
       {{/each}}
     </ol>
     {{else}}
@@ -48,27 +32,46 @@
     {{#if efeitos.length}}
     <ol class="lista-itens">
       {{#each efeitos as |ef|}}
-      <li class="linha-item" data-effect-id="{{ef.id}}">
-        <div class="linha-1 grade-linha">
-          <img src="{{ef.img}}" alt="" />
-          <span class="nome-item {{#if ef.disabled}}inativo{{/if}}">{{ef.name}}</span>
-          <span class="detalhes"></span>
-          <span class="cauda">
-            <button type="button" class="icone" data-action="alternarEfeito"
-                    title="{{localize 'PYRO.Efeitos.Alternar'}}">
-              <i class="fa-solid {{#if ef.disabled}}fa-toggle-off{{else}}fa-toggle-on{{/if}}"></i>
-            </button>
-            <button type="button" class="icone" data-action="editarEfeito"
-                    title="{{localize 'PYRO.Editar'}}"><i class="fa-solid fa-pen"></i></button>
-            <button type="button" class="icone perigo" data-action="excluirEfeito"
-                    title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-trash"></i></button>
-          </span>
-        </div>
-      </li>
+      {{> "pyro.efeito-linha" ef=ef}}
       {{/each}}
     </ol>
     {{else}}
     <p class="secao-vazia">{{localize "PYRO.Vazio.efeitosItem"}}</p>
     {{/if}}
   </section>
+
+  {{!-- Fim da forma: o que a transformação cobra na volta. Os efeitos aqui
+        esperam a forma acabar; o bloco de recursos é o que sai do personagem
+        no mesmo instante. --}}
+  {{#if ehTransformacao}}
+  <section class="secao">
+    <header class="secao-topo">
+      <h3 class="titulo-secao">{{localize "PYRO.Efeitos.SecaoAoAcabar"}}</h3>
+      <span class="secao-contagem numero">{{efeitosAoAcabar.length}}</span>
+    </header>
+    {{#if efeitosAoAcabar.length}}
+    <ol class="lista-itens">
+      {{#each efeitosAoAcabar as |ef|}}
+      {{> "pyro.efeito-linha" ef=ef}}
+      {{/each}}
+    </ol>
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Vazio.efeitosAoAcabar"}}</p>
+    {{/if}}
+
+    <div class="bloco">
+      <h4 class="titulo-secao">{{localize "PYRO.Transformacao.Fim.Recursos"}}</h4>
+      <div class="grade-campos">
+        {{#each camposDoFim as |c|}}
+        <label class="campo"><span class="rotulo">{{c.label}}</span>
+          <input type="text" name="{{c.nomeValor}}" value="{{c.valor}}"
+                 placeholder="0" /></label>
+        <label class="campo"><span class="rotulo">{{localize "PYRO.Transformacao.Fim.Modo"}}</span>
+          <select name="{{c.nomeModo}}">{{selectOptions @root.modosDeGasto selected=c.modo localize=true}}</select></label>
+        {{/each}}
+      </div>
+      {{pyroDica "PYRO.Transformacao.Fim.Dica"}}
+    </div>
+  </section>
+  {{/if}}
 </section>

@@ -254,6 +254,16 @@ export class HabilidadeData extends BaseItemData {
         valor: str(""),
         unidade: str("turnos", { choices: Object.keys(PYRO.unidadesDeDuracao) })
       }),
+      /*
+       * O preço de voltar ao normal, um recurso por linha:
+       * { mana: { modo: "zerar", valor: "" }, estamina: { modo: "gastar", valor: "@nvl" } }.
+       * O que o personagem não tiver não vira dívida — cobra-se o que há.
+       *
+       * A exaustão e as outras marcas do fim não moram aqui: elas são efeitos
+       * marcados como "ao acabar" na aba de Efeitos, escritos no mesmo
+       * construtor de todos os outros.
+       */
+      fimDaForma: new fields.ObjectField(),
       // A habilidade base vem junto do caminho e não custa XP.
       ehBase: new fields.BooleanField({ initial: false }),
       // Habilidades de caminhos que concedem recurso próprio (Energia Natural)

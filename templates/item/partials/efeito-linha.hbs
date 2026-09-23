@@ -1,0 +1,19 @@
+{{!-- Uma linha da lista de efeitos do item, igual nas três seções (passivo,
+      de uso e ao acabar): só muda a lista de onde ela vem. --}}
+<li class="linha-item" data-effect-id="{{ef.id}}">
+  <div class="linha-1 grade-linha">
+    <img src="{{ef.img}}" alt="" />
+    <span class="nome-item {{#if ef.disabled}}inativo{{/if}}">{{ef.name}}</span>
+    <span class="detalhes"></span>
+    <span class="cauda">
+      <button type="button" class="icone" data-action="alternarEfeito"
+              title="{{localize 'PYRO.Efeitos.Alternar'}}">
+        <i class="fa-solid {{#if ef.disabled}}fa-toggle-off{{else}}fa-toggle-on{{/if}}"></i>
+      </button>
+      <button type="button" class="icone" data-action="editarEfeito"
+              title="{{localize 'PYRO.Editar'}}"><i class="fa-solid fa-pen"></i></button>
+      <button type="button" class="icone perigo" data-action="excluirEfeito"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-trash"></i></button>
+    </span>
+  </div>
+</li>

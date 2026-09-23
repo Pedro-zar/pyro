@@ -18,8 +18,14 @@
   <div class="campos-check">
     <label class="check-linha"><input type="checkbox" name="deUso" {{checked deUso}} />
       <span>{{localize "PYRO.Efeitos.DeUso"}}</span></label>
+    {{!-- Só na transformação: o efeito espera a forma acabar em vez de valer
+          enquanto ela dura. --}}
+    {{#if podeSerAoAcabar}}
+    <label class="check-linha"><input type="checkbox" name="aoAcabar" {{checked aoAcabar}} />
+      <span>{{localize "PYRO.Efeitos.AoAcabar"}}</span></label>
+    {{/if}}
   </div>
-  <p class="pyro-nota">{{localize "PYRO.Efeitos.DeUsoDica"}}</p>
+  {{pyroDica "PYRO.Efeitos.DeUsoDica"}}
   {{/if}}
 
   <div class="mudancas">

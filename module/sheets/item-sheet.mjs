@@ -379,8 +379,21 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       parteMunicaoOpts: Object.fromEntries(
         PYRO.partesMunicao.map(k => [k, PYRO.partesCorpo[k]])
       ),
-      efeitos: item.effects.filter(e => !flagsDe(e)?.deUso),
-      efeitosDeUso: item.effects.filter(e => flagsDe(e)?.deUso),
+      /*
+       * Fora de uma transformação a seção "ao acabar" não existe, e um efeito
+       * marcado assim ficaria invisível — sem como editar nem apagar. Ele cai
+       * na lista de passivos, que é onde dá para mexer nele.
+       */
+      efeitos: item.effects.filter(e => !flagsDe(e)?.deUso
+        && !(flagsDe(e)?.aoAcabar && sys.ehTransformacao)),
+      efeitosDeUso: item.effects.filter(e => flagsDe(e)?.deUso && !flagsDe(e)?.aoAcabar),
+      // Fim da forma: os efeitos que esperam a transformação cair e o que ela
+      // cobra em recurso na volta.
+      ehTransformacao: sys.ehTransformacao === true,
+      efeitosAoAcabar: sys.ehTransformacao
+        ? item.effects.filter(e => flagsDe(e)?.aoAcabar) : [],
+      camposDoFim: this.#camposDoFim(),
+      modosDeGasto: PYRO.modosDeGasto,
       subtitulo: this.#subtitulo(),
       // Perícia: uma caixa por atributo que ela aceita.
       atributosPericia: item.type === "pericia"
@@ -578,29 +591,59 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
    * concedidos (energia natural do elfo, etc.). Item sem dono mostra tudo —
    * não há ficha para filtrar, e um item de compêndio precisa dos campos.
    */
+  /**
+   * Recursos que a ficha oferece nesta habilidade: os fixos que o dono tem
+   * (mana só para quem conjura, energia só para quem tem feitiços) e os de
+   * raça concedidos. Item solto no mundo mostra todos, porque ali não há dono
+   * para dizer quais existem.
+   */
+  #recursosDaHabilidade() {
+    const ator = this.item.actor?.system ?? null;
+    const loc = k => game.i18n.localize(k);
+    const lista = [];
+    const fixo = (chave, tem) => {
+      if (ator && !tem) return;
+      lista.push({ chave, label: loc(`PYRO.Recursos.${chave}`) });
+    };
+    fixo("estamina", true);
+    fixo("mana", !!ator?.temMagia);
+    fixo("energia", !!ator?.temFeiticos);
+    for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
+      if (ator && !(ator.recursosConcedidos ?? []).includes(chave)) continue;
+      lista.push({ chave, label: loc(cfg.label) });
+    }
+    return lista;
+  }
+
   #camposDeCusto() {
     const item = this.item;
     if (item.type !== "habilidade") return [];
     const sys = item.system;
-    const ator = item.actor?.system ?? null;
-    const loc = k => game.i18n.localize(k);
-    const campos = [];
-    const fixo = (chave, campo, tem) => {
-      if (ator && !tem) return;
-      campos.push({ name: `system.${campo}`, label: loc(`PYRO.Recursos.${chave}`), valor: sys[campo] });
-    };
-    fixo("estamina", "custoEstamina", true);
-    fixo("mana", "custoMana", !!ator?.temMagia);
-    fixo("energia", "custoEnergia", !!ator?.temFeiticos);
-    for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
-      if (ator && !(ator.recursosConcedidos ?? []).includes(chave)) continue;
-      campos.push({
-        name: `system.custosCustom.${chave}`,
-        label: loc(cfg.label),
-        valor: Number(sys.custosCustom?.[chave]) || 0
-      });
-    }
-    return campos;
+    const FIXOS = { estamina: "custoEstamina", mana: "custoMana", energia: "custoEnergia" };
+    return this.#recursosDaHabilidade().map(({ chave, label }) => {
+      const campo = FIXOS[chave];
+      return campo
+        ? { name: `system.${campo}`, label, valor: sys[campo] }
+        : { name: `system.custosCustom.${chave}`, label,
+            valor: Number(sys.custosCustom?.[chave]) || 0 };
+    });
+  }
+
+  /**
+   * Linhas do "ao acabar" da transformação: o mesmo conjunto de recursos dos
+   * custos, cada um com quanto sai e se sai um tanto ou tudo. O valor é texto
+   * porque aceita fórmula (@nvl), como a duração da forma.
+   */
+  #camposDoFim() {
+    if (!this.item.system?.ehTransformacao) return [];
+    const fim = this.item.system.fimDaForma ?? {};
+    return this.#recursosDaHabilidade().map(({ chave, label }) => ({
+      label,
+      nomeValor: `system.fimDaForma.${chave}.valor`,
+      nomeModo: `system.fimDaForma.${chave}.modo`,
+      valor: fim[chave]?.valor ?? "",
+      modo: fim[chave]?.modo === "zerar" ? "zerar" : "gastar"
+    }));
   }
 
   #subtitulo() {
@@ -829,6 +872,25 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         const escolhido = ataquesDoAtor(this.item.actor).find(a => a.id === sys.ataque.id);
         sys.ataque = { id: sys.ataque.id, nome: escolhido?.nome ?? "" };
       }
+    }
+
+    if (this.item.type === "habilidade" && sys.fimDaForma) {
+      /*
+       * Fim da forma: o formulário manda uma linha por recurso que a ficha
+       * desenhou, quase todas vazias, e o ObjectField é gravado inteiro — só
+       * o que veio substituiria o resto. Por isso as linhas chegam por cima
+       * das guardadas: um item escrito com energia natural não perde a linha
+       * ao ser aberto numa ficha que não tem esse recurso. Depois ficam só as
+       * que cobram algo.
+       */
+      const guardado = this.item.system.toObject().fimDaForma ?? {};
+      const linhas = { ...guardado, ...sys.fimDaForma };
+      sys.fimDaForma = Object.fromEntries(Object.entries(linhas)
+        .map(([chave, linha]) => [chave, {
+          modo: linha?.modo === "zerar" ? "zerar" : "gastar",
+          valor: String(linha?.valor ?? "").trim()
+        }])
+        .filter(([, linha]) => linha.modo === "zerar" || linha.valor));
     }
 
     if (this.item.type === "runa" && sys.scalings && !Array.isArray(sys.scalings)) {

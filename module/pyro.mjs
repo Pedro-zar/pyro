@@ -37,6 +37,17 @@ Hooks.once("init", () => {
   Handlebars.registerHelper("pyroInclui", (lista, valor) => Array.isArray(lista) && lista.includes(valor));
   // Ternário inline: {{localize (pyroSe editando "A" "B")}}.
   Handlebars.registerHelper("pyroSe", (cond, sim, nao) => (cond ? sim : nao));
+  /*
+   * Parágrafo de dica que some quando a dica foi esvaziada no idioma: quem
+   * tirou o texto quis a tela mais limpa, e um <p> vazio continuaria ocupando
+   * o espaço dele.
+   */
+  Handlebars.registerHelper("pyroDica", chave => {
+    const texto = game.i18n.localize(chave).trim();
+    if (!texto || texto === chave) return "";
+    return new Handlebars.SafeString(
+      `<p class="pyro-nota">${Handlebars.escapeExpression(texto)}</p>`);
+  });
   // A linha de escalonamento chamada "Dano" é a única com dados (faces) e
   // multiplicador por Intenção; as outras são números que somam.
   Handlebars.registerHelper("pyroEhDano", nome => PYRO.normalizarTexto(nome) === "dano");
@@ -102,6 +113,7 @@ Hooks.once("init", () => {
     "pyro.item-linha": caminho("templates/actor/partials/item-linha.hbs"),
     "pyro.secao": caminho("templates/actor/partials/secao.hbs"),
     "pyro.progresso": caminho("templates/item/partials/progresso.hbs"),
+    "pyro.efeito-linha": caminho("templates/item/partials/efeito-linha.hbs"),
     "pyro.previa": caminho("templates/apps/previa.hbs")
   });
 

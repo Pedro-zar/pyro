@@ -11,7 +11,7 @@
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
-import { UNIDADE_PADRAO, dadosDePrazo } from "./duracao.mjs";
+import { UNIDADE_PADRAO, dadosDePrazo, prazoDoEfeito } from "./duracao.mjs";
 
 
 /* -------------------------------------------------------------------------- */
@@ -262,7 +262,10 @@ export function efeitosDeUso(...itens) {
   const saida = [];
   for (const item of itens.flat().filter(Boolean)) {
     for (const efeito of item.effects ?? []) {
-      if (!flagsDe(efeito)?.deUso || efeito.disabled) continue;
+      const flags = flagsDe(efeito);
+      // O de fim de forma não é de uso, mesmo que alguém marque os dois na
+      // ficha completa do Foundry: ele espera a forma cair, não o card.
+      if (!flags?.deUso || flags.aoAcabar || efeito.disabled) continue;
       if (vistos.has(efeito.uuid)) continue;
       vistos.add(efeito.uuid);
       saida.push(efeito);
@@ -392,8 +395,15 @@ export function dadosDoEfeitoAplicado(efeito, vars) {
   const valor = formula?.formula
     ? Number(resolverValorEfeito(formula.formula, vars))
     : Number(flags.prazo?.valor) || 0;
-  if (Number.isFinite(valor) && valor > 0) {
-    const resolvido = dadosDePrazo(valor, unidade);
+  const emTempo = Number.isFinite(valor) && valor > 0;
+  /*
+   * Fórmula manda sempre, inclusive quando ela dá zero. O efeito escrito com
+   * fórmula nasce guardado com prazo de 1 só para o construtor poder tratá-lo
+   * como temporário (ver construtor-efeito.mjs); aplicar a cópia sem refazer
+   * esse prazo entregaria um efeito de um turno a quem escreveu "sem prazo".
+   */
+  if (emTempo || formula?.formula) {
+    const resolvido = dadosDePrazo(emTempo ? valor : 0, unidade);
     dados.duration = { ...(dados.duration ?? {}), ...resolvido.duration };
     dados.flags = foundry.utils.mergeObject(dados.flags ?? {}, resolvido.flags);
   }
@@ -472,7 +482,16 @@ export function aplicarExaustao(actor, delta) {
 async function somarExaustao(actor, delta) {
   const loc = k => game.i18n.localize(k);
 
-  const existente = actor.effects?.find?.(e => ehExaustao(e) && !e.disabled);
+  /*
+   * O acumulador é o efeito que o próprio sistema mantém: sem prazo e nascido
+   * do ator. Uma exaustão com prazo, ou vinda de um item (a ressaca de uma
+   * transformação, um efeito de uso), é outra coisa — somar nela faria o
+   * total inteiro morrer junto com o prazo dela, e tirar um nível de lá
+   * apagaria o que a mesa acabou de aplicar. As duas continuam contando no
+   * nivelExaustao; só não são o lugar onde a conta é escrita.
+   */
+  const existente = actor.effects?.find?.(e =>
+    ehExaustao(e) && !e.disabled && !prazoDoEfeito(e) && e.origin === actor.uuid);
   if (existente) {
     const novo = Math.max(0, niveisDoEfeito(existente) + delta);
     if (novo === 0) await existente.delete();

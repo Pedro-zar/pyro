@@ -137,7 +137,7 @@
                placeholder="{{localize 'PYRO.Transformacao.DuracaoPlaceholder'}}" /></label>
       <label class="campo"><span class="rotulo">{{localize "PYRO.Efeitos.Unidade"}}</span>
         <select name="system.duracao.unidade">{{selectOptions unidadesDuracao selected=system.duracao.unidade}}</select></label>
-      <p class="pyro-nota">{{localize "PYRO.Transformacao.Dica"}}</p>
+      {{pyroDica "PYRO.Transformacao.Dica"}}
       {{/if}}
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Ranque"}}</span>
         <select name="system.ranque">{{selectOptions ranqueOpts selected=system.ranque}}</select></label>

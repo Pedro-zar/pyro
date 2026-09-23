@@ -824,6 +824,28 @@ PYRO.categoriasHabilidade = {
 PYRO.cobraCustoDeUso = sys =>
   sys?.categoria === "ativavel" || sys?.categoria === "transformacao";
 
+/**
+ * O que o fim de uma transformação faz com um recurso: tirar um tanto dele ou
+ * esvaziá-lo. "Zerar" existe separado porque o preço nesse caso é o que sobrou,
+ * e não um número que quem escreve a habilidade poderia saber de antemão.
+ */
+PYRO.modosDeGasto = {
+  gastar: "PYRO.Transformacao.Fim.gastar",
+  zerar: "PYRO.Transformacao.Fim.zerar"
+};
+
+/**
+ * Recursos que uma habilidade pode consumir: os três fixos e os de raça que o
+ * mundo definiu. PV e Força de Vontade não entram — o primeiro se perde por
+ * dano, que tem o caminho dele (desmaio, estado de vida), e o segundo se
+ * conquista em jogo em vez de ser drenado por mecânica (SRD Atributos).
+ *
+ * É função, e não tabela, porque os recursos de raça são configurados no mundo
+ * e mudam depois que este arquivo é lido.
+ */
+PYRO.recursosDeGasto = () =>
+  ["estamina", "mana", "energia", ...Object.keys(PYRO.recursosCustom ?? {})];
+
 /** Habilidades gastam ações ou reações. */
 PYRO.tiposCusto = {
   acao: "PYRO.Item.Acao",

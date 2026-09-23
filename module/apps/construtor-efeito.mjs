@@ -87,6 +87,7 @@ export function estadoDeEfeito(efeito) {
     prazo: prazo.valor,
     unidade: prazo.unidade,
     deUso: !!flags.deUso,
+    aoAcabar: !!flags.aoAcabar,
     alvosItem: (flags.alvosItem ?? []).filter(a => a.id).map(a => a.id),
     alvosTipo: (flags.alvosItem ?? []).filter(a => a.tipo).map(a => a.tipo),
     mudancas,
@@ -141,6 +142,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       this.prazo = estado.prazo;
       this.unidade = estado.unidade;
       this.deUso = estado.deUso;
+      this.aoAcabar = estado.aoAcabar;
       this.alvosItem = estado.alvosItem;
       this.alvosTipo = estado.alvosTipo;
       this.mudancas = estado.mudancas.length ? estado.mudancas : [mudancaPadrao()];
@@ -155,6 +157,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.prazo = categoria === "temporarios" ? "1" : "0";
     this.unidade = UNIDADE_PADRAO;
     this.deUso = documento instanceof Item && TIPOS_DE_USO.includes(documento.type);
+    /** Efeito que só acontece quando a transformação acaba (ver PyroActor). */
+    this.aoAcabar = false;
     /** Ids dos itens a que o efeito fica preso. Vazio = vale sempre. */
     this.alvosItem = [];
     /** Tipos inteiros presos ("todas as magias"), pelo nome do tipo de item. */
@@ -254,6 +258,10 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     // Só itens podem ter efeito de uso: num ator, todo efeito é dele próprio.
     context.podeSerDeUso = this.documento instanceof Item;
     context.deUso = this.deUso ?? false;
+    // Só a transformação tem um "acabar": nos outros itens a pergunta não faz
+    // sentido, e o efeito é passivo ou de uso como sempre.
+    context.podeSerAoAcabar = this.documento?.system?.ehTransformacao === true;
+    context.aoAcabar = this.aoAcabar ?? false;
     context.nome = this.nome;
     context.prazo = this.prazo;
     context.unidade = this.unidade;
@@ -352,6 +360,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.prazo = String(dados.prazo ?? this.prazo ?? "0");
     this.unidade = String(dados.unidade ?? this.unidade ?? UNIDADE_PADRAO);
     this.deUso = dados.deUso ?? this.deUso;
+    this.aoAcabar = dados.aoAcabar ?? this.aoAcabar;
     // Marcações da árvore de alvos, item a item e por tipo inteiro.
     const marcados = (prefixo, chaves) =>
       chaves.filter(c => dados[`${prefixo}.${c}`]);
@@ -411,9 +420,14 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
 
   async #gravar() {
     const dados = this.#capturar();
-    // Efeito de uso vai para o alvo ao usar o item, então não transfere
-    // automaticamente para quem carrega.
-    const deUso = !!dados.deUso;
+    /*
+     * Nenhum dos dois transfere para quem carrega o item: o de uso espera o
+     * card do chat, e o de fim de forma espera a forma acabar. Os dois marcados
+     * é contradição — um efeito não pode ir para o alvo do card e para o dono
+     * quando a transformação cai —, e o de acabar vence porque é o específico.
+     */
+    const aoAcabar = !!dados.aoAcabar && this.documento?.system?.ehTransformacao === true;
+    const deUso = !aoAcabar && !!dados.deUso;
 
     /*
      * O prazo aceita fórmula ("@intencao * 2"). Número puro vira duração
@@ -486,6 +500,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
        */
       flags: flagsDoSistema({
         deUso,
+        aoAcabar,
         /*
          * Fórmula: o efeito nasce com prazo de 1 na unidade escolhida, só
          * para já ser temporário; o número real entra na cópia aplicada.
@@ -525,14 +540,14 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
        * tocado onde o checkbox de uso existe — num efeito de ator não há
        * checkbox, e não se muda o que não se mostra.
        */
-      if (this.documento instanceof Item) efeito.transfer = !deUso;
+      if (this.documento instanceof Item) efeito.transfer = !deUso && !aoAcabar;
       await this.efeito.update(efeito);
       return this.efeito;
     }
 
     efeito.origin = this.documento.uuid;
     efeito.disabled = this.categoria === "inativos";
-    efeito.transfer = !deUso;
+    efeito.transfer = !deUso && !aoAcabar;
     const criados = await ActiveEffect.implementation.create(efeito, { parent: this.documento });
     return Array.isArray(criados) ? criados[0] : criados;
   }
