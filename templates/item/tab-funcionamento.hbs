@@ -630,6 +630,12 @@
       <label class="check-linha"><input type="checkbox" name="system.equipado" {{checked system.equipado}} />
         <span>{{localize "PYRO.Item.Equipado"}}</span></label>
       {{/if}}
+      {{!-- Pilha: o peso conta uma vez só, seja qual for a quantidade. Na
+            munição a regra já vale sozinha, e a caixa some. --}}
+      {{#if mostrarPilha}}
+      <label class="check-linha"><input type="checkbox" name="system.pilha" {{checked system.pilha}} />
+        <span>{{localize "PYRO.Item.Pilha"}}</span></label>
+      {{/if}}
       {{#if isConsumivel}}
       <label class="check-linha"><input type="checkbox" name="system.municao" {{checked system.municao}} />
         <span>{{localize "PYRO.Item.Municao"}}</span></label>

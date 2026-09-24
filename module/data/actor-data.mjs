@@ -442,11 +442,17 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     for (const item of this.parent.items) {
       const sys = item.system;
       if (["arma", "equipamento", "consumivel"].includes(item.type)) {
-        // Munição pesa 1 no total, quantas quer que sejam: uma aljava é uma
-        // aljava. O peso do item é ignorado de propósito (regra do sistema).
-        this.carga.atual += sys.municao
-          ? ((sys.quantidade ?? 0) > 0 ? 1 : 0)
-          : (sys.peso ?? 0) * (sys.quantidade ?? 1);
+        /*
+         * Lote: o peso escrito no item conta uma vez só, seja qual for a
+         * quantidade — uma aljava é uma aljava, e trinta frascos num cinto
+         * pesam o cinto. Munição é sempre lote, pela regra do sistema; nos
+         * outros itens quem decide é a marca de pilha.
+         */
+        const emLote = sys.municao || sys.pilha;
+        const unidades = emLote
+          ? ((sys.quantidade ?? 1) > 0 ? 1 : 0)
+          : (sys.quantidade ?? 1);
+        this.carga.atual += (sys.peso ?? 0) * unidades;
       }
       // Mochila equipada aumenta o quanto o personagem aguenta carregar.
       if (item.type === "equipamento" && sys.equipado && sys.categoria === "mochila") {

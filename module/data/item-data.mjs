@@ -185,6 +185,13 @@ export class EquipamentoData extends BaseItemData {
       // Dados extras somados às reações: "1d4" no bloqueio, "1d12" na esquiva.
       bloqueio: str(""),
       esquiva: str(""),
+      /*
+       * Pilha: o peso escrito vale uma vez só, seja qual for a quantidade —
+       * um molho de chaves, um cinto de frascos, uma aljava. É a mesma ideia
+       * da munição, aberta para qualquer item que a mesa queira tratar como
+       * um volume só.
+       */
+      pilha: new fields.BooleanField({ initial: false }),
       peso: num(0, { min: 0 }),
       custo: num(0, { min: 0 }),
       quantidade: num(1, { min: 0 })
@@ -205,6 +212,13 @@ export class ConsumivelData extends BaseItemData {
       // Munição pode ser presa nas costas ou na cintura.
       equipado: new fields.BooleanField({ initial: false }),
       parte: str("cintura"),
+      /*
+       * Pilha: o peso escrito vale uma vez só, seja qual for a quantidade —
+       * um molho de chaves, um cinto de frascos, uma aljava. É a mesma ideia
+       * da munição, aberta para qualquer item que a mesa queira tratar como
+       * um volume só.
+       */
+      pilha: new fields.BooleanField({ initial: false }),
       peso: num(0, { min: 0 }),
       custo: num(0, { min: 0 }),
       quantidade: num(1, { min: 0 })

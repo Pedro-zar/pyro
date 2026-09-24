@@ -621,6 +621,7 @@
   "PYRO.Item.HabilidadeBase": "Habilidade base",
   "PYRO.Item.EhBase": "Habilidade base do caminho",
   "PYRO.Item.PesoLote": "lote",
+  "PYRO.Item.Pilha": "Pilha",
   "PYRO.Abrev.estamina": "est",
   "PYRO.Abrev.mana": "mana",
   "PYRO.Abrev.energia": "ene",

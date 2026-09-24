@@ -375,6 +375,13 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // equipamento não têm o que mostrar além do que já é comum a todos.
       ehMochila: item.type === "equipamento" && sys.categoria === "mochila",
       ehArcano: item.type === "equipamento" && sys.categoria === "arcano",
+      /*
+       * Pilha (peso uma vez só) é de equipamento e de consumível. A munição
+       * fica de fora porque nela a regra já vale sozinha, com peso fixo 1 —
+       * a caixa ali não mudaria nada.
+       */
+      mostrarPilha: item.type === "equipamento"
+        || (item.type === "consumivel" && !sys.municao),
       // Munição só pode ser presa nas costas ou na cintura.
       parteMunicaoOpts: Object.fromEntries(
         PYRO.partesMunicao.map(k => [k, PYRO.partesCorpo[k]])
@@ -770,7 +777,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
 
     if ("quantidade" in sys) add("PYRO.Quantidade", sys.quantidade);
     if ("peso" in sys) {
-      add("PYRO.Peso", sys.municao ? `${sys.peso} (${loc("PYRO.Item.PesoLote")})` : sys.peso);
+      add("PYRO.Peso", sys.municao || sys.pilha
+        ? `${sys.peso} (${loc("PYRO.Item.PesoLote")})` : sys.peso);
     }
     if ("custo" in sys) add("PYRO.Item.Custo", sys.custo);
     if ("equipado" in sys) {

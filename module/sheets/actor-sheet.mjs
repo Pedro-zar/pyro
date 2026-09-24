@@ -225,7 +225,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           { label: loc("PYRO.Item.Maos"), valor: sys.maos },
           { label: loc("PYRO.Item.Alcance"), valor: alcance },
           { label: loc("PYRO.Item.UsaMunicao"), valor: loc(sys.usaMunicao ? "PYRO.Sim" : "PYRO.Nao") },
-          { label: loc("PYRO.Peso"), valor: sys.peso },
+          { label: loc("PYRO.Peso"),
+            valor: sys.pilha ? `${sys.peso} (${loc("PYRO.Item.PesoLote")})` : sys.peso },
           { label: loc("PYRO.Item.Custo"), valor: sys.custo },
           { label: loc("PYRO.Quantidade"), valor: sys.quantidade }
         ]
@@ -254,7 +255,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const detalheTexto = [
         loc(PYRO.partesCorpo[sys.parte] ?? "") || null,
         ...extra.map(e => `${loc(e.chave).toLocaleLowerCase()} ${e.texto}`),
-        `${loc("PYRO.PesoAbrev")} ${sys.peso}`
+        `${loc("PYRO.PesoAbrev")} ${sys.peso}${sys.pilha ? ` (${loc("PYRO.Item.PesoLote")})` : ""}`
       ].filter(Boolean).join(", ");
       return {
         equipavel: true,
@@ -278,9 +279,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const sys = item.system;
       const tipoDano = loc(PYRO.tiposDano[sys.tipoDano]?.label ?? "");
       /*
-       * "munição, perfurante, Costas, 20 unidades, peso 1" ou
-       * "2d4, 1 ação, 3 unidades, peso 2". Munição pesa 1 no total, não
-       * importa a quantidade nem o peso digitado; o custo fica no resumo.
+       * "munição, perfurante, Costas, 20 unidades, peso 2 (lote)" ou
+       * "2d4, 1 ação, 3 unidades, peso 2". O lote pesa o que está escrito,
+       * uma vez só, não importa a quantidade; o custo fica no resumo.
        */
       const detalheTexto = [
         sys.municao ? loc("PYRO.Item.MunicaoTag") : null,
@@ -292,7 +293,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         sys.quantidade
           ? `${sys.quantidade} ${umOuVarios(sys.quantidade, "PYRO.Item.Unidade", "PYRO.Item.UnidadePlural")}`
           : null,
-        `${loc("PYRO.PesoAbrev")} ${sys.municao ? 1 : sys.peso}`
+        `${loc("PYRO.PesoAbrev")} ${sys.peso}${
+          sys.municao || sys.pilha ? ` (${loc("PYRO.Item.PesoLote")})` : ""}`
       ].filter(Boolean).join(", ");
       return {
         equipavel: sys.municao,
@@ -307,7 +309,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
           ...(sys.municao ? [{ label: loc("PYRO.Item.TipoDano"), valor: tipoDano }] : []),
           { label: loc("PYRO.Quantidade"), valor: sys.quantidade },
           { label: loc("PYRO.Peso"),
-            valor: sys.municao ? `1 (${loc("PYRO.Item.PesoLote")})` : sys.peso },
+            valor: sys.municao || sys.pilha
+              ? `${sys.peso} (${loc("PYRO.Item.PesoLote")})`
+              : sys.peso },
           { label: loc("PYRO.Item.Custo"), valor: sys.custo }
         ]
       };
