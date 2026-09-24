@@ -595,20 +595,20 @@ PYRO.classesDeRolagem = {
 const linha = (rr, rd, rmd, modo = "ou") => ({ rr, rd, rmd, modo });
 
 PYRO.avancoPorUsoPadrao = {
-  // SRD 3b — perícias nascem no nível 0.
+  // SRD 3b — perícias criadas no nível 0.
   pericia: [
     linha(5, 1, 1), linha(1, 1, 1), linha(2, 1, 1), linha(3, 2, 1), linha(4, 2, 1),
-    linha(5, 3, 2), linha(6, 3, 2), linha(7, 4, 2), linha(8, 4, 2), linha(9, 5, 3),
+    linha(0, 3, 2, "e"), linha(0, 3, 2, "e"), linha(0, 4, 2, "e"), linha(0, 4, 2, "e"), linha(0, 5, 3, "e"),
     linha(0, 5, 3, "e"), linha(0, 6, 3, "e"), linha(0, 6, 3, "e"), linha(0, 7, 4, "e"), linha(0, 7, 4, "e"),
     linha(0, 8, 4, "e"), linha(0, 8, 4, "e"), linha(0, 9, 5, "e"), linha(0, 9, 5, "e"), linha(0, 10, 5, "e")
   ],
-  // SRD Magia — magias e técnicas nascem no nível 1, então a primeira linha
+  // SRD Magia — magias e técnicas criadas no nível 1, então a primeira linha
   // não é consultada; fica para a tabela ter o mesmo formato.
   magiaTecnica: [
-    linha(5, 0, 0), linha(2, 1, 1), linha(3, 1, 1), linha(4, 2, 1), linha(5, 2, 1),
-    linha(6, 3, 2), linha(7, 3, 2), linha(8, 4, 2), linha(9, 4, 2), linha(10, 5, 3),
-    linha(11, 5, 3, "e"), linha(12, 6, 3, "e"), linha(13, 6, 3, "e"), linha(14, 7, 4, "e"), linha(15, 7, 4, "e"),
-    linha(16, 8, 4, "e"), linha(17, 8, 4, "e"), linha(18, 9, 5, "e"), linha(19, 9, 5, "e"), linha(20, 10, 5, "e")
+    linha(1, 0, 0), linha(1, 1, 1), linha(2, 1, 1), linha(3, 2, 1), linha(4, 2, 1),
+    linha(0, 3, 2, "e"), linha(0, 3, 2, "e"), linha(0, 4, 2, "e"), linha(0, 4, 2, "e"), linha(0, 5, 3, "e"),
+    linha(0, 5, 3, "e"), linha(0, 6, 3, "e"), linha(0, 6, 3, "e"), linha(0, 7, 4, "e"), linha(0, 7, 4, "e"),
+    linha(0, 8, 4, "e"), linha(0, 8, 4, "e"), linha(0, 9, 5, "e"), linha(0, 9, 5, "e"), linha(0, 10, 5, "e")
   ]
 };
 

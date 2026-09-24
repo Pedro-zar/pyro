@@ -63,7 +63,7 @@
   "PYRO.Elementos.mente": "Mente",
   "PYRO.Elementos.morte": "Morte",
   "PYRO.Elementos.espaco": "Espaço",
-  "PYRO.Elementos.Efeito.fogo": "Para cada 6 rolado, aumente em 1 o Queimando do alvo. Se a duração de Queimando for menor que 2, ela se torna 2.",
+  "PYRO.Elementos.Efeito.fogo": "Para cada 6 rolado, aumente o Queimando do alvo em 1 por intenção da runa. Se a duração de Queimando for menor que 2, ela se torna 2.",
   "PYRO.Elementos.Efeito.agua": "Causa Molhado X no alvo.",
   "PYRO.Elementos.Efeito.vento": "Empurra o alvo. Caso atinja uma parede, causa 1d10 adicional para cada metro que restar.",
   "PYRO.Elementos.Efeito.gelo": "O alvo sofre Friagem X por 1 minuto.",
