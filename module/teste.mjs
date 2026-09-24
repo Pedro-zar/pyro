@@ -7,6 +7,7 @@
  */
 import { PYRO } from "./config.mjs";
 import { penalidadeExaustao, dicaExaustao } from "./efeitos.mjs";
+import { bonusPorNivel } from "./progressao.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -139,21 +140,59 @@ export function htmlVontadeGasta(vontade) {
 
 export const sufixoND = nd => (nd ? ` (ND ${nd})` : "");
 
+/**
+ * O ND que o card anuncia. Quando o teste ajustou a dificuldade — sem treino,
+ * sem as ferramentas —, a linha mostra o caminho ("ND 14 → 18, sem treino"):
+ * ver só o número final faz parecer que o mestre inventou outro ND.
+ * @param {number} escrito o ND que foi pedido (a distância, na mira).
+ * @param {number} final o ND que a rolagem de fato teve que alcançar.
+ * @param {string} [motivo] o que ajustou; por padrão, a falta de treino.
+ */
+export function textoDoND(escrito, final, motivo = null) {
+  if (!escrito) return "";
+  if (final === escrito) return sufixoND(final);
+  return ` (ND ${escrito} → ${final}, ${motivo || loc("PYRO.Pericia.SemTreinoTag")})`;
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Sobrecarga                                                                */
 /* -------------------------------------------------------------------------- */
 
 /**
- * A perícia que cobre o teste de sobrecarga, se o personagem tiver uma.
+ * A perícia de um nome, se o personagem tiver uma.
  *
  * Ela é achada pelo NOME, como as regras de progressão e o sentido espiritual:
- * a mesa cria a perícia "Sobrecarga" e ela passa a valer sozinha, sem campo
- * escondido para marcar. Sem a perícia o teste continua acontecendo, como
- * qualquer teste sem treino (SRD 3b): o ND dobra acima de 10.
+ * a mesa cria a perícia e ela passa a valer sozinha, sem campo escondido para
+ * marcar. Sem ela o teste continua acontecendo, como qualquer teste sem treino
+ * (SRD 3b): o ND dobra acima de 10.
  */
-export function periciaDeSobrecarga(actor) {
+export function periciaPorNome(actor, nome) {
   return actor?.items?.find(item => item.type === "pericia"
-    && PYRO.normalizarTexto(item.name) === PYRO.NOME_PERICIA_SOBRECARGA) ?? null;
+    && PYRO.normalizarTexto(item.name) === nome) ?? null;
+}
+
+/** A perícia que cobre o teste de sobrecarga da magia e da técnica. */
+export const periciaDeSobrecarga = actor =>
+  periciaPorNome(actor, PYRO.NOME_PERICIA_SOBRECARGA);
+
+/** A perícia que cobre o teste de mira do tiro à distância. */
+export const periciaDeMira = actor => periciaPorNome(actor, PYRO.NOME_PERICIA_MIRA);
+
+/**
+ * O que uma dessas perícias empresta ao teste: bônus e vantagens por nível, e
+ * se ela foi aprendida — é isso que decide o ND dobrado de quem não tem treino.
+ * Também devolve a linha que o diálogo mostra, para o jogador ver de onde veio
+ * o número antes de rolar.
+ */
+export function ajudaDaPericia(pericia) {
+  const nivel = pericia?.system?.progresso?.nivel ?? 0;
+  const porNivel = bonusPorNivel(nivel);
+  const aprendida = !!pericia?.system?.aprendida;
+  const dica = !pericia ? ""
+    : nivel ? game.i18n.format("PYRO.Pericia.DicaNivel",
+        { nivel, bonus: porNivel.bonus, vantagens: porNivel.vantagens })
+    : loc("PYRO.Pericia.DicaSemTreino");
+  return { pericia, aprendida, dica, ...porNivel };
 }
 
 /**
@@ -183,6 +222,33 @@ export function htmlBotaoSobrecarga({
             data-atributo="${atributo}" data-nd="${nd}" data-exaustao="${exaustao}"
             data-bonus-atributo="${bonusAtributo}">
       <i class="fa-solid fa-dice-d20"></i> ${loc("PYRO.Sobrecarga.Botao")}
+    </button>
+  </div>`;
+}
+
+/**
+ * O botão que abre o teste de mira a partir do card do ataque.
+ *
+ * Mesmo desenho do de sobrecarga, e pelo mesmo motivo: o tiro já saiu e o dano
+ * já está rolado — quem atirou é que decide quando encarar o dado da pontaria,
+ * e é no diálogo que ele confere a distância, soma o que a mesa concedeu e
+ * gasta Força de Vontade.
+ *
+ * @param {object} dados
+ * @param {string} dados.atorUuid quem atira.
+ * @param {string} dados.itemUuid a arma: é dela que sai o ajuste de alcance.
+ * @param {number|string} [dados.distancia] a distância medida na hora do tiro;
+ *   vazia quando não havia alvo marcado, e aí o diálogo mede de novo.
+ * @param {number} dados.limite até onde o tiro acerta sem teste.
+ * @param {string} dados.motivo linha que o card mostra acima do botão.
+ */
+export function htmlBotaoMira({ atorUuid, itemUuid, distancia = "", limite = 2, motivo }) {
+  return `<div class="pyro-mira pendente">
+    <p>${motivo}</p>
+    <button type="button" class="pyro-teste-mira"
+            data-ator-uuid="${atorUuid}" data-item-uuid="${itemUuid}"
+            data-distancia="${distancia}" data-limite="${limite}">
+      <i class="fa-solid fa-crosshairs"></i> ${loc("PYRO.Mira.Botao")}
     </button>
   </div>`;
 }

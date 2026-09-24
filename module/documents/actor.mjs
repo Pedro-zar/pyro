@@ -17,7 +17,8 @@ import { formularioDoAtor, esc } from "../ui.mjs";
 import { custoDeFriagem, dadosDeMolhado, reduzirCondicao, pilhasDe } from "../condicoes.mjs";
 import {
   campoCheckbox, campoNumero, campoSelect, camposDeTeste, aplicarExaustaoNoTeste,
-  aplicarVontadeNoTeste, valorComInspiracao, htmlVontadeGasta, sufixoND, periciaDeSobrecarga
+  aplicarVontadeNoTeste, valorComInspiracao, htmlVontadeGasta, sufixoND,
+  periciaDeSobrecarga, ajudaDaPericia, textoDoND
 } from "../teste.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "../sistema.mjs";
@@ -319,8 +320,7 @@ export class PyroActor extends Actor {
       !sys.aprendida ? loc("PYRO.Pericia.SemTreinoTag") : null,
       semFerramentas ? loc("PYRO.Pericia.SemFerramentasTag") : null
     ].filter(Boolean).join(", ");
-    const textoND = !ndOriginal ? ""
-      : nd !== ndOriginal ? ` (ND ${ndOriginal} → ${nd}, ${ajustes})` : ` (ND ${nd})`;
+    const textoND = textoDoND(ndOriginal, nd, ajustes);
 
     // Ajudar não rola nada, então também não gasta Força de Vontade.
     if (ajudar) return this.#cardDeAjuda(pericia, rotuloAtributo, porNivel, classe, textoND);
@@ -368,20 +368,15 @@ export class PyroActor extends Actor {
    */
   async rolarSobrecarga({ nd, exaustao, atributo, bonusAtributo = 0, itemUuid = null }) {
     const loc = k => game.i18n.localize(k);
-    const pericia = periciaDeSobrecarga(this);
-    const nivel = pericia?.system?.progresso?.nivel ?? 0;
-    const porNivel = bonusPorNivel(nivel);
-    const aprendida = !!pericia?.system?.aprendida;
+    const { pericia, aprendida, dica, bonus, vantagens } =
+      ajudaDaPericia(periciaDeSobrecarga(this));
     const chave = PYRO.atributos[atributo] ? atributo : "vig";
     const rotuloAtributo = loc(PYRO.atributos[chave]);
     const delta = Math.round(Number(bonusAtributo) || 0);
     const valorAtributo = Math.max(1, this.system.atributos[chave].total + delta);
 
     const dicas = [
-      !pericia ? loc("PYRO.Sobrecarga.SemPericia")
-        : nivel ? game.i18n.format("PYRO.Pericia.DicaNivel",
-            { nivel, bonus: porNivel.bonus, vantagens: porNivel.vantagens })
-        : loc("PYRO.Pericia.DicaSemTreino"),
+      dica || loc("PYRO.Sobrecarga.SemPericia"),
       delta ? game.i18n.format("PYRO.Sobrecarga.AtributoAjustado", {
         atributo: rotuloAtributo, valor: valorAtributo, delta: delta > 0 ? `+${delta}` : delta
       }) : null
@@ -403,8 +398,8 @@ export class PyroActor extends Actor {
 
     const opts = { bonus: res.bonus, vantagem: res.vantagem, desvantagem: res.desvantagem };
     aplicarExaustaoNoTeste(this, opts);
-    opts.bonus += porNivel.bonus;
-    opts.vantagem += porNivel.vantagens;
+    opts.bonus += bonus;
+    opts.vantagem += vantagens;
 
     const ndOriginal = Number(res.nd) || 0;
     const ndFinal = ndAjustado(ndOriginal, { semTreino: !aprendida });
@@ -416,10 +411,7 @@ export class PyroActor extends Actor {
     const classe = ndOriginal
       ? classificarRolagem({ ...poolDoTeste(poolDoAtributo(valorAtributo), opts), nd: ndOriginal })
       : null;
-    const textoND = !ndOriginal ? ""
-      : ndFinal !== ndOriginal
-        ? ` (ND ${ndOriginal} → ${ndFinal}, ${loc("PYRO.Pericia.SemTreinoTag")})`
-        : sufixoND(ndFinal);
+    const textoND = textoDoND(ndOriginal, ndFinal);
 
     const vontade = await aplicarVontadeNoTeste(this, res);
     opts.vantagem += vontade.beneficio;

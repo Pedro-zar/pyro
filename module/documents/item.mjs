@@ -5,15 +5,22 @@
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
 import { executarTecnica } from "../tecnica.mjs";
-import { formulaTeste, formulaPool, prepararFormula, comUnidade } from "../dados.mjs";
+import {
+  formulaTeste, formulaPool, prepararFormula, comUnidade, poolDoAtributo
+} from "../dados.mjs";
+import {
+  classificarRolagem, poolDoTeste, htmlClasseDaRolagem, ndAjustado
+} from "../progressao.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
   ajustesDeAtributo, ajustesDeCusto, custoAjustado
 } from "../efeitos.mjs";
 import { esc, enriquecer, formularioDoAtor } from "../ui.mjs";
 import {
-  camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste, valorComInspiracao, htmlVontadeGasta
+  camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste, valorComInspiracao,
+  htmlVontadeGasta, periciaDeMira, ajudaDaPericia, textoDoND, htmlBotaoMira
 } from "../teste.mjs";
+import { htmlFalhaAutomatica } from "../chat.mjs";
 import { flagsDoSistema } from "../sistema.mjs";
 
 /**
@@ -365,7 +372,7 @@ export class PyroItem extends Item {
     const actor = this.actor;
     const speaker = ChatMessage.getSpeaker({ actor });
 
-    /* --- Munição: escolhe agora, desconta depois da mira ------------------ */
+    /* --- Munição: escolhe antes de qualquer gasto ------------------------- */
     let municao = null;
     if (sys.usaMunicao && actor) {
       const opcoes = actor.items.filter(i =>
@@ -387,29 +394,23 @@ export class PyroItem extends Item {
       if (!res) return;
       municao = actor.items.get(res.municao);
       if (!municao) return;
-      // O desconto acontece só depois do teste de mira, pra não gastar
-      // munição quando o ataque é cancelado.
     }
 
-    /* --- Teste de mira ------------------------------------------------------ */
+    /* --- Mira: o card pede o teste, e o jogador escolhe quando rolar -------- */
     /*
      * O limite é o dobro do alcance do tamanho: um Médio (1m) acerta de graça
-     * a 1m e 2m, um Grande (2m) vai até 4m. Duas saídas antes de abrir a
-     * janela — arma que nem chega ao limite nunca pede teste (corpo a corpo
-     * cai aqui, com alcance máximo 0), e alvo marcado dentro do limite também
-     * não. Sem alvo marcado a janela abre e a distância digitada decide.
+     * a 1m e 2m, um Grande (2m) vai até 4m. Duas saídas antes de pedir o teste
+     * — arma que nem chega ao limite nunca pede (corpo a corpo cai aqui, com
+     * alcance máximo 0), e alvo marcado dentro do limite também não.
+     *
+     * A distância é medida agora, e não no clique do botão: o tiro saiu daqui,
+     * e o token pode andar antes de alguém conferir a pontaria.
      */
     const limiteMira = actor?.system.miraLivre ?? 2;
+    const distanciaAlvo = actor ? distanciaAteAlvo(actor) : null;
+    const pedeMira = !!actor && sys.alcanceMaximo > limiteMira
+      && (distanciaAlvo === null || distanciaAlvo > limiteMira);
     const rolls = [];
-    let mira = null;
-    if (sys.alcanceMaximo > limiteMira) {
-      const distanciaAlvo = distanciaAteAlvo(actor);
-      if (distanciaAlvo === null || distanciaAlvo > limiteMira) {
-        mira = await this.#testeDeMira(limiteMira);
-        if (mira === null) return; // cancelado: nada é gasto
-        rolls.push(mira.roll);
-      }
-    }
 
     // Munição some ao disparar, acertando ou errando.
     if (municao) await municao.update({ "system.quantidade": municao.system.quantidade - 1 });
@@ -424,30 +425,16 @@ export class PyroItem extends Item {
     ].filter(Boolean).join(" · ");
     const partes = [this.#topoHTML(detalhes)];
 
-    if (mira) {
-      partes.push(`<div class="pyro-mira ${mira.acertou ? "sucesso" : "falha"}">
-        <p>${game.i18n.format("PYRO.Mira.Resultado", { distancia: mira.distancia, nd: mira.nd })}
-          — <strong><i class="fa-solid ${mira.acertou ? "fa-check" : "fa-xmark"}"></i>
-          ${game.i18n.localize(mira.acertou ? "PYRO.Mira.Acertou" : "PYRO.Mira.Errou")}</strong></p>
-        ${await mira.roll.render()}
-        ${htmlVontadeGasta(mira.vontade)}
-      </div>`);
-      if (!mira.acertou) {
-        /*
-         * Errar não anula o tiro: ele cai em outro lugar, e o que estiver lá
-         * vira o novo alvo (SRD §5). Por isso o dano continua sendo rolado
-         * abaixo — o card só troca o alvo, e a mesa marca no mapa onde a
-         * flecha foi parar.
-         */
-        rolls.push(mira.desvio.direcao);
-        partes.push(`<div class="pyro-desvio">
-          <p>${game.i18n.format("PYRO.Mira.Desvio", {
-            hora: (mira.desvio.hora - 1) * 30, metros: mira.desvio.metros
-          })}</p>
-          ${await mira.desvio.direcao.render()}
-          <p class="pyro-nota">${game.i18n.localize("PYRO.Mira.DesvioDica")}</p>
-        </div>`);
-      }
+    if (pedeMira) {
+      partes.push(htmlBotaoMira({
+        atorUuid: actor.uuid,
+        itemUuid: this.uuid,
+        distancia: distanciaAlvo ?? "",
+        limite: limiteMira,
+        motivo: distanciaAlvo !== null
+          ? game.i18n.format("PYRO.Mira.Pendente", { distancia: distanciaAlvo })
+          : game.i18n.format("PYRO.Mira.PendenteSemAlvo", { limite: limiteMira })
+      }));
     }
 
     // Cada entrada de dano rola separado, com seu próprio tipo — o menu do
@@ -494,10 +481,12 @@ export class PyroItem extends Item {
       speaker,
       content: `<div class="pyro-chat">${partes.join("")}</div>`,
       rolls,
-      // O menu do chat usa estas flags: dano separado por tipo, sem o teste de
-      // mira, e o recurso que o dano mental desta arma drena.
+      // O menu do chat usa estas flags: dano separado por tipo e o recurso
+      // que o dano mental desta arma drena.
       flags: flagsDoSistema({ danos, cura: 0, recursoMental: sys.recursoMental }),
-      sound: CONFIG.sounds.dice
+      // Arma sem fórmula de dano nenhuma não rola nada, e o som de dado num
+      // card sem dado é ruído.
+      ...(rolls.length ? { sound: CONFIG.sounds.dice } : {})
     });
   }
 
@@ -523,28 +512,107 @@ export class PyroItem extends Item {
   }
 
   /**
+   * Teste de mira pedido pelo card do ataque. Ele sai num card próprio, como o
+   * de sobrecarga: o card do tiro já mostrou o dano, e este mostra a pontaria
+   * — se acertou, para onde a flecha foi se errou, e o botão de contar o uso
+   * da perícia.
+   *
+   * @param {number|null} [opcoes.distancia] a medida do momento do tiro; sem
+   *   ela o diálogo mede de novo.
+   * @param {number} [opcoes.limite] até onde o tiro acerta sem teste.
+   * @returns {Promise<boolean>} false quando o diálogo foi cancelado.
+   */
+  async rolarMira({ distancia = null, limite = 2 } = {}) {
+    const actor = this.actor;
+    // Sem ficha, ou sem ser dono dela, não há teste: a janela pediria Força de
+    // Vontade que o servidor recusaria na hora de gravar.
+    if (!actor?.isOwner) return false;
+    const mira = await this.#testeDeMira(limite, distancia);
+    if (!mira) return false;
+
+    /*
+     * Pool zerada pelas desvantagens: não há dado nenhum para mostrar, e o
+     * card diz isso — um "0" renderizado pareceria uma rolagem que aconteceu.
+     */
+    const rolls = mira.automatica ? [] : [mira.roll];
+    const partes = [
+      `<p>${game.i18n.format("PYRO.Mira.Resultado", { distancia: mira.distancia })}${mira.textoND}
+        — <strong><i class="fa-solid ${mira.acertou ? "fa-check" : "fa-xmark"}"></i>
+        ${game.i18n.localize(mira.acertou ? "PYRO.Mira.Acertou" : "PYRO.Mira.Errou")}</strong></p>`,
+      mira.automatica ? htmlFalhaAutomatica() : await mira.roll.render()
+    ];
+    if (!mira.acertou) {
+      /*
+       * Errar não anula o tiro: ele cai em outro lugar, e o que estiver lá
+       * vira o novo alvo (SRD §5). O dano já foi rolado no card do ataque — a
+       * mesa só marca no mapa onde a flecha foi parar.
+       */
+      rolls.push(mira.desvio.direcao);
+      partes.push(`<div class="pyro-desvio">
+        <p>${game.i18n.format("PYRO.Mira.Desvio", {
+          hora: (mira.desvio.hora - 1) * 30, metros: mira.desvio.metros
+        })}</p>
+        ${await mira.desvio.direcao.render()}
+        <p class="pyro-nota">${game.i18n.localize("PYRO.Mira.DesvioDica")}</p>
+      </div>`);
+    }
+    partes.push(htmlClasseDaRolagem(mira.classe, mira.pericia), htmlVontadeGasta(mira.vontade));
+
+    /*
+     * Sem o botão de Sorte, de propósito: o desvio já foi calculado a partir
+     * do que faltou para o ND, e re-rolar o dado deixaria a distância do erro
+     * dizendo respeito a um resultado que não existe mais.
+     */
+    await ChatMessage.create({
+      speaker: ChatMessage.getSpeaker({ actor }),
+      flavor: game.i18n.localize("PYRO.Mira.Titulo"),
+      // O bloco da mira vai DENTRO da casca do card: as regras dele são de
+      // descendente (.pyro-chat .pyro-mira), e as duas classes no mesmo
+      // elemento não casariam com nenhuma.
+      content: `<div class="pyro-chat pyro-teste">
+        <div class="pyro-mira ${mira.acertou ? "sucesso" : "falha"}">${partes.join("")}</div>
+      </div>`,
+      rolls,
+      ...(rolls.length ? { sound: CONFIG.sounds.dice } : {})
+    });
+    return true;
+  }
+
+  /**
    * Janela do teste de mira: DES contra ND igual à distância em metros.
    * Com um alvo marcado, a distância e o ND já vêm preenchidos, e o ajuste do
    * alcance entra sozinho. Errar não perde o tiro: ele vai parar em outro
    * lugar, e o desvio é rolado aqui (SRD §5).
+   *
+   * Quem tem a perícia Mirar atira com ela: bônus e vantagens por nível entram
+   * no teste, e quem não a aprendeu sofre o ND dobrado acima de 10, como em
+   * qualquer perícia sem treino. O tiro também treina a perícia, então o card
+   * traz o botão de contar o uso.
    */
-  async #testeDeMira(limiteMira = 2) {
+  async #testeDeMira(limiteMira = 2, distanciaSugerida = null) {
     const sys = this.system;
     const actor = this.actor;
-    const medida = distanciaAteAlvo(actor);
+    // A medida do momento do tiro manda; sem ela, mede-se agora.
+    const medida = Number.isFinite(distanciaSugerida)
+      ? distanciaSugerida : distanciaAteAlvo(actor);
     // Sem alvo marcado, começa no primeiro metro que já pede teste.
     const distancia = medida ?? Math.max(limiteMira + 1, sys.alcanceMenor);
     const ajuste = this.#ajusteDeAlcance(distancia);
 
-    const dica = medida !== null
-      ? game.i18n.format("PYRO.Mira.AlvoMarcado", { distancia: medida })
-      : game.i18n.format("PYRO.Mira.SemAlvoLimite", { limite: limiteMira });
+    const mirar = ajudaDaPericia(periciaDeMira(actor));
+    const dica = [
+      medida !== null
+        ? game.i18n.format("PYRO.Mira.AlvoMarcado", { distancia: medida })
+        : game.i18n.format("PYRO.Mira.SemAlvoLimite", { limite: limiteMira }),
+      game.i18n.localize(ajuste.nota),
+      mirar.dica
+    ].filter(Boolean).join(" ");
 
     const res = await formularioDoAtor(actor, {
       titulo: game.i18n.localize("PYRO.Mira.Titulo"),
       // O ND da mira é a distância em metros, então ele já vem preenchido.
       conteudo: camposDeTeste(actor, {
-        dica: `${dica} ${game.i18n.localize(ajuste.nota)}`,
+        dica,
         nd: distancia,
         extras: `<div class="form-group"><label>${game.i18n.localize("PYRO.Mira.Distancia")}</label>
           <input type="number" name="distancia" value="${distancia}" min="0"></div>`
@@ -561,21 +629,40 @@ export class PyroItem extends Item {
     const doAlcance = this.#ajusteDeAlcance(distanciaFinal);
     const opts = { ...res, nd: Number(res.nd) || 0 };
     aplicarExaustaoNoTeste(actor, opts);
-    const vontade = await aplicarVontadeNoTeste(actor, res);
-    opts.vantagem += doAlcance.vantagem + vontade.beneficio;
+    opts.vantagem += doAlcance.vantagem;
     opts.desvantagem += doAlcance.desvantagem;
+    opts.bonus += mirar.bonus;
+    opts.vantagem += mirar.vantagens;
 
     const des = actor?.system.atributos.des;
+    /*
+     * A classe da rolagem é medida antes da Força de Vontade entrar (SRD 3b):
+     * o ponto gasto compra o resultado, não a dificuldade do que foi tentado.
+     */
+    const ndEscrito = opts.nd;
+    const classe = des && ndEscrito
+      ? classificarRolagem({ ...poolDoTeste(poolDoAtributo(des.total), opts), nd: ndEscrito })
+      : null;
+
+    const vontade = await aplicarVontadeNoTeste(actor, res);
+    opts.vantagem += vontade.beneficio;
+
+    // Sem a perícia aprendida, a distância pesa o dobro acima de 10 metros.
+    const nd = ndAjustado(ndEscrito, { semTreino: !mirar.aprendida });
     const formula = des
       ? formulaTeste(valorComInspiracao(des.total, vontade), opts)
       : null;
 
     // Pool zerada por desvantagens: erra sem rolar (mesma regra dos testes).
     const roll = await new Roll(formula ?? "0").evaluate();
-    const nd = opts.nd;
     const acertou = formula !== null && roll.total >= nd;
     return {
-      roll, nd, vontade,
+      roll, nd, vontade, classe,
+      // Sem fórmula não houve rolagem: a pool inteira foi comida pelas
+      // desvantagens, e o tiro erra sem dado (mesma regra dos testes).
+      automatica: formula === null,
+      pericia: mirar.pericia,
+      textoND: textoDoND(ndEscrito, nd),
       distancia: distanciaFinal,
       acertou,
       desvio: acertou ? null : await this.#desvioDoTiro(roll.total, nd)

@@ -283,6 +283,7 @@ export function registrarMenuChat() {
     }
     prepararBotaoContarUso(message, element);
     prepararBotaoSobrecarga(message, element);
+    prepararBotaoMira(message, element);
     prepararBotaoSorte(message, element);
     injetarRodape(message, element);
   });
@@ -482,6 +483,51 @@ function prepararBotaoSobrecarga(message, element) {
         return;
       }
       await gravarMarca(message, "sobrecargaFeita", true);
+    });
+  }
+}
+
+/**
+ * Botão do teste de mira no card do ataque. Mesma trava do de sobrecarga: o
+ * diálogo não é modal, e sem desabilitar o botão dois cliques virariam dois
+ * testes para o mesmo tiro.
+ */
+function prepararBotaoMira(message, element) {
+  for (const botao of element.querySelectorAll(".pyro-teste-mira")) {
+    if (flagsDe(message)?.miraFeita) {
+      botao.disabled = true;
+      botao.innerHTML = `<i class="fa-solid fa-check"></i> ${game.i18n.localize("PYRO.Mira.Feito")}`;
+      continue;
+    }
+    botao.addEventListener("click", async () => {
+      // A trava vem antes de qualquer espera: dois cliques rápidos abririam
+      // dois diálogos para o mesmo tiro, cada um cobrando a Vontade dele.
+      botao.disabled = true;
+      const liberar = () => { botao.disabled = false; };
+      const arma = await fromUuid(botao.dataset.itemUuid);
+      const actor = await fromUuid(botao.dataset.atorUuid);
+      if (!actor?.isOwner) {
+        liberar();
+        return ui.notifications.warn(game.i18n.localize("PYRO.Uso.SemPermissao"));
+      }
+      if (!arma) {
+        liberar();
+        return ui.notifications.warn(game.i18n.localize("PYRO.Mira.ArmaSumiu"));
+      }
+      const escrita = Number(botao.dataset.distancia);
+      const limite = Number(botao.dataset.limite);
+      const feito = await arma.rolarMira({
+        distancia: Number.isFinite(escrita) && botao.dataset.distancia !== "" ? escrita : null,
+        limite: Number.isFinite(limite) ? limite : 2
+      }).catch(erro => {
+        console.error("PYRO | falha no teste de mira", erro);
+        return false;
+      });
+      if (!feito) {
+        liberar();
+        return;
+      }
+      await gravarMarca(message, "miraFeita", true);
     });
   }
 }

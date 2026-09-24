@@ -1411,6 +1411,13 @@
   border-left-color: var(--pyro-perigo); background: color-mix(in srgb, var(--pyro-perigo) 8%, transparent);
 }
 .pyro-chat .pyro-mira p { margin: 0.15rem 0; }
+/* Mira ainda por rolar: o botão que abre o teste. */
+.pyro-chat .pyro-mira.pendente {
+  border-left-color: var(--pyro-aviso);
+  background: color-mix(in srgb, var(--pyro-aviso) 8%, transparent);
+}
+.pyro-chat .pyro-mira.pendente p { margin: 0 0 0.3rem; }
+.pyro-chat .pyro-mira.pendente button { width: auto; padding: 0.15rem 0.7rem; font-size: 0.8rem; }
 
 /* ---------- Ajustes: rótulo de bloco de checkboxes ------------------------- */
 

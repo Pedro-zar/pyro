@@ -1261,10 +1261,15 @@ PYRO.modosEfeito = {
  * diferença entre uma magia barata e uma cara.
  */
 /**
- * Nome (normalizado) da perícia que cobre os testes de sobrecarga de magia e
- * de técnica. A mesa cria a perícia com esse nome e ela passa a valer.
+ * Nomes (normalizados) das perícias que o sistema procura sozinho. A mesa cria
+ * a perícia com esse nome e ela passa a valer: sobrecarga cobre o teste de
+ * passar do limite na magia e na técnica, mirar cobre o tiro à distância.
+ *
+ * Sem a perícia o teste continua acontecendo, como qualquer teste sem treino
+ * (SRD 3b): o ND dobra acima de 10.
  */
 PYRO.NOME_PERICIA_SOBRECARGA = "sobrecarga";
+PYRO.NOME_PERICIA_MIRA = "mirar";
 
 PYRO.modosDeCusto = {
   add: "PYRO.Efeitos.Modo.somar",
