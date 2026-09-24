@@ -772,19 +772,37 @@ PYRO.unidadesDeDuracao = {
  * As sete condições que o elemento Mente aplica, uma por atributo: cada
  * emoção pesa sobre o que ela atrapalha no corpo ou na cabeça.
  *
- * O `atributo` ainda não faz nada — o quanto cada condição desconta é regra
- * que a mesa não fechou. Ele está aqui porque é a única parte já decidida, e
- * é o que a interface de Mente mostra ao escolher.
+ * O `atributo` é o que a condição atrapalha: todo teste com ele sai com uma
+ * desvantagem. As outras marcas são o que cada emoção faz além disso, e o
+ * sistema as aplica sozinho (ver condicoes.mjs):
+ *
+ *   tomarArMetade     Tomar Ar recupera metade.
+ *   semAjudar         não pode Ajudar um aliado.
+ *   semReacoes        sem esquiva, bloqueio ou cobertura.
+ *   semForNoDano      ataques e técnicas não somam FOR ao dano.
+ *   acaoExtraAcima3   magia ou técnica de 3+ ações custa 1 ação a mais.
+ *
+ * O que não cabe em marca — o primeiro ataque do irritado, o passo que o
+ * apavorado não dá, os instintos do insensato — vive no texto da condição, na
+ * ficha, porque depende de quem é o alvo e de para onde se anda.
  */
 PYRO.condicoesMentais = {
   irritado:  { atributo: "des" },
   apavorado: { atributo: "agi" },
-  culpado:   { atributo: "vig" },
-  inseguro:  { atributo: "pre" },
-  insensato: { atributo: "sab" },
-  abatido:   { atributo: "for" },
-  confuso:   { atributo: "int" }
+  culpado:   { atributo: "vig", tomarArMetade: true },
+  inseguro:  { atributo: "pre", semAjudar: true },
+  insensato: { atributo: "sab", semReacoes: true },
+  abatido:   { atributo: "for", semForNoDano: true },
+  confuso:   { atributo: "int", acaoExtraAcima3: true }
 };
+
+/** Da onde veio a desvantagem: o atributo aponta a condição que o afeta. */
+PYRO.mentalDoAtributo = Object.fromEntries(
+  Object.entries(PYRO.condicoesMentais).map(([chave, cfg]) => [cfg.atributo, chave])
+);
+
+/** A partir de quantas ações a confusão cobra a ação extra. */
+PYRO.ACOES_CONFUSO = 3;
 
 /* -------------------------------------------------------------------------- */
 /*  Força de Vontade                                                          */

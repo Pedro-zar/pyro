@@ -16,6 +16,7 @@ import {
 import { htmlBotaoSobrecarga } from "./teste.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
+import { semForNoDano, acoesComConfusao } from "./condicoes.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -480,8 +481,15 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   const partes = [];
   const danos = [];
 
-  const acoes = custoAjustado(sys.acoes, ajustesDeCusto(actor, [item, ataque?.item]).acoes);
+  const acoesBase = custoAjustado(sys.acoes, ajustesDeCusto(actor, [item, ataque?.item]).acoes);
+  // A confusão cobra a ação extra por último, sobre o custo já ajustado — e só
+  // em ação: a regra fala de ações, e técnica de reação continua custando o
+  // que custava.
+  const acoes = base?.reacao ? acoesBase : acoesComConfusao(actor, acoesBase);
   const chaveCusto = base?.reacao ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";
+  // Dizer que a ação a mais veio da confusão: sem isso o custo maior parece
+  // conta errada.
+  const notaConfusao = acoes > acoesBase ? loc("PYRO.Mental.ConfusaoAcao") : "";
   const meta = [
     loc(chaveCusto, { acoes }),
     loc(base?.label ?? ""),
@@ -500,6 +508,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     calc.estamina !== calc.estaminaBase
       ? loc("PYRO.Tecnica.EstaminaAjustada", { base: calc.estaminaBase })
       : null,
+    notaConfusao || null,
     ataque ? esc(ataque.nome) : null
   ].filter(Boolean).join(" · ");
 
@@ -549,7 +558,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     for (const dano of ataque.danos) {
       // Os dados rolam crus: a Potência multiplica o total, mais abaixo.
       const formula = dano.formula;
-      const dados = item.getRollData();
+      const dados = semForNoDano(actor, item.getRollData());
       const roll = await new Roll(prepararFormula(formula, dados), dados).evaluate();
       rolls.push(roll);
       danos.push({ tipo: dano.tipo, total: roll.total, formula });
@@ -558,7 +567,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     }
     // A arma do golpe entra junto: dano extra preso a ela vale na técnica.
     for (const bonus of bonusDeDano(actor, [item, ataque.item])) {
-      const dados = item.getRollData();
+      const dados = semForNoDano(actor, item.getRollData());
       const roll = await new Roll(prepararFormula(bonus.formula, dados), dados).evaluate();
       rolls.push(roll);
       danos.push({

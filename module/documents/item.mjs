@@ -21,6 +21,7 @@ import {
   htmlVontadeGasta, periciaDeMira, ajudaDaPericia, textoDoND, htmlBotaoMira
 } from "../teste.mjs";
 import { htmlFalhaAutomatica } from "../chat.mjs";
+import { semForNoDano, dicaMental, regraMental } from "../condicoes.mjs";
 import { flagsDoSistema } from "../sistema.mjs";
 
 /**
@@ -328,7 +329,7 @@ export class PyroItem extends Item {
     const rolls = [];
 
     for (const bonus of bonusDeDano(this.actor, this)) {
-      const dados = this.getRollData();
+      const dados = semForNoDano(this.actor, this.getRollData());
       const roll = await new Roll(prepararFormula(bonus.formula, dados), dados).evaluate();
       rolls.push(roll);
       // Sem tipo escolhido, o bônus herda o tipo do ataque que ele acompanha.
@@ -443,12 +444,20 @@ export class PyroItem extends Item {
     const danos = [];
     for (const dano of sys.danos ?? []) {
       if (!dano.formula?.trim()) continue;
-      const dados = this.getRollData();
+      const dados = semForNoDano(actor, this.getRollData());
       const roll = await new Roll(prepararFormula(dano.formula, dados), dados).evaluate();
       rolls.push(roll);
       danos.push({ tipo: dano.tipo, total: roll.total, formula: dano.formula });
       const tipo = game.i18n.localize(PYRO.tiposDano[dano.tipo]?.label ?? dano.tipo ?? "");
       partes.push(`<p class="pyro-linha-dano dano-${dano.tipo}">${tipo}</p>`, await roll.render());
+    }
+
+    /*
+     * O abatido zera a Força no dano, e o card diz isso: um "2d8 + 0" sem
+     * explicação parece defeito, e não a condição fazendo efeito.
+     */
+    if (danos.length && regraMental(actor, "semForNoDano")) {
+      partes.push(`<p class="pyro-nota">${game.i18n.localize("PYRO.Mental.SemForNoDano")}</p>`);
     }
 
     // Bônus de efeito ("Maestria com Katana: 2d6") entram como parcelas extras.
@@ -461,7 +470,7 @@ export class PyroItem extends Item {
       partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: esc(municao.name) })}</p>`);
       // Munição com fórmula (ex.: Flechas de Raio) rola o dano adicional.
       if (municao.system.formula) {
-        const dadosMun = this.getRollData();
+        const dadosMun = semForNoDano(actor, this.getRollData());
         const extra = await new Roll(prepararFormula(municao.system.formula, dadosMun), dadosMun).evaluate();
         rolls.push(extra);
         danos.push({ tipo: municao.system.tipoDano, total: extra.total, formula: municao.system.formula });
@@ -606,7 +615,8 @@ export class PyroItem extends Item {
         ? game.i18n.format("PYRO.Mira.AlvoMarcado", { distancia: medida })
         : game.i18n.format("PYRO.Mira.SemAlvoLimite", { limite: limiteMira }),
       game.i18n.localize(ajuste.nota),
-      mirar.dica
+      mirar.dica,
+      dicaMental(actor, "des")
     ].filter(Boolean).join(" ");
 
     const res = await formularioDoAtor(actor, {
@@ -629,7 +639,7 @@ export class PyroItem extends Item {
     const distanciaFinal = Number(res.distancia) || 0;
     const doAlcance = this.#ajusteDeAlcance(distanciaFinal);
     const opts = { ...res, nd: Number(res.nd) || 0 };
-    aplicarExaustaoNoTeste(actor, opts);
+    aplicarExaustaoNoTeste(actor, opts, "des");
     opts.vantagem += doAlcance.vantagem;
     opts.desvantagem += doAlcance.desvantagem;
     opts.bonus += mirar.bonus;

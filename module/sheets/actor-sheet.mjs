@@ -9,7 +9,7 @@ import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
 import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDoEfeito } from "../efeitos.mjs";
 import { rotuloDePrazo } from "../duracao.mjs";
-import { pilhasDe, efeitosDetalhados } from "../condicoes.mjs";
+import { pilhasDe, efeitosDetalhados, regraMental } from "../condicoes.mjs";
 
 /** Condições que aparecem na barra de alertas, com o ícone de cada uma. */
 const ICONES_DE_CONDICAO = {
@@ -476,6 +476,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       ].filter(Boolean);
       return {
         ajudavel: true,
+        // Inseguro não empresta confiança: o botão fica apagado, como os de
+        // reação quando o peso prega o personagem no chão.
+        semAjudar: regraMental(actor, "semAjudar"),
         detalhes: detalheUnico([atributos, ...marcas].join(", ")),
         cauda: [
           { texto: `${loc("PYRO.Uso.NivelAbrev")} ${sys.progresso.nivel}`, classe: "col-curto", dica: loc("PYRO.Uso.Nivel") }
@@ -695,6 +698,13 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       podeVontadeDeViver: actor.system.caido
         && actor.system.recursos.vontade.value >= PYRO.CUSTO_VONTADE_DE_VIVER,
       custoVontadeDeViver: PYRO.CUSTO_VONTADE_DE_VIVER,
+      /*
+       * Não há reação a oferecer: ou o peso prendeu o personagem, ou o
+       * insensato não se protege (ver PYRO.condicoesMentais). Uma marca só,
+       * porque o botão é o mesmo — o motivo aparece no aviso ao clicar e na
+       * lista de condições.
+       */
+      semReagir: !!actor.system.imobilizado || regraMental(actor, "semReacoes"),
       // Caminho novo custa 10 x os que já tem (SRD §2), já com a regra de
       // progressão solta do personagem; o botão mostra o preço antes de abrir
       // a janela de repartir a XP.
@@ -1086,12 +1096,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       }),
       prazo: e.prazo ? game.i18n.format("PYRO.Efeito.Restante", { prazo: e.prazo }) : ""
     }));
-    return {
-      linhas,
-      // A regra das mentais ainda não desconta nada: quem lê a ficha precisa
-      // saber disso, senão procuraria o efeito nos atributos.
-      notaMental: linhas.some(l => PYRO.condicoesMentais[l.chave])
-    };
+    return { linhas };
   }
 
   /** Estados que precisam de aviso imediato, com ícone além da cor. */

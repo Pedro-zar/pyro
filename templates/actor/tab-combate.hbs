@@ -31,9 +31,6 @@
           {{#if e.prazo}}<span class="efeito-prazo">{{e.prazo}}</span>{{/if}}
         </p>
         {{/each}}
-        {{#if efeitosSofridos.notaMental}}
-        <p class="pyro-nota">{{localize "PYRO.Efeitos.MentalSemRegra"}}</p>
-        {{/if}}
       </div>
       {{/if}}
     </div>
@@ -69,9 +66,9 @@
       {{!-- Com o dobro do limite nas costas não sobra reação nenhuma, e os
             botões ficam apagados em vez de avisar a cada clique. --}}
       <div class="botoes-reacao">
-        <button type="button" data-action="rolarEsquiva" {{#if system.imobilizado}}disabled{{/if}}
+        <button type="button" data-action="rolarEsquiva" {{#if semReagir}}disabled{{/if}}
                 title="{{localize 'PYRO.EsquivaTooltip'}}">{{localize "PYRO.Esquivar"}} ({{system.esquiva}})</button>
-        <button type="button" data-action="rolarBloqueio" {{#if system.imobilizado}}disabled{{/if}}
+        <button type="button" data-action="rolarBloqueio" {{#if semReagir}}disabled{{/if}}
                 title="{{localize 'PYRO.BloqueioTooltip'}}">{{localize "PYRO.Bloquear"}} ({{system.bloqueio}})</button>
         <button type="button" data-action="tomarAr" {{#if system.imobilizado}}disabled{{/if}}
                 title="{{localize 'PYRO.TomarArTooltip'}}">{{localize "PYRO.TomarAr"}}</button>

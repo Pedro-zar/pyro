@@ -10,6 +10,8 @@ import {
   tracosDaTecnica, calcularEsforco, ataquesDaTecnica, usarTecnica, textoDoTraco, textoDaCondicao,
   resumoDaTecnica, numeroDoTraco
 } from "../tecnica.mjs";
+import { ajustesDeCusto, custoAjustado } from "../efeitos.mjs";
+import { acoesComConfusao, regraMental } from "../condicoes.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
 
@@ -174,9 +176,25 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       excessoTexto: calc.excesso > 0
         ? game.i18n.format("PYRO.Executor.Excesso", { excesso: calc.excesso, nd: calc.nd })
         : "",
+      /*
+       * O custo mostrado é o que vai ser cobrado: com os efeitos de custo e
+       * com a ação extra da confusão. Mostrar o número escrito na técnica
+       * faria a janela discordar do card no instante seguinte.
+       */
       acoesTexto: game.i18n.format(
-        base?.reacao ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes", { acoes: sys.acoes }),
+        base?.reacao ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes",
+        {
+          acoes: acoesComConfusao(this.actor,
+            custoAjustado(sys.acoes, ajustesDeCusto(this.actor, [this.item, ataque?.item]).acoes))
+        }),
       baseTexto: loc(base?.label ?? ""),
+      /*
+       * A prévia mostra as fórmulas como estão escritas, com o [FOR] dentro.
+       * Sob abatido o dano sai sem ele, e a janela avisa em vez de prometer um
+       * número que a rolagem não vai dar.
+       */
+      avisoMental: regraMental(this.actor, "semForNoDano")
+        ? loc("PYRO.Mental.SemForNoDano") : "",
       podeExecutar: this._podeExecutar
     });
     return context;

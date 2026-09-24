@@ -25,6 +25,7 @@
       {{/each}}
       {{#if linha.ajudavel}}
       <button type="button" class="icone ajudar" data-action="ajudarPericia"
+              {{#if linha.semAjudar}}disabled{{/if}}
               title="{{localize 'PYRO.Pericia.AjudarDica'}}">
         <i class="fa-solid fa-hands-helping"></i>
       </button>

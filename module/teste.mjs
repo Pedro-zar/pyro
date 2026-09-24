@@ -7,6 +7,7 @@
  */
 import { PYRO } from "./config.mjs";
 import { penalidadeExaustao, dicaExaustao } from "./efeitos.mjs";
+import { desvantagemMental } from "./condicoes.mjs";
 import { bonusPorNivel } from "./progressao.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
@@ -81,12 +82,20 @@ export function camposDeTeste(actor, {
     ${comVontade ? camposDeVontade(actor, { comInspiracao }) : ""}`;
 }
 
-/** Normaliza os números do formulário e desconta a exaustão do ator (SRD Atributos). */
-export function aplicarExaustaoNoTeste(actor, opts) {
+/**
+ * Normaliza os números do formulário e desconta do teste o que o personagem
+ * carrega: a exaustão (SRD Atributos) e a condição mental que pesa sobre o
+ * atributo deste teste.
+ *
+ * @param {string} [atributo] o atributo que a pool usa. Sem ele, só a
+ *   exaustão entra — é o caso das reações, que rolam pool fixa.
+ */
+export function aplicarExaustaoNoTeste(actor, opts, atributo = null) {
   const pen = penalidadeExaustao(actor);
   opts.bonus = (Number(opts.bonus) || 0) + pen.bonus;
   opts.vantagem = Number(opts.vantagem) || 0;
-  opts.desvantagem = (Number(opts.desvantagem) || 0) + pen.desvantagem;
+  opts.desvantagem = (Number(opts.desvantagem) || 0) + pen.desvantagem
+    + (atributo ? desvantagemMental(actor, atributo) : 0);
 }
 
 /**

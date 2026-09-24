@@ -14,7 +14,10 @@ import {
   dadosDoEfeitoAplicado
 } from "../efeitos.mjs";
 import { formularioDoAtor, esc } from "../ui.mjs";
-import { custoDeFriagem, dadosDeMolhado, reduzirCondicao, pilhasDe } from "../condicoes.mjs";
+import {
+  custoDeFriagem, dadosDeMolhado, reduzirCondicao, pilhasDe,
+  regraMental, barradoPorMental, dicaMental, dicaMentais
+} from "../condicoes.mjs";
 import {
   campoCheckbox, campoNumero, campoSelect, camposDeTeste, aplicarExaustaoNoTeste,
   aplicarVontadeNoTeste, valorComInspiracao, htmlVontadeGasta, sufixoND,
@@ -229,12 +232,12 @@ export class PyroActor extends Actor {
     if (!rapido) {
       const res = await formularioDoAtor(this, {
         titulo: game.i18n.format("PYRO.Teste.Titulo", { atributo: label }),
-        conteudo: camposDeTeste(this)
+        conteudo: camposDeTeste(this, { dica: dicaMental(this, chave) })
       });
       if (!res) return;
       opts = { ...opts, ...res, nd: res.nd || null };
     }
-    aplicarExaustaoNoTeste(this, opts);
+    aplicarExaustaoNoTeste(this, opts, chave);
 
     const valorBase = attr.total;
 
@@ -296,8 +299,16 @@ export class PyroActor extends Actor {
       titulo: game.i18n.format(ajudar ? "PYRO.Pericia.TituloAjuda" : "PYRO.Pericia.Titulo", { nome: pericia.name }),
       // Ajudar não rola nada: sem campos de Força de Vontade, que ali não
       // teriam onde ser gastos.
+      /*
+       * A dica lista TODAS as condições mentais em curso, e não a de um
+       * atributo: aqui o atributo é escolhido dentro da janela, e o jogador
+       * precisa ver qual escolha custa um dado antes de escolher.
+       */
       conteudo: campoSelect("atributo", "PYRO.Pericia.Atributo", atributoOpts, aceitos[0])
-        + camposDeTeste(this, { dica: dicaNivel, extras, comVontade: !ajudar }),
+        + camposDeTeste(this, {
+          dica: [dicaNivel, dicaMentais(this)].filter(Boolean).join(" "),
+          extras, comVontade: !ajudar
+        }),
       rotuloOk: ajudar ? "PYRO.Pericia.Ajudar" : "PYRO.Rolar"
     });
     if (!res) return;
@@ -305,7 +316,9 @@ export class PyroActor extends Actor {
     const chave = atributoOpts[res.atributo] ? res.atributo : aceitos[0];
     const attr = this.system.atributos[chave];
     const opts = { bonus: res.bonus, vantagem: res.vantagem, desvantagem: res.desvantagem };
-    aplicarExaustaoNoTeste(this, opts);
+    // O atributo da perícia é escolhido no diálogo, então a condição mental só
+    // pode ser consultada aqui — depois de saber em que atributo se rolou.
+    aplicarExaustaoNoTeste(this, opts, chave);
     opts.bonus += porNivel.bonus;
     opts.vantagem += porNivel.vantagens;
 
@@ -323,7 +336,11 @@ export class PyroActor extends Actor {
     const textoND = textoDoND(ndOriginal, nd, ajustes);
 
     // Ajudar não rola nada, então também não gasta Força de Vontade.
-    if (ajudar) return this.#cardDeAjuda(pericia, rotuloAtributo, porNivel, classe, textoND);
+    if (ajudar) {
+      // O inseguro não consegue emprestar confiança a ninguém.
+      if (barradoPorMental(this, "semAjudar")) return;
+      return this.#cardDeAjuda(pericia, rotuloAtributo, porNivel, classe, textoND);
+    }
 
     // Depois da classe, pelo mesmo motivo do teste de atributo: a Vontade
     // não entra na medida de dificuldade da rolagem.
@@ -379,7 +396,8 @@ export class PyroActor extends Actor {
       dica || loc("PYRO.Sobrecarga.SemPericia"),
       delta ? game.i18n.format("PYRO.Sobrecarga.AtributoAjustado", {
         atributo: rotuloAtributo, valor: valorAtributo, delta: delta > 0 ? `+${delta}` : delta
-      }) : null
+      }) : null,
+      dicaMental(this, chave) || null
     ].filter(Boolean);
 
     const res = await formularioDoAtor(this, {
@@ -397,7 +415,7 @@ export class PyroActor extends Actor {
     if (!res) return false;
 
     const opts = { bonus: res.bonus, vantagem: res.vantagem, desvantagem: res.desvantagem };
-    aplicarExaustaoNoTeste(this, opts);
+    aplicarExaustaoNoTeste(this, opts, chave);
     opts.bonus += bonus;
     opts.vantagem += vantagens;
 
@@ -492,6 +510,8 @@ export class PyroActor extends Actor {
    */
   async #rolarReacao(tipo, { cobertura = false, rapido = false } = {}) {
     if (!this.podeAgir()) return;
+    // Insensato não se protege: sem cobertura, sem esquiva e sem bloqueio.
+    if (barradoPorMental(this, "semReacoes")) return;
     const cfg = PYRO.reacoes[tipo];
     const chaves = tipo === "esquiva"
       ? { titulo: "PYRO.Esquivar", flavor: "PYRO.Chat.Esquiva", flavorCobertura: "PYRO.Chat.EsquivaCobertura" }
@@ -921,13 +941,18 @@ export class PyroActor extends Actor {
   async tomarAr() {
     if (!this.podeAgir()) return;
     const estamina = this.system.recursos.estamina;
-    const rec = Math.floor(this.system.atributos.vig.total / 2);
+    // A culpa não deixa respirar direito: metade do fôlego de volta.
+    const pelaMetade = regraMental(this, "tomarArMetade");
+    const cheio = Math.floor(this.system.atributos.vig.total / 2);
+    const rec = pelaMetade ? Math.floor(cheio / 2) : cheio;
     await this.update({
       "system.recursos.estamina.value": Math.min(estamina.max, estamina.value + rec)
     });
+    const texto = game.i18n.format("PYRO.Chat.TomarAr", { valor: rec })
+      + (pelaMetade ? ` ${game.i18n.localize("PYRO.Mental.TomarArMetade")}` : "");
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
-      content: `<p>${game.i18n.format("PYRO.Chat.TomarAr", { valor: rec })}</p>`
+      content: `<p>${texto}</p>`
     });
   }
 

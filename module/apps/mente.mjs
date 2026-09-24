@@ -6,8 +6,8 @@
  * a Intenção comprou. Um botão por condição no card daria sete botões sem
  * dizer quanto ainda sobra para gastar.
  *
- * As condições ainda não descontam nada — cada uma aponta o atributo que vai
- * pesar quando a mesa fechar a regra (ver PYRO.condicoesMentais).
+ * Cada condição dá desvantagem nos testes do atributo dela e traz a proibição
+ * própria da emoção (ver PYRO.condicoesMentais e condicoes.mjs).
  */
 import { PYRO } from "../config.mjs";
 import { esc } from "../ui.mjs";

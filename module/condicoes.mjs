@@ -12,6 +12,7 @@ import { PYRO } from "./config.mjs";
 import { nivelExaustao } from "./efeitos.mjs";
 import { SYSTEM_ID, flagsDe, naFila } from "./sistema.mjs";
 import { SEM_PRAZO, dadosDePrazo, updateDePrazo, rotuloDePrazo } from "./duracao.mjs";
+import { formulaPool } from "./dados.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -253,9 +254,9 @@ export function dadosDeMolhado(actor, formula) {
 /* -------------------------------------------------------------------------- */
 
 /**
- * Uma condição mental por atributo (ver PYRO.condicoesMentais). Elas ainda não
- * descontam nada: o quanto cada uma pesa é regra que a mesa não fechou, e o
- * efeito existe para já marcar o alvo e contar o prazo.
+ * Uma condição mental por atributo (ver PYRO.condicoesMentais): cada uma dá
+ * desvantagem nos testes do atributo dela e traz a proibição própria da
+ * emoção.
  *
  * Mental não empilha: estar Irritado duas vezes é estar irritado. O que o
  * ponto gasto compra é tempo, então uma aplicação nova estende o prazo do que
@@ -276,6 +277,91 @@ export function aplicarCondicaoMental(actor, chave, turnos) {
 }
 
 /** As sete condições mentais com o atributo de cada uma, para as interfaces. */
+/** As condições mentais que o personagem sofre agora. */
+export function mentaisAtivas(actor) {
+  return Object.keys(PYRO.condicoesMentais).filter(chave => pilhasDe(actor, chave) > 0);
+}
+
+/**
+ * Alguma condição mental ativa carrega esta marca? (ver PYRO.condicoesMentais)
+ * Basta uma: as sete convivem, e a proibição de qualquer uma delas vale.
+ */
+export function regraMental(actor, marca) {
+  return mentaisAtivas(actor).some(chave => PYRO.condicoesMentais[chave]?.[marca] === true);
+}
+
+/**
+ * A desvantagem que as condições mentais impõem a um teste deste atributo.
+ *
+ * Uma por atributo, e uma só: a tabela é um-para-um, então não há como somar
+ * duas desvantagens no mesmo teste. Teste sem atributo (as reações, que rolam
+ * pool fixa) não passa por aqui — o insensato é barrado por outra marca.
+ */
+export function desvantagemMental(actor, atributo) {
+  const chave = PYRO.mentalDoAtributo[atributo];
+  return chave && pilhasDe(actor, chave) > 0 ? 1 : 0;
+}
+
+/**
+ * Todas as condições mentais em curso, em uma linha — para o diálogo da
+ * perícia, onde o atributo só é escolhido lá dentro e uma dica presa a um
+ * atributo não teria como saber qual será.
+ */
+export function dicaMentais(actor) {
+  const linhas = mentaisAtivas(actor).map(chave => game.i18n.format("PYRO.Mental.DicaTeste", {
+    condicao: loc(PYRO.condicoes[chave]?.label ?? chave),
+    atributo: loc(PYRO.atributos[PYRO.condicoesMentais[chave].atributo])
+  }));
+  return linhas.join(" ");
+}
+
+/** Linha do diálogo avisando de onde vem a desvantagem; vazia sem condição. */
+export function dicaMental(actor, atributo) {
+  const chave = PYRO.mentalDoAtributo[atributo];
+  if (!chave || !pilhasDe(actor, chave)) return "";
+  return game.i18n.format("PYRO.Mental.DicaTeste", {
+    condicao: loc(PYRO.condicoes[chave]?.label ?? chave),
+    atributo: loc(PYRO.atributos[atributo] ?? atributo)
+  });
+}
+
+/**
+ * Dados de rolagem de uma parcela de DANO, com o FOR zerado quando ele não
+ * pode somar. O abatido não soma FOR ao dano
+ * (SRD Condições): aqui o @for vale 0, e só aqui — o atributo continua inteiro
+ * para o teste de acerto, para a carga e para tudo o mais.
+ */
+export function semForNoDano(actor, dados) {
+  if (!regraMental(actor, "semForNoDano")) return dados;
+  // A pool acompanha o atributo, como em getRollData: sem isso um "@dados.for"
+  // escrito na fórmula continuaria rolando a Força cheia.
+  const pools = dados?.dados ? { ...dados.dados, for: formulaPool(0) } : dados?.dados;
+  return { ...dados, for: 0, ...(pools ? { dados: pools } : {}) };
+}
+
+/**
+ * Ações que a confusão acrescenta: magia ou técnica de três ações ou mais
+ * custa uma a mais. A conta é feita sobre o custo já ajustado pelos efeitos,
+ * que é o que a mesa de fato paga.
+ */
+export function acoesComConfusao(actor, acoes) {
+  const n = Math.max(0, Math.round(Number(acoes) || 0));
+  return regraMental(actor, "acaoExtraAcima3") && n >= PYRO.ACOES_CONFUSO ? n + 1 : n;
+}
+
+/**
+ * Recusa a ação que uma condição mental proíbe, avisando qual é. Devolve true
+ * quando há proibição — quem chama sai sem fazer nada.
+ */
+export function barradoPorMental(actor, marca) {
+  const chave = mentaisAtivas(actor).find(c => PYRO.condicoesMentais[c]?.[marca] === true);
+  if (!chave) return false;
+  ui.notifications.warn(game.i18n.format(`PYRO.Mental.${marca}`, {
+    condicao: loc(PYRO.condicoes[chave]?.label ?? chave)
+  }));
+  return true;
+}
+
 export function listaDeCondicoesMentais() {
   return Object.entries(PYRO.condicoesMentais).map(([chave, cfg]) => ({
     chave,

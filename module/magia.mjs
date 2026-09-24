@@ -12,6 +12,7 @@ import {
 import { htmlBotaoSobrecarga } from "./teste.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
+import { acoesComConfusao } from "./condicoes.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -587,8 +588,11 @@ export function calcular(actor, escolhas, itemMagia = null) {
     passosAlcance,
     alvosDivididos,
     bonusMira: bonus.mira,
-    // 1 ação por runa verbal ou somática (SRD §5), antes dos efeitos.
-    acoes: custoAjustado(escolhas.length, ajustes.acoes),
+    // 1 ação por runa verbal ou somática (SRD §5), antes dos efeitos. A
+    // confusão cobra a ação extra por último, sobre o que já foi ajustado.
+    acoes: acoesComConfusao(actor, custoAjustado(escolhas.length, ajustes.acoes)),
+    // O card avisa quando a ação a mais veio da confusão.
+    acoesBase: custoAjustado(escolhas.length, ajustes.acoes),
     nd: 10 + somaIntencoes,
     // DT para resistir à magia: a SAB de quem conjura (SRD Magia), mais o que
     // as runas de precisão somarem.
@@ -696,7 +700,8 @@ export async function conjurar(actor, escolhas, {
     : escolhas.map(e => esc(e.item.system.palavra || e.item.name)).join(" ");
   partes.push(`<header class="pyro-magia-titulo">
     <h3>${titulo}</h3>
-    <span class="pyro-magia-meta">${loc("PYRO.Chat.CustoMagia", { mana: calc.custoTotal, acoes: calc.acoes })}</span>
+    <span class="pyro-magia-meta">${loc("PYRO.Chat.CustoMagia", { mana: calc.custoTotal, acoes: calc.acoes })}${
+      calc.acoes > calc.acoesBase ? ` · ${loc("PYRO.Mental.ConfusaoAcao")}` : ""}</span>
   </header>`);
 
   const nativa = actor.system.linguaNativa;

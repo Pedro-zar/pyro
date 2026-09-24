@@ -5,6 +5,7 @@
     <header class="secao-topo">
       <h3 class="titulo-secao">{{localize "PYRO.Executor.Tracos"}}</h3>
       <span class="pyro-item-meta">{{baseTexto}} · {{acoesTexto}}{{#if condicao}} · {{condicao}}{{/if}}</span>
+      {{#if avisoMental}}<p class="pyro-nota">{{avisoMental}}</p>{{/if}}
       {{#if temTracos}}
       <button type="button" class="botao-secao" data-action="zerarEsforcos">
         <i class="fa-solid fa-eraser"></i> {{localize "PYRO.Executor.Zerar"}}
