@@ -68,18 +68,22 @@ const ELEMENTOS = [
 const FORMAS = [
   { chave: "projetil", nome: "Projétil", scalings: [escala("Alcance", 6, 4)],
     desc: "1 alvo a 6 metros, +4 metros por Intenção." },
-  { chave: "explosao", nome: "Explosão", scalings: [escala("Raio", 1, 1), escala("Alcance", 6, 0)],
+  { chave: "explosao", nome: "Explosão", scalings: [escala("Raio (metros)", 1, 1), escala("Alcance", 6, 0)],
     desc: "Raio de 1 metro centrado a até 6 metros, +1 de raio por Intenção." },
-  { chave: "cone", nome: "Cone", scalings: [escala("Alcance", 3, 2)],
+  { chave: "cone", nome: "Cone", scalings: [escala("Comprimento (metros)", 3, 2)],
     desc: "Cone de 3 metros à frente, +2 metros por Intenção." },
-  { chave: "linha", nome: "Linha", scalings: [escala("Comprimento", 6, 4)],
+  { chave: "linha", nome: "Linha", scalings: [escala("Comprimento (metros)", 6, 4)],
     desc: "Linha de 6 metros de comprimento, +4 por Intenção." },
-  { chave: "muro", nome: "Muro", scalings: [escala("Extensão", 3, 2), escala("PV do muro", 5, 5)],
+  { chave: "muro", nome: "Muro", scalings: [escala("Comprimento (metros)", 3, 2), escala("PV do muro", 5, 5), escala("Alcance (metros)", 6, 0)],
     desc: "Muro de 3 metros de extensão com PV igual a 5 × Intenção, +2 de extensão por Intenção." },
-  { chave: "aura", nome: "Aura", scalings: [escala("Raio", 1, 1), escala("Rodadas", 1, 0)],
-    desc: "1 metro ao redor por 1 rodada, +1 metro por Intenção." },
+  { chave: "imbuir", nome: "Imbuir", scalings: [escala("Duração (minutos)", 1, 1)],
+    desc: "Imbui o alvo com o efeito da magia por 1 minuto, +1 por intenção." },
+  { chave: "apertar", nome: "Apertar", scalings: [escala("Tamanho (metros)", 1, 1), escala("Alcance (metros)", 6, 0)],
+    desc: "Condensa o efeito em uma área designada" },
+  { chave: "aura", nome: "Aura", scalings: [escala("Raio (metros)", 1, 1)],
+    desc: "1 metro, +1 metro por Intenção." },
   { chave: "toque", nome: "Toque", scalings: [escala("Intenção extra", 1, 1)],
-    desc: "Alcance 0. Cada Intenção em Toque dá +1 de Intenção a uma outra runa da frase, escolhida na conjuração. O sistema reconhece este gesto pelo nome." }
+    desc: "Alcance 0. Cada Intenção em Toque dá +1 de Intenção a uma outra runa da frase, escolhida na conjuração." }
 ];
 
 /** Modificadores: gestos que escalam a magia de outras formas. */
@@ -87,13 +91,15 @@ const MODIFICADORES = [
   { chave: "amplo", nome: "Amplo", scalings: [escala("Amplitude", 1, 1)],
     desc: "+1 na amplitude da Forma por Intenção." },
   { chave: "longo", nome: "Longo", scalings: [escala("Passos", 1, 1)],
-    desc: "+1 passo de alcance por Intenção. Os passos são 1, 3, 6, 20, 60 e 200 metros, e seguem subindo. O sistema reconhece este gesto pelo nome." },
+    desc: "+1 passo de alcance por Intenção. Os passos são 1, 3, 6, 20, 60 e 200 metros, e seguem subindo." },
   { chave: "persistente", nome: "Persistente", scalings: [escala("Duração (min)", 1, 1)],
     desc: "Aumenta a duração em 1 minuto, +1 minuto por Intenção." },
-  { chave: "preciso", nome: "Preciso", scalings: [escala("ND", 2, 2), escala("Bônus na Mira", 2, 2)],
-    desc: "+2 na DT da magia e no teste de mira, por Intenção. O sistema soma cada um no teste respectivo." },
+  { chave: "preciso", nome: "Preciso", scalings: [escala("Bônus na Mira", 2, 2)],
+    desc: "+2 no teste de mira por Intenção." },
+  { chave: "aprimorado", nome: "Aprimorado", scalings: [escala("ND", 2, 2)],
+    desc: "+2 na DT da magia por Intenção." },
   { chave: "dividir", nome: "Dividir", scalings: [escala("Alvos", 2, 1)],
-    desc: "2 alvos, +1 alvo por Intenção. O dano é dividido entre eles. O sistema reconhece este gesto pelo nome." }
+    desc: "2 alvos, +1 alvo por Intenção. O dano é dividido entre eles." }
 ];
 
 /** Id estável: regerar não troca o id, então a runa já usada não vira outra. */
