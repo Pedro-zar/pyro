@@ -480,7 +480,7 @@ PYRO.densidadesPadrao = {
   nenhuma:   { label: "PYRO.Densidade.nenhuma",   ordem: 0, multRecuperacao: 0,   multAlcance: 0 },
   escassa:   { label: "PYRO.Densidade.escassa",   ordem: 1, multRecuperacao: 0.5, multAlcance: 0.5 },
   normal:    { label: "PYRO.Densidade.normal",    ordem: 2, multRecuperacao: 1,   multAlcance: 1 },
-  abundante: { label: "PYRO.Densidade.abundante", ordem: 3, multRecuperacao: 2,   multAlcance: 1.5 }
+  abundante: { label: "PYRO.Densidade.abundante", ordem: 3, multRecuperacao: 1.5,   multAlcance: 1.5 }
 };
 
 // As quatro densidades são fixas (a ordem é regra); o mestre edita os
@@ -516,7 +516,6 @@ PYRO.racasPadrao = {
   humano:           { label: "PYRO.Racas.humano",           nome: "PYRO.Racas.Nome.humano",           potencial: "humana", magia: false, feiticos: false, detalhe: false, custom: true,  tamanhoMin: "pequeno",   tamanhoMax: "medio" },
   elfo:             { label: "PYRO.Racas.elfo",             nome: "PYRO.Racas.Nome.elfo",             potencial: "elfica", magia: true,  feiticos: false, detalhe: true,  custom: false, tamanhoMin: "medio",     tamanhoMax: "medio", recursos: ["energiaNatural"] },
   demiHumano:       { label: "PYRO.Racas.demiHumano",       nome: "PYRO.Racas.Nome.demiHumano",       potencial: "humana", magia: false, feiticos: false, detalhe: true,  custom: true,  tamanhoMin: "pequeno",   tamanhoMax: "grande" },
-  outro:            { label: "PYRO.Racas.outro",            nome: "PYRO.Racas.Nome.outro",            potencial: "humana", magia: false, feiticos: false, detalhe: true,  custom: true,  tamanhoMin: "minusculo", tamanhoMax: "colossal" }
 };
 
 PYRO.racas = foundry.utils.deepClone(PYRO.racasPadrao);

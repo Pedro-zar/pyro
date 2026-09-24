@@ -442,7 +442,7 @@ export class PyroItem extends Item {
         rolls.push(mira.desvio.direcao);
         partes.push(`<div class="pyro-desvio">
           <p>${game.i18n.format("PYRO.Mira.Desvio", {
-            hora: mira.desvio.hora, metros: mira.desvio.metros
+            hora: (mira.desvio.hora - 1) * 30, metros: mira.desvio.metros
           })}</p>
           ${await mira.desvio.direcao.render()}
           <p class="pyro-nota">${game.i18n.localize("PYRO.Mira.DesvioDica")}</p>
@@ -593,7 +593,7 @@ export class PyroItem extends Item {
    */
   async #desvioDoTiro(total, nd) {
     const direcao = await new Roll("1d12").evaluate();
-    const metros = Math.max(1, Math.floor((nd - total) / 2));
+    const metros = Math.ceil((nd - total) / 2);
     return { direcao, metros, hora: direcao.total };
   }
 
