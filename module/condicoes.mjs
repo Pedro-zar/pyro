@@ -309,7 +309,7 @@ function linhaDaCondicao(actor, chave) {
   if (!efeito) return null;
   const pilhas = pilhasDe(actor, chave);
   const descricao = chave === "friagem"
-    ? loc("PYRO.Efeito.friagem", { custo: pilhas * pilhas })
+    ? loc("PYRO.Efeito.friagem", { custo: pilhas })
     : loc(`PYRO.Efeito.${chave}`, { n: pilhas });
   return linha(
     chave,
