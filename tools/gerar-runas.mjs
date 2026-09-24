@@ -56,7 +56,7 @@ const ELEMENTOS = [
   { tipoDano: "energia", chave: "raio", nome: "Raio", dano: [2, 0.25, 10], extras: [escala("Corrente", 0.5, 0.5)],
     desc: "A partir da Intenção 2 a corrente pula para alvos próximos, Intenção metros de um para outro." },
   { tipoDano: "cura", chave: "vida", nome: "Vida", dano: [2, 1, 8], desc: "Cura em vez de causar dano." },
-  { tipoDano: "mental", chave: "mente", nome: "Mente", dano: [1, 1, 6], extras: [escala("Condições Mentais", 1, 1)],
+  { tipoDano: "mental", chave: "mente", nome: "Mente", dano: [1, 1, 6], extras: [escala("Condições Mentais", 0, 1)],
     desc: "Pontos para escolher condições mentais e a duração de cada uma. Uma condição custa 1 ponto por turno de duração." },
   { tipoDano: "indefinido", chave: "morte", nome: "Morte", dano: [2, 1, 12], subjulgar: true,
     desc: "Não causa dano direto: o resultado é comparado com a vida máxima do alvo (ver Subjulgar)." },
