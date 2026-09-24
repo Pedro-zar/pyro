@@ -787,6 +787,8 @@
   "PYRO.Alerta.SemEstamina": "Estamina zerada - Gaste todas ações restantes em \"Tomar Ar\".",
   "PYRO.Alerta.Caido": "Caído - 0 PV",
   "PYRO.Alerta.Sobrepeso": "Sobrepeso ({atual}/{max})",
+  "PYRO.Alerta.Esmagado": "Esmagado ({atual}/{max})",
+  "PYRO.Alerta.SemAcoes": "Carregando {atual} de {max}, o dobro do limite: não sobra ação nem reação.",
   "TYPES.Item.tecnica": "Técnica",
   "PYRO.Tecnica.Base.atacar": "Atacar",
   "PYRO.Tecnica.Base.agarrar": "Agarrar",

@@ -90,6 +90,9 @@ export class PyroGrupoSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         det: sys.det ?? 0,
         carga: sys.carga ?? { atual: 0, max: 0 },
         sobrepeso: !!sys.sobrepeso,
+        // O segundo patamar do peso na lista do grupo: o mestre vê de longe
+        // quem está só cansado e quem não pode agir.
+        imobilizado: !!sys.imobilizado,
         exaustao: nivelExaustao(membro),
         caminhos: membro.items.filter(i => i.type === "caminho")
           .map(i => i.name).join(", ")

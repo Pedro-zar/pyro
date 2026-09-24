@@ -475,6 +475,16 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.carga.bonus = cargaExtra;
     this.carga.max += cargaExtra;
     this.sobrepeso = this.carga.atual > this.carga.max;
+    /*
+     * O dobro do limite é outro patamar. Passar do limite já custa 1 de
+     * exaustão (ver sincronizarSobrepeso); daqui em diante o personagem
+     * também não sai do lugar nem age — ele está de pé segurando o que
+     * carrega, e é só isso que ele faz.
+     *
+     * O piso de capacidade zero fica de fora: uma ficha sem FOR calculada
+     * carrega zero e não está esmagada por nada.
+     */
+    this.imobilizado = this.carga.max > 0 && this.carga.atual >= this.carga.max * 2;
 
     /*
      * Voo e natação não passam pelo bônus e pelo multiplicador da velocidade
@@ -487,6 +497,15 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.voando = this.deslocamentoAereo > 0 && !this.sobrepeso;
     this.vooBloqueado = this.deslocamentoAereo > 0 && this.sobrepeso;
     this.temDeslocamentoExtra = this.deslocamentoAereo > 0 || this.deslocamentoNatacao > 0;
+
+    /*
+     * Imobilizado não anda nem nada. A velocidade zera porque ela é derivada e
+     * renasce da AGI a cada preparo; natação e voo são campos gravados, e por
+     * isso são BLOQUEADOS em vez de zerados — apagar o número faria a linha
+     * sumir da ficha, e sumir não é a mesma coisa que estar impedido.
+     */
+    if (this.imobilizado) this.velocidade = 0;
+    this.natacaoBloqueada = this.imobilizado && this.deslocamentoNatacao > 0;
 
     /*
      * A penumbra é o raio de fora da luz, então ela nunca fica menor que o da

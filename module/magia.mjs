@@ -634,6 +634,7 @@ export async function conjurar(actor, escolhas, {
   nomeMagia = null, rolarDano = true, itemMagia = null, recursoMental = "mana", usaDt = true
 } = {}) {
   if (!escolhas.length) return;
+  if (!actor.podeAgir()) return;
 
   const calc = calcular(actor, escolhas, itemMagia);
   const recursos = actor.system.recursos;

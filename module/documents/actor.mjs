@@ -491,6 +491,7 @@ export class PyroActor extends Actor {
    * bloqueio — e os dados que o equipamento soma ficam como estão.
    */
   async #rolarReacao(tipo, { cobertura = false, rapido = false } = {}) {
+    if (!this.podeAgir()) return;
     const cfg = PYRO.reacoes[tipo];
     const chaves = tipo === "esquiva"
       ? { titulo: "PYRO.Esquivar", flavor: "PYRO.Chat.Esquiva", flavorCobertura: "PYRO.Chat.EsquivaCobertura" }
@@ -665,6 +666,28 @@ export class PyroActor extends Actor {
     return { daEstamina, dosPv, ...pagos };
   }
 
+  /**
+   * O personagem pode gastar ação ou reação agora?
+   *
+   * Carregando o dobro do que aguenta, não pode: a conta de ações e de reações
+   * vira zero, e é isso que segura o ataque, a habilidade, a técnica, a magia,
+   * o consumível e as duas reações. O aviso diz o motivo — sem ele o clique
+   * pareceria um botão quebrado.
+   *
+   * Rolagem de perícia fica de fora: ela não é necessariamente uma ação de
+   * combate, e travar um teste de Percepção porque a mochila está pesada seria
+   * inventar regra.
+   */
+  podeAgir({ aviso = true } = {}) {
+    if (!this.system?.imobilizado) return true;
+    if (aviso) {
+      ui.notifications.warn(game.i18n.format("PYRO.Alerta.SemAcoes", {
+        atual: this.system.carga.atual, max: this.system.carga.max
+      }));
+    }
+    return false;
+  }
+
   /* ---------------------------------------------------------------------- */
   /*  Posturas (SRD Técnicas)                                               */
   /* ---------------------------------------------------------------------- */
@@ -688,6 +711,9 @@ export class PyroActor extends Actor {
   async alternarPostura(item) {
     if (item && !item.system?.ehPostura) return;
     const saindo = !item || this.posturaAtiva?.id === item.id;
+    // Entrar ou trocar custa 1 ação; sair também é a guarda caindo, e aí não
+    // há o que segurar — quem está esmagado pelo peso larga a postura.
+    if (!saindo && !this.podeAgir()) return;
     await this.setFlag(SYSTEM_ID, "postura", saindo ? "" : item.id);
     // Entrar é o mesmo card de qualquer habilidade: o que a postura rende e a
     // descrição dela, que é o que a mesa precisa reler enquanto ela durar.
@@ -891,8 +917,9 @@ export class PyroActor extends Actor {
     if (ids.length) await this.deleteEmbeddedDocuments("ActiveEffect", ids);
   }
 
-  /** Tomar Ar: recupera VIG/2 de estamina, até o máximo. */
+  /** Tomar Ar: recupera VIG/2 de estamina, até o máximo. Custa uma ação. */
   async tomarAr() {
+    if (!this.podeAgir()) return;
     const estamina = this.system.recursos.estamina;
     const rec = Math.floor(this.system.atributos.vig.total / 2);
     await this.update({

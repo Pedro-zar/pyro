@@ -370,6 +370,7 @@ export class PyroItem extends Item {
   async #atacar() {
     const sys = this.system;
     const actor = this.actor;
+    if (actor && !actor.podeAgir()) return;
     const speaker = ChatMessage.getSpeaker({ actor });
 
     /* --- Munição: escolhe antes de qualquer gasto ------------------------- */
@@ -685,6 +686,7 @@ export class PyroItem extends Item {
   }
 
   async #consumir() {
+    if (this.actor && !this.actor.podeAgir()) return;
     const sys = this.system;
     if (sys.quantidade < 1) {
       return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemQuantidade"));
@@ -725,6 +727,7 @@ export class PyroItem extends Item {
    */
   async cobrarUso() {
     const sys = this.system;
+    if (this.actor && !this.actor.podeAgir()) return null;
 
     /*
      * Custos já ajustados pelos efeitos: um "Conjuração Econômica: -2 mana"
@@ -821,6 +824,7 @@ export class PyroItem extends Item {
   }
 
   async #usarFeitico() {
+    if (this.actor && !this.actor.podeAgir()) return;
     const sys = this.system;
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
     const cab = sys.custoAcoes

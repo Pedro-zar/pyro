@@ -441,6 +441,9 @@ export function resumoDaTecnica(actor, item, calc, ataque) {
  * @param {string} [escolhas.ataqueId] ataque escolhido, quando a base ataca.
  */
 export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null } = {}) {
+  // Também aqui, e não só na abertura do executor: a janela pode estar aberta
+  // desde antes de a mochila ficar pesada demais.
+  if (actor && !actor.podeAgir()) return;
   const sys = item.system;
   const base = PYRO.acoesBaseTecnica[sys.acaoBase];
   const usados = tracosDaTecnica(sys)
@@ -619,6 +622,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
  * item precisa chegar ao mesmo lugar que o botão da lista.
  */
 export async function executarTecnica(actor, item) {
+  if (actor && !actor.podeAgir()) return;
   const { ExecutorApp } = await import("./apps/executor.mjs");
   return new ExecutorApp({ actor, item }).render(true);
 }

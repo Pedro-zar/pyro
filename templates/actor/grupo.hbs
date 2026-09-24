@@ -46,9 +46,11 @@
           <span class="grupo-stat" title="{{localize 'PYRO.Recursos.vontade'}}">
             <label>{{localize "PYRO.Grupo.VontadeAbrev"}}</label>
             <strong class="numero">{{m.vontade.value}}/{{m.vontade.max}}</strong></span>
-          <span class="grupo-stat {{#if m.sobrepeso}}sobrepeso{{/if}}" title="{{localize 'PYRO.Carga'}}">
+          <span class="grupo-stat {{#if m.sobrepeso}}sobrepeso{{/if}}"
+                title="{{#if m.imobilizado}}{{localize 'PYRO.Alerta.SemAcoes'}}{{else}}{{localize 'PYRO.Carga'}}{{/if}}">
             <label>{{localize "PYRO.Grupo.CargaAbrev"}}</label>
-            <strong class="numero">{{m.carga.atual}}/{{m.carga.max}}</strong></span>
+            <strong class="numero">{{m.carga.atual}}/{{m.carga.max}}</strong>
+            {{#if m.imobilizado}}<i class="fa-solid fa-ban"></i>{{/if}}</span>
           <span class="grupo-stat {{#if m.exaustao}}exausto{{/if}}" title="{{localize 'PYRO.Condicoes.exausto'}}">
             <label>{{localize "PYRO.Grupo.ExaustaoAbrev"}}</label>
             <strong class="numero">{{m.exaustao}}</strong></span>

@@ -1138,11 +1138,14 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       });
     }
     if (sys.sobrepeso) {
+      // Dois patamares, dois avisos: passar do limite cansa, dobrar o limite
+      // prega o personagem no chão.
       lista.push({
-        texto: game.i18n.format("PYRO.Alerta.Sobrepeso", {
-          atual: sys.carga.atual, max: sys.carga.max
-        }),
-        icone: "fa-weight-hanging", tom: "aviso"
+        texto: game.i18n.format(
+          sys.imobilizado ? "PYRO.Alerta.Esmagado" : "PYRO.Alerta.Sobrepeso",
+          { atual: sys.carga.atual, max: sys.carga.max }
+        ),
+        icone: "fa-weight-hanging", tom: sys.imobilizado ? "perigo" : "aviso"
       });
     }
     if (sys.semAfinidade) {

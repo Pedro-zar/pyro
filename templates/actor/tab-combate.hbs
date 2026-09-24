@@ -53,9 +53,11 @@
         {{#if system.vooBloqueado}}<i class="fa-solid fa-ban"></i>{{/if}}</p>
       {{/if}}
       {{#if system.deslocamentoNatacao}}
-      <p class="stat-inline"><i class="fa-solid fa-person-swimming"></i>
+      <p class="stat-inline {{#if system.natacaoBloqueada}}perigo{{/if}}">
+        <i class="fa-solid fa-person-swimming"></i>
         {{localize "PYRO.DeslocamentoNatacao"}}
-        <span class="valor numero">{{system.deslocamentoNatacao}}m</span></p>
+        <span class="valor numero">{{system.deslocamentoNatacao}}m</span>
+        {{#if system.natacaoBloqueada}}<i class="fa-solid fa-ban"></i>{{/if}}</p>
       {{/if}}
       {{!-- Luz que o personagem emite: só aparece em quem está acendendo
             alguma coisa (a tocha, uma magia de luz). --}}
@@ -64,12 +66,14 @@
         {{localize "PYRO.Iluminacao"}}
         <span class="valor numero">{{system.luz.normal}}/{{system.luz.penumbra}}m</span></p>
       {{/if}}
+      {{!-- Com o dobro do limite nas costas não sobra reação nenhuma, e os
+            botões ficam apagados em vez de avisar a cada clique. --}}
       <div class="botoes-reacao">
-        <button type="button" data-action="rolarEsquiva"
+        <button type="button" data-action="rolarEsquiva" {{#if system.imobilizado}}disabled{{/if}}
                 title="{{localize 'PYRO.EsquivaTooltip'}}">{{localize "PYRO.Esquivar"}} ({{system.esquiva}})</button>
-        <button type="button" data-action="rolarBloqueio"
+        <button type="button" data-action="rolarBloqueio" {{#if system.imobilizado}}disabled{{/if}}
                 title="{{localize 'PYRO.BloqueioTooltip'}}">{{localize "PYRO.Bloquear"}} ({{system.bloqueio}})</button>
-        <button type="button" data-action="tomarAr"
+        <button type="button" data-action="tomarAr" {{#if system.imobilizado}}disabled{{/if}}
                 title="{{localize 'PYRO.TomarArTooltip'}}">{{localize "PYRO.TomarAr"}}</button>
         <button type="button" data-action="abrirGuiaAcoes"
                 title="{{localize 'PYRO.GuiaAcoes.Tooltip'}}">
