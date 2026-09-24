@@ -503,6 +503,42 @@ export function registrarPercepcao() {
   const temSentidos = actor =>
     actor instanceof Actor && !foundry.utils.isEmpty(actor.system?.sentidos ?? {});
 
+  /*
+   * A luz que o ator emite é dado derivado do token (ver PyroTokenDocument) e
+   * a fonte de luz já desenhada também não se refaz sozinha. Aqui a conferência
+   * é por comparação, e não por "tem luz?": quando o efeito da tocha sai, o
+   * ator já está sem luz nenhuma na hora do gancho, e perguntar se ele brilha
+   * agora deixaria a luz velha acesa na tela.
+   */
+  const luzDoAtor = actor => {
+    const luz = actor?.system?.luz;
+    return luz ? `${luz.normal ?? 0}|${luz.penumbra ?? 0}` : "";
+  };
+  const ultimaLuz = new Map();
+  const conferirLuz = actor => {
+    if (!(actor instanceof Actor) || !canvas?.ready) return;
+    const assinatura = luzDoAtor(actor);
+    const conhecida = ultimaLuz.get(actor.uuid);
+    if (conhecida === assinatura) return;
+    ultimaLuz.set(actor.uuid, assinatura);
+    // Primeira vez que este ator passa por aqui sem luz nenhuma (o caso de
+    // quase toda ficha): guardar basta, não há fonte para refazer.
+    if (conhecida === undefined && (!assinatura || assinatura === "0|0")) return;
+
+    let mexeu = false;
+    for (const token of actor.getActiveTokens(false, false)) {
+      // O documento do token guarda a luz já preparada; sem o reset ele
+      // reacenderia a fonte com o raio anterior.
+      token.document.reset();
+      token.initializeLightSource();
+      mexeu = true;
+    }
+    // A visão entra junto: mudar o raio da luz muda o que os OUTROS enxergam,
+    // e não só o desenho da iluminação.
+    if (mexeu) canvas.perception.update({ refreshLighting: true, refreshVision: true });
+  };
+  Hooks.on("canvasTearDown", () => ultimaLuz.clear());
+
   Hooks.on("updateItem", (doc, changed) => {
     if (doc?.type !== "habilidade") return;
     // Só o que mexe no sentido: renomear a habilidade não refaz cena nenhuma.
@@ -517,11 +553,41 @@ export function registrarPercepcao() {
       if (doc.parent instanceof Actor) refazerVisao();
     });
   }
-  Hooks.on("updateActor", actor => { if (temSentidos(actor)) refazerVisao(); });
+  Hooks.on("updateActor", actor => {
+    if (temSentidos(actor)) refazerVisao();
+    conferirLuz(actor);
+  });
   for (const gancho of ["createActiveEffect", "updateActiveEffect", "deleteActiveEffect"]) {
     Hooks.on(gancho, doc => {
       const actor = doc?.parent instanceof Actor ? doc.parent : doc?.parent?.parent;
       if (temSentidos(actor)) refazerVisao();
+      conferirLuz(actor);
     });
   }
+  // Equipar ou guardar também acende e apaga: a tocha é um item, e o efeito
+  // dela só vale equipada (ver PyroActiveEffect).
+  for (const gancho of ["createItem", "updateItem", "deleteItem"]) {
+    Hooks.on(gancho, doc => {
+      if (doc?.parent instanceof Actor) conferirLuz(doc.parent);
+    });
+  }
+  /*
+   * Token não vinculado guarda as mudanças dele num ActorDelta, e elas não
+   * passam pelo updateActor: sem este gancho, o inimigo que entra numa forma
+   * ou recebe um efeito na cena não refaz nem a visão nem a luz.
+   */
+  Hooks.on("updateActorDelta", delta => {
+    const actor = delta?.parent?.actor;
+    if (temSentidos(actor)) refazerVisao();
+    conferirLuz(actor);
+  });
+  /*
+   * Tempo do mundo correndo apaga efeito com prazo sem mexer em documento
+   * nenhum (ver PyroActiveEffect#prazoVencido): a luz da tocha que venceu
+   * fica acesa na tela até alguém encostar na ficha. Só os que estão em cena.
+   */
+  Hooks.on("updateWorldTime", () => {
+    if (!canvas?.ready) return;
+    for (const token of canvas.tokens?.placeables ?? []) conferirLuz(token.actor);
+  });
 }

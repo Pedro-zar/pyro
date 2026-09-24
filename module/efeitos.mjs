@@ -61,13 +61,23 @@ const deFormaInativa = efeito => {
   return item.actor?.getFlag(SYSTEM_ID, chave) !== item.id;
 };
 
+/**
+ * Efeito de um equipamento que está guardado. O mesmo portão do
+ * PyroActiveEffect: a tocha na mochila não acende e a armadura no chão não
+ * defende, aqui também.
+ */
+const deItemGuardado = efeito =>
+  efeito.parent instanceof Item && efeito.parent.system?.equipado === false;
+
 function efeitosAtivos(actor) {
   const lista = [];
   for (const efeito of actor?.allApplicableEffects?.() ?? []) {
     // `disabled` é escolha do jogador. Efeito preso a item aparece aqui de
     // propósito: ele está suprimido na ficha, mas vale na rolagem certa. Já
     // o de uma forma desligada não vale em canto nenhum.
-    if (!efeito.disabled && !deFormaInativa(efeito)) lista.push(efeito);
+    if (!efeito.disabled && !deFormaInativa(efeito) && !deItemGuardado(efeito)) {
+      lista.push(efeito);
+    }
   }
   return lista;
 }

@@ -1,12 +1,54 @@
 /**
- * Documento de token: traduz os sentidos espirituais do ator em visão e
- * detecção do token, como dado derivado — nada disso é gravado, e mexer na
- * habilidade que dá o sentido já muda o token junto.
+ * Documento de token: traduz os sentidos espirituais e a luz do ator em visão,
+ * detecção e iluminação do token, como dado derivado — nada disso é gravado, e
+ * mexer na habilidade ou no efeito que dá o sentido (ou acende a luz) já muda o
+ * token junto.
  */
 import { idDoSentido, idDoVazio } from "../percepcao.mjs";
 import { multAlcanceDoToken, comDensidade } from "../regioes.mjs";
 
 export class PyroTokenDocument extends TokenDocument {
+  prepareBaseData() {
+    super.prepareBaseData();
+    this.#acenderLuz();
+  }
+
+  /**
+   * Luz que o ator emite (a tocha equipada, a magia de luz) acesa no token.
+   *
+   * Os dois raios são absolutos, como os do Foundry: normal é onde se enxerga
+   * e penumbra é até onde a luz chega fraca — normal 6 com penumbra 12 é uma
+   * tocha, e o anel de penumbra vai dos 6 aos 12 metros.
+   *
+   * A luz do token nunca é apagada por aqui, só aumentada: um token desenhado
+   * com lanterna própria continua com ela, e o efeito só empurra o raio para
+   * cima se for maior. Apagar seria decidir, por um efeito de +3 de penumbra,
+   * que a lanterna do cenário não existe.
+   */
+  #acenderLuz() {
+    // Token configurado como fonte de escuridão: ali o raio é de sombra, e
+    // somar a tocha nele deixaria o escuro maior em vez de acender.
+    if (this.light?.negative) return;
+    const luz = this.actor?.system?.luz;
+    if (!luz) return;
+    const normal = Math.max(0, Number(luz.normal) || 0);
+    // O ator já entrega a penumbra acertada (ver CriaturaData); o piso é
+    // repetido aqui porque quem acende é este documento, e ele não deve
+    // depender de outro ter feito a conta para não apagar a luz por engano.
+    const penumbra = Math.max(normal, Math.max(0, Number(luz.penumbra) || 0));
+    if (!penumbra) return;
+    /*
+     * O piso é a luz GRAVADA no token, e não a que está na instância: assim a
+     * conta pode ser refeita quantas vezes for e o raio ainda encolhe quando o
+     * efeito acaba. Lendo a instância, um preparo sem reinicializar deixaria a
+     * luz presa no maior valor que ela já teve — a tocha apagaria e a luz
+     * continuaria acesa.
+     */
+    const base = this._source?.light ?? this.light;
+    this.light.bright = Math.max(Number(base.bright) || 0, normal);
+    this.light.dim = Math.max(Number(base.dim) || 0, penumbra);
+  }
+
   /**
    * Os sentidos do ator já com a densidade da região aplicada ao alcance:
    * onde a mana do ar é abundante o sentido vai mais longe, e onde não há

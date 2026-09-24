@@ -1,8 +1,9 @@
 /**
  * Efeitos do PYRO: trava a aplicação dos efeitos que não valem o tempo todo —
- * os presos a itens e os de uma postura ou transformação que não está ativa. No
- * Foundry v14 a aplicação passa por `shouldApplyChange` (portão por mudança, na
- * instância) e `applyChange` (a conta em si, estática); o travamento vai no portão.
+ * os presos a itens, os de um equipamento guardado e os de uma postura ou
+ * transformação que não está ativa. No Foundry v14 a aplicação passa por
+ * `shouldApplyChange` (portão por mudança, na instância) e `applyChange` (a
+ * conta em si, estática); o travamento vai no portão.
  */
 import { flagsDe, SYSTEM_ID } from "../sistema.mjs";
 
@@ -33,6 +34,17 @@ export class PyroActiveEffect extends ActiveEffect {
   }
 
   /**
+   * Efeito de um item que está guardado em vez de vestido. Armadura no chão
+   * não protege e tocha na mochila não ilumina: o que o equipamento faz vale
+   * enquanto ele está equipado. Só pergunta a quem tem o campo — habilidade,
+   * magia e técnica não se equipam, e ali a pergunta não existe.
+   */
+  get #itemGuardado() {
+    const item = this.parent;
+    return item?.documentName === "Item" && item.system?.equipado === false;
+  }
+
+  /**
    * Prazo vencido no relógio do mundo. Quem apaga os efeitos com prazo é o
    * relógio do combate (ver tempo.mjs); isto cobre o que foi aplicado fora de
    * combate, onde ninguém passa turno: o efeito continua listado, mas para de
@@ -44,13 +56,15 @@ export class PyroActiveEffect extends ActiveEffect {
   }
 
   get isSuppressed() {
-    if (this.#presoAItem || this.#formaInativa || this.#prazoVencido) return true;
+    if (this.#presoAItem || this.#formaInativa || this.#itemGuardado) return true;
+    if (this.#prazoVencido) return true;
     return super.isSuppressed ?? false;
   }
 
   /** O mesmo travamento, no portão que o Foundry consulta por mudança. */
   shouldApplyChange(change, options) {
-    if (this.#presoAItem || this.#formaInativa || this.#prazoVencido) return false;
+    if (this.#presoAItem || this.#formaInativa || this.#itemGuardado) return false;
+    if (this.#prazoVencido) return false;
     return super.shouldApplyChange?.(change, options) ?? true;
   }
 

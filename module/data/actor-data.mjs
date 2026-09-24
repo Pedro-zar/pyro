@@ -93,6 +93,20 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       deslocamentoNatacao: num(0, { min: 0 }),
 
       /*
+       * Luz que a própria criatura emite, em metros, para o token acender
+       * junto (ver PyroTokenDocument). São dois raios, como os do Foundry:
+       * "normal" é onde se enxerga de verdade e "penumbra" é até onde a luz
+       * ainda chega, fraca. Ninguém brilha por natureza, então o normal é
+       * zero — quem acende é um efeito (a tocha equipada, a magia de luz),
+       * e é por isso que os dois são campos de ator e não do item: o efeito
+       * some, a luz apaga junto.
+       */
+      luz: new fields.SchemaField({
+        normal: num(0, { min: 0 }),
+        penumbra: num(0, { min: 0 })
+      }),
+
+      /*
        * Dados a mais nas reações, em dados inteiros: +2 no bloqueio é "mais
        * dois d4". As faces são fixas pelo sistema (d4 bloqueia, d12 esquiva),
        * então o efeito só precisa dizer quantos. Mesmo motivo da velocidade:
@@ -467,6 +481,15 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.voando = this.deslocamentoAereo > 0 && !this.sobrepeso;
     this.vooBloqueado = this.deslocamentoAereo > 0 && this.sobrepeso;
     this.temDeslocamentoExtra = this.deslocamentoAereo > 0 || this.deslocamentoNatacao > 0;
+
+    /*
+     * A penumbra é o raio de fora da luz, então ela nunca fica menor que o da
+     * luz normal: quem escreveu só "normal 6" acendeu seis metros de luz, e
+     * não seis metros sem borda nenhuma. Acertado aqui, num lugar só, porque
+     * o token e a ficha leem daqui.
+     */
+    this.luz.penumbra = Math.max(this.luz.normal, this.luz.penumbra);
+    this.temLuz = this.luz.penumbra > 0;
 
     /* --- Defesas totais: base + equipamento ------------------------------- */
     const defesas = this.defesas;

@@ -1207,6 +1207,23 @@ PYRO.alvosEfeito = {
       "system.deslocamentoNatacao": "PYRO.Efeitos.Alvo.deslocamentoNatacao"
     }
   },
+  /*
+   * Luz que o personagem emite, em metros. O valor é o raio: "Normal" é a luz
+   * em que se enxerga, "Penumbra" é até onde ela ainda chega fraca. Uma tocha
+   * é normal 6 e penumbra 12; uma magia que só dá um brilho fraco tem só a
+   * penumbra. Enquanto o efeito valer, o token acende (ver PyroTokenDocument).
+   *
+   * Os modos valem como em qualquer linha: somar acumula (duas tochas dobram
+   * o raio), e quem quiser que a segunda fonte só valha se for maior escreve
+   * a linha como mínimo.
+   */
+  luz: {
+    label: "PYRO.Efeitos.Cat.luz",
+    alvos: {
+      "system.luz.normal": "PYRO.Efeitos.Alvo.luzNormal",
+      "system.luz.penumbra": "PYRO.Efeitos.Alvo.luzPenumbra"
+    }
+  },
   outros: {
     label: "PYRO.Efeitos.Cat.outros",
     alvos: {

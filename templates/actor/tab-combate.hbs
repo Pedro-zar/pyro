@@ -57,6 +57,13 @@
         {{localize "PYRO.DeslocamentoNatacao"}}
         <span class="valor numero">{{system.deslocamentoNatacao}}m</span></p>
       {{/if}}
+      {{!-- Luz que o personagem emite: só aparece em quem está acendendo
+            alguma coisa (a tocha, uma magia de luz). --}}
+      {{#if system.temLuz}}
+      <p class="stat-inline"><i class="fa-solid fa-sun"></i>
+        {{localize "PYRO.Iluminacao"}}
+        <span class="valor numero">{{system.luz.normal}}/{{system.luz.penumbra}}m</span></p>
+      {{/if}}
       <div class="botoes-reacao">
         <button type="button" data-action="rolarEsquiva"
                 title="{{localize 'PYRO.EsquivaTooltip'}}">{{localize "PYRO.Esquivar"}} ({{system.esquiva}})</button>
