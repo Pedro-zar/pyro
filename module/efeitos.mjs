@@ -11,7 +11,7 @@
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
-import { UNIDADE_PADRAO, dadosDePrazo, prazoDoEfeito } from "./duracao.mjs";
+import { UNIDADE_PADRAO, dadosDePrazo } from "./duracao.mjs";
 
 
 /* -------------------------------------------------------------------------- */
@@ -475,6 +475,81 @@ export function dicaExaustao(actor) {
 }
 
 /**
+ * Este efeito é o acumulador de exaustão do personagem — aquele em que os
+ * botões da ficha, o sobrepeso e a sobrecarga escrevem?
+ *
+ * Ele é reconhecido por uma marca, e não pelo formato: deduzir "sem prazo e
+ * nascido do ator" pegava junto qualquer efeito que a mesa escrevesse na
+ * ficha com a condição Exausto, e o acumulador renomeia e apaga o que ele
+ * adota — uma maldição viraria "Exaustão" e sumiria no primeiro -1.
+ */
+const ehAcumuladorDeExaustao = efeito => flagsDe(efeito)?.acumulador === true;
+
+/**
+ * Exaustão que chega dentro de um efeito vira exaustão do personagem.
+ *
+ * Uma ressaca de transformação ou uma magia que cansa nascia como um efeito
+ * "Exaustão 5" à parte, e a ficha não conseguia mexer nele: os botões de -1 e
+ * +1 escrevem no acumulador, não nele, e para tirar um nível era preciso
+ * editar o efeito à mão. Em vez de duas contagens, os níveis entram no
+ * acumulador — que é criado se ainda não houver — e a linha de exaustão sai
+ * do efeito que a trouxe. Se esse efeito não fazia mais nada além disso, ele
+ * vai embora inteiro; ele já cumpriu o que tinha a fazer.
+ *
+ * O prazo que o efeito tivesse não acompanha os níveis: exaustão não vence no
+ * relógio, ela sai com descanso (SRD Atributos). Quem escreveu "exausto 2 por
+ * dez turnos" fica com dois níveis de verdade, e tira os dois quando a cena
+ * pedir.
+ */
+export async function absorverExaustao(efeito) {
+  const actor = efeito?.parent;
+  if (!(actor instanceof Actor) || efeito.disabled) return;
+  // O acumulador não absorve a si mesmo: seria um laço sem fim.
+  if (ehAcumuladorDeExaustao(efeito)) return;
+  const flags = flagsDe(efeito) ?? {};
+  /*
+   * Efeito preso a item vale só na rolagem daquele item, e a exaustão do
+   * personagem não tem esse escopo: absorvê-la tornaria global uma exaustão
+   * que o autor quis presa à katana.
+   */
+  if ((flags.alvosItem ?? []).length) return;
+  const escrito = Math.round(Number(flags.exaustao));
+  // Sem número escrito, um efeito que só carrega a marca de Exausto (o HUD do
+  // token, por exemplo) vale um nível — é o que a ficha já contava nele.
+  const niveis = Number.isFinite(escrito) && escrito > 0 ? escrito
+    : (ehExaustao(efeito) ? 1 : 0);
+  if (niveis <= 0) return;
+
+  /*
+   * O efeito perde a exaustão ANTES de o acumulador recebê-la. Na ordem
+   * contrária os dois carregam os mesmos níveis por um instante, e nesse
+   * instante a ficha pode desmaiar alguém por uma exaustão contada em dobro.
+   */
+  const dados = efeito.toObject();
+  const statuses = (dados.statuses ?? []).filter(s => s !== "exausto");
+  const fazMaisAlgumaCoisa = (dados.system?.changes ?? []).length > 0
+    || statuses.length > 0
+    || (flags.danos ?? []).length > 0
+    || (flags.multsDano ?? []).length > 0
+    || (flags.custos ?? []).length > 0;
+  if (fazMaisAlgumaCoisa) await efeito.update({ statuses, ...apagarExaustao(efeito) });
+  else await efeito.delete();
+
+  return aplicarExaustao(actor, niveis);
+}
+
+/**
+ * Update que apaga o número de exaustão do efeito, no escopo em que ele de
+ * fato está: um efeito importado da mesa de produção guarda as flags em
+ * "pyro", e apagar no escopo desta mesa deixaria o número lá, para ser
+ * absorvido de novo (ver flagsDe).
+ */
+function apagarExaustao(efeito) {
+  const escopo = efeito?.flags?.[SYSTEM_ID] ? SYSTEM_ID : "pyro";
+  return { [`flags.${escopo}.-=exaustao`]: null };
+}
+
+/**
  * Soma (ou tira, com delta negativo) níveis de exaustão e devolve o total.
  *
  * A exaustão acumula num efeito só, chamado "Exaustão", com o número na
@@ -492,16 +567,7 @@ export function aplicarExaustao(actor, delta) {
 async function somarExaustao(actor, delta) {
   const loc = k => game.i18n.localize(k);
 
-  /*
-   * O acumulador é o efeito que o próprio sistema mantém: sem prazo e nascido
-   * do ator. Uma exaustão com prazo, ou vinda de um item (a ressaca de uma
-   * transformação, um efeito de uso), é outra coisa — somar nela faria o
-   * total inteiro morrer junto com o prazo dela, e tirar um nível de lá
-   * apagaria o que a mesa acabou de aplicar. As duas continuam contando no
-   * nivelExaustao; só não são o lugar onde a conta é escrita.
-   */
-  const existente = actor.effects?.find?.(e =>
-    ehExaustao(e) && !e.disabled && !prazoDoEfeito(e) && e.origin === actor.uuid);
+  const existente = actor.effects?.find?.(e => ehAcumuladorDeExaustao(e) && !e.disabled);
   if (existente) {
     const novo = Math.max(0, niveisDoEfeito(existente) + delta);
     if (novo === 0) await existente.delete();
@@ -516,7 +582,7 @@ async function somarExaustao(actor, delta) {
     origin: actor.uuid,
     statuses: ["exausto"],
     description: loc("PYRO.Exaustao.Dica"),
-    flags: flagsDoSistema({ exaustao: delta })
+    flags: flagsDoSistema({ exaustao: delta, acumulador: true })
   }, { parent: actor });
   return nivelExaustao(actor);
 }

@@ -16,6 +16,7 @@ import { PyroTokenDocument } from "./documents/token.mjs";
 import { PyroActorSheet } from "./sheets/actor-sheet.mjs";
 import { PyroGrupoSheet } from "./sheets/grupo-sheet.mjs";
 import { PyroItemSheet } from "./sheets/item-sheet.mjs";
+import { absorverExaustao } from "./efeitos.mjs";
 import { registrarSettings, aplicarSettings } from "./settings.mjs";
 import { registrarMenuChat } from "./chat.mjs";
 import { registrarRelogio } from "./tempo.mjs";
@@ -149,6 +150,17 @@ Hooks.on("deleteItem", doc => sincronizarTamanho(atorDoDocumento(doc)));
 Hooks.on("createActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
 Hooks.on("updateActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
 Hooks.on("deleteActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
+
+/*
+ * Efeito que chega carregando níveis de exaustão entrega esses níveis para a
+ * contagem do personagem (ver absorverExaustao). Responde o cliente que criou
+ * o efeito: é quem tem permissão sobre a ficha que o recebeu.
+ */
+Hooks.on("createActiveEffect", (efeito, opcoes, userId) => {
+  if (game.user.id !== userId) return;
+  absorverExaustao(efeito)
+    .catch(erro => console.error("PYRO | falha ao somar a exaustão do efeito", erro));
+});
 
 /*
  * O prazo da transformação mora num efeito marcador; quando ele morre — o

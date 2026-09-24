@@ -648,7 +648,8 @@ export class PyroItem extends Item {
     const cobra = {
       estamina: custoAjustado(sys.custoEstamina, ajustes.estamina),
       mana: custoAjustado(sys.custoMana, ajustes.mana),
-      energia: custoAjustado(sys.custoEnergia, ajustes.energia)
+      energia: custoAjustado(sys.custoEnergia, ajustes.energia),
+      vontade: custoAjustado(sys.custoVontade, ajustes.vontade)
     };
     // Recursos de raça (energia natural etc.): os efeitos de desconto usam a
     // mesma chave do recurso, então o ajuste entra igual ao dos fixos.
@@ -668,6 +669,7 @@ export class PyroItem extends Item {
       if (pago.dosPv) custos.push(game.i18n.format("PYRO.Chat.CustoPv", { valor: pago.dosPv }));
       if (pago.mana) custos.push(game.i18n.format("PYRO.Chat.CustoManaHab", { valor: pago.mana }));
       if (pago.energia) custos.push(game.i18n.format("PYRO.Chat.CustoEnergia", { valor: pago.energia }));
+      if (pago.vontade) custos.push(game.i18n.format("PYRO.Chat.CustoVontade", { valor: pago.vontade }));
       for (const chave of Object.keys(PYRO.recursosCustom ?? {})) {
         if (!pago[chave]) continue;
         custos.push(game.i18n.format("PYRO.Chat.CustoRecurso", {

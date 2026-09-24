@@ -851,10 +851,14 @@ export class PyroActor extends Actor {
     const update = {};
     const notas = [];
     for (const [chave, linha] of linhas) {
-      // Só os recursos que a ficha oferece. PV e Força de Vontade ficam de
-      // fora: tirar PV por aqui passaria por cima do caminho do dano (e do
-      // desmaio que ele dispara), e Vontade não se gasta com o tempo, se
-      // conquista em jogo (SRD Atributos).
+      /*
+       * Só os recursos que a ficha oferece. PV fica de fora: tirar vida por
+       * aqui passaria por cima do caminho do dano e do desmaio que ele
+       * dispara. A Força de Vontade entra, e é o preço mais caro que uma
+       * forma pode cobrar — ela não volta com descanso nenhum (SRD
+       * Atributos), então cobrá-la aqui é tirar do personagem algo que só o
+       * jogo devolve.
+       */
       if (!PYRO.recursosDeGasto().includes(chave)) continue;
       const atual = Number(recursos[chave]?.value);
       const tirado = gastoDoFim(linha, atual, dados);

@@ -287,6 +287,12 @@ export class HabilidadeData extends BaseItemData {
       custoEstamina: num(0, { min: 0 }),
       custoMana: num(0, { min: 0 }),
       custoEnergia: num(0, { min: 0 }),
+      /*
+       * Força de Vontade como preço de ativar (SRD Atributos): ela não volta
+       * com o tempo, e por isso uma habilidade que a cobra é uma habilidade
+       * que se usa poucas vezes. Zero na imensa maioria delas.
+       */
+      custoVontade: num(0, { min: 0 }),
       // Custos em recursos de raça ({ energiaNatural: 5, ... }): as chaves
       // vêm de PYRO.recursosCustom, e a ficha só oferece as que o dono tem.
       custosCustom: new fields.ObjectField(),

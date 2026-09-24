@@ -835,16 +835,17 @@ PYRO.modosDeGasto = {
 };
 
 /**
- * Recursos que uma habilidade pode consumir: os três fixos e os de raça que o
- * mundo definiu. PV e Força de Vontade não entram — o primeiro se perde por
- * dano, que tem o caminho dele (desmaio, estado de vida), e o segundo se
- * conquista em jogo em vez de ser drenado por mecânica (SRD Atributos).
+ * Recursos que uma habilidade pode consumir: os fixos e os de raça que o mundo
+ * definiu. PV não entra: o que tira vida é dano, e ele tem o caminho dele
+ * (desmaio, estado de vida). Força de Vontade entra porque há habilidade que
+ * se paga com ela — e é um preço caro de propósito, já que ela não volta com
+ * o tempo (SRD Atributos).
  *
  * É função, e não tabela, porque os recursos de raça são configurados no mundo
  * e mudam depois que este arquivo é lido.
  */
 PYRO.recursosDeGasto = () =>
-  ["estamina", "mana", "energia", ...Object.keys(PYRO.recursosCustom ?? {})];
+  ["estamina", "mana", "energia", "vontade", ...Object.keys(PYRO.recursosCustom ?? {})];
 
 /** Habilidades gastam ações ou reações. */
 PYRO.tiposCusto = {
@@ -1181,9 +1182,10 @@ PYRO.alvosEfeito = {
   },
   /*
    * Custo de usar alguma coisa: ações e os recursos que o sistema realmente
-   * cobra hoje. PV e Força de Vontade não entram porque nada os cobra como
-   * custo. A lista é função porque os recursos de raça são configuração do
-   * mundo — um congelado no carregamento perderia o que a mesa criou depois.
+   * cobra hoje. PV fica de fora porque nada o cobra como custo — o que tira
+   * vida é dano, e dano tem o caminho dele. A lista é função porque os
+   * recursos de raça são configuração do mundo — um congelado no
+   * carregamento perderia o que a mesa criou depois.
    */
   custo: {
     label: "PYRO.Efeitos.Cat.custo",
@@ -1192,6 +1194,7 @@ PYRO.alvosEfeito = {
       mana: "PYRO.Recursos.mana",
       estamina: "PYRO.Recursos.estamina",
       energia: "PYRO.Recursos.energia",
+      vontade: "PYRO.Recursos.vontade",
       ...Object.fromEntries(Object.entries(PYRO.recursosCustom ?? {})
         .map(([chave, cfg]) => [chave, cfg.label]))
     })

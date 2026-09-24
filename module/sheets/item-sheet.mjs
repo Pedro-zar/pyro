@@ -608,6 +608,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     fixo("estamina", true);
     fixo("mana", !!ator?.temMagia);
     fixo("energia", !!ator?.temFeiticos);
+    // Vontade é de todo mundo: não depende de caminho nem de raça.
+    fixo("vontade", true);
     for (const [chave, cfg] of Object.entries(PYRO.recursosCustom ?? {})) {
       if (ator && !(ator.recursosConcedidos ?? []).includes(chave)) continue;
       lista.push({ chave, label: loc(cfg.label) });
@@ -619,7 +621,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     const item = this.item;
     if (item.type !== "habilidade") return [];
     const sys = item.system;
-    const FIXOS = { estamina: "custoEstamina", mana: "custoMana", energia: "custoEnergia" };
+    const FIXOS = {
+      estamina: "custoEstamina", mana: "custoMana",
+      energia: "custoEnergia", vontade: "custoVontade"
+    };
     return this.#recursosDaHabilidade().map(({ chave, label }) => {
       const campo = FIXOS[chave];
       return campo
@@ -695,15 +700,20 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         partes.push(loc(PYRO.categoriasHabilidade[sys.categoria] ?? ""));
         partes.push(`${loc("PYRO.Item.Ranque")} ${sys.ranque}`);
         partes.push(`${loc("PYRO.Uso.Nivel")} ${sys.nivel}`);
-        if (sys.custoAcoes) {
-          partes.push(`${sys.custoAcoes} ${loc(`PYRO.Item.Abrev.${sys.tipoCusto}`)}`);
-        }
-        if (sys.custoEstamina) partes.push(`${sys.custoEstamina} ${loc("PYRO.Abrev.estamina")}`);
-        if (sys.custoMana) partes.push(`${sys.custoMana} ${loc("PYRO.Abrev.mana")}`);
-        if (sys.custoEnergia) partes.push(`${sys.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
-        for (const [chave, valor] of Object.entries(sys.custosCustom ?? {})) {
-          const cfg = PYRO.recursosCustom?.[chave];
-          if (cfg && Number(valor) > 0) partes.push(`${Number(valor)} ${loc(cfg.label)}`);
+        // Só quem cobra anuncia preço: a passiva não é usada e a postura é
+        // trocada de graça (ver PYRO.cobraCustoDeUso).
+        if (PYRO.cobraCustoDeUso(sys)) {
+          if (sys.custoAcoes) {
+            partes.push(`${sys.custoAcoes} ${loc(`PYRO.Item.Abrev.${sys.tipoCusto}`)}`);
+          }
+          if (sys.custoEstamina) partes.push(`${sys.custoEstamina} ${loc("PYRO.Abrev.estamina")}`);
+          if (sys.custoMana) partes.push(`${sys.custoMana} ${loc("PYRO.Abrev.mana")}`);
+          if (sys.custoEnergia) partes.push(`${sys.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
+          if (sys.custoVontade) partes.push(`${sys.custoVontade} ${loc("PYRO.Abrev.vontade")}`);
+          for (const [chave, valor] of Object.entries(sys.custosCustom ?? {})) {
+            const cfg = PYRO.recursosCustom?.[chave];
+            if (cfg && Number(valor) > 0) partes.push(`${Number(valor)} ${loc(cfg.label)}`);
+          }
         }
         if (sys.adormecidaAtiva) partes.push(loc("PYRO.Despertar.Tag"));
         break;
