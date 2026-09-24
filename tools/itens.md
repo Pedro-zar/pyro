@@ -62,7 +62,7 @@
 |-----------------------|------------------------------:|------:|-----:|--------:|--------------------|-----:|------:|------------------------------------------|
 | Adaga                 | 4d4                           |     1 |    1 |      0m | Cortante           |    3 |    80 |                                          |
 | Bastão                | 4d8                           |     2 |    1 |      1m | Impacto            |    9 |    64 |                                          |
-| Katana                | 6d6                           |     2 |    2 |      0m | Cortante           |    9 |    70 |                                          |
+| Katana                | 6d6                           |     2 |    2 |      1m | Cortante           |    9 |    70 |                                          |
 | Espada Longa          | 5d6                           |     2 |    1 |      1m | Cortante           |    9 |    68 |                                          |
 | Claymore              | 8d8                           |     3 |    2 |      2m | Cortante           |    9 |    60 |                                          |
 | Glaive                | 6d12                          |     4 |    1 |      2m | Cortante           |    3 |    72 |                                          |
@@ -76,8 +76,6 @@
 |-----------------------|------------------------------:|------:|-----:|--------:|--------------------|-----:|------:|------------------------------------------|
 | Arbalesta de Pedra    | 3d12                          |     2 |    2 |  20/40m | Impacto            |    3 |   280 | Produz a própria munição. Não consome virotes e não exige recarga. |
 | Lâmina de Raio        | 2d10                          |     1 |    1 |      1m | Energia            |    3 |   284 | -                                        |
-| Arco do Rastreador    | 8d8 + SAB                     |     3 |    2 |  20/40m | Perfurante         |    3 |   240 | Consome 1 flecha.                        |
-| Maça do Rastreador    | 2d8 + SAB                     |     2 |    1 |      1m | Impacto            |    3 |   268 | -                                        |
 ### Raros
 ### Lendários
 ### Míticos
