@@ -935,16 +935,18 @@ export class PyroActor extends Actor {
     const recursos = this.system.recursos;
     const totais = this.system.defesas.totais;
     /*
-     * O recurso vem declarado no golpe. Um recurso próprio de caminho (Energia
-     * Natural e afins) existe no schema de todo ator, mas só vale para quem o
-     * caminho concedeu — testar a existência do campo faria o dano sumir numa
-     * barra invisível. Sem o recurso concedido, o dano cai na mana, que é de
-     * todos.
+     * O recurso vem declarado no golpe, e é nele que o dano mental entra. Um
+     * recurso próprio de caminho (Energia Natural e afins) existe no schema de
+     * todo ator, mas só vale para quem o caminho concedeu — por isso a
+     * pergunta é essa, e não a existência do campo.
+     *
+     * Quem não tem o recurso não sofre o dano: um golpe que queima mana não
+     * tem o que queimar num alvo sem magia. O card diz isso em vez de cobrar
+     * de outra barra.
      */
     const proprio = PYRO.recursosCustom?.[recursoMental];
     const temRecurso = !!recursos[recursoMental]
       && (!proprio || (this.system.recursosConcedidos ?? []).includes(recursoMental));
-    const chaveRecurso = temRecurso ? recursoMental : "mana";
     let emPv = 0;
     let emRecurso = 0;
     const contas = [];
@@ -995,19 +997,24 @@ export class PyroActor extends Actor {
     }
 
     const pvNovo = Math.max(0, recursos.pv.value - emPv);
-    const recursoNovo = Math.max(0, recursos[chaveRecurso].value - emRecurso);
-    await this.update({
-      "system.recursos.pv.value": pvNovo,
-      [`system.recursos.${chaveRecurso}.value`]: recursoNovo
-    });
+    const update = { "system.recursos.pv.value": pvNovo };
+    if (emRecurso && temRecurso) {
+      update[`system.recursos.${recursoMental}.value`] =
+        Math.max(0, recursos[recursoMental].value - emRecurso);
+    }
+    await this.update(update);
 
+    const nomeRecurso = () =>
+      game.i18n.localize(PYRO.recursosDrenaveis()[recursoMental] ?? recursoMental);
     const partes = [];
     if (emPv) partes.push(game.i18n.format("PYRO.Chat.AplicouDano", { valor: emPv, pv: pvNovo }));
-    if (emRecurso) {
+    if (emRecurso && temRecurso) {
       partes.push(game.i18n.format("PYRO.Chat.AplicouMental", {
-        valor: emRecurso,
-        recurso: game.i18n.localize(PYRO.recursosDrenaveis()[chaveRecurso] ?? chaveRecurso)
+        valor: emRecurso, recurso: nomeRecurso()
       }));
+    }
+    if (emRecurso && !temRecurso) {
+      partes.push(game.i18n.format("PYRO.Chat.MentalSemRecurso", { recurso: nomeRecurso() }));
     }
     if (!partes.length) partes.push(game.i18n.localize("PYRO.Chat.DefesaAbsorveu"));
 
