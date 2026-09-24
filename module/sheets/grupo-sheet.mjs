@@ -2,7 +2,7 @@
  * Ficha do Grupo: a party numa tela só. Cada linha é um membro lido na hora
  * (vida, vontade, DET, carga, exaustão, caminhos), e os botões do topo fazem
  * o tempo da mesa: passar turno/minuto/hora/dia desconta os prazos de todo
- * mundo, e nova cena/capítulo/arco recupera todo mundo de uma vez.
+ * mundo, e nova cena/capítulo recupera todo mundo de uma vez.
  */
 import { PYRO } from "../config.mjs";
 import { caminho } from "../sistema.mjs";
@@ -153,8 +153,7 @@ export class PyroGrupoSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     if (!game.user.isGM) return;
     const metodo = {
       cena: "recuperarCena",
-      capitulo: "recuperarCapitulo",
-      arco: "recuperarArco"
+      capitulo: "recuperarCapitulo"
     }[target.dataset.tipo];
     if (!metodo) return;
     for (const membro of this.#membros()) {

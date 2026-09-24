@@ -825,7 +825,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     const escopo = target.dataset.escopo;
     if (escopo === "cena") await this.actor.recuperarCena();
     else if (escopo === "capitulo") await this.actor.recuperarCapitulo();
-    else if (escopo === "arco") await this.actor.recuperarArco();
   }
 
   static #abrirConjurador() {
@@ -1166,7 +1165,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return lista;
   }
 
-  /** Menu único de recuperação: cena, capítulo ou arco. */
+  /** Menu único de recuperação: cena ou capítulo. */
   static async #abrirRecuperacao() {
     const loc = k => game.i18n.localize(k);
     const escolha = await foundry.applications.api.DialogV2.wait({
@@ -1174,14 +1173,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       content: `<p class="hint">${loc("PYRO.Recuperar.Explicacao")}</p>`,
       buttons: [
         { action: "cena", label: loc("PYRO.Recuperar.Cena"), icon: "fa-solid fa-hourglass-start" },
-        { action: "capitulo", label: loc("PYRO.Recuperar.Capitulo"), icon: "fa-solid fa-hourglass-half" },
-        { action: "arco", label: loc("PYRO.Recuperar.Arco"), icon: "fa-solid fa-hourglass-end" }
+        { action: "capitulo", label: loc("PYRO.Recuperar.Capitulo"), icon: "fa-solid fa-hourglass-end" }
       ],
       rejectClose: false
     });
     if (escolha === "cena") return this.actor.recuperarCena();
     if (escolha === "capitulo") return this.actor.recuperarCapitulo();
-    if (escolha === "arco") return this.actor.recuperarArco();
   }
 
 

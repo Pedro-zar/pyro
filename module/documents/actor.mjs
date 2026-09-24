@@ -1072,7 +1072,15 @@ export class PyroActor extends Actor {
     });
   }
 
-  /** Início de capítulo: vida e mana completas. */
+  /**
+   * Início de capítulo: vida e mana completas. É a maior recuperação da mesa —
+   * a passagem de tempo do sistema vai até aqui.
+   *
+   * A Força de Vontade fica de fora de propósito. Ela não volta com o tempo
+   * (SRD Atributos): todo ponto é conquistado em jogo — por um instinto que
+   * criou problema, por uma crença defendida —, e enchê-la aqui tornaria o
+   * resto dessa economia decorativa.
+   */
   async recuperarCapitulo() {
     const recursos = this.system.recursos;
     const extras = {};
@@ -1092,21 +1100,6 @@ export class PyroActor extends Actor {
     });
   }
 
-  /**
-   * Início de arco: tudo que o capítulo recupera.
-   *
-   * A Força de Vontade fica de fora de propósito. Ela não volta com o tempo
-   * (SRD Atributos): todo ponto é conquistado em jogo — por um instinto que
-   * criou problema, por uma crença defendida, por votação no fim do arco —, e
-   * enchê-la aqui tornaria o resto dessa economia decorativa.
-   */
-  async recuperarArco() {
-    await this.recuperarCapitulo();
-    return ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor: this }),
-      content: `<p>${game.i18n.localize("PYRO.Chat.NovoArco")}</p>`
-    });
-  }
 }
 
 /* -------------------------------------------------------------------------- */
