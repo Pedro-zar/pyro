@@ -8,7 +8,7 @@
 import { PYRO } from "../config.mjs";
 import {
   tracosDaTecnica, calcularEsforco, ataquesDaTecnica, usarTecnica, textoDoTraco, textoDaCondicao,
-  resumoDaTecnica, numeroDoTraco
+  resumoDaTecnica, numeroDoTraco, posturaAtivaVale, posturaExigida
 } from "../tecnica.mjs";
 import { ajustesDeCusto, custoAjustado, textoDeAlcance } from "../efeitos.mjs";
 import { acoesComConfusao, regraMental } from "../condicoes.mjs";
@@ -153,11 +153,18 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const pvDoOnus = custaPv ? calc.somaEsforcos : 0;
     const faltaEstamina = calc.estamina + pvDoOnus > estamina.value + pv;
     const semAtaque = !!base?.ataca && !ataques.length;
-    this._podeExecutar = !semAtaque && !faltaEstamina;
+    // A guarda pode cair com a janela aberta: o botão desliga junto.
+    const foraDePostura = !posturaAtivaVale(this.actor, sys);
+    this._podeExecutar = !semAtaque && !faltaEstamina && !foraDePostura;
 
     Object.assign(context, {
       actor: this.actor,
       item: this.item,
+      // A mesma frase que o aviso do chat usa quando a técnica é barrada.
+      avisoPostura: foraDePostura
+        ? game.i18n.format("PYRO.Tecnica.ExigePostura",
+            { nome: posturaExigida(this.actor, sys)?.name ?? "" })
+        : null,
       previa: this.#previa(calc, ataque),
       fichas,
       temTracos: fichas.length > 0,
@@ -246,10 +253,15 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static async #aoExecutar(event, form, formData) {
     this.#capturarCampos();
     if (!this._podeExecutar) return;
-    await usarTecnica(this.actor, this.item, {
+    /*
+     * Só fecha se a técnica saiu mesmo: barrada por peso ou por postura, a
+     * janela fica aberta com os Esforços escolhidos, em vez de sumir levando
+     * a escolha junto.
+     */
+    const feito = await usarTecnica(this.actor, this.item, {
       esforcos: this.esforcos,
       ataqueId: this.ataqueId
     });
-    return this.close();
+    if (feito) this.close();
   }
 }

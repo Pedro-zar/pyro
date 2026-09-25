@@ -30,7 +30,8 @@ import { multRecuperacaoDoAtor, comDensidade } from "../regioes.mjs";
 import { descreverRequisito } from "../progressao.mjs";
 import { transformacoesDoAtor, marcadorDeForma } from "../documents/actor.mjs";
 import {
-  posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDoValor, textoDaCondicao
+  posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDoValor, textoDaCondicao,
+  posturaExigida, posturaAtivaVale
 } from "../tecnica.mjs";
 
 /**
@@ -417,6 +418,10 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const sys = item.system;
       const base = loc(PYRO.acoesBaseTecnica[sys.acaoBase]?.label ?? "");
       const condicao = textoDaCondicao(sys);
+      // Técnica presa a uma postura: a linha diz qual, e marca quando a
+      // guarda exigida não é a que está montada agora.
+      const exigida = posturaExigida(actor, sys);
+      const naPostura = posturaAtivaVale(actor, sys);
       const efeitos = tracosDaTecnica(sys).map(t =>
         `${loc(t.cfg.label)} ${textoDoValor(t.cfg, valorDoTraco(t.cfg, t.grau, 1))}`);
       const acoes = `${sys.acoes} ${umOuVarios(sys.acoes,
@@ -428,13 +433,28 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         `${loc("PYRO.Uso.NivelAbrev")} ${sys.progresso.nivel}`
       ].filter(Boolean).join(", ");
       const requisito = descreverRequisito(item);
+      /*
+       * A postura exigida é uma marca à parte, e não mais uma vírgula no
+       * meio dos detalhes: fora dela a técnica não sai, e isso precisa
+       * saltar aos olhos antes do clique.
+       */
+      const marcaPostura = exigida ? [{
+        texto: loc("PYRO.Tecnica.NaPostura", { nome: exigida.name ?? "" }),
+        classe: naPostura ? "" : "perigo",
+        dica: naPostura ? loc("PYRO.Tecnica.PosturaOk")
+          : exigida.ausente
+            ? game.i18n.format("PYRO.Tecnica.PosturaSumiu", { nome: exigida.name ?? "" })
+            : loc("PYRO.Tecnica.PosturaFalta")
+      }] : [];
       return {
-        detalhes: detalheUnico(detalheTexto),
+        detalhes: [...detalheUnico(detalheTexto), ...marcaPostura],
         cauda: [],
         resumo: [
           { label: loc("PYRO.Tecnica.AcaoBase"), valor: base },
           { label: loc("PYRO.Acoes"), valor: sys.acoes },
           ...(condicao ? [{ label: loc("PYRO.Tecnica.Condicao"), valor: condicao }] : []),
+        ...(exigida
+          ? [{ label: loc("PYRO.Tecnica.PosturaExigida"), valor: exigida.name ?? "—" }] : []),
           { label: loc("PYRO.Item.Ranque"), valor: sys.ranque },
           { label: loc("PYRO.Tecnica.Pontos"), valor: `${sys.pontos.gastos} / ${sys.pontos.disponiveis}` },
           { label: loc("PYRO.Tecnica.Tracos"), valor: efeitos.join(" · ") || "—" },

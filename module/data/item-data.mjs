@@ -392,6 +392,13 @@ export class TecnicaData extends BaseItemData {
         posturaId: str(""),
         texto: str("")
       }), { initial: [] }),
+      /*
+       * A postura exigida pelo ônus "só funciona numa postura" (ver
+       * PYRO.onusTecnica). Guarda id e nome, como o ataque: o id resolve na
+       * ficha em que a técnica foi montada, e o nome sobrevive à técnica ser
+       * copiada para outro personagem. Sem o ônus, o campo não vale nada.
+       */
+      postura: new fields.SchemaField({ id: str(""), nome: str("") }),
       progresso: nivelPorUso(1)
     };
   }

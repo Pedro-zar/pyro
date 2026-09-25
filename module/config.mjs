@@ -1067,7 +1067,7 @@ PYRO.tracosTecnica = foundry.utils.deepClone(PYRO.tracosTecnicaPadrao);
  * pontos. Acumulam entre si.
  */
 PYRO.onusTecnicaPadrao = {
-  posturaUnica:  { label: "PYRO.Tecnica.Onus.posturaUnica",  pontos: 2 },
+  posturaUnica:  { label: "PYRO.Tecnica.Onus.posturaUnica",  pontos: 2, regra: "posturaUnica" },
   alvoNoChao:    { label: "PYRO.Tecnica.Onus.alvoNoChao",    pontos: 1 },
   custaPv:       { label: "PYRO.Tecnica.Onus.custaPv",       pontos: 3, regra: "custaPv" },
   umaVezPorCena: { label: "PYRO.Tecnica.Onus.umaVezPorCena", pontos: 3 }

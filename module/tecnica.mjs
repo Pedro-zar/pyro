@@ -347,6 +347,50 @@ export function posturasDoAtor(actor) {
     .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0)) ?? [];
 }
 
+/** A técnica carrega o ônus que a prende a uma postura? */
+export const exigePostura = sys =>
+  (sys?.onus ?? []).some(o => PYRO.onusTecnica[o]?.regra === "posturaUnica");
+
+/**
+ * A postura exigida por esta técnica, ou null quando ela não exige nenhuma.
+ *
+ * O id resolve na ficha em que a técnica foi montada e o nome é a rede de
+ * segurança, para a técnica copiada não apontar para uma postura que não
+ * existe do outro lado — a mesma regra dos efeitos presos a item.
+ */
+export function posturaExigida(actor, sys) {
+  if (!exigePostura(sys)) return null;
+  const { id, nome } = sys.postura ?? {};
+  if (!id && !nome) return null;
+  const posturas = posturasDoAtor(actor);
+  const alvo = PYRO.normalizarTexto(nome ?? "");
+  return posturas.find(p => p.id === id)
+    ?? (alvo ? posturas.find(p => PYRO.normalizarTexto(p.name) === alvo) : null)
+    ?? { id, name: nome, ausente: true };
+}
+
+/**
+ * A postura exigida está montada? Sem exigência, sempre. A ficha e o portão
+ * da execução leem daqui, para não haver duas versões da mesma regra.
+ */
+export function posturaAtivaVale(actor, sys) {
+  const exigida = posturaExigida(actor, sys);
+  return !exigida || (!exigida.ausente && actor?.posturaAtiva?.id === exigida.id);
+}
+
+/**
+ * A postura exigida está ativa? Devolve false e avisa quando não está — a
+ * técnica que só funciona na Guarda do Ferro não sai sem a guarda montada.
+ */
+export function posturaPermite(actor, sys) {
+  if (posturaAtivaVale(actor, sys)) return true;
+  const exigida = posturaExigida(actor, sys);
+  ui.notifications.warn(loc(
+    exigida.ausente ? "PYRO.Tecnica.PosturaSumiu" : "PYRO.Tecnica.ExigePostura",
+    { nome: exigida.name ?? "" }));
+  return false;
+}
+
 /**
  * Quem recebe um sussurro sobre este ator: quem joga com ele, mais os mestres.
  * Lista vazia é mensagem pública no Foundry, então quem chama precisa tratar
@@ -522,8 +566,9 @@ export function resumoDaTecnica(actor, item, calc, ataque) {
  */
 export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null } = {}) {
   // Também aqui, e não só na abertura do executor: a janela pode estar aberta
-  // desde antes de a mochila ficar pesada demais.
+  // desde antes de a mochila ficar pesada demais, ou de a guarda cair.
   if (actor && !actor.podeAgir()) return;
+  if (actor && !posturaPermite(actor, item.system)) return;
   const sys = item.system;
   const base = PYRO.acoesBaseTecnica[sys.acaoBase];
   const usados = tracosDaTecnica(sys)
@@ -603,8 +648,24 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     <div><h3>${esc(item.name)}</h3><span class="pyro-item-meta">${meta}</span></div>
   </header>`);
 
-  // Variação da postura ativa: a mesma técnica muda de forma conforme a guarda.
-  const postura = actor.posturaAtiva;
+  /*
+   * Postura exigida: a técnica só chegou aqui com ela ativa, e o card diz
+   * qual é — quem lê o chat vê a condição cumprida, e não só o golpe.
+   */
+  const exigida = posturaExigida(actor, sys);
+  if (exigida) {
+    partes.push(`<p class="pyro-nota">${loc("PYRO.Tecnica.NaPostura", {
+      nome: esc(exigida.name ?? "")
+    })}</p>`);
+  }
+
+  /*
+   * Variação da postura ativa: a mesma técnica muda de forma conforme a
+   * guarda. Não vale na técnica presa a uma postura — ali a ficha troca as
+   * variações pela escolha, e um texto escrito antes do ônus continuaria
+   * saindo no card sem ter onde ser editado.
+   */
+  const postura = exigida ? null : actor.posturaAtiva;
   const variacao = postura
     ? (sys.variacoes ?? []).find(v => v.posturaId === postura.id && v.texto?.trim())
     : null;
@@ -752,6 +813,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
  */
 export async function executarTecnica(actor, item) {
   if (actor && !actor.podeAgir()) return;
+  if (actor && !posturaPermite(actor, item.system)) return;
   const { ExecutorApp } = await import("./apps/executor.mjs");
   return new ExecutorApp({ actor, item }).render(true);
 }

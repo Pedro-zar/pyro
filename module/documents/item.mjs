@@ -182,6 +182,26 @@ export class PyroItem extends Item {
      * pode apagar pontos que já estavam contados. Quem zera é escolher "sem
      * arma" no seletor, que é uma decisão de quem edita.
      */
+    /*
+     * Técnica presa a uma postura: o nome acompanha o id escolhido, e é ele
+     * que segura a regra quando a técnica é copiada para outro personagem,
+     * onde o id da postura é outro. Escolher "nenhuma" limpa os dois.
+     *
+     * Id que não resolve numa postura desta ficha mantém o nome guardado, em
+     * vez de apagá-lo: é o caso da técnica que veio de outro personagem, e é
+     * justamente o nome que faz a regra continuar valendo lá.
+     */
+    if (this.type === "tecnica" && sys.postura?.id !== undefined) {
+      const id = sys.postura.id;
+      const item = id ? this.actor?.items?.get(id) : null;
+      const daFicha = item?.type === "habilidade" && item.system?.ehPostura ? item : null;
+      sys.postura = {
+        id,
+        nome: !id ? "" : (daFicha?.name ?? sys.postura.nome ?? this.system.postura.nome ?? "")
+      };
+      changed.system = sys;
+    }
+
     if (this.type === "tecnica" && "ataque" in sys) {
       const id = sys.ataque.id ?? this.system.ataque.id;
       const arma = id ? this.actor?.items?.get(id) : null;

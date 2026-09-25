@@ -550,6 +550,8 @@
 
 /* Habilidades: coluna única de detalhes por extenso depois do nome. */
 .pyro .detalhe.col-detalhes { flex: 1 1 auto; }
+/* Marca de condição não cumprida (a técnica fora da postura que ela exige). */
+.pyro .detalhe.perigo { color: var(--pyro-perigo); opacity: 1; }
 /* Coluna curta do miolo com largura fixa: "Tipo" da legenda alinha com a linha. */
 .pyro .detalhes .col-curto { flex: none; width: 4.5rem; }
 

@@ -14,6 +14,7 @@ import { descreverRequisito } from "../progressao.mjs";
 import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "../data/item-data.mjs";
 import {
   tracosCompativeis, valorDoTraco, textoDoValor, ataquesDoAtor, posturasDoAtor, opcoesDoFiltro,
+  exigePostura,
   acoesBaseDaArma
 } from "../tecnica.mjs";
 
@@ -587,8 +588,37 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         id: p.id,
         nome: p.name,
         texto: (sys.variacoes ?? []).find(v => v.posturaId === p.id)?.texto ?? ""
-      }))
+      })),
+      /*
+       * Com o ônus que prende a técnica a uma postura, a pergunta deixa de
+       * ser "o que muda em cada guarda" e passa a ser "em qual guarda ela
+       * funciona" — uma escolha, e não sete caixas de texto.
+       */
+      exigePostura: item.type === "tecnica" && exigePostura(sys),
+      posturasOpcoes: this.#posturasParaEscolher(),
+      // Ônus marcado e nenhuma postura apontada: os pontos que ele devolve
+      // não estão pagando limitação nenhuma.
+      posturaVazia: item.type === "tecnica" && exigePostura(sys) && !sys.postura?.id
     };
+  }
+
+  /**
+   * Posturas que o select oferece, ou null quando não há nenhuma.
+   *
+   * A postura já gravada entra na lista mesmo quando não está nesta ficha —
+   * técnica vinda de outro personagem, postura apagada depois de escolhida.
+   * Sem a opção, o navegador marcaria "Nenhuma" e o primeiro salvamento
+   * apagaria a escolha junto com o nome que a resolve do outro lado.
+   */
+  #posturasParaEscolher() {
+    if (this.item.type !== "tecnica") return null;
+    const opcoes = Object.fromEntries(
+      (posturasDoAtor(this.item.actor) ?? []).map(p => [p.id, p.name]));
+    const guardada = this.item.system.postura ?? {};
+    if (guardada.id && !opcoes[guardada.id]) {
+      opcoes[guardada.id] = guardada.nome || guardada.id;
+    }
+    return Object.keys(opcoes).length ? opcoes : null;
   }
 
   /* ---------------------------------------------------------------------- */

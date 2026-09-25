@@ -323,9 +323,28 @@
     </div>
   </div>
 
-  {{!-- Uma variação por postura conhecida (SRD Técnicas): a técnica muda de
-        forma conforme a guarda em que é executada. --}}
-  {{#if variacoesPostura.length}}
+  {{!-- Com o ônus que prende a técnica a uma postura, a pergunta é em qual
+        guarda ela funciona, e a resposta é uma escolha. Sem ele, a técnica
+        muda de forma conforme a guarda, e aí cada uma tem a sua linha. --}}
+  {{#if exigePostura}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Tecnica.PosturaExigida"}}</h4>
+    {{#if posturasOpcoes}}
+    <label class="campo largo">
+      <select name="system.postura.id">
+        <option value="">{{localize "PYRO.Tecnica.SemPosturaEscolhida"}}</option>
+        {{selectOptions posturasOpcoes selected=system.postura.id}}
+      </select></label>
+    {{pyroDica "PYRO.Tecnica.PosturaExigidaDica"}}
+    {{#if posturaVazia}}
+    <p class="pyro-aviso"><i class="fa-solid fa-triangle-exclamation"></i>
+      {{localize "PYRO.Tecnica.PosturaVazia"}}</p>
+    {{/if}}
+    {{else}}
+    <p class="pyro-nota">{{localize "PYRO.Tecnica.SemPosturas"}}</p>
+    {{/if}}
+  </div>
+  {{else if variacoesPostura.length}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Tecnica.Variacoes"}}</h4>
     <div class="grade-campos">
