@@ -1095,13 +1095,33 @@
 .pyro-chat .pyro-sobrecarga.pendente p { margin: 0 0 0.3rem; }
 .pyro-chat .pyro-sobrecarga.pendente button { width: auto; padding: 0.15rem 0.7rem; font-size: 0.8rem; }
 
+/*
+ * Classe da rolagem e os botões de contar uso. O rótulo nunca encolhe: com
+ * dois botões de nome comprido ele era espremido até uma letra por linha, e
+ * os botões vazavam do card. Agora os botões descem para a linha de baixo
+ * quando não cabem, e o texto deles quebra em vez de estourar.
+ */
 .pyro-chat .pyro-classe-rolagem, .pyro-classe-rolagem {
-  display: flex; align-items: center; justify-content: space-between; gap: 0.4rem;
-  font-size: 0.78rem; opacity: 0.9;
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+  gap: 0.3rem 0.4rem; font-size: 0.78rem; opacity: 0.9;
 }
-.pyro-classe-rolagem.classe-dificil { color: var(--pyro-aviso); }
-.pyro-classe-rolagem.classe-muitoDificil { color: var(--pyro-perigo); }
-.pyro-classe-rolagem .pyro-contar-uso { flex: 0 0 auto; width: auto; font-size: 0.75rem; line-height: 1.4; padding: 0 0.5rem; }
+.pyro-classe-rolagem .pyro-classe-rotulo { flex: 0 0 auto; white-space: nowrap; }
+.pyro-classe-rolagem .pyro-contar-botoes {
+  display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 0.3rem;
+  flex: 1 1 auto; min-width: 0;
+}
+/* Cards gravados antes do bloco de botões têm o rótulo como primeiro span solto. */
+.pyro-classe-rolagem.classe-dificil .pyro-classe-rotulo,
+.pyro-classe-rolagem.classe-dificil > span:first-child { color: var(--pyro-aviso); }
+.pyro-classe-rolagem.classe-muitoDificil .pyro-classe-rotulo,
+.pyro-classe-rolagem.classe-muitoDificil > span:first-child { color: var(--pyro-perigo); }
+.pyro-classe-rolagem .pyro-contar-uso {
+  flex: 0 1 auto; width: auto; max-width: 100%; min-width: 0; height: auto;
+  display: inline-flex; align-items: center; gap: 0.3rem;
+  font-size: 0.75rem; line-height: 1.3; padding: 0.15rem 0.5rem;
+  white-space: normal; text-align: left;
+}
+.pyro-classe-rolagem .pyro-contar-uso > span { overflow-wrap: anywhere; }
 .pyro-subiu-nivel { font-weight: 700; color: var(--pyro-sucesso); }
 
 .pyro-resultado.sucesso { color: var(--pyro-sucesso); font-weight: 700; }

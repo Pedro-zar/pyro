@@ -8,7 +8,7 @@
 import { PYRO } from "../config.mjs";
 import {
   tracosDaTecnica, calcularEsforco, ataquesDaTecnica, usarTecnica, textoDoTraco, textoDaCondicao,
-  resumoDaTecnica, numeroDoTraco, posturaAtivaVale, posturaExigida
+  resumoDaTecnica, numeroDoTraco, posturaAtivaVale, posturaExigida, acoesDaExecucao
 } from "../tecnica.mjs";
 import { ajustesDeCusto, custoAjustado, textoDeAlcance } from "../efeitos.mjs";
 import { acoesComConfusao, regraMental } from "../condicoes.mjs";
@@ -109,6 +109,17 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     };
   }
 
+  /**
+   * O mesmo custo que usarTecnica cobra: da arma escolhida quando a técnica
+   * aceita várias, com os efeitos, e com a ação da confusão só em ação — a
+   * reação continua custando o que custava, como no card.
+   */
+  #custoEmAcoes(sys, base, ataque) {
+    const ajustado = custoAjustado(acoesDaExecucao(sys, ataque),
+      ajustesDeCusto(this.actor, [this.item, ataque?.item]).acoes);
+    return base?.reacao ? ajustado : acoesComConfusao(this.actor, ajustado);
+  }
+
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
     const sys = this.item.system;
@@ -194,10 +205,7 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
        */
       acoesTexto: game.i18n.format(
         base?.reacao ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes",
-        {
-          acoes: acoesComConfusao(this.actor,
-            custoAjustado(sys.acoes, ajustesDeCusto(this.actor, [this.item, ataque?.item]).acoes))
-        }),
+        { acoes: this.#custoEmAcoes(sys, base, ataque) }),
       baseTexto: loc(base?.label ?? ""),
       /*
        * A prévia mostra as fórmulas como estão escritas, com o [FOR] dentro.

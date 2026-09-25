@@ -14,7 +14,7 @@ import { descreverRequisito } from "../progressao.mjs";
 import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "../data/item-data.mjs";
 import {
   tracosCompativeis, valorDoTraco, textoDoValor, ataquesDoAtor, posturasDoAtor, opcoesDoFiltro,
-  exigePostura,
+  exigePostura, temEspecificidade,
   acoesBaseDaArma
 } from "../tecnica.mjs";
 
@@ -508,15 +508,18 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     // Um traço entra uma vez só: repetir a linha não soma nada, quem sobe é o grau.
     const jaUsados = new Set((sys.tracos ?? []).map(t => t.chave));
 
-    const opcoesFiltro = opcoesDoFiltro(sys.especificidade);
+    // Sem ataque não há o que restringir: o bloco inteiro sai da ficha.
+    const comEspecificidade = temEspecificidade(sys);
+    const opcoesFiltro = comEspecificidade ? opcoesDoFiltro(sys.especificidade) : null;
 
     // O custo em ações vem junto: é ele que vira a base da conta de pontos, e
     // o seletor mostra o número ao lado do nome para a escolha ser informada.
-    const ataques = espec?.filtro === "ataque" && actor
+    const ataques = comEspecificidade && espec?.filtro === "ataque" && actor
       ? ataquesDoAtor(actor).map(a => ({ id: a.id, nome: a.nome, acoes: a.acoes }))
       : null;
 
     return {
+      temEspecificidade: comEspecificidade,
       pontos: sys.pontos,
       // O aviso é só aviso: a técnica com pontos sobrando ainda está sendo
       // montada, e a que passou do teto é uma conversa com o mestre.

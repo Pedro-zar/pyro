@@ -7,7 +7,8 @@ import {
   formulaTeste, formulaReacao, prepararFormula, poolDoAtributo, calcularFormula
 } from "../dados.mjs";
 import {
-  classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse, bonusPorNivel, ndAjustado
+  classificarRolagem, poolDoTeste, htmlClasseDaRolagem, flagsDaClasse, bonusPorNivel, ndAjustado,
+  classeMaisDificil
 } from "../progressao.mjs";
 import {
   sincronizarSobrepeso, sincronizarDesmaio, sincronizarEstadoDeVida, aplicarExaustao,
@@ -523,7 +524,16 @@ export class PyroActor extends Actor {
     const item = itemUuid ? await fromUuid(itemUuid) : null;
     // Perícia que só progride com sucesso não conta o uso numa falha.
     const contaPericia = !pericia?.system?.contaSoSucesso || sucesso;
-    html += htmlClasseDaRolagem(classe, [item, contaPericia ? pericia : null]);
+    html += htmlClasseDaRolagem(classe, [item, contaPericia ? pericia : null], {
+      /*
+       * A magia que passou do limite foi, no mínimo, difícil: o teste de
+       * sobrecarga pode sair rotineiro para quem tem a perícia treinada, mas
+       * isso mede a perícia, e não o feitiço que forçou a mão de quem
+       * conjurou. Muito difícil no teste continua muito difícil na magia.
+       */
+      classeDe: alvo => alvo === item && item?.type === "magia"
+        ? classeMaisDificil(classe, "dificil") : classe
+    });
     html += htmlVontadeGasta(vontade);
 
     if (!roll) {

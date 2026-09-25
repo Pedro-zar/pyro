@@ -32,7 +32,7 @@ import { descreverRequisito } from "../progressao.mjs";
 import { transformacoesDoAtor, marcadorDeForma } from "../documents/actor.mjs";
 import {
   posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDoValor, textoDaCondicao,
-  posturaExigida, posturaAtivaVale
+  posturaExigida, posturaAtivaVale, acoesVariam
 } from "../tecnica.mjs";
 
 /**
@@ -425,7 +425,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const naPostura = posturaAtivaVale(actor, sys);
       const efeitos = tracosDaTecnica(sys).map(t =>
         `${loc(t.cfg.label)} ${textoDoValor(t.cfg, valorDoTraco(t.cfg, t.grau, 1))}`);
-      const acoes = `${sys.acoes} ${umOuVarios(sys.acoes,
+      // A que aceita várias armas não tem custo fixo: o número guardado
+      // não é o que vai ser cobrado.
+      const acoes = acoesVariam(sys) ? loc("PYRO.Tecnica.AcoesDaArmaCurto") : `${sys.acoes} ${umOuVarios(sys.acoes,
         PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao ? "PYRO.Custos.reacao" : "PYRO.Custos.acao",
         PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao ? "PYRO.Custos.reacaoPlural" : "PYRO.Custos.acaoPlural")}`;
       const detalheTexto = [

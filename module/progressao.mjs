@@ -236,11 +236,26 @@ export function rotuloDaClasse(classe) {
 }
 
 /**
+ * A mais difícil de duas classes, na ordem da tabela (rotineira, difícil,
+ * muito difícil). Classe desconhecida perde para a conhecida.
+ */
+export function classeMaisDificil(a, b) {
+  const ordem = Object.keys(PYRO.classesDeRolagem);
+  return ordem.indexOf(a) >= ordem.indexOf(b) ? a : b;
+}
+
+/**
  * Linha do card com a classe da rolagem e, quando há um item que progride,
  * o botão de contar o uso. A contagem é manual por regra: várias conjurações
  * para o mesmo objetivo valem um uso só, e quem sabe disso é o jogador.
+ *
+ * @param {string} classe a classe que a rolagem mediu.
+ * @param {Item|Item[]} [itens] o que pode contar o uso.
+ * @param {Function} [opcoes.classeDe] a classe com que ESTE item conta, quando
+ *   ela não é a da rolagem — a magia que sobrecarregou conta no mínimo como
+ *   difícil, mesmo que o teste de sobrecarga tenha saído rotineiro.
  */
-export function htmlClasseDaRolagem(classe, itens = null) {
+export function htmlClasseDaRolagem(classe, itens = null, { classeDe = null } = {}) {
   if (!classe) return "";
   /*
    * Mais de um item quando a mesma rolagem conta para dois: o teste de
@@ -251,15 +266,23 @@ export function htmlClasseDaRolagem(classe, itens = null) {
   const lista = (Array.isArray(itens) ? itens : [itens])
     .filter(item => item && tabelaDoItem(item));
   const botoes = lista.map(item => {
-    const rotulo = lista.length > 1
-      ? game.i18n.format("PYRO.Uso.ContarEm", { nome: Handlebars.escapeExpression(item.name) })
-      : game.i18n.localize("PYRO.Uso.Contar");
-    return `<button type="button" class="pyro-contar-uso" data-item-uuid="${item.uuid}" data-classe="${classe}">
-        <i class="fa-solid fa-plus"></i> ${rotulo}
+    const dela = classeDe?.(item) ?? classe;
+    const nome = Handlebars.escapeExpression(item.name);
+    // Classe diferente da linha é dita no próprio botão: sem isso o card
+    // mostraria "Rotineira" e contaria uma difícil sem explicar por quê.
+    const rotulo = dela !== classe
+      ? game.i18n.format("PYRO.Uso.ContarComo",
+          { nome, classe: game.i18n.localize(`PYRO.Rolagem.${dela}Uma`) })
+      : lista.length > 1
+        ? game.i18n.format("PYRO.Uso.ContarEm", { nome })
+        : game.i18n.localize("PYRO.Uso.Contar");
+    return `<button type="button" class="pyro-contar-uso" data-item-uuid="${item.uuid}" data-classe="${dela}">
+        <i class="fa-solid fa-plus"></i> <span>${rotulo}</span>
       </button>`;
   }).join("");
   return `<div class="pyro-classe-rolagem classe-${classe}">
-    <span>${rotuloDaClasse(classe)}</span>${botoes}
+    <span class="pyro-classe-rotulo">${rotuloDaClasse(classe)}</span>
+    ${botoes ? `<div class="pyro-contar-botoes">${botoes}</div>` : ""}
   </div>`;
 }
 

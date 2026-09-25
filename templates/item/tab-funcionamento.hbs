@@ -234,9 +234,10 @@
         <select name="system.acaoBase">{{selectOptions acoesBaseOpts selected=system.acaoBase localize=true}}</select></label>
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Ranque"}}</span>
         <select name="system.ranque">{{selectOptions ranqueOpts selected=system.ranque}}</select></label>
-      {{!-- Ações só existem quando a técnica prende uma arma: nas outras
-            especificidades quem manda é a arma escolhida na hora de usar, e um
-            campo fixo aqui prometeria um custo que a técnica não tem. --}}
+      {{!-- Técnica que prende uma arma compara o seu custo com o dela. A que
+            aceita várias cobra o da arma escolhida na hora, e um campo fixo
+            aqui prometeria um custo que ela não tem. A que não golpeia cobra
+            o que estiver escrito. --}}
       {{#if acoesDaBase}}
       <label class="campo" title="{{localize 'PYRO.Tecnica.AcoesDica'}}">
         <span class="rotulo">{{localize "PYRO.Acoes"}}</span>
@@ -244,14 +245,22 @@
       <div class="campo"><span class="rotulo">{{localize "PYRO.Tecnica.AcoesDaArma"}}</span>
         <span class="valor-texto numero">{{acoesDaBase}}
           {{#if pontosDeAcoes}}<span class="pyro-nota">({{pontosDeAcoes}})</span>{{/if}}</span></div>
+      {{else unless temEspecificidade}}
+      {{!-- Sem ataque não há arma contra a qual comparar: o custo é o que
+            está aqui, e é ele que a execução cobra. --}}
+      <label class="campo">
+        <span class="rotulo">{{localize "PYRO.Acoes"}}</span>
+        <input type="number" name="system.acoes" value="{{system.acoes}}" min="1" max="6" /></label>
       {{/if}}
     </div>
     {{#if acoesDaBase}}<p class="pyro-nota">{{localize "PYRO.Tecnica.AcoesDica"}}</p>
-    {{else}}<p class="pyro-nota">{{localize "PYRO.Tecnica.AcoesVariam"}}</p>{{/if}}
+    {{else if temEspecificidade}}<p class="pyro-nota">{{localize "PYRO.Tecnica.AcoesVariam"}}</p>{{/if}}
   </div>
 
   {{!-- A condição imposta ao ataque, e o filtro que separa as armas da ficha
-        sozinho: quem escolhe "armas pesadas" não marca arma por arma. --}}
+        sozinho: quem escolhe "armas pesadas" não marca arma por arma. Só nas
+        técnicas que golpeiam — nas outras não há ataque para restringir. --}}
+  {{#if temEspecificidade}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Tecnica.Especificidade"}}</h4>
     <div class="grade-campos">
@@ -268,6 +277,7 @@
     </div>
     <p class="pyro-nota">{{localize "PYRO.Tecnica.EspecificidadeDica"}}</p>
   </div>
+  {{/if}}
 
   <div class="bloco">
     <header class="lista-cabecalho">

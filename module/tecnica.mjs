@@ -26,6 +26,16 @@ const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 /* -------------------------------------------------------------------------- */
 
 /**
+ * A técnica tem especificidade? Só as que golpeiam com um ataque (Atacar e
+ * Agarrar): a especificidade é uma condição imposta ao ataque, e numa técnica
+ * de mover ou de bloquear não há ataque nenhum para ela restringir.
+ *
+ * Nas outras ela vale zero e some da ficha, mas o que estava escolhido fica
+ * guardado: trocar a ação base de volta para Atacar devolve a escolha.
+ */
+export const temEspecificidade = sys => !!PYRO.acoesBaseTecnica[sys?.acaoBase]?.ataca;
+
+/**
  * Ações da arma que a técnica usa como base, ou null quando não há uma.
  *
  * Só a especificidade "arma específica" tem base: nas outras a técnica aceita
@@ -36,10 +46,28 @@ const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
  * técnica): assim a conta continua fechando mesmo que a arma saia da ficha.
  */
 export function acoesBaseDaArma(sys) {
+  if (!temEspecificidade(sys)) return null;
   if (PYRO.especificidades[sys?.especificidade]?.filtro !== "ataque") return null;
   const acoes = Number(sys?.ataque?.acoes) || 0;
   return acoes > 0 ? acoes : null;
 }
+
+/**
+ * O custo em ações desta execução, antes dos efeitos e da confusão.
+ *
+ * A técnica que prende uma arma (especificidade "arma específica") custa o
+ * número escrito nela, que é o que se compara com a arma para dar ou cobrar
+ * ponto; a que não golpeia também, porque não há arma com que comparar. A que
+ * aceita várias armas custa o da arma escolhida na hora — é isso que a ficha
+ * promete, e sem isso o campo escondido da técnica seria cobrado em silêncio.
+ */
+export function acoesDaExecucao(sys, ataque = null) {
+  const arma = temEspecificidade(sys) && acoesBaseDaArma(sys) === null && ataque;
+  return Math.max(1, Number(arma ? ataque.acoes : sys?.acoes) || 1);
+}
+
+/** O custo varia com a arma escolhida na hora de usar? */
+export const acoesVariam = sys => temEspecificidade(sys) && acoesBaseDaArma(sys) === null;
 
 /**
  * Pontos que a diferença de ações rende (SRD Técnicas). Positivo quando a
@@ -65,7 +93,8 @@ export function ajusteDeAcoes(sys) {
  * jeito que está — e o número negativo é o que diz isso na cara da ficha.
  */
 export function pontosDaTecnica(sys) {
-  const espec = PYRO.especificidades[sys?.especificidade]?.pontos ?? 0;
+  const espec = temEspecificidade(sys)
+    ? (PYRO.especificidades[sys?.especificidade]?.pontos ?? 0) : 0;
   const ranque = Math.max(1, Number(sys?.ranque) || 1);
   const nivel = Math.max(1, Number(sys?.progresso?.nivel) || 1);
   const dasAcoes = ajusteDeAcoes(sys);
@@ -275,6 +304,7 @@ export function familiaDoAtaque(ataque) {
  * (ou com o desarmado); específica aponta um ataque nomeado.
  */
 export function ataqueAtende(ataque, sys) {
+  if (!temEspecificidade(sys)) return true;
   const filtro = PYRO.especificidades[sys?.especificidade]?.filtro ?? "";
   if (!filtro) return true;
   switch (filtro) {
@@ -330,6 +360,7 @@ export function opcoesDoFiltro(especificidade) {
 
 /** A condição imposta pela especificidade, em uma linha ("armas cortantes"). */
 export function textoDaCondicao(sys) {
+  if (!temEspecificidade(sys)) return "";
   const espec = PYRO.especificidades[sys?.especificidade];
   if (!espec?.filtro) return "";
   if (espec.filtro === "ataque") return sys.ataque?.nome ?? "";
@@ -631,7 +662,8 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   const partes = [];
   const danos = [];
 
-  const acoesBase = custoAjustado(sys.acoes, ajustesDeCusto(actor, [item, ataque?.item]).acoes);
+  const acoesBase = custoAjustado(acoesDaExecucao(sys, ataque),
+    ajustesDeCusto(actor, [item, ataque?.item]).acoes);
   // A confusão cobra a ação extra por último, sobre o custo já ajustado — e só
   // em ação: a regra fala de ações, e técnica de reação continua custando o
   // que custava.
