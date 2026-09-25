@@ -69,23 +69,31 @@ const deFormaInativa = efeito => {
 const deItemGuardado = efeito =>
   efeito.parent instanceof Item && efeito.parent.system?.equipado === false;
 
+/**
+ * Prazo vencido no relógio do mundo. O mesmo portão do PyroActiveEffect: o
+ * efeito continua listado até alguém apagá-lo, mas para de somar na hora em
+ * que o tempo passa por ele — e isso vale para o que o sistema lê por fora do
+ * core (dano, custo, alcance) como vale para as mudanças de campo.
+ */
+const dePrazoVencido = efeito => {
+  const d = efeito?.duration;
+  return !!d?.seconds && Number(d.remaining) <= 0;
+};
+
 function efeitosAtivos(actor) {
   const lista = [];
   for (const efeito of actor?.allApplicableEffects?.() ?? []) {
     // `disabled` é escolha do jogador. Efeito preso a item aparece aqui de
     // propósito: ele está suprimido na ficha, mas vale na rolagem certa. Já
     // o de uma forma desligada não vale em canto nenhum.
-    if (!efeito.disabled && !deFormaInativa(efeito) && !deItemGuardado(efeito)) {
+    if (!efeito.disabled && !deFormaInativa(efeito) && !deItemGuardado(efeito)
+        && !dePrazoVencido(efeito)) {
       lista.push(efeito);
     }
   }
   return lista;
 }
 
-/**
- * Rolagens de dano que os efeitos somam a este item. A fórmula aceita dado,
- * número plano ou os dois ("2d6", "2", "2d6+2", "2d6+1d4").
- */
 /**
  * O efeito vale para algum destes itens? Uma técnica golpeia COM uma arma,
  * então o dano extra preso à katana entra também na técnica que a usa —
@@ -97,6 +105,13 @@ const valeParaAlgum = (efeito, itens) =>
   // preso a alguma coisa fica de fora.
   (itens.length ? itens : [null]).some(i => efeitoValeParaItem(efeito, i));
 
+/** Ordena mantendo quem empata na ordem em que já estava (sort estável). */
+const ordenarPorOrdem = lista => [...lista].sort((x, y) => x.ordem - y.ordem);
+
+/**
+ * Rolagens de dano que os efeitos somam a este item. A fórmula aceita dado,
+ * número plano ou os dois ("2d6", "2", "2d6+2", "2d6+1d4").
+ */
 export function bonusDeDano(actor, item) {
   const itens = (Array.isArray(item) ? item : [item]).filter(Boolean);
   const saida = [];
@@ -111,12 +126,18 @@ export function bonusDeDano(actor, item) {
        */
       saida.push({
         ...dano,
+        ordem: Math.round(Number(dano.ordem)) || 0,
         formula: resolverValorEfeito(dano.formula, varsDoEfeito(efeito)),
         nome: efeito.name
       });
     }
   }
-  return saida;
+  /*
+   * A ordem escrita na linha decide em que sequência as parcelas entram no
+   * card. Elas se somam de qualquer jeito — o que muda é a leitura, e quem
+   * quer o "Maestria com Katana" antes do veneno consegue.
+   */
+  return ordenarPorOrdem(saida);
 }
 
 /**
@@ -138,6 +159,127 @@ export function multiplicadoresDeDano(actor, item) {
     }
   }
   return saida;
+}
+
+/**
+ * Operações de alcance que os efeitos ativos impõem a este item, na ordem em
+ * que devem ser aplicadas.
+ *
+ * Cada linha soma metros (com sinal: negativo encurta) ou multiplica o
+ * alcance. Como as duas coisas convivem, a ordem muda o resultado — "+1 e
+ * depois x2" dá 4 onde "x2 e depois +1" dá 3 —, e quem decide é a ordem
+ * escrita na linha: 0 antes de 1, 1 antes de 2. Sem número escrito, vale 0.
+ *
+ * O empate mantém a ordem de sempre (os efeitos na ordem em que o ator os
+ * entrega, e as linhas na ordem em que foram escritas): o sort é estável.
+ *
+ * A fórmula resolve aqui, com o @nvl do item dono do efeito, como no dano.
+ */
+export function operacoesDeAlcance(actor, item) {
+  const itens = (Array.isArray(item) ? item : [item]).filter(Boolean);
+  const ops = [];
+  for (const efeito of efeitosAtivos(actor)) {
+    if (!valeParaAlgum(efeito, itens)) continue;
+    for (const a of flagsDe(efeito)?.alcances ?? []) {
+      const valor = Number(resolverValorEfeito(a.formula, varsDoEfeito(efeito)));
+      if (!Number.isFinite(valor)) continue;
+      const multiplica = a.modo === "multiply";
+      // Somar zero e multiplicar por um não mexem em nada, e fator negativo é
+      // erro de digitação — nenhum dos três entra, nem na lista de origens.
+      if (multiplica ? (valor === 1 || valor < 0) : valor === 0) continue;
+      ops.push({
+        ordem: Math.round(Number(a.ordem)) || 0,
+        multiplica, valor, nome: efeito.name
+      });
+    }
+  }
+  return ordenarPorOrdem(ops);
+}
+
+/**
+ * O alcance final de uma conta encadeada, em metros inteiros.
+ *
+ * A conta começa em ZERO e percorre tudo na ordem escrita, somando ou
+ * multiplicando: as parcelas do próprio item (o alcance do corpo na ordem 0,
+ * o da arma ou do traço na ordem 2) e as linhas dos efeitos, misturadas numa
+ * fila só. Um "x2" multiplica o que já entrou na fila e mais nada: antes de
+ * toda parcela ele multiplica zero e não faz efeito nenhum, e entre o corpo e
+ * a arma ele dobra o corpo e deixa a arma de fora.
+ *
+ * Empate de ordem: as parcelas do item vêm antes das linhas de efeito, que é
+ * o que faz "x2 na ordem 2" dobrar a arma em vez de ignorá-la.
+ *
+ * O arredondamento é um só, no fim: uma linha que corta pela metade seguida
+ * de uma que dobra devolve o número de partida, e não um metro perdido no
+ * caminho. Para baixo, como o resto do SRD, e nunca abaixo de zero.
+ *
+ * @param {Array<{valor: number, ordem: number}>} partes o que o item vale.
+ * @param {object[]} [ops] as linhas de efeito (ver operacoesDeAlcance).
+ */
+export function alcanceAjustado(partes, ops = []) {
+  const fila = ordenarPorOrdem([
+    ...partes.map(p => ({ ...p, multiplica: false })),
+    ...ops
+  ]);
+  let valor = 0;
+  for (const op of fila) valor = op.multiplica ? valor * op.valor : valor + op.valor;
+  return Math.max(0, Math.floor(valor));
+}
+
+/**
+ * Alcance de uma arma: o do corpo mais o da arma, e o que os efeitos fizerem
+ * com os dois.
+ *
+ * O braço entra antes da arma (SRD: o alcance do tamanho), então a adaga de
+ * 0m de um médio chega ao adjacente e a alabarda de 2m chega a 3m. Quem tem
+ * alcance de corpo 0 — o minúsculo — ataca com a adaga no próprio quadrado, e
+ * é assim que a tabela de tamanhos fecha.
+ *
+ * O máximo zero é o que diz "corpo a corpo" para o resto do sistema (a mira,
+ * o filtro de técnica distante), então ele continua zero por mais metros que
+ * um efeito dê, e nunca cai a zero por uma redução: esticar o braço não
+ * transforma a adaga em arma de arremesso, nem o contrário. Quem quiser uma
+ * arma arremessável preenche o alcance máximo dela.
+ *
+ * O menor não tem esse piso porque zero ali é um alcance de verdade, e não
+ * uma categoria: é o que o minúsculo de mãos vazias tem, e quer dizer "só no
+ * próprio quadrado".
+ *
+ * @param {object[]} [opcoes.extras] outros itens a que o efeito pode estar
+ *   preso — a técnica que golpeia com esta arma, tipicamente.
+ * @param {boolean} [opcoes.efeitos] false calcula só o corpo mais a arma, sem
+ *   as linhas de efeito (ver ataquesDaTecnica).
+ */
+export function alcanceDaArma(actor, arma, { extras = [], efeitos = true } = {}) {
+  const sys = arma?.system ?? {};
+  const corpo = { ordem: PYRO.ORDEM_CORPO, valor: actor?.system?.alcanceTamanho ?? 0 };
+  const partes = metros => [corpo, { ordem: PYRO.ORDEM_BASE, valor: metros }];
+  const ops = efeitos ? operacoesDeAlcance(actor, [arma, ...extras]) : [];
+
+  const semEfeitos = m => alcanceAjustado(partes(m));
+  const base = {
+    menor: semEfeitos(sys.alcanceMenor ?? 0),
+    maximo: sys.alcanceMaximo > 0 ? Math.max(1, semEfeitos(sys.alcanceMaximo)) : 0
+  };
+  const menor = ops.length ? alcanceAjustado(partes(sys.alcanceMenor ?? 0), ops) : base.menor;
+  const maximo = base.maximo > 0
+    ? Math.max(1, alcanceAjustado(partes(sys.alcanceMaximo), ops)) : 0;
+  return {
+    base, menor, maximo,
+    // Operação que não mexeu no número (dobrar um alcance de 0, por exemplo)
+    // não rende nota nenhuma no card.
+    mudou: menor !== base.menor || maximo !== base.maximo,
+    nomes: [...new Set(ops.map(o => o.nome))]
+  };
+}
+
+/**
+ * Alcance de arma em texto ("1m", "20/60m"). Mora junto de alcanceDaArma
+ * porque é o número que ela devolve: a ficha, o card do ataque e a prévia da
+ * técnica escrevem a mesma coisa, e não três variações do mesmo par.
+ */
+export function textoDeAlcance(alcance) {
+  return alcance.maximo > 0 ? `${alcance.menor}/${alcance.maximo}m` : `${alcance.menor}m`;
 }
 
 /**
@@ -531,7 +673,8 @@ export async function absorverExaustao(efeito) {
     || statuses.length > 0
     || (flags.danos ?? []).length > 0
     || (flags.multsDano ?? []).length > 0
-    || (flags.custos ?? []).length > 0;
+    || (flags.custos ?? []).length > 0
+    || (flags.alcances ?? []).length > 0;
   if (fazMaisAlgumaCoisa) await efeito.update({ statuses, ...apagarExaustao(efeito) });
   else await efeito.delete();
 

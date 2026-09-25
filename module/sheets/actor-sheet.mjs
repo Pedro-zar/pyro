@@ -7,7 +7,10 @@ import { ConjuradorApp } from "../apps/conjurador.mjs";
 import { NovoCaminhoApp } from "../apps/novo-caminho.mjs";
 import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
-import { restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDoEfeito } from "../efeitos.mjs";
+import {
+  restricaoDoEfeito, nivelExaustao, aplicarExaustao, ehExaustao, niveisDoEfeito,
+  alcanceDaArma, textoDeAlcance
+} from "../efeitos.mjs";
 import { rotuloDePrazo } from "../duracao.mjs";
 import { pilhasDe, efeitosDetalhados, regraMental } from "../condicoes.mjs";
 
@@ -207,8 +210,9 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       const resumoDano = danos
         .map(d => `${d.formula} ${loc(PYRO.tiposDano[d.tipo]?.label ?? d.tipo).toLocaleLowerCase()}`)
         .join(" + ");
-      const alcance = sys.alcanceMaximo > 0
-        ? `${sys.alcanceMenor}/${sys.alcanceMaximo}m` : `${sys.alcanceMenor}m`;
+      // O alcance da lista é o que a arma tem AGORA: um efeito que estica o
+      // golpe muda o número aqui, e não só no card do ataque.
+      const alcance = textoDeAlcance(alcanceDaArma(actor, item));
       // "6d6 cortante, 2 ações, alcance 1m, peso 9"
       const detalheTexto = [
         resumoDano || null,

@@ -504,21 +504,26 @@ function prepararBotaoMira(message, element) {
       // dois diálogos para o mesmo tiro, cada um cobrando a Vontade dele.
       botao.disabled = true;
       const liberar = () => { botao.disabled = false; };
-      const arma = await fromUuid(botao.dataset.itemUuid);
+      // Pode ser a arma, a técnica ou a magia: o teste é o mesmo, e o item só
+      // dá o nome do card e a ficha de quem atira.
+      const item = await fromUuid(botao.dataset.itemUuid);
       const actor = await fromUuid(botao.dataset.atorUuid);
       if (!actor?.isOwner) {
         liberar();
         return ui.notifications.warn(game.i18n.localize("PYRO.Uso.SemPermissao"));
       }
-      if (!arma) {
+      if (!item) {
         liberar();
-        return ui.notifications.warn(game.i18n.localize("PYRO.Mira.ArmaSumiu"));
+        return ui.notifications.warn(game.i18n.localize("PYRO.Mira.ItemSumiu"));
       }
       const escrita = Number(botao.dataset.distancia);
       const limite = Number(botao.dataset.limite);
-      const feito = await arma.rolarMira({
+      const alcance = Number(botao.dataset.alcance);
+      const feito = await item.rolarMira({
         distancia: Number.isFinite(escrita) && botao.dataset.distancia !== "" ? escrita : null,
-        limite: Number.isFinite(limite) ? limite : 2
+        // Sem o dado no botão, quem decide é a criatura (ver rolarMira).
+        limite: Number.isFinite(limite) ? limite : null,
+        alcance: Number.isFinite(alcance) ? alcance : null
       }).catch(erro => {
         console.error("PYRO | falha no teste de mira", erro);
         return false;

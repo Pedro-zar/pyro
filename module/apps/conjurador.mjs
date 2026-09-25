@@ -2,7 +2,7 @@ import { PYRO } from "../config.mjs";
 import {
   calcular, conjurar, previaRuna, emprestaIntencao, temDanoMental, resumoDaFrase, fatorPtBR
 } from "../magia.mjs";
-import { bonusDeDano } from "../efeitos.mjs";
+import { bonusDeDano, operacoesDeAlcance } from "../efeitos.mjs";
 import { juntarDados } from "../dados.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
@@ -103,7 +103,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     // ou a coluna anuncia menos dado do que a rolagem vai ter.
     const rolando = this.fixa || this.rolarDano !== false;
     const resumo = resumoDaFrase(calc, {
-      bonusDano: rolando ? bonusDeDano(this.actor, this.itemMagia) : []
+      bonusDano: rolando ? bonusDeDano(this.actor, this.itemMagia) : [],
+      opsAlcance: operacoesDeAlcance(this.actor, this.itemMagia)
     });
     const linhas = resumo.numeros.map(n => ({
       nome: n.nome,

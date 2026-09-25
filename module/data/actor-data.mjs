@@ -70,6 +70,12 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       // Passos de tamanho na tabela de categorias: +1 sobe uma categoria,
       // -1 desce. É por aqui que efeitos de aumentar/reduzir devem agir.
       tamanhoMod: num(0),
+      /*
+       * Metros somados ao alcance que o tamanho dá. É o alcance do corpo —
+       * o braço comprido, a cauda, o tentáculo —, e vale antes da arma em
+       * todo ataque, além de esticar a zona em que se acerta sem mira.
+       */
+      alcanceBonus: num(0),
       // Quantas mãos a criatura tem para gestos e armas. Efeitos somam ou
       // tiram (membro extra, braço imobilizado).
       maos: num(2, { min: 0 }),
@@ -254,8 +260,11 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
       ? PYRO.tamanhoExatoNaFaixa(this.tamanho, racial?.system.tamanhoExato)
       : 0;
     this.escalaTamanho = PYRO.escalaTamanho(this.tamanho, this.tamanhoExato);
-    this.alcanceTamanho = PYRO.alcanceTamanho(this.tamanho, this.tamanhoExato);
-    this.miraLivre = PYRO.miraLivre(this.tamanho, this.tamanhoExato);
+    // O alcance do corpo: o do tamanho mais o que um efeito acrescentar. A
+    // zona de mira livre acompanha, porque ela é quatro vezes este número.
+    this.alcanceTamanho = Math.max(0,
+      PYRO.alcanceTamanho(this.tamanho, this.tamanhoExato) + (this.alcanceBonus ?? 0));
+    this.miraLivre = PYRO.miraLivreDoAlcance(this.alcanceTamanho);
 
     /* --- Recursos --------------------------------------------------------- */
     const recursos = this.recursos;

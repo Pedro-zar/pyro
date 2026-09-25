@@ -245,19 +245,66 @@ export function htmlBotaoSobrecarga({
  *
  * @param {object} dados
  * @param {string} dados.atorUuid quem atira.
- * @param {string} dados.itemUuid a arma: é dela que sai o ajuste de alcance.
+ * @param {string} dados.itemUuid o que foi usado — a arma, a técnica ou a
+ *   magia. O card do teste sai em nome dele.
  * @param {number|string} [dados.distancia] a distância medida na hora do tiro;
  *   vazia quando não havia alvo marcado, e aí o diálogo mede de novo.
  * @param {number} dados.limite até onde o tiro acerta sem teste.
+ * @param {number} [dados.alcance] até onde o ataque é confortável: dentro
+ *   dele o teste ganha uma vantagem, fora dele uma desvantagem.
  * @param {string} dados.motivo linha que o card mostra acima do botão.
  */
-export function htmlBotaoMira({ atorUuid, itemUuid, distancia = "", limite = 2, motivo }) {
+export function htmlBotaoMira({ atorUuid, itemUuid, distancia = "", limite = 2, alcance = 0, motivo }) {
   return `<div class="pyro-mira pendente">
     <p>${motivo}</p>
     <button type="button" class="pyro-teste-mira"
             data-ator-uuid="${atorUuid}" data-item-uuid="${itemUuid}"
-            data-distancia="${distancia}" data-limite="${limite}">
+            data-distancia="${distancia}" data-limite="${limite}" data-alcance="${alcance}">
       <i class="fa-solid fa-crosshairs"></i> ${loc("PYRO.Mira.Botao")}
     </button>
   </div>`;
+}
+
+/**
+ * Distância em metros entre o token do ator e o alvo marcado (se houver).
+ * Retorna null quando não dá pra medir (sem token ou sem alvo).
+ */
+export function distanciaAteAlvo(actor) {
+  try {
+    const origem = actor?.getActiveTokens(true)[0];
+    const alvo = game.user.targets.first();
+    if (!origem || !alvo || origem === alvo) return null;
+    const medida = canvas.grid.measurePath([origem.center, alvo.center]);
+    return Math.round(medida.distance);
+  } catch (e) {
+    console.warn("PYRO | Não foi possível medir a distância até o alvo", e);
+    return null;
+  }
+}
+
+/**
+ * O ataque precisa de teste de mira?
+ *
+ * A pergunta é a mesma para arma, técnica e magia, e a resposta sai da
+ * distância: com um alvo marcado além da zona livre da criatura (quatro vezes
+ * o alcance do corpo), qualquer ataque pede pontaria. Sem alvo marcado não há
+ * o que medir, e aí só pede o ataque que tem como chegar além dessa zona —
+ * uma espada num médio nunca pede, um arco sempre.
+ *
+ * @param {number} [alcance] até onde este ataque chega, para o caso sem alvo.
+ * @returns {{pede: boolean, distancia: number|null, limite: number}}
+ */
+export function conferirMira(actor, alcance = 0) {
+  const limite = actor?.system?.miraLivre ?? PYRO.miraLivre("medio");
+  const distancia = actor ? distanciaAteAlvo(actor) : null;
+  if (!actor) return { pede: false, distancia: null, limite };
+  if (distancia !== null) return { pede: distancia > limite, distancia, limite };
+  return { pede: alcance > limite, distancia: null, limite };
+}
+
+/** A linha que o card escreve acima do botão de mira. */
+export function motivoDaMira({ distancia, limite }) {
+  return distancia !== null
+    ? loc("PYRO.Mira.Pendente", { distancia })
+    : loc("PYRO.Mira.PendenteSemAlvo", { limite });
 }

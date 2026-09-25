@@ -7,9 +7,10 @@ import { esc } from "./ui.mjs";
 import { juntarDados, prepararFormula } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, htmlEfeitosDeRegra, bonusDeDano, multiplicadoresDeDano,
-  aplicarMultDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado
+  aplicarMultDeDano, ajustesDeAtributo, ajustesDeCusto, custoAjustado,
+  operacoesDeAlcance, alcanceAjustado
 } from "./efeitos.mjs";
-import { htmlBotaoSobrecarga } from "./teste.mjs";
+import { htmlBotaoSobrecarga, htmlBotaoMira, conferirMira, motivoDaMira } from "./teste.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
 import { acoesComConfusao } from "./condicoes.mjs";
@@ -308,10 +309,12 @@ export function previaRuna(pr, passos = 0) {
  *
  * @param {object} calc saída de calcular().
  * @param {object[]} [bonusDano] bônus de dano de efeitos, que entram nos grupos.
+ * @param {object[]} [opsAlcance] o que os efeitos fazem com o alcance da
+ *   frase, já na ordem (ver operacoesDeAlcance).
  * @returns {{danos: object[], numeros: object[], subjulgares: object[],
  *            efeitos: string[], publicados: object[], regras: object[]}}
  */
-export function resumoDaFrase(calc, { bonusDano = [] } = {}) {
+export function resumoDaFrase(calc, { bonusDano = [], opsAlcance = [] } = {}) {
   const gruposDeDano = new Map();
   const numeros = new Map();
   const efeitos = [];
@@ -415,6 +418,23 @@ export function resumoDaFrase(calc, { bonusDano = [] } = {}) {
    * alcance subiu de degrau.
    */
   const subiuDegrau = calc.passosAlcance > 0;
+
+  /*
+   * Metros de efeito entram na linha de alcance que a frase já tem, e não
+   * criam uma: um efeito de "+1 m" numa magia de toque não inventa um alcance
+   * para ela — o que não chega longe continua não chegando.
+   */
+  if (opsAlcance.length) {
+    for (const [nome, grupo] of numeros) {
+      if (chaveVariavel(nome) !== "alcance") continue;
+      const antes = grupo.valor;
+      grupo.valor = alcanceAjustado([{ ordem: PYRO.ORDEM_BASE, valor: antes }], opsAlcance);
+      if (grupo.valor === antes) continue;
+      // O efeito entra como origem junto das runas: é dele que vêm os metros
+      // a mais, e a linha do card já mostra de onde cada número saiu.
+      for (const op of opsAlcance) grupo.origens.add(op.nome);
+    }
+  }
 
   return {
     danos: [...gruposDeDano.values()].map(grupo => ({
@@ -749,7 +769,10 @@ export async function conjurar(actor, escolhas, {
   }
 
   /* --- Números e dados da frase, já juntados ------------------------------ */
-  const resumo = resumoDaFrase(calc, { bonusDano: rolarDano ? bonusDeDano(actor, itemMagia) : [] });
+  const resumo = resumoDaFrase(calc, {
+    bonusDano: rolarDano ? bonusDeDano(actor, itemMagia) : [],
+    opsAlcance: operacoesDeAlcance(actor, itemMagia)
+  });
 
   /* --- Números, um por escalonamento --------------------------------------- */
   for (const { nome, valor } of resumo.publicados) publicar(nome, valor);
@@ -759,6 +782,28 @@ export async function conjurar(actor, escolhas, {
       ? ` <em>${loc("PYRO.Magia.PorPassos", { passos: numero.porPassos })}</em>` : "";
     const origens = numero.origens.map(esc).join(", ");
     partes.push(`<p class="pyro-forma"><strong>${esc(numero.nome)}</strong> — ${origens}: ${numero.valor}${nota}</p>`);
+  }
+
+  /*
+   * Pontaria: a mesma regra de qualquer ataque. Com um alvo marcado além da
+   * zona livre da criatura, a frase pede o teste; sem alvo, só quando ela
+   * tem alcance bastante para chegar lá. O teste sai em nome da magia salva
+   * ou, numa frase montada na hora, da primeira runa dela — é preciso um item
+   * para o botão do chat ter em quem se apoiar.
+   */
+  const alcanceDaFrase = resumo.numeros
+    .find(n => chaveVariavel(n.nome) === "alcance")?.valor ?? 0;
+  const mira = conferirMira(actor, alcanceDaFrase);
+  const itemDaMira = itemMagia ?? calc.porRuna[0]?.item ?? null;
+  if (mira.pede && itemDaMira) {
+    partes.push(htmlBotaoMira({
+      atorUuid: actor.uuid,
+      itemUuid: itemDaMira.uuid,
+      distancia: mira.distancia ?? "",
+      limite: mira.limite,
+      alcance: alcanceDaFrase,
+      motivo: motivoDaMira(mira)
+    }));
   }
 
   /* --- Dano, um bloco por tipo -------------------------------------------- */

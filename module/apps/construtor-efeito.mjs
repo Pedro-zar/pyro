@@ -21,14 +21,51 @@ const mudancaPadrao = () => ({
   categoria: "atributos",
   alvo: Object.keys(alvosDaCategoria("atributos"))[0],
   modo: "add",
-  valor: "1"
+  valor: "1",
+  ordem: 0
 });
 
 /** Itens cujo efeito quase sempre é para o alvo, não para quem carrega. */
 const TIPOS_DE_USO = ["magia", "runa", "feitico", "consumivel"];
 
 /** Tipos que podem receber um efeito preso ("só vale com a katana"). */
-const TIPOS_RESTRINGIVEIS = ["arma", "equipamento", "consumivel", "habilidade", "feitico", "magia", "runa"];
+const TIPOS_RESTRINGIVEIS = ["arma", "equipamento", "consumivel", "habilidade", "tecnica", "feitico", "magia", "runa"];
+
+/**
+ * Categorias que não viram change de Active Effect: o que elas descrevem não
+ * é um campo do ator, e sim uma rolagem, um custo ou metros de alcance que o
+ * sistema lê das flags na hora de usar o item (ver efeitos.mjs).
+ */
+const CATEGORIAS_EM_FLAG = ["condicao", "dano", "multDano", "custo", "alcance"];
+
+/**
+ * Prioridade que o sistema sempre deu às mudanças de campo. A ordem escrita
+ * na linha desloca a partir daqui, para um efeito antigo (sem ordem) seguir
+ * se aplicando exatamente como se aplicava.
+ */
+const PRIORIDADE_BASE = 20;
+
+/**
+ * Ordem escrita na linha. O campo só existe nas categorias que ordenam, então
+ * ausente (undefined) mantém a que estava guardada; presente e vazio é zero,
+ * que é o que a dica do campo promete — o formulário entrega null no vazio, e
+ * um `??` cairia de volta no número anterior.
+ */
+const ordemDaLinha = (escrita, guardada) =>
+  Math.round(Number(escrita === undefined ? guardada : escrita)) || 0;
+
+/** Modos que uma categoria aceita na coluna de modo. */
+const modosDaCategoria = categoria => {
+  if (categoria === "custo") return PYRO.modosDeCusto;
+  if (categoria === "alcance") return PYRO.modosDeAlcance;
+  return PYRO.modosEfeito;
+};
+
+/** Um número, ou uma conta com @variáveis que vira número na hora de usar. */
+const ehMedida = valor => {
+  const texto = String(valor ?? "").trim();
+  return !!texto && (Number.isFinite(Number(texto)) || texto.includes("@"));
+};
 
 /**
  * Lê um efeito gravado de volta para o estado do construtor — é o caminho da
@@ -57,23 +94,42 @@ export function estadoDeEfeito(efeito) {
     }
   }
   for (const d of flags.danos ?? []) {
-    mudancas.push({ categoria: "dano", alvo: d.tipo ?? "", modo: "add", valor: d.formula ?? "" });
+    mudancas.push({
+      categoria: "dano", alvo: d.tipo ?? "", modo: "add", valor: d.formula ?? "",
+      ordem: Math.round(Number(d.ordem)) || 0
+    });
   }
   for (const m of flags.multsDano ?? []) {
-    mudancas.push({ categoria: "multDano", alvo: m.tipo ?? "", modo: "add", valor: m.formula ?? "" });
+    mudancas.push({
+      categoria: "multDano", alvo: m.tipo ?? "", modo: "add", valor: m.formula ?? "",
+      ordem: Math.round(Number(m.ordem)) || 0
+    });
+  }
+  for (const a of flags.alcances ?? []) {
+    mudancas.push({
+      categoria: "alcance", alvo: "",
+      modo: a.modo === "multiply" ? "multiply" : "add",
+      valor: String(a.formula ?? ""),
+      ordem: Math.round(Number(a.ordem)) || 0
+    });
   }
   for (const c of flags.custos ?? []) {
     mudancas.push({
       categoria: "custo", alvo: c.chave,
-      modo: c.modo === "multiply" ? "multiply" : "add", valor: String(c.valor)
+      modo: c.modo === "multiply" ? "multiply" : "add", valor: String(c.valor),
+      ordem: Math.round(Number(c.ordem)) || 0
     });
   }
   for (const ch of efeito.system?.changes ?? []) {
     const chave = ch.key;
     const categoria = Object.entries(PYRO.alvosEfeito).find(([k, cfg]) =>
-      !["condicao", "dano", "multDano", "custo"].includes(k) && chave in (cfg.alvos ?? {}))?.[0];
+      !CATEGORIAS_EM_FLAG.includes(k) && chave in (cfg.alvos ?? {}))?.[0];
     if (categoria) {
-      mudancas.push({ categoria, alvo: chave, modo: ch.type ?? "add", valor: String(ch.value ?? "") });
+      mudancas.push({
+        categoria, alvo: chave, modo: ch.type ?? "add", valor: String(ch.value ?? ""),
+        ordem: Number.isFinite(Number(ch.priority))
+          ? Math.round(Number(ch.priority) - PRIORIDADE_BASE) || 0 : 0
+      });
     } else {
       avancadas.push({ ...ch });
     }
@@ -253,6 +309,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     context.categorias = categorias;
     context.modos = PYRO.modosEfeito;
     context.modosDeCusto = PYRO.modosDeCusto;
+    context.modosDeAlcance = PYRO.modosDeAlcance;
     context.temporario = this.categoria === "temporarios";
     context.inativo = this.categoria === "inativos";
     // Só itens podem ter efeito de uso: num ator, todo efeito é dele próprio.
@@ -284,6 +341,10 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       // Dano troca o modo por uma fórmula, e o "alvo" vira o tipo do dano.
       ehDano: m.categoria === "dano",
       ehMultDano: m.categoria === "multDano",
+      // Alcance é a categoria em que a ordem manda na conta: soma e
+      // multiplicação convivem no mesmo número.
+      ehAlcance: m.categoria === "alcance",
+      ehAlcanceMult: m.categoria === "alcance" && m.modo === "multiply",
       // Custo tem modo próprio (somar ou multiplicar), e não os cinco das
       // mudanças de campo.
       ehCusto: m.categoria === "custo",
@@ -308,6 +369,14 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
         this.#capturar();
         this.mudancas[i].categoria = alvo.value;
         this.mudancas[i].alvo = Object.keys(alvosDaCategoria(alvo.value))[0] ?? "";
+        /*
+         * Custo e Alcance só aceitam somar e multiplicar. Uma linha que vinha
+         * de "substituir" ficaria com um modo que a lista nova não tem, e a
+         * dica do campo falaria de uma operação que o select não mostra.
+         */
+        if (!modosDaCategoria(alvo.value)[this.mudancas[i].modo]) {
+          this.mudancas[i].modo = "add";
+        }
         this.render();
         return;
       }
@@ -374,7 +443,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       alvo: dados[`mudanca.${i}.alvo`] ?? m.alvo,
       // O tipo da mudança é texto ("add"), não número.
       modo: String(dados[`mudanca.${i}.modo`] ?? m.modo),
-      valor: dados[`mudanca.${i}.valor`] ?? m.valor
+      valor: dados[`mudanca.${i}.valor`] ?? m.valor,
+      ordem: ordemDaLinha(dados[`mudanca.${i}.ordem`], m.ordem)
     }));
     return dados;
   }
@@ -448,19 +518,39 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     const condicoes = this.mudancas.filter(m => m.categoria === "condicao" && m.alvo);
     const danos = this.mudancas
       .filter(m => m.categoria === "dano" && String(m.valor ?? "").trim())
-      .map(m => ({ formula: String(m.valor).trim(), tipo: m.alvo || "" }));
+      .map(m => ({
+        formula: String(m.valor).trim(), tipo: m.alvo || "",
+        ordem: Math.round(Number(m.ordem)) || 0
+      }));
     const multsDano = this.mudancas
       .filter(m => m.categoria === "multDano" && String(m.valor ?? "").trim())
-      .map(m => ({ formula: String(m.valor).trim(), tipo: m.alvo || "" }));
+      .map(m => ({
+        formula: String(m.valor).trim(), tipo: m.alvo || "",
+        ordem: Math.round(Number(m.ordem)) || 0
+      }));
+    /*
+     * Alcance é uma medida, não uma rolagem: metros ou uma conta com
+     * @variáveis ("@nvl"). Uma fórmula de dado ("2d6") sobreviveria à
+     * gravação e não somaria nada na hora de usar — o efeito pareceria salvo
+     * e não faria coisa nenhuma, então ela não chega a ser gravada.
+     */
+    const alcances = this.mudancas
+      .filter(m => m.categoria === "alcance" && ehMedida(m.valor))
+      .map(m => ({
+        formula: String(m.valor).trim(),
+        modo: m.modo === "multiply" ? "multiply" : "add",
+        ordem: Math.round(Number(m.ordem)) || 0
+      }));
     const custos = this.mudancas
       .filter(m => m.categoria === "custo" && m.alvo && Number.isFinite(Number(m.valor)))
       .map(m => ({
         chave: m.alvo,
         valor: Number(m.valor),
-        modo: m.modo === "multiply" ? "multiply" : "add"
+        modo: m.modo === "multiply" ? "multiply" : "add",
+        ordem: Math.round(Number(m.ordem)) || 0
       }));
     const mudancas = this.mudancas
-      .filter(m => !["condicao", "dano", "multDano", "custo"].includes(m.categoria) && m.alvo);
+      .filter(m => !CATEGORIAS_EM_FLAG.includes(m.categoria) && m.alvo);
     // Níveis de exaustão: o campo numérico da linha Exausto vira a flag que a
     // ficha lê (e que a sobrecarga e o sobrepeso somam). Sem a linha, nada.
     const exausto = condicoes.find(m => m.alvo === "exausto");
@@ -511,6 +601,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
         danos,
         multsDano,
         custos,
+        alcances,
         alvosItem,
         ...(exaustao !== null ? { exaustao } : {})
       }),
@@ -521,7 +612,15 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       // As avançadas — chaves fora das tabelas do construtor — voltam intactas.
       system: {
         changes: [
-          ...mudancas.map(m => ({ key: m.alvo, type: m.modo, value: String(m.valor ?? ""), priority: 20 })),
+          /*
+           * O Foundry aplica as mudanças em ordem de prioridade, e 20 é a
+           * base que o sistema sempre usou. A ordem da linha desloca a partir
+           * dela, mantendo a relação que o jogador escreveu: 0 antes de 1.
+           */
+          ...mudancas.map(m => ({
+            key: m.alvo, type: m.modo, value: String(m.valor ?? ""),
+            priority: PRIORIDADE_BASE + m.ordem
+          })),
           ...(this.avancadas ?? [])
         ]
       },

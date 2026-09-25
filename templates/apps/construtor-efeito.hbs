@@ -39,6 +39,7 @@
       <span>{{localize "PYRO.Efeitos.AlvoLabel"}}</span>
       <span>{{localize "PYRO.Efeitos.ModoLabel"}}</span>
       <span>{{localize "PYRO.Efeitos.Valor"}}</span>
+      <span>{{localize "PYRO.Efeitos.Ordem"}}</span>
       <span></span>
     </div>
     {{#each mudancas as |m|}}
@@ -46,9 +47,15 @@
       <select name="mudanca.{{m.index}}.categoria" data-campo="categoria">
         {{selectOptions @root.categorias selected=m.categoria localize=true}}
       </select>
+      {{#if m.ehAlcance}}
+      {{!-- Alcance não escolhe alvo: ele mexe no alcance do que o efeito
+            alcançar, que é o que a restrição lá embaixo decide. --}}
+      <span class="pyro-nota">{{localize "PYRO.Efeitos.AlcanceOnde"}}</span>
+      {{else}}
       <select name="mudanca.{{m.index}}.alvo">
         {{selectOptions m.alvos selected=m.alvo localize=true}}
       </select>
+      {{/if}}
       {{#if m.ehExausto}}
       {{!-- Exaustão é a única condição com número: quantos níveis. --}}
       <span class="pyro-nota">{{localize "PYRO.Efeitos.ExaustoModo"}}</span>
@@ -65,6 +72,14 @@
       {{!-- Multiplica o total rolado, não os dados; abaixo de 1 reduz. --}}
       <span class="pyro-nota">{{localize "PYRO.Efeitos.MultDanoModo"}}</span>
       <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="1 + 0.25 * @nvl" />
+      {{else if m.ehAlcance}}
+      {{!-- Somar metros ao alcance que o item já tem, ou multiplicá-lo. --}}
+      <select name="mudanca.{{m.index}}.modo" data-campo="modo">
+        {{selectOptions @root.modosDeAlcance selected=m.modo localize=true}}
+      </select>
+      <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}"
+             placeholder="{{pyroSe m.ehAlcanceMult '2' '1'}}"
+             title="{{localize (pyroSe m.ehAlcanceMult 'PYRO.Efeitos.AlcanceMultDica' 'PYRO.Efeitos.AlcanceDica')}}" />
       {{else if m.ehCusto}}
       {{!-- Somar é um número com sinal (-2 barateia, +1 encarece);
             multiplicar é um fator (0,5 corta pela metade, 2 dobra). --}}
@@ -79,6 +94,14 @@
         {{selectOptions @root.modos selected=m.modo localize=true}}
       </select>
       <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="2" />
+      {{/if}}
+      {{!-- Ordem de aplicação da linha. A condição não tem nenhuma: ela marca
+            o token, não entra em conta nenhuma. --}}
+      {{#if m.ehCondicao}}
+      <span></span>
+      {{else}}
+      <input type="number" name="mudanca.{{m.index}}.ordem" value="{{m.ordem}}" step="1"
+             title="{{localize 'PYRO.Efeitos.OrdemDica'}}" />
       {{/if}}
       <button type="button" class="icone perigo" data-action="removerMudanca" data-index="{{m.index}}"
               title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>

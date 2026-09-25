@@ -10,7 +10,7 @@ import {
   tracosDaTecnica, calcularEsforco, ataquesDaTecnica, usarTecnica, textoDoTraco, textoDaCondicao,
   resumoDaTecnica, numeroDoTraco
 } from "../tecnica.mjs";
-import { ajustesDeCusto, custoAjustado } from "../efeitos.mjs";
+import { ajustesDeCusto, custoAjustado, textoDeAlcance } from "../efeitos.mjs";
 import { acoesComConfusao, regraMental } from "../condicoes.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
@@ -86,15 +86,19 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         origens: ataque ? ataque.nome : ""
       });
     }
-    if (ataque?.alcanceMaximo > 0) {
+    /*
+     * Alcance da arma: a linha aparece quando o golpe tem distância a
+     * anunciar — a arma é de tiro, ou um efeito esticou o corpo a corpo e o
+     * jogador precisa ver até onde ele chega agora.
+     */
+    if (ataque && (ataque.alcanceMaximo > 0 || ataque.alcance.mudou)) {
       linhas.push({
         nome: loc("PYRO.Item.Alcance"),
-        texto: game.i18n.format("PYRO.Previa.AlcanceArma",
-          { menor: ataque.alcanceMenor, maximo: ataque.alcanceMaximo }),
-        origens: ataque.nome
+        texto: textoDeAlcance(ataque.alcance),
+        origens: [ataque.nome, ...ataque.alcance.nomes].join(", ")
       });
     }
-    linhas.push(...resumo.caracteristicas.map(c => ({ ...c, origens: "" })));
+    linhas.push(...resumo.caracteristicas.map(c => ({ ...c, origens: c.origens ?? "" })));
 
     return {
       titulo: loc("PYRO.Previa.Tecnica"),
@@ -113,7 +117,7 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const loc = k => game.i18n.localize(k);
 
     /* --- Ataque: a técnica pergunta sempre, entre os que a condição aceita -- */
-    const ataques = base?.ataca ? ataquesDaTecnica(this.actor, sys) : [];
+    const ataques = base?.ataca ? ataquesDaTecnica(this.actor, sys, this.item) : [];
     // Um ataque só continua sendo uma escolha: o jogador confere qual arma a
     // técnica vai usar antes de gastar estamina.
     if (base?.ataca && !ataques.some(a => a.id === this.ataqueId)) {

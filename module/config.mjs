@@ -127,11 +127,35 @@ PYRO.alcanceTamanho = (tamanho, exato = 0) => {
 };
 
 /**
- * Até onde a criatura ataca sem teste de mira: o dobro do alcance dela. Um
- * Médio (1m) acerta de graça a 1m e 2m e testa de 3m em diante; um Grande
- * (2m) vai até 4m.
+ * Até onde a criatura ataca sem teste de mira: quatro vezes o alcance dela.
+ *
+ * Um Médio ou Pequeno (alcance 1m) acerta de graça até 4m — adjacente e mais
+ * três espaços de distância — e testa de 5m em diante. Um Grande (2m) vai até
+ * 8m e testa a partir de 9m.
+ *
+ * O minúsculo é o caso que a conta explica sozinha: alcance 0 vezes quatro é
+ * zero, então ele só bate no próprio quadrado e qualquer coisa a partir de 1m
+ * já pede mira.
  */
-PYRO.miraLivre = (tamanho, exato = 0) => 2 * PYRO.alcanceTamanho(tamanho, exato);
+PYRO.miraLivreDoAlcance = alcance => 4 * Math.max(0, alcance ?? 0);
+PYRO.miraLivre = (tamanho, exato = 0) =>
+  PYRO.miraLivreDoAlcance(PYRO.alcanceTamanho(tamanho, exato));
+
+/**
+ * Ordem padrão das operações de alcance.
+ *
+ * O alcance de um golpe é uma conta encadeada que começa em zero: cada linha
+ * de efeito soma ou multiplica o que veio antes, na ordem escrita. O que o
+ * próprio item vale (o alcance da arma, o traço da técnica, o escalonamento
+ * da magia) também é uma parcela dessa conta, e entra na ordem 2 — sobra
+ * espaço para uma linha somar antes dele (ordem 0 e 1) e para outra
+ * multiplicar o total depois (3 em diante).
+ *
+ * O alcance do próprio corpo entra antes de tudo, na ordem 0: o braço já está
+ * lá quando a arma chega.
+ */
+PYRO.ORDEM_CORPO = 0;
+PYRO.ORDEM_BASE = 2;
 
 /**
  * Quanto o PV precisa acompanhar quando o tamanho muda. Vida por VIG é o
@@ -1198,6 +1222,20 @@ PYRO.alvosEfeito = {
     }
   },
   /*
+   * Alcance. Também não é campo do ator: ele mora na arma, no traço da
+   * técnica e no escalonamento da magia, então a linha guarda a operação numa
+   * flag e quem usa o item aplica na hora.
+   *
+   * A linha não escolhe alvo. O alcance mexido é o do que o efeito alcança —
+   * sem restrição, o de tudo que o personagem usar; preso à Cauda, só o dela.
+   * Um efeito preso a uma arma vale também na técnica que golpeia com ela,
+   * porque o alcance daquele golpe é o da arma.
+   */
+  alcance: {
+    label: "PYRO.Efeitos.Cat.alcance",
+    alvos: {}
+  },
+  /*
    * Custo de usar alguma coisa: ações e os recursos que o sistema realmente
    * cobra hoje. PV fica de fora porque nada o cobra como custo — o que tira
    * vida é dano, e dano tem o caminho dele. A lista é função porque os
@@ -1252,6 +1290,10 @@ PYRO.alvosEfeito = {
       "system.tamanhoMod": "PYRO.Efeitos.Alvos.tamanhoMod",
       "system.tamanho": "PYRO.Efeitos.Alvos.tamanho",
       "system.maos": "PYRO.Efeitos.Alvos.maos",
+      // Alcance do corpo, o que a criatura toca sem arma nenhuma. Entra em
+      // todo ataque de arma (ver alcanceDaArma) e, multiplicado por quatro,
+      // na zona em que se acerta sem teste de mira.
+      "system.alcanceBonus": "PYRO.Efeitos.Alvos.alcanceBonus",
       // Conta degraus na escada das línguas, não pontos de fator: +1 sobe
       // humano para élfico em tudo que o potencial decide.
       "system.potencialBonus": "PYRO.Efeitos.Alvo.potencialBonus"
@@ -1273,12 +1315,6 @@ PYRO.modosEfeito = {
 };
 
 /**
- * Modos de uma linha de Custo: somar com sinal ("-2 mana") ou multiplicar
- * ("0.5" corta pela metade, "2" dobra). Substituir, mínimo e máximo ficam de
- * fora — o custo de um item é dele, e reescrevê-lo por efeito apagaria a
- * diferença entre uma magia barata e uma cara.
- */
-/**
  * Nomes (normalizados) das perícias que o sistema procura sozinho. A mesa cria
  * a perícia com esse nome e ela passa a valer: sobrecarga cobre o teste de
  * passar do limite na magia e na técnica, mirar cobre o tiro à distância.
@@ -1289,7 +1325,24 @@ PYRO.modosEfeito = {
 PYRO.NOME_PERICIA_SOBRECARGA = "sobrecarga";
 PYRO.NOME_PERICIA_MIRA = "mirar";
 
+/**
+ * Modos de uma linha de Custo: somar com sinal ("-2 mana") ou multiplicar
+ * ("0.5" corta pela metade, "2" dobra). Substituir, mínimo e máximo ficam de
+ * fora — o custo de um item é dele, e reescrevê-lo por efeito apagaria a
+ * diferença entre uma magia barata e uma cara.
+ */
 PYRO.modosDeCusto = {
+  add: "PYRO.Efeitos.Modo.somar",
+  multiply: "PYRO.Efeitos.Modo.multiplicar"
+};
+
+/**
+ * Modos de uma linha de Alcance. Os mesmos dois do custo, em tabela própria
+ * porque as duas listas não respondem à mesma pergunta: somar metros e dobrar
+ * metros são as operações que um alcance aceita, e o dia em que o alcance
+ * precisar de um "mínimo" o custo não precisa ganhar um junto.
+ */
+PYRO.modosDeAlcance = {
   add: "PYRO.Efeitos.Modo.somar",
   multiply: "PYRO.Efeitos.Modo.multiplicar"
 };

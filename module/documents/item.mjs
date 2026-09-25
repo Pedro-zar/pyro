@@ -13,33 +13,17 @@ import {
 } from "../progressao.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
-  ajustesDeAtributo, ajustesDeCusto, custoAjustado
+  ajustesDeAtributo, ajustesDeCusto, custoAjustado, alcanceDaArma, textoDeAlcance
 } from "../efeitos.mjs";
 import { esc, enriquecer, formularioDoAtor } from "../ui.mjs";
 import {
   camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste, valorComInspiracao,
-  htmlVontadeGasta, periciaDeMira, ajudaDaPericia, textoDoND, htmlBotaoMira
+  htmlVontadeGasta, periciaDeMira, ajudaDaPericia, textoDoND, htmlBotaoMira,
+  distanciaAteAlvo, conferirMira, motivoDaMira
 } from "../teste.mjs";
 import { htmlFalhaAutomatica } from "../chat.mjs";
 import { semForNoDano, dicaMental, regraMental } from "../condicoes.mjs";
 import { flagsDoSistema } from "../sistema.mjs";
-
-/**
- * Distância em metros entre o token do ator e o alvo marcado (se houver).
- * Retorna null quando não dá pra medir (sem token ou sem alvo).
- */
-export function distanciaAteAlvo(actor) {
-  try {
-    const origem = actor?.getActiveTokens(true)[0];
-    const alvo = game.user.targets.first();
-    if (!origem || !alvo || origem === alvo) return null;
-    const medida = canvas.grid.measurePath([origem.center, alvo.center]);
-    return Math.round(medida.distance);
-  } catch (e) {
-    console.warn("PYRO | Não foi possível medir a distância até o alvo", e);
-    return null;
-  }
-}
 
 /** Nome automático de um caminho: "Caminho do <raça ou profissão>". */
 export function nomeDoCaminho(sys) {
@@ -400,42 +384,45 @@ export class PyroItem extends Item {
 
     /* --- Mira: o card pede o teste, e o jogador escolhe quando rolar -------- */
     /*
-     * O limite é o dobro do alcance do tamanho: um Médio (1m) acerta de graça
-     * a 1m e 2m, um Grande (2m) vai até 4m. Duas saídas antes de pedir o teste
-     * — arma que nem chega ao limite nunca pede (corpo a corpo cai aqui, com
-     * alcance máximo 0), e alvo marcado dentro do limite também não.
-     *
      * A distância é medida agora, e não no clique do botão: o tiro saiu daqui,
-     * e o token pode andar antes de alguém conferir a pontaria.
+     * e o token pode andar antes de alguém conferir a pontaria. O resto da
+     * regra é a mesma de toda forma de atacar, e mora em conferirMira.
      */
-    const limiteMira = actor?.system.miraLivre ?? 2;
-    const distanciaAlvo = actor ? distanciaAteAlvo(actor) : null;
-    const pedeMira = !!actor && sys.alcanceMaximo > limiteMira
-      && (distanciaAlvo === null || distanciaAlvo > limiteMira);
+    const alcance = alcanceDaArma(actor, this);
+    const mira = conferirMira(actor, alcance.maximo || alcance.menor);
     const rolls = [];
 
     // Munição some ao disparar, acertando ou errando.
     if (municao) await municao.update({ "system.quantidade": municao.system.quantidade - 1 });
 
-    const alcanceTexto = sys.alcanceMaximo > 0
-      ? `${sys.alcanceMenor}/${sys.alcanceMaximo}m` : `${sys.alcanceMenor}m`;
     // Efeito de custo pode baratear ou encarecer o ataque em ações.
     const acoes = custoAjustado(sys.acoes, ajustesDeCusto(actor, this).acoes);
     const detalhes = [
       game.i18n.format("PYRO.Chat.CustoAcoes", { acoes }),
-      alcanceTexto
+      textoDeAlcance(alcance)
     ].filter(Boolean).join(" · ");
     const partes = [this.#topoHTML(detalhes)];
 
-    if (pedeMira) {
+    /*
+     * De onde veio o alcance, quando ele não é o da ficha da arma: um "2m"
+     * numa arma de 1m parece defeito sem isso.
+     */
+    if (alcance.mudou) {
+      partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Efeitos.AlcanceAplicado", {
+        nomes: esc(alcance.nomes.join(", ")),
+        antes: textoDeAlcance(alcance.base),
+        depois: textoDeAlcance(alcance)
+      })}</p>`);
+    }
+
+    if (mira.pede) {
       partes.push(htmlBotaoMira({
         atorUuid: actor.uuid,
         itemUuid: this.uuid,
-        distancia: distanciaAlvo ?? "",
-        limite: limiteMira,
-        motivo: distanciaAlvo !== null
-          ? game.i18n.format("PYRO.Mira.Pendente", { distancia: distanciaAlvo })
-          : game.i18n.format("PYRO.Mira.PendenteSemAlvo", { limite: limiteMira })
+        distancia: mira.distancia ?? "",
+        limite: mira.limite,
+        alcance: alcance.menor,
+        motivo: motivoDaMira(mira)
       }));
     }
 
@@ -507,15 +494,14 @@ export class PyroItem extends Item {
    * jogador ainda pode digitar a distância — quem decide se a arma alcança é
    * a mesa, e o teste sai com a desvantagem do longe.
    */
-  #ajusteDeAlcance(distancia) {
-    const sys = this.system;
+  #ajusteDeAlcance(distancia, alcance) {
     /*
-     * Arma com alcance menor 0 não tem faixa confortável nenhuma, e aí todo
-     * tiro sai com desvantagem. Isso é característica da arma, não um caso
-     * esquecido: uma arma de arremesso que deveria ter uma faixa boa precisa
-     * do alcance menor preenchido.
+     * Ataque sem alcance confortável nenhum (o zero) sai sempre com
+     * desvantagem. Isso é característica do ataque, não um caso esquecido:
+     * uma arma de arremesso que deveria ter uma faixa boa precisa do alcance
+     * menor preenchido, e uma magia sem alcance escrito não tem faixa.
      */
-    if (sys.alcanceMenor > 0 && distancia <= sys.alcanceMenor) {
+    if (alcance > 0 && distancia <= alcance) {
       return { vantagem: 1, desvantagem: 0, nota: "PYRO.Mira.NoPonto" };
     }
     return { vantagem: 0, desvantagem: 1, nota: "PYRO.Mira.Longe" };
@@ -527,17 +513,27 @@ export class PyroItem extends Item {
    * — se acertou, para onde a flecha foi se errou, e o botão de contar o uso
    * da perícia.
    *
+   * Vale para qualquer ataque, e não só para arma: a técnica e a magia pedem
+   * o mesmo teste, e a única coisa que muda entre eles é de onde sai o
+   * alcance confortável — daí ele chegar pronto de quem montou o card.
+   *
    * @param {number|null} [opcoes.distancia] a medida do momento do tiro; sem
    *   ela o diálogo mede de novo.
    * @param {number} [opcoes.limite] até onde o tiro acerta sem teste.
+   * @param {number} [opcoes.alcance] até onde o ataque é confortável; sem ele,
+   *   vale o alcance menor desta arma.
    * @returns {Promise<boolean>} false quando o diálogo foi cancelado.
    */
-  async rolarMira({ distancia = null, limite = 2 } = {}) {
+  async rolarMira({ distancia = null, limite = null, alcance = null } = {}) {
     const actor = this.actor;
     // Sem ficha, ou sem ser dono dela, não há teste: a janela pediria Força de
     // Vontade que o servidor recusaria na hora de gravar.
     if (!actor?.isOwner) return false;
-    const mira = await this.#testeDeMira(limite, distancia);
+    // Sem limite informado, vale o da própria criatura (ver PYRO.miraLivre).
+    const mira = await this.#testeDeMira(
+      Number.isFinite(limite) ? limite : (actor.system?.miraLivre ?? PYRO.miraLivre("medio")),
+      distancia,
+      Number.isFinite(alcance) ? alcance : null);
     if (!mira) return false;
 
     /*
@@ -599,15 +595,22 @@ export class PyroItem extends Item {
    * qualquer perícia sem treino. O tiro também treina a perícia, então o card
    * traz o botão de contar o uso.
    */
-  async #testeDeMira(limiteMira = 2, distanciaSugerida = null) {
-    const sys = this.system;
+  async #testeDeMira(limiteMira = PYRO.miraLivre("medio"), distanciaSugerida = null,
+                     alcanceDado = null) {
     const actor = this.actor;
+    /*
+     * O alcance confortável vem de quem montou o card, porque só ele sabe de
+     * onde tirá-lo: da arma, do traço da técnica, do escalonamento da magia.
+     * O que sobra aqui é o caso de uma arma clicada direto, sem card.
+     */
+    const alcance = alcanceDado ?? (this.type === "arma"
+      ? alcanceDaArma(actor, this).menor : 0);
     // A medida do momento do tiro manda; sem ela, mede-se agora.
     const medida = Number.isFinite(distanciaSugerida)
       ? distanciaSugerida : distanciaAteAlvo(actor);
     // Sem alvo marcado, começa no primeiro metro que já pede teste.
-    const distancia = medida ?? Math.max(limiteMira + 1, sys.alcanceMenor);
-    const ajuste = this.#ajusteDeAlcance(distancia);
+    const distancia = medida ?? Math.max(limiteMira + 1, alcance);
+    const ajuste = this.#ajusteDeAlcance(distancia, alcance);
 
     const mirar = ajudaDaPericia(periciaDeMira(actor));
     const dica = [
@@ -637,7 +640,7 @@ export class PyroItem extends Item {
      * em 12m está atirando de perto, e merece a vantagem do ponto.
      */
     const distanciaFinal = Number(res.distancia) || 0;
-    const doAlcance = this.#ajusteDeAlcance(distanciaFinal);
+    const doAlcance = this.#ajusteDeAlcance(distanciaFinal, alcance);
     const opts = { ...res, nd: Number(res.nd) || 0 };
     aplicarExaustaoNoTeste(actor, opts, "des");
     opts.vantagem += doAlcance.vantagem;

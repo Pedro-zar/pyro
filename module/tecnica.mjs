@@ -11,9 +11,10 @@ import { esc } from "./ui.mjs";
 import { prepararFormula, juntarDados } from "./dados.mjs";
 import {
   htmlEfeitosDeUso, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
-  ajustesDeAtributo, ajustesDeCusto, custoAjustado
+  ajustesDeAtributo, ajustesDeCusto, custoAjustado, operacoesDeAlcance, alcanceAjustado,
+  alcanceDaArma, textoDeAlcance
 } from "./efeitos.mjs";
-import { htmlBotaoSobrecarga } from "./teste.mjs";
+import { htmlBotaoSobrecarga, htmlBotaoMira, conferirMira, motivoDaMira } from "./teste.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
 import { semForNoDano, acoesComConfusao } from "./condicoes.mjs";
@@ -129,13 +130,41 @@ export function calcularEsforco(actor, usados, itens = []) {
   let excesso = 0;
   let somaEsforcos = 0;
 
+  /*
+   * O que os efeitos fazem com o Alcance da técnica. Entra no traço, e não
+   * numa linha à parte, porque é o valor do traço que vira o alcance do golpe
+   * no card e na variável publicada — anunciá-lo separado deixaria os dois
+   * números discordando.
+   */
+  const opsAlcance = operacoesDeAlcance(actor, itens);
+  /*
+   * Um golpe tem um alcance só. A tabela de traços é editável pela mesa, e
+   * nada impede um segundo traço com regra de mira: o ajuste vale para o
+   * primeiro, e não é aplicado de novo no seguinte.
+   */
+  let alcanceAplicado = false;
+
   const linhas = usados.map(u => {
     const custo = PYRO.custoDoEsforco(u.esforco);
     const alem = Math.max(0, u.esforco - limite);
     estamina += custo;
     excesso += alem;
     somaEsforcos += u.esforco;
-    return { ...u, custo, alem, valor: valorDoTraco(u.cfg, u.grau, u.esforco) };
+    const base = valorDoTraco(u.cfg, u.grau, u.esforco);
+    /*
+     * Só o traço que leva o golpe à distância é mexido. O piso de zero mora
+     * em alcanceAjustado, e é dele também: traço tem base negativa de
+     * propósito (o Desarmar começa em -1 dado), e aparar todos apagaria a
+     * desvantagem.
+     */
+    const ajustar = u.cfg.regra === "mira" && opsAlcance.length > 0 && !alcanceAplicado;
+    if (ajustar) alcanceAplicado = true;
+    // O traço é a parcela da ordem 2 da conta; as linhas de efeito se
+    // encaixam antes ou depois dele conforme a ordem de cada uma.
+    const valor = ajustar
+      ? alcanceAjustado([{ ordem: PYRO.ORDEM_BASE, valor: base }], opsAlcance)
+      : base;
+    return { ...u, custo, alem, base, valor };
   });
 
   /*
@@ -150,8 +179,18 @@ export function calcularEsforco(actor, usados, itens = []) {
   // cada traço tem que somar o que vai ser cobrado.
   if (estamina !== estaminaBase) repartirCusto(linhas, estamina, estaminaBase);
 
+  // O traço de alcance, mexido ou não: é dele que sai a distância do golpe.
+  const doTraco = linhas.find(l => l.cfg.regra === "mira");
+  const doAlcance = doTraco && doTraco.valor !== doTraco.base ? doTraco : null;
+
   return {
     linhas, limite, estamina, estaminaBase, excesso, somaEsforcos,
+    // Até onde a técnica golpeia por si; 0 quando quem alcança é a arma.
+    alcance: doTraco?.valor ?? 0,
+    alcanceMudou: !!doAlcance,
+    alcanceBase: doAlcance?.base ?? 0,
+    alcanceFinal: doAlcance?.valor ?? 0,
+    alcanceOrigens: doAlcance ? [...new Set(opsAlcance.map(o => o.nome))] : [],
     // Só o excesso obriga o teste; sem ele a execução é rotineira por regra.
     nd: 10 + somaEsforcos
   };
@@ -193,21 +232,35 @@ function repartirCusto(linhas, total, base) {
  * Ataques que a ficha oferece. São as armas do inventário, incluindo as
  * marcadas como ataque desarmado — soco e chute são itens como qualquer
  * outro aqui, montados por quem joga.
+ *
+ * O alcance de cada uma já vem somado ao do corpo (ver alcanceDaArma).
+ *
+ * @param {object[]} [opcoes.extras] itens que também contam para os efeitos
+ *   presos — a técnica que vai golpear, quando a lista é dela. É o que faz um
+ *   "+1 m nesta técnica" esticar a arma que ela usa.
+ * @param {boolean} [opcoes.ajustar] false deixa de fora as linhas de efeito,
+ *   mantendo o corpo e a arma (ver ataquesDaTecnica).
  */
-export function ataquesDoAtor(actor) {
-  return actor.items
+export function ataquesDoAtor(actor, { extras = [], ajustar = true } = {}) {
+  // Técnica aberta fora de uma ficha (do diretório, de um compêndio) não tem
+  // inventário nenhum para oferecer.
+  return (actor?.items ?? [])
     .filter(i => i.type === "arma")
     .sort((a, b) => (a.sort ?? 0) - (b.sort ?? 0))
-    .map(item => ({
-      id: item.id,
-      nome: item.name,
-      item,
-      danos: (item.system.danos ?? []).filter(d => d.formula?.trim()),
-      acoes: item.system.acoes ?? 2,
-      alcanceMenor: item.system.alcanceMenor ?? 0,
-      alcanceMaximo: item.system.alcanceMaximo ?? 0,
-      desarmado: !!item.system.desarmado
-    }));
+    .map(item => {
+      const alcance = alcanceDaArma(actor, item, { extras, efeitos: ajustar });
+      return {
+        id: item.id,
+        nome: item.name,
+        item,
+        danos: (item.system.danos ?? []).filter(d => d.formula?.trim()),
+        acoes: item.system.acoes ?? 2,
+        alcance,
+        alcanceMenor: alcance.menor,
+        alcanceMaximo: alcance.maximo,
+        desarmado: !!item.system.desarmado
+      };
+    });
 }
 
 /** Família de uma arma pelo custo em ações (SRD Técnicas: leve, média, pesada). */
@@ -240,9 +293,28 @@ export function ataqueAtende(ataque, sys) {
   }
 }
 
-/** Ataques que esta técnica aceita. Vazio significa que ela não pode ser usada. */
-export function ataquesDaTecnica(actor, sys) {
-  return ataquesDoAtor(actor).filter(a => ataqueAtende(a, sys));
+/** A técnica comprou o traço que leva o golpe à distância? */
+export function temAlcanceProprio(sys) {
+  return tracosDaTecnica(sys).some(t => t.cfg.regra === "mira");
+}
+
+/**
+ * Ataques que esta técnica aceita. Vazio significa que ela não pode ser usada.
+ *
+ * O alcance do golpe é um só, e o efeito age uma vez nele. Com o traço
+ * Alcance comprado, é o traço que diz até onde o golpe vai, e é nele que o
+ * efeito entra (ver calcularEsforco); sem o traço, quem carrega o alcance é a
+ * arma, e o efeito entra ali. Somar nos dois mostraria o mesmo "+1 m" duas
+ * vezes no mesmo card, como se fossem dois metros.
+ *
+ * @param {Item} [item] a própria técnica, para os efeitos presos a ela valerem
+ *   no alcance da arma que ela vai usar.
+ */
+export function ataquesDaTecnica(actor, sys, item = null) {
+  return ataquesDoAtor(actor, {
+    extras: [item].filter(Boolean),
+    ajustar: !temAlcanceProprio(sys)
+  }).filter(a => ataqueAtende(a, sys));
 }
 
 /**
@@ -429,7 +501,14 @@ export function resumoDaTecnica(actor, item, calc, ataque) {
     // seria a mesma informação duas vezes.
     caracteristicas: calc.linhas
       .filter(l => l.cfg.regra !== "danoMult")
-      .map(l => ({ nome: loc(l.cfg.label ?? l.chave), texto: textoDoTraco(l) }))
+      .map(l => ({
+        nome: loc(l.cfg.label ?? l.chave),
+        texto: textoDoTraco(l),
+        // O traço de alcance mexido por efeito diz de onde veio o número, na
+        // janela como no card: ver o traço já em 4 m sem explicação parece
+        // conta errada do Esforço.
+        origens: l.valor !== l.base ? calc.alcanceOrigens.join(", ") : ""
+      }))
   };
 }
 
@@ -453,7 +532,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     .map(t => ({ ...t, esforco: Math.max(1, Math.round(Number(esforcos[t.chave]) || 0)) }));
 
   const ataque = base?.ataca && ataqueId
-    ? ataquesDaTecnica(actor, sys).find(a => a.id === ataqueId) ?? null
+    ? ataquesDaTecnica(actor, sys, item).find(a => a.id === ataqueId) ?? null
     : null;
   const calc = calcularEsforco(actor, usados, [item, ataque?.item]);
 
@@ -509,7 +588,14 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
       ? loc("PYRO.Tecnica.EstaminaAjustada", { base: calc.estaminaBase })
       : null,
     notaConfusao || null,
-    ataque ? esc(ataque.nome) : null
+    ataque ? esc(ataque.nome) : null,
+    /*
+     * O alcance da arma do golpe, na mesma condição da prévia do Executor: a
+     * arma chega longe, ou um efeito esticou o corpo a corpo. A janela e o
+     * card mostram a mesma coisa, que é a regra da casa aqui.
+     */
+    ataque && (ataque.alcanceMaximo > 0 || ataque.alcance.mudou)
+      ? textoDeAlcance(ataque.alcance) : null
   ].filter(Boolean).join(" · ");
 
   partes.push(`<header class="pyro-item-topo">
@@ -594,9 +680,43 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     }
   }
 
-  // Alcance transforma o golpe em ataque à distância, e aí ele pede mira.
-  if (calc.linhas.some(l => l.cfg.regra === "mira")) {
-    partes.push(`<p class="pyro-nota">${loc("PYRO.Tecnica.PedeMira")}</p>`);
+  /*
+   * Pontaria: a mesma regra de qualquer ataque. Com um alvo marcado além da
+   * zona livre da criatura, a técnica pede o teste; sem alvo, só quando ela
+   * tem como chegar além dela — pelo traço Alcance ou pela arma do golpe.
+   */
+  const alcanceDoGolpe = calc.alcance || ataque?.alcanceMaximo || ataque?.alcanceMenor || 0;
+  const mira = conferirMira(actor, alcanceDoGolpe);
+  if (mira.pede) {
+    partes.push(htmlBotaoMira({
+      atorUuid: actor.uuid,
+      itemUuid: item.uuid,
+      distancia: mira.distancia ?? "",
+      limite: mira.limite,
+      alcance: calc.alcance || ataque?.alcanceMenor || 0,
+      motivo: motivoDaMira(mira)
+    }));
+  }
+
+  /*
+   * Metros de efeito, nos dois alcances que a técnica tem: o do traço e o da
+   * arma do golpe. Sem a nota, o traço que rendia 3 m aparecendo como 4 m
+   * pareceria a conta do Esforço errada.
+   */
+  if (calc.alcanceMudou) {
+    partes.push(`<p class="pyro-nota">${loc("PYRO.Efeitos.AlcanceTecnica", {
+      nomes: esc(calc.alcanceOrigens.join(", ")),
+      antes: numeroDoTraco(calc.alcanceBase),
+      depois: numeroDoTraco(calc.alcanceFinal)
+    })}</p>`);
+  }
+  if (ataque?.alcance.mudou) {
+    partes.push(`<p class="pyro-nota">${loc("PYRO.Efeitos.AlcanceArmaNota", {
+      arma: esc(ataque.nome),
+      nomes: esc(ataque.alcance.nomes.join(", ")),
+      antes: textoDeAlcance(ataque.alcance.base),
+      depois: textoDeAlcance(ataque.alcance)
+    })}</p>`);
   }
 
   // Sem estamina bastante, parte do custo saiu do PV — isso é outra coisa, e
