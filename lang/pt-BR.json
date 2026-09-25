@@ -967,6 +967,7 @@
   "PYRO.Vontade.ViverSoAZero": "A Vontade de Viver só vale ao chegar a 0 PV.",
   "PYRO.Mira.NoPonto": "Dentro do alcance menor: +1 vantagem. (já aplicado)",
   "PYRO.Mira.Longe": "Além do alcance menor: +1 desvantagem. (já aplicado)",
+  "PYRO.Mira.SemAtaque": "",
   "PYRO.Mira.Desvio": "O tiro foi para {hora} graus, a {metros}m do alvo.",
   "PYRO.Mira.DesvioDica": "Conte em sentido horário a partir de além do alvo: 1 é atrás dele, 7 à frente. O que estiver no ponto vira o novo alvo.",
   "PYRO.Item.Desarmado": "Ataque desarmado",

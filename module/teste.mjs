@@ -188,6 +188,16 @@ export const periciaDeSobrecarga = actor =>
 export const periciaDeMira = actor => periciaPorNome(actor, PYRO.NOME_PERICIA_MIRA);
 
 /**
+ * Esta perícia é uma das que o sistema conduz por conta própria?
+ *
+ * Sobrecarga e Mirar têm janela própria, com os campos que a regra delas pede
+ * (o preço da falha, a distância do alvo). Abertas na ficha elas precisam cair
+ * na mesma janela do botão do chat, e não no diálogo genérico de perícia.
+ */
+export const ehPericiaDeRegra = (item, nome) =>
+  item?.type === "pericia" && PYRO.normalizarTexto(item.name) === nome;
+
+/**
  * O que uma dessas perícias empresta ao teste: bônus e vantagens por nível, e
  * se ela foi aprendida — é isso que decide o ND dobrado de quem não tem treino.
  * Também devolve a linha que o diálogo mostra, para o jogador ver de onde veio

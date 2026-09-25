@@ -21,7 +21,7 @@ import {
 import {
   campoCheckbox, campoNumero, campoSelect, camposDeTeste, aplicarExaustaoNoTeste,
   aplicarVontadeNoTeste, valorComInspiracao, htmlVontadeGasta, sufixoND,
-  periciaDeSobrecarga, ajudaDaPericia, textoDoND
+  periciaDeSobrecarga, ajudaDaPericia, textoDoND, ehPericiaDeRegra
 } from "../teste.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "../sistema.mjs";
@@ -283,6 +283,25 @@ export class PyroActor extends Actor {
    * @param {boolean} [opcoes.ajudar] só calcula a ajuda a um aliado, sem rolar.
    */
   async rolarPericia(pericia, { ajudar = false } = {}) {
+    /*
+     * Sobrecarga e Mirar são perícias com regra própria, e cada uma tem a
+     * janela dela — com o preço da falha, com a distância do alvo. Abertas na
+     * ficha elas caem na mesma janela do botão do chat, em vez do diálogo
+     * genérico, que não teria onde pedir esses números.
+     *
+     * Ajudar continua sendo o diálogo comum: emprestar treino a um aliado é a
+     * mesma coisa em qualquer perícia, e não rola nada.
+     */
+    if (!ajudar) {
+      if (ehPericiaDeRegra(pericia, PYRO.NOME_PERICIA_SOBRECARGA)) {
+        return this.rolarSobrecarga({ pericia });
+      }
+      if (ehPericiaDeRegra(pericia, PYRO.NOME_PERICIA_MIRA)) {
+        const { rolarMira } = await import("../mira.mjs");
+        return rolarMira(this, { pericia });
+      }
+    }
+
     const sys = pericia.system;
     const nivel = sys.progresso.nivel;
     const porNivel = bonusPorNivel(nivel);
@@ -365,54 +384,95 @@ export class PyroActor extends Actor {
 
   /**
    * Teste de sobrecarga (SRD Magia e Técnicas), aberto pelo botão do card da
-   * conjuração ou da execução — nunca sozinho: quem passou do limite escolhe
-   * quando encarar o dado, e aqui ele ainda pode gastar Força de Vontade.
+   * conjuração ou da execução: quem passou do limite escolhe quando encarar o
+   * dado, e aqui ele ainda pode gastar Força de Vontade. A perícia Sobrecarga
+   * clicada na ficha abre esta mesma janela — é dela que sai o preço da falha,
+   * e o diálogo genérico de perícia não teria onde pedir esse número.
    *
    * É um teste de perícia como qualquer outro: se o personagem tiver a
    * perícia "Sobrecarga", ela entra com o bônus e as vantagens do nível dela;
    * se não tiver, vale a regra do sem treino e o ND dobra acima de 10. O
-   * atributo, porém, é o da regra que chamou (SAB na magia, VIG na técnica) e
-   * não se escolhe.
+   * atributo é o da regra que chamou (SAB na magia, VIG na técnica), e só se
+   * escolhe quando não houve regra nenhuma.
    *
-   * @param {number} opcoes.nd dificuldade vinda do card.
-   * @param {number} opcoes.exaustao exaustão que a falha custa.
-   * @param {string} opcoes.atributo chave do atributo do teste.
+   * @param {number} [opcoes.nd] dificuldade vinda do card.
+   * @param {number} [opcoes.exaustao] exaustão que a falha custa.
+   * @param {string} [opcoes.atributo] chave do atributo do teste. Sem ela —
+   *   é o caso da perícia aberta na ficha, sem regra nenhuma por trás —, a
+   *   janela pergunta, entre os atributos que a perícia aceita.
+   * @param {Item} [opcoes.pericia] a perícia, quando quem abriu foi ela.
    * @param {number} [opcoes.bonusAtributo] o que um efeito preso ao item soma
    *   ao ATRIBUTO ("+2 VIG com a katana") — entra na pool, como em toda
    *   rolagem do sistema, e não como um somatório plano no total.
    * @param {string} [opcoes.itemUuid] magia ou técnica que gerou a sobrecarga.
    * @returns {Promise<boolean>} false quando o diálogo foi cancelado.
    */
-  async rolarSobrecarga({ nd, exaustao, atributo, bonusAtributo = 0, itemUuid = null }) {
+  async rolarSobrecarga({ nd = 0, exaustao = 1, atributo = null, bonusAtributo = 0,
+                          itemUuid = null, pericia: dePericia = null } = {}) {
     const loc = k => game.i18n.localize(k);
+    // A perícia clicada manda; só quando a chamada veio de um card é que ela
+    // é procurada pelo nome.
     const { pericia, aprendida, dica, bonus, vantagens } =
-      ajudaDaPericia(periciaDeSobrecarga(this));
-    const chave = PYRO.atributos[atributo] ? atributo : "vig";
-    const rotuloAtributo = loc(PYRO.atributos[chave]);
+      ajudaDaPericia(dePericia ?? periciaDeSobrecarga(this));
+    /*
+     * A regra que chamou manda no atributo (SAB na magia, VIG na técnica).
+     * Aberta pela ficha não há regra, então a escolha passa a ser de quem
+     * rola, entre os atributos que a própria perícia aceita.
+     */
+    /*
+     * VIG e SAB entram sempre: são os que a regra usa (técnica e magia), e a
+     * perícia criada à mão pela mesa nasce só com o atributo padrão do
+     * esquema, que deixaria de fora justamente os dois que importam.
+     */
+    const aceitos = [...new Set([
+      ...(dePericia?.system?.atributos ?? Object.keys(PYRO.atributos)), "vig", "sab"
+    ])];
+    const escolher = !PYRO.atributos[atributo];
+    const opcoesAtributo = Object.fromEntries(aceitos.map(k => [k, loc(PYRO.atributos[k])]));
+    const padrao = PYRO.atributos[atributo] ? atributo
+      : (aceitos.includes("vig") ? "vig" : aceitos[0]);
     const delta = Math.round(Number(bonusAtributo) || 0);
-    const valorAtributo = Math.max(1, this.system.atributos[chave].total + delta);
 
     const dicas = [
       dica || loc("PYRO.Sobrecarga.SemPericia"),
+      // O ajuste de atributo só chega pela regra, junto do atributo fixo.
       delta ? game.i18n.format("PYRO.Sobrecarga.AtributoAjustado", {
-        atributo: rotuloAtributo, valor: valorAtributo, delta: delta > 0 ? `+${delta}` : delta
+        atributo: loc(PYRO.atributos[padrao]),
+        valor: Math.max(1, this.system.atributos[padrao].total + delta),
+        delta: delta > 0 ? `+${delta}` : delta
       }) : null,
-      dicaMental(this, chave) || null
+      /*
+       * Com o atributo escolhido dentro da janela, a dica lista TODAS as
+       * condições mentais em curso: o jogador precisa ver qual escolha custa
+       * um dado antes de escolher.
+       */
+      (escolher ? dicaMentais(this) : dicaMental(this, padrao)) || null
     ].filter(Boolean);
 
     const res = await formularioDoAtor(this, {
       titulo: loc("PYRO.Sobrecarga.Titulo"),
-      conteudo: camposDeTeste(this, {
-        dica: dicas.join("<br>"),
-        nd: Number(nd) || 0,
-        // Só o teste de sobrecarga tem este campo: é o preço da falha, e ele
-        // fica editável porque a mesa às vezes negocia o que o excesso custa.
-        extras: campoNumero("exaustao", "PYRO.Sobrecarga.ExaustaoAoFalhar",
-          Math.max(0, Math.round(Number(exaustao) || 0)), 0)
-      }),
+      conteudo: (escolher
+        ? campoSelect("atributo", "PYRO.Pericia.Atributo", opcoesAtributo, padrao) : "")
+        + camposDeTeste(this, {
+          dica: dicas.join("<br>"),
+          // Aberto pela ficha não há dificuldade nenhuma decidida: o campo
+          // abre vazio, e um "0" escrito ali passaria por ND válido e faria o
+          // teste sair sem sucesso, sem falha e sem exaustão.
+          nd: Number(nd) || null,
+          // Só o teste de sobrecarga tem este campo: é o preço da falha, e ele
+          // fica editável porque a mesa às vezes negocia o que o excesso custa.
+          extras: campoNumero("exaustao", "PYRO.Sobrecarga.ExaustaoAoFalhar",
+            Math.max(0, Math.round(Number(exaustao) || 0)), 0)
+            + (pericia?.system?.exigeFerramentas
+              ? campoCheckbox("semFerramentas", "PYRO.Pericia.SemFerramentas") : "")
+        }),
       rotuloOk: "PYRO.Rolar"
     });
     if (!res) return false;
+
+    const chave = escolher && opcoesAtributo[res.atributo] ? res.atributo : padrao;
+    const rotuloAtributo = loc(PYRO.atributos[chave]);
+    const valorAtributo = Math.max(1, this.system.atributos[chave].total + delta);
 
     const opts = { bonus: res.bonus, vantagem: res.vantagem, desvantagem: res.desvantagem };
     aplicarExaustaoNoTeste(this, opts, chave);
@@ -420,7 +480,8 @@ export class PyroActor extends Actor {
     opts.vantagem += vantagens;
 
     const ndOriginal = Number(res.nd) || 0;
-    const ndFinal = ndAjustado(ndOriginal, { semTreino: !aprendida });
+    const semFerramentas = !!pericia?.system?.exigeFerramentas && !!res.semFerramentas;
+    const ndFinal = ndAjustado(ndOriginal, { semTreino: !aprendida, semFerramentas });
     /*
      * A classe é medida antes da Força de Vontade, como em toda perícia — e
      * só existe quando há ND: apagar o campo é rolar por rolar, e uma
@@ -460,7 +521,9 @@ export class PyroActor extends Actor {
      * perícia que a fez.
      */
     const item = itemUuid ? await fromUuid(itemUuid) : null;
-    html += htmlClasseDaRolagem(classe, [item, pericia]);
+    // Perícia que só progride com sucesso não conta o uso numa falha.
+    const contaPericia = !pericia?.system?.contaSoSucesso || sucesso;
+    html += htmlClasseDaRolagem(classe, [item, contaPericia ? pericia : null]);
     html += htmlVontadeGasta(vontade);
 
     if (!roll) {

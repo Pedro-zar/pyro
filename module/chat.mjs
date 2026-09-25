@@ -519,7 +519,13 @@ function prepararBotaoMira(message, element) {
       const escrita = Number(botao.dataset.distancia);
       const limite = Number(botao.dataset.limite);
       const alcance = Number(botao.dataset.alcance);
-      const feito = await item.rolarMira({
+      /*
+       * Import tardio: mira.mjs monta o card com os helpers daqui, e as duas
+       * pontas se importando no topo fariam um ciclo.
+       */
+      const { rolarMira } = await import("./mira.mjs");
+      const feito = await rolarMira(actor, {
+        item,
         distancia: Number.isFinite(escrita) && botao.dataset.distancia !== "" ? escrita : null,
         // Sem o dado no botão, quem decide é a criatura (ver rolarMira).
         limite: Number.isFinite(limite) ? limite : null,
