@@ -50,7 +50,7 @@ const ELEMENTOS = [
   { tipoDano: "frio", chave: "gelo", nome: "Gelo", dano: [4, 0.5, 8], extras: [escala("Friagem", 1, 1)],
     desc: "O alvo sofre Friagem X por 1 minuto: cada reação custa X de estamina a mais." },
   { tipoDano: "impacto", chave: "vento", nome: "Vento", dano: [4, 1, 4], extras: [escala("Empurrado (metros)", 1, 1)],
-    desc: "Empurra o alvo. Contra uma parede, causa 1d10 adicional para cada metro que restar." },
+    desc: "Empurra o alvo. Contra uma parede, causa 1d4 adicional para cada metro que restar." },
   { tipoDano: "impacto", chave: "terra", nome: "Terra", dano: [3, 0.5, 12], extras: [escala("Defesa Física", 1, 1)],
     desc: "Quem conjura recebe Defesa de Terra até o fim do próximo turno, somando Defesa Física." },
   { tipoDano: "energia", chave: "raio", nome: "Raio", dano: [2, 0.25, 10], extras: [escala("Corrente", 0.5, 0.5)],
