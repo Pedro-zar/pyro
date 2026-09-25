@@ -18,7 +18,8 @@ import { pilhasDe, efeitosDetalhados, regraMental } from "../condicoes.mjs";
 const ICONES_DE_CONDICAO = {
   friagem: "fa-snowflake",
   molhado: "fa-droplet",
-  queimando: "fa-fire"
+  queimando: "fa-fire",
+  sangramento: "fa-heart-crack"
 };
 
 import { selosDePoder, pintarTema } from "../tema.mjs";

@@ -395,6 +395,19 @@ PYRO.regrasDeIntencao = {
 PYRO.regraDosSeis = { fogo: { regra: "queimando" } };
 
 /**
+ * Condições que um traço de técnica entrega ao alvo, pelo número que ele
+ * rendeu. O traço marcado com uma destas regras deixa de ser só um número no
+ * card e vira botão, no mesmo bloco que as regras das magias usam.
+ *
+ * Só regras que se resolvem com uma pilha e um alvo entram aqui: as que
+ * pedem a DT da conjuração (a de Mente) precisariam de um número que a
+ * técnica não tem.
+ */
+PYRO.condicoesDeTraco = {
+  sangramento: { regra: "sangramento" }
+};
+
+/**
  * Ícone padrão de cada tipo de item, do conjunto do sistema (ver icons/).
  *
  * O Foundry dá a mesma sacola a tudo que nasce, e uma lista de vinte itens com
@@ -1033,7 +1046,7 @@ PYRO.tracosTecnicaPadrao = {
   empurrao:     traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.metros", { bases: OFENSIVAS }),
   // O grau 1 é o teste em si; os dados extras começam no grau 2.
   derrubar:     traco("ofensivo", 0, 1, "PYRO.Tecnica.Un.dadosTeste", { bases: OFENSIVAS }),
-  sangramento:  traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.sangramento", { bases: OFENSIVAS }),
+  sangramento:  traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.sangramento", { bases: OFENSIVAS, regra: "sangramento" }),
   quebraGuarda: traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.bloqueioIgnorado", { bases: OFENSIVAS }),
   atordoar:     traco("ofensivo", 1, 1, "PYRO.Tecnica.Un.minutos", { bases: OFENSIVAS }),
   // Começa em desvantagem: o grau 2 zera e o 3 já é vantagem.
@@ -1130,6 +1143,8 @@ PYRO.multiplicadorSubjulgar = dif => {
  */
 PYRO.condicoes = {
   queimando: { label: "PYRO.Condicoes.queimando", img: "icons/svg/fire.svg" },
+  // Cada pilha tira 1 de PV por turno, direto, por um minuto (ver tempo.mjs).
+  sangramento: { label: "PYRO.Condicoes.sangramento", img: "icons/svg/blood.svg" },
   molhado:   { label: "PYRO.Condicoes.molhado",   img: "icons/svg/acid.svg" },
   friagem:   { label: "PYRO.Condicoes.friagem",   img: "icons/svg/frozen.svg" },
   irritado:  { label: "PYRO.Condicoes.irritado",  img: "icons/svg/combat.svg" },

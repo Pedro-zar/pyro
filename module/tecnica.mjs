@@ -10,7 +10,7 @@ import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
 import { prepararFormula, juntarDados } from "./dados.mjs";
 import {
-  htmlEfeitosDeUso, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
+  htmlEfeitosDeUso, htmlEfeitosDeRegra, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
   ajustesDeAtributo, ajustesDeCusto, custoAjustado, operacoesDeAlcance, alcanceAjustado,
   alcanceDaArma, textoDeAlcance
 } from "./efeitos.mjs";
@@ -557,6 +557,32 @@ export function resumoDaTecnica(actor, item, calc, ataque) {
 }
 
 /**
+ * As condições que os traços desta execução entregam ao alvo, no formato que
+ * o botão do chat já sabe aplicar (ver htmlEfeitosDeRegra e PYRO.condicoesDeTraco).
+ *
+ * O número do traço é a pilha: Sangramento 3 é o botão que põe 3 pilhas em
+ * quem estiver selecionado. Traço que rendeu zero não vira botão — um clique
+ * que não faz nada só engana.
+ */
+export function condicoesDosTracos(calc) {
+  const saida = [];
+  for (const linha of calc?.linhas ?? []) {
+    const cfg = PYRO.condicoesDeTraco[linha.cfg?.regra];
+    const valor = Math.max(0, Math.round(linha.valor ?? 0));
+    if (!cfg || valor <= 0) continue;
+    saida.push({
+      regra: cfg.regra,
+      valor,
+      // O golpe tem alvo marcado; quem golpeia tem o próprio token na mão.
+      noAlvoMarcado: true,
+      img: PYRO.condicoes[cfg.regra]?.img ?? "icons/svg/aura.svg",
+      name: loc(`PYRO.Regra.${cfg.regra}`, { valor })
+    });
+  }
+  return saida;
+}
+
+/**
  * Executa a técnica: cobra a estamina, testa o excesso de Esforço, rola o
  * ataque quando a ação base tem um, e publica o card.
  *
@@ -784,6 +810,14 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   // continua avisado à parte do ônus que cobra vida de propósito.
   if (pago.dosPv) partes.push(`<p class="pyro-nota">${loc("PYRO.Chat.CustoPv", { valor: pago.dosPv })}</p>`);
 
+  /*
+   * Traço que entrega uma condição (o Sangramento) vira botão, e não só um
+   * número na lista: é o mesmo bloco das regras das magias, e o mesmo clique
+   * aplica nos selecionados.
+   */
+  const efeitosRegra = condicoesDosTracos(calc);
+  if (efeitosRegra.length) partes.push(htmlEfeitosDeRegra(efeitosRegra));
+
   // Os efeitos de uso da arma do golpe também entram no card da técnica.
   partes.push(htmlEfeitosDeUso(item, ataque?.item));
   partes.push(htmlClasseDaRolagem(classe, item));
@@ -793,7 +827,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     content: `<div class="pyro-chat pyro-tecnica">${partes.join("")}</div>`,
     rolls,
     flags: flagsDoSistema({
-      danos, cura: 0,
+      danos, cura: 0, efeitosRegra,
       variaveis: {
         esforco: calc.somaEsforcos,
         estamina: calc.estamina,

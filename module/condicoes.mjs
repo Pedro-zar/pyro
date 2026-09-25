@@ -206,6 +206,8 @@ export function reduzirCondicao(actor, chave, pilhas = Infinity) {
 export const TURNOS_QUEIMANDO = 2;
 /** Friagem dura um minuto, que na mesa são dez turnos. */
 export const TURNOS_FRIAGEM = PYRO.turnosDeSegundos(60);
+/** Sangramento também dura um minuto (SRD Técnicas: o traço diz isso). */
+export const TURNOS_SANGRAMENTO = PYRO.turnosDeSegundos(60);
 
 /**
  * Queimando: cada pilha queima 1d6 de calor por turno, e o prazo nunca fica
@@ -222,6 +224,15 @@ export function aplicarQueimando(actor, pilhas) {
  */
 export function aplicarMolhado(actor, pilhas) {
   return empilharCondicao(actor, "molhado", pilhas, SEM_PRAZO);
+}
+
+/**
+ * Sangramento: cada pilha tira 1 de PV por turno, direto, por um minuto. O
+ * corte acumula — dois golpes que sangram somam as pilhas e o relógio volta
+ * ao minuto cheio, como no Queimando.
+ */
+export function aplicarSangramento(actor, pilhas) {
+  return empilharCondicao(actor, "sangramento", pilhas, TURNOS_SANGRAMENTO);
 }
 
 /** Friagem: cada reação custa pilhas² de estamina a mais, por um minuto. */
@@ -383,7 +394,7 @@ export function listaDeCondicoesMentais() {
  * defesa. Limiares de vida e marcadores soltos ficam na lista completa de
  * efeitos, na aba própria.
  */
-const ELEMENTAIS_DETALHADAS = ["friagem", "queimando", "molhado"];
+const ELEMENTAIS_DETALHADAS = ["friagem", "queimando", "sangramento", "molhado"];
 
 /** Uma linha da lista da ficha. */
 function linha(chave, nome, valor, descricao, prazo) {

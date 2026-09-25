@@ -54,6 +54,27 @@ async function queimar(actor, relatos, rolagens) {
 }
 
 /**
+ * Sangra quem está sangrando: 1 de PV por pilha, sem dado e sem defesa.
+ *
+ * O corte já passou pela armadura quando foi aberto — descontar a defesa de
+ * novo a cada turno faria o Sangramento não existir para quem veste qualquer
+ * coisa, que é justamente quem mais leva golpe.
+ */
+async function sangrar(actor, relatos) {
+  const pilhas = pilhasDe(actor, "sangramento");
+  if (!pilhas) return;
+  const pvAntes = actor.system.recursos?.pv?.value ?? 0;
+  await actor.aplicarDano([{ tipo: "cortante", total: pilhas }], { ignorarDefesa: true });
+  /*
+   * O relato conta o PV que saiu, e não as pilhas: quem estava com 1 de vida
+   * perde 1, e anunciar os 3 do Sangramento faria a mesa procurar dois pontos
+   * que nunca existiram.
+   */
+  const perdeu = Math.max(0, pvAntes - (actor.system.recursos?.pv?.value ?? 0));
+  relatos.push(loc("PYRO.Tempo.Sangrou", { nome: esc(actor.name), pilhas, dano: perdeu }));
+}
+
+/**
  * Passa um turno para um ator: as condições com prazo perdem um turno, e as
  * que chegam a zero saem.
  *
@@ -63,6 +84,7 @@ async function queimar(actor, relatos, rolagens) {
  */
 async function passarTurnoDoAtor(actor, relatos, rolagens, ehSeuTurno, virouRodada) {
   await queimar(actor, relatos, rolagens);
+  await sangrar(actor, relatos);
   return naFila(actor, () => vencerPrazos(actor, relatos, ehSeuTurno, virouRodada));
 }
 

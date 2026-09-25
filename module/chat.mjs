@@ -11,7 +11,8 @@ import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema } from "./sistema.mjs";
 import { registrarUso } from "./progressao.mjs";
 import {
-  aplicarQueimando, aplicarMolhado, aplicarFriagem, efeitoComPrazo, pilhasDe
+  aplicarQueimando, aplicarSangramento, aplicarMolhado, aplicarFriagem,
+  efeitoComPrazo, pilhasDe
 } from "./condicoes.mjs";
 
 /** Linha de sucesso ou falha contra um ND, nos cards de teste. */
@@ -58,6 +59,21 @@ function alvos() {
 }
 
 /** Quem conjurou a magia daquele card, para os efeitos que voltam ao próprio. */
+/**
+ * Quem o clique atinge quando o card fala de um alvo marcado: os tokens
+ * marcados, e só sem nenhum é que a seleção decide.
+ */
+function alvosMarcados() {
+  const marcados = [...(game.user.targets ?? [])].map(t => t.actor).filter(Boolean);
+  if (!marcados.length) return alvos();
+  const vistos = new Set();
+  return marcados.filter(a => {
+    if (vistos.has(a.uuid)) return false;
+    vistos.add(a.uuid);
+    return true;
+  });
+}
+
 function conjurador(message) {
   const speaker = message?.speaker;
   const token = speaker?.token ? canvas.tokens?.get(speaker.token)?.actor : null;
@@ -689,7 +705,15 @@ async function aplicarEfeitoDeRegra(message, indice) {
    * card, então não há o que escolher.
    */
   const proprio = dados.noConjurador ? conjurador(message) : null;
-  const destinos = proprio ? [proprio] : alvos();
+  /*
+   * A condição que sai de um traço de técnica procura o alvo marcado antes da
+   * seleção: quem golpeia tem o PRÓPRIO token na mão (foi dele que o Executor
+   * saiu) e o inimigo marcado com o alvo, então a seleção sozinha sangraria o
+   * atacante. Nas regras de magia a seleção continua mandando, que é como a
+   * mesa já usa os botões de lá.
+   */
+  const destinos = proprio ? [proprio]
+    : (dados.noAlvoMarcado ? alvosMarcados() : alvos());
   if (!destinos.length) {
     return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemAlvoSelecionado"));
   }
@@ -729,7 +753,7 @@ async function aplicarEfeitoDeRegra(message, indice) {
 }
 
 /**
- * O que cada regra elemental faz no alvo. Queimando, Molhado e Friagem são
+ * O que cada regra faz no alvo. Queimando, Sangramento, Molhado e Friagem são
  * condições que empilham; a defesa da pedra é um efeito comum, com prazo, e
  * por isso não passa pela contagem de pilhas.
  */
@@ -737,6 +761,7 @@ async function aplicarRegraElemental(actor, dados) {
   const valor = Math.max(0, Math.round(Number(dados.valor) || 0));
   switch (dados.regra) {
     case "queimando": return aplicarQueimando(actor, valor);
+    case "sangramento": return aplicarSangramento(actor, valor);
     case "molhado": return aplicarMolhado(actor, valor);
     // Friagem não empilha: uma aplicação menor que a atual não muda nada, e
     // é isso que o false diz a quem chamou.
