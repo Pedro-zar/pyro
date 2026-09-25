@@ -1420,6 +1420,23 @@
 .pyro-chat .pyro-mira.pendente p { margin: 0 0 0.3rem; }
 .pyro-chat .pyro-mira.pendente button { width: auto; padding: 0.15rem 0.7rem; font-size: 0.8rem; }
 
+/* ---------- Conjuração de Mente: escolher, resistir, receber -------------- */
+
+.pyro-chat .pyro-mente-card ul { margin: 0.2rem 0 0.4rem; padding-left: 1.1rem; }
+/* Um botão por alvo: em linha, quebrando quando a barra do chat aperta. */
+.pyro-chat .pyro-mente-alvos { display: flex; flex-wrap: wrap; gap: 0.3rem; }
+.pyro-chat .pyro-mente-alvos button { width: auto; padding: 0.15rem 0.7rem; font-size: 0.8rem; }
+
+/* O que entra na ficha de quem falhou o teste. */
+.pyro-chat .pyro-mente-aplicar {
+  border-left: 3px solid var(--pyro-perigo); padding: 0.2rem 0.5rem;
+  background: color-mix(in srgb, var(--pyro-perigo) 8%, transparent);
+  font-size: 0.85rem;
+}
+.pyro-chat .pyro-mente-aplicar p { margin: 0 0 0.3rem; }
+.pyro-chat .pyro-mente-aplicar ul { margin: 0 0 0.3rem; padding-left: 1.1rem; }
+.pyro-chat .pyro-mente-aplicar button { width: auto; padding: 0.15rem 0.7rem; font-size: 0.8rem; }
+
 /* ---------- Ajustes: rótulo de bloco de checkboxes ------------------------- */
 
 .pyro .rotulo-check {

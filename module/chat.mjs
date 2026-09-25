@@ -284,6 +284,7 @@ export function registrarMenuChat() {
     prepararBotaoContarUso(message, element);
     prepararBotaoSobrecarga(message, element);
     prepararBotaoMira(message, element);
+    prepararBotoesDeMente(message, element);
     prepararBotaoSorte(message, element);
     injetarRodape(message, element);
   });
@@ -543,6 +544,99 @@ function prepararBotaoMira(message, element) {
   }
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Mente: o alvo resiste, e só depois recebe                                 */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Os dois botões da conjuração de Mente, nos dois cards dela.
+ *
+ * No card do conjurador há um "resistir" por alvo, e quem clica é o jogador
+ * daquele alvo. No card do teste falhado há o "aplicar", que põe na ficha as
+ * condições que o conjurador escolheu — o alvo recebe o que perdeu, e não o
+ * que alguém apertou por ele.
+ */
+function prepararBotoesDeMente(message, element) {
+  const mente = flagsDe(message)?.mente;
+  if (!mente) return;
+  const jaRolaram = new Set(flagsDe(message)?.resistiramMente ?? []);
+  const jaAplicou = !!flagsDe(message)?.menteAplicada;
+
+  for (const botao of element.querySelectorAll(".pyro-resistir-mente")) {
+    const uuid = botao.dataset.atorUuid;
+    if (jaRolaram.has(uuid)) {
+      marcarFeito(botao, "PYRO.Mente.JaResistiu");
+      continue;
+    }
+    botao.addEventListener("click", async () => {
+      // A trava vem antes de qualquer espera: dois cliques rápidos abririam
+      // dois diálogos para o mesmo teste, cada um cobrando a Vontade dele.
+      botao.disabled = true;
+      const actor = await fromUuid(uuid);
+      if (!actor) {
+        botao.disabled = false;
+        return ui.notifications.warn(game.i18n.localize("PYRO.Mente.AlvoSumiu"));
+      }
+      const { resistirMente } = await import("./mente.mjs");
+      const feito = await resistirMente(actor, mente).catch(erro => {
+        console.error("PYRO | falha no teste de resistência mental", erro);
+        return false;
+      });
+      if (!feito) {
+        botao.disabled = false;
+        return;
+      }
+      /*
+       * O botão é marcado na tela de quem clicou, sempre; gravado na
+       * mensagem, só quando dá. O card é do conjurador, e o Foundry não
+       * deixa um jogador escrever na mensagem de outro — para o alvo, a
+       * marca vale enquanto o chat não for recarregado.
+       */
+      marcarFeito(botao, "PYRO.Mente.JaResistiu");
+      await gravarMarca(message, "resistiramMente", uuid);
+    });
+  }
+
+  for (const botao of element.querySelectorAll(".pyro-aplicar-mente")) {
+    if (jaAplicou) {
+      marcarFeito(botao, "PYRO.Mente.JaAplicada");
+      continue;
+    }
+    botao.addEventListener("click", async () => {
+      botao.disabled = true;
+      const actor = await fromUuid(botao.dataset.atorUuid);
+      if (!actor?.isOwner) {
+        botao.disabled = false;
+        return ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemPermissao",
+          { nome: actor?.name ?? "" }));
+      }
+      const { aplicarMentaisEscolhidas } = await import("./mente.mjs");
+      const linhas = await aplicarMentaisEscolhidas(actor, mente.condicoes ?? [])
+        .catch(erro => {
+          console.error("PYRO | falha ao aplicar as condições mentais", erro);
+          return null;
+        });
+      // Lista vazia é nada aplicado: fechar o card ali apagaria um botão que
+      // ainda tem o que fazer.
+      if (!linhas?.length) {
+        botao.disabled = false;
+        return ui.notifications.warn(game.i18n.localize("PYRO.Mente.NadaAplicado"));
+      }
+      ui.notifications.info(game.i18n.format("PYRO.Efeitos.Aplicado", {
+        efeito: linhas.join(", "), alvos: actor.name
+      }));
+      marcarFeito(botao, "PYRO.Mente.JaAplicada");
+      await gravarMarca(message, "menteAplicada", true);
+    });
+  }
+}
+
+/** Botão que já cumpriu o papel dele: desligado, dizendo o que aconteceu. */
+function marcarFeito(botao, chave) {
+  botao.disabled = true;
+  botao.innerHTML = `<i class="fa-solid fa-check"></i> ${game.i18n.localize(chave)}`;
+}
+
 /**
  * Aplica nos alvos um efeito que veio pronto nas flags do card. Diferente do
  * efeito de uso, aqui não existe documento de origem: a regra do elemento
@@ -565,11 +659,14 @@ async function aplicarEfeitoDeRegra(message, indice) {
 
   /*
    * Mente não aplica nada sozinha: o mago escolhe quais condições e por quanto
-   * tempo, dentro do que a Intenção comprou. A janela cuida disso e dos alvos.
+   * tempo, dentro do que a Intenção comprou. A janela manda a escolha num card,
+   * e é lá que cada alvo rola para resistir.
    */
   if (dados.regra === "mental") {
     const { MenteApp } = await import("./apps/mente.mjs");
-    return new MenteApp({ alvos: destinos, pontos: dados.valor, dt: dados.dt }).render(true);
+    return new MenteApp({
+      actor: conjurador(message), alvos: destinos, pontos: dados.valor, dt: dados.dt
+    }).render(true);
   }
 
   const nomes = [];

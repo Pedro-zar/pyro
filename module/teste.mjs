@@ -61,16 +61,19 @@ function camposDeVontade(actor, { comInspiracao }) {
  * @param {boolean} [opcoes.comInspiracao] o teste tem um atributo para dobrar.
  * @param {number} [opcoes.nd] ND já conhecido (a mira sabe a distância); sem
  *   ele o campo abre vazio, porque na maioria dos testes quem define é o mestre.
+ * @param {boolean} [opcoes.ndFixo] o ND não é de quem rola. Na mira e na
+ *   sobrecarga quem edita o número é quem se prejudica com ele; num teste de
+ *   resistir, o número é de quem atacou, e o campo só mostra.
  * @param {boolean} [opcoes.comVontade] false onde não há rolagem a comprar —
  *   oferecer o gasto num diálogo que não rola nada é prometer o que não se cumpre.
  */
 export function camposDeTeste(actor, {
-  dica = "", extras = "", comInspiracao = true, comVontade = true, nd = null
+  dica = "", extras = "", comInspiracao = true, comVontade = true, nd = null, ndFixo = false
 } = {}) {
   const avisoExaustao = dicaExaustao(actor);
   const campoND = nd === null
     ? `<input type="number" name="nd" placeholder="—">`
-    : `<input type="number" name="nd" value="${nd}" min="0">`;
+    : `<input type="number" name="nd" value="${nd}" min="0"${ndFixo ? " readonly" : ""}>`;
   return `
     ${avisoExaustao ? `<p class="hint">${avisoExaustao}</p>` : ""}
     ${dica ? `<p class="hint">${dica}</p>` : ""}

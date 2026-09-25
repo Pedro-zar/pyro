@@ -55,10 +55,13 @@
   </section>
 
   {{#if dtTexto}}<p class="pyro-nota">{{dtTexto}}</p>{{/if}}
+  {{!-- A escolha vira um card: quem recebe a condição é o alvo que falhar o
+        teste, e não a ficha que estiver selecionada agora. --}}
+  {{pyroDica "PYRO.Mente.DicaConjurar"}}
 
   <footer class="conjurador-rodape">
-    <button type="submit" class="botao-principal" {{#unless podeAplicar}}disabled{{/unless}}>
-      <i class="fa-solid fa-brain"></i> {{localize "PYRO.Mente.Aplicar"}}
+    <button type="submit" class="botao-principal" {{#unless podeConjurar}}disabled{{/unless}}>
+      <i class="fa-solid fa-brain"></i> {{localize "PYRO.Mente.Conjurar"}}
     </button>
   </footer>
 </div>

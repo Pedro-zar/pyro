@@ -6,19 +6,24 @@
  * a Intenção comprou. Um botão por condição no card daria sete botões sem
  * dizer quanto ainda sobra para gastar.
  *
+ * Quem escolhe é o conjurador; quem resiste é o alvo. A janela fecha mandando
+ * um card com a escolha, e é de lá que cada alvo rola SAB contra a DT e, se
+ * falhar, recebe o que foi escolhido (ver mente.mjs).
+ *
  * Cada condição dá desvantagem nos testes do atributo dela e traz a proibição
  * própria da emoção (ver PYRO.condicoesMentais e condicoes.mjs).
  */
-import { PYRO } from "../config.mjs";
-import { esc } from "../ui.mjs";
-import { listaDeCondicoesMentais, aplicarCondicaoMental } from "../condicoes.mjs";
+import { listaDeCondicoesMentais } from "../condicoes.mjs";
+import { cardDeConjuracaoMental } from "../mente.mjs";
 import { caminho } from "../sistema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 export class MenteApp extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor({ alvos = [], pontos = 1, dt = 0, ...options } = {}) {
+  constructor({ actor = null, alvos = [], pontos = 1, dt = 0, ...options } = {}) {
     super(options);
+    /** Quem conjurou: o card da escolha sai em nome dele. */
+    this.actor = actor;
     this.alvos = alvos;
     /** Pontos que a Intenção das runas de Mente comprou. */
     this.pontos = Math.max(1, pontos);
@@ -33,7 +38,7 @@ export class MenteApp extends HandlebarsApplicationMixin(ApplicationV2) {
     tag: "form",
     position: { width: 520, height: "auto" },
     window: { title: "PYRO.Mente.Titulo", resizable: true },
-    form: { handler: MenteApp.#aoAplicar, closeOnSubmit: false },
+    form: { handler: MenteApp.#aoConjurar, closeOnSubmit: false },
     actions: {
       subirTurnos: MenteApp.#subirTurnos,
       descerTurnos: MenteApp.#descerTurnos,
@@ -67,7 +72,7 @@ export class MenteApp extends HandlebarsApplicationMixin(ApplicationV2) {
       podeSubir: gasto < this.pontos
     }));
 
-    this._podeAplicar = gasto > 0 && this.alvos.length > 0;
+    this._podeConjurar = gasto > 0 && this.alvos.length > 0;
 
     Object.assign(context, {
       condicoes,
@@ -77,7 +82,7 @@ export class MenteApp extends HandlebarsApplicationMixin(ApplicationV2) {
       alvos: this.alvos.map(a => a.name).join(", "),
       semAlvos: !this.alvos.length,
       dtTexto: this.dt ? game.i18n.format("PYRO.Magia.DT", { valor: this.dt }) : "",
-      podeAplicar: this._podeAplicar
+      podeConjurar: this._podeConjurar
     });
     return context;
   }
@@ -103,40 +108,21 @@ export class MenteApp extends HandlebarsApplicationMixin(ApplicationV2) {
   _onRender(context, options) {
     super._onRender?.(context, options);
     const botao = this.element.querySelector("button[type=submit]");
-    if (botao) botao.disabled = !this._podeAplicar;
+    if (botao) botao.disabled = !this._podeConjurar;
   }
 
-  static async #aoAplicar() {
-    if (!this._podeAplicar) return;
-    const escolhidas = Object.entries(this.turnos).filter(([, t]) => t > 0);
-    const relatos = [];
+  static async #aoConjurar() {
+    if (!this._podeConjurar) return;
+    /*
+     * A escolha vai para o card, e não para as fichas: quem decide é o
+     * conjurador, mas quem recebe a condição é o alvo, depois de falhar o
+     * teste dele. Aqui nada é aplicado.
+     */
+    const condicoes = Object.entries(this.turnos)
+      .filter(([, t]) => t > 0)
+      .map(([chave, turnos]) => ({ chave, turnos }));
 
-    for (const actor of this.alvos) {
-      if (!actor.isOwner) {
-        ui.notifications.warn(game.i18n.format("PYRO.Avisos.SemPermissao", { nome: actor.name }));
-        continue;
-      }
-      const nomes = [];
-      for (const [chave, turnos] of escolhidas) {
-        await aplicarCondicaoMental(actor, chave, turnos);
-        nomes.push(game.i18n.format("PYRO.Mente.Linha", {
-          condicao: game.i18n.localize(PYRO.condicoes[chave]?.label ?? chave), turnos
-        }));
-      }
-      if (nomes.length) {
-        relatos.push(`<li><strong>${esc(actor.name)}</strong>: ${nomes.join(", ")}</li>`);
-      }
-    }
-
-    if (relatos.length) {
-      await ChatMessage.create({
-        content: `<div class="pyro-chat pyro-mente-card">
-          <p><strong>${game.i18n.localize("PYRO.Mente.Titulo")}</strong></p>
-          <ul>${relatos.join("")}</ul>
-          ${this.dt ? `<p class="pyro-nota">${game.i18n.format("PYRO.Mente.Resistir", { dt: this.dt })}</p>` : ""}
-        </div>`
-      });
-    }
+    await cardDeConjuracaoMental(this.actor, { condicoes, dt: this.dt, alvos: this.alvos });
     return this.close();
   }
 }
