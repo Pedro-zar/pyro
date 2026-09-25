@@ -68,6 +68,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     actions: {
       adicionarDano: PyroItemSheet.#adicionarDano,
       removerDano: PyroItemSheet.#removerDano,
+      adicionarResistencia: PyroItemSheet.#adicionarResistencia,
+      removerResistencia: PyroItemSheet.#removerResistencia,
       adicionarScaling: PyroItemSheet.#adicionarScaling,
       restaurarScalings: PyroItemSheet.#restaurarScalings,
       removerScaling: PyroItemSheet.#removerScaling,
@@ -408,6 +410,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
             chave, label: game.i18n.localize(label), marcado: sys.atributos.includes(chave)
           }))
         : null,
+      // Atributo com que se resiste a esta magia (ver MagiaData.resistencias).
+      atributosResistencia: item.type === "magia" ? PYRO.atributos : null,
       recursosDoCaminho: this.#recursosDoCaminho(),
       sentidoTipoOpts: Object.fromEntries(
         Object.entries(PYRO.sentidos).map(([k, cfg]) => [k, cfg.label])),
@@ -820,6 +824,12 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }));
     }
 
+    if (this.item.type === "magia" && sys.resistencias && !Array.isArray(sys.resistencias)) {
+      sys.resistencias = Object.values(sys.resistencias).map(r => ({
+        pericia: r.pericia ?? "", atributo: r.atributo ?? "sab"
+      }));
+    }
+
     if (this.item.type === "caminho" && sys.recursos && !Array.isArray(sys.recursos)) {
       // Checkboxes chegam como { chave: true/false }.
       sys.recursos = Object.entries(sys.recursos).filter(([, v]) => v).map(([k]) => k);
@@ -948,6 +958,23 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     arr.splice(Number(target.dataset.index), 1);
     if (!arr.length) arr.push({ formula: "1d6", tipo: "impacto" });
     await this.item.update({ "system.danos": arr });
+  }
+
+  /*
+   * Resistência sem linha nenhuma é magia que só anuncia a DT, e isso é um
+   * estado legítimo: tirar a última linha não repõe uma vazia, ao contrário
+   * do dano, que toda arma precisa ter.
+   */
+  static async #adicionarResistencia() {
+    const arr = this.item.system.toObject().resistencias;
+    arr.push({ pericia: "", atributo: "sab" });
+    await this.item.update({ "system.resistencias": arr });
+  }
+
+  static async #removerResistencia(event, target) {
+    const arr = this.item.system.toObject().resistencias;
+    arr.splice(Number(target.dataset.index), 1);
+    await this.item.update({ "system.resistencias": arr });
   }
 
   static async #adicionarScaling() {

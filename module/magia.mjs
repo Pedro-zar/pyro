@@ -11,6 +11,7 @@ import {
   operacoesDeAlcance, alcanceAjustado
 } from "./efeitos.mjs";
 import { htmlBotaoSobrecarga, htmlBotaoMira, conferirMira, motivoDaMira } from "./teste.mjs";
+import { htmlLinhaDeDT } from "./resistencia.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
 import { acoesComConfusao } from "./condicoes.mjs";
@@ -627,6 +628,17 @@ export function calcular(actor, escolhas, itemMagia = null) {
 /* -------------------------------------------------------------------------- */
 
 /**
+ * A frase impõe condições mentais? É o botão de Mente que as entrega, com o
+ * teste e a aplicação dele — e é por isso que o card não repete a oferta de
+ * resistir logo acima.
+ */
+export function temRegraMental(calc) {
+  return (calc?.porRuna ?? []).some(pr => (pr.scalings ?? []).some(sc =>
+    PYRO.regrasDeIntencao[chaveVariavel(sc.nome)]?.regra === "mental"
+    && valorEfetivo(pr, sc) > 0));
+}
+
+/**
  * A frase causa dano mental? É o que decide se a conjuração precisa escolher
  * qual recurso do alvo o dano drena (SRD §6).
  */
@@ -741,10 +753,16 @@ export async function conjurar(actor, escolhas, {
    * teste de ninguém —, então a linha só sai quando esta conjuração usa DT.
    * Magia mental é resistida com um teste de SAB do alvo, no lugar da esquiva.
    */
+  const resistencias = usaDt ? (itemMagia?.system?.resistencias ?? []) : [];
   if (usaDt) {
     const ehMental = temDanoMental(calc.porRuna);
-    partes.push(`<p class="pyro-dt">${loc("PYRO.Magia.DT", { valor: calc.dt })}${
-      ehMental ? ` ${loc("PYRO.Magia.DTMental")}` : ""}</p>`);
+    /*
+     * A frase de Mente tem o teste dela, com o botão que aplica as condições
+     * (ver mente.mjs): um segundo botão de resistir no mesmo card seria um
+     * teste que não resolve nada, ao lado de um que resolve.
+     */
+    partes.push(htmlLinhaDeDT(calc.dt, temRegraMental(calc) ? [] : resistencias,
+      ehMental ? ` ${loc("PYRO.Magia.DTMental")}` : ""));
   }
 
   // Bônus de mira que as runas somam: o teste é feito à parte, então o card
@@ -974,6 +992,8 @@ export async function conjurar(actor, escolhas, {
     rolls,
     flags: flagsDoSistema({
       danos, cura: totalCura, variaveis, efeitosRegra,
+      // Com o que o alvo resiste, para o botão do card saber o que rolar.
+      ...(usaDt ? { resistencia: { nd: calc.dt, opcoes: resistencias } } : {}),
       // Qual recurso o dano mental drena é escolha da conjuração (SRD §6).
       recursoMental,
       ...flagsDaClasse(classe, itemMagia)

@@ -285,6 +285,7 @@ export function registrarMenuChat() {
     prepararBotaoSobrecarga(message, element);
     prepararBotaoMira(message, element);
     prepararBotoesDeMente(message, element);
+    prepararBotaoResistencia(message, element);
     prepararBotaoSorte(message, element);
     injetarRodape(message, element);
   });
@@ -544,6 +545,42 @@ function prepararBotaoMira(message, element) {
   }
 }
 
+/**
+ * Botão de resistir do card da magia: quem clica rola pela própria ficha.
+ *
+ * O botão fica vivo depois de usado, e de propósito: uma magia acerta vários,
+ * e cada alvo clica na vez dele no mesmo card.
+ */
+function prepararBotaoResistencia(message, element) {
+  const resistencia = flagsDe(message)?.resistencia;
+  if (!resistencia?.nd) return;
+
+  for (const botao of element.querySelectorAll(".pyro-rolar-resistencia")) {
+    botao.addEventListener("click", async () => {
+      /*
+       * Uma ficha por vez: o teste é de quem resiste, e duas janelas abertas
+       * juntas pediriam Força de Vontade de dois personagens ao mesmo tempo.
+       * Com mais de um token na mão o card não adivinha por quem rolar, e
+       * pedir para escolher é melhor do que rolar pelo primeiro em silêncio.
+       */
+      const selecionados = alvos();
+      if (!selecionados.length) {
+        return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemAlvoSelecionado"));
+      }
+      if (selecionados.length > 1) {
+        return ui.notifications.warn(game.i18n.localize("PYRO.Resistencia.UmPorVez"));
+      }
+      const [actor] = selecionados;
+      botao.disabled = true;
+      const { rolarResistencia } = await import("./resistencia.mjs");
+      await rolarResistencia(actor, resistencia).catch(erro => {
+        console.error("PYRO | falha no teste de resistência", erro);
+      });
+      botao.disabled = false;
+    });
+  }
+}
+
 /* -------------------------------------------------------------------------- */
 /*  Mente: o alvo resiste, e só depois recebe                                 */
 /* -------------------------------------------------------------------------- */
@@ -665,7 +702,9 @@ async function aplicarEfeitoDeRegra(message, indice) {
   if (dados.regra === "mental") {
     const { MenteApp } = await import("./apps/mente.mjs");
     return new MenteApp({
-      actor: conjurador(message), alvos: destinos, pontos: dados.valor, dt: dados.dt
+      actor: conjurador(message), alvos: destinos, pontos: dados.valor, dt: dados.dt,
+      // Com o que se resiste é da magia, e o card já traz (ver MagiaData).
+      resistencias: flagsDe(message)?.resistencia?.opcoes ?? []
     }).render(true);
   }
 

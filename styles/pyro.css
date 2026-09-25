@@ -1420,6 +1420,14 @@
 .pyro-chat .pyro-mira.pendente p { margin: 0 0 0.3rem; }
 .pyro-chat .pyro-mira.pendente button { width: auto; padding: 0.15rem 0.7rem; font-size: 0.8rem; }
 
+/* ---------- Resistência: a DT e o botão de quem é atingido ---------------- */
+
+.pyro-chat .pyro-resistencia { display: flex; flex-direction: column; gap: 0.25rem; }
+.pyro-chat .pyro-resistencia .pyro-dt { margin: 0; }
+.pyro-chat .pyro-resistencia button {
+  width: auto; align-self: flex-start; padding: 0.15rem 0.7rem; font-size: 0.8rem;
+}
+
 /* ---------- Conjuração de Mente: escolher, resistir, receber -------------- */
 
 .pyro-chat .pyro-mente-card ul { margin: 0.2rem 0 0.4rem; padding-left: 1.1rem; }

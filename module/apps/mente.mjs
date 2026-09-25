@@ -20,11 +20,14 @@ import { caminho } from "../sistema.mjs";
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
 export class MenteApp extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor({ actor = null, alvos = [], pontos = 1, dt = 0, ...options } = {}) {
+  constructor({ actor = null, alvos = [], pontos = 1, dt = 0, resistencias = [],
+                ...options } = {}) {
     super(options);
     /** Quem conjurou: o card da escolha sai em nome dele. */
     this.actor = actor;
     this.alvos = alvos;
+    /** Com o que o alvo resiste, vindo da magia (ver MagiaData.resistencias). */
+    this.resistencias = resistencias;
     /** Pontos que a Intenção das runas de Mente comprou. */
     this.pontos = Math.max(1, pontos);
     this.dt = dt;
@@ -122,7 +125,9 @@ export class MenteApp extends HandlebarsApplicationMixin(ApplicationV2) {
       .filter(([, t]) => t > 0)
       .map(([chave, turnos]) => ({ chave, turnos }));
 
-    await cardDeConjuracaoMental(this.actor, { condicoes, dt: this.dt, alvos: this.alvos });
+    await cardDeConjuracaoMental(this.actor, {
+      condicoes, dt: this.dt, alvos: this.alvos, resistencias: this.resistencias
+    });
     return this.close();
   }
 }

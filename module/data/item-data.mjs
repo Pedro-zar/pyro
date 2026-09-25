@@ -509,6 +509,21 @@ export class MagiaData extends BaseItemData {
        * DT no card de uma que não pede só confunde a mesa.
        */
       usaDt: new fields.BooleanField({ initial: true }),
+      /*
+       * Com o que o alvo resiste. A perícia é guardada pelo NOME, e não por
+       * id: quem rola é o alvo, e a perícia é da ficha dele — "Vontade" na
+       * magia de mente encontra a Vontade de quem foi atingido, e quem não a
+       * tem rola sem treino, com o ND dobrado acima de 10, como em qualquer
+       * perícia. Lista vazia é magia que só anuncia a DT.
+       *
+       * Mais de uma entrada é escolha de quem resiste: o vento que derruba
+       * aceita Atletismo (FOR) de quem se firma e Reflexos (AGI) de quem sai
+       * da frente, e a janela do teste pergunta qual vai ser.
+       */
+      resistencias: new fields.ArrayField(new fields.SchemaField({
+        pericia: str(""),
+        atributo: str("sab", { choices: Object.keys(PYRO.atributos) })
+      })),
       runas: new fields.ArrayField(new fields.SchemaField({
         itemId: new fields.StringField({ required: true }),
         nome: new fields.StringField({ required: true }),

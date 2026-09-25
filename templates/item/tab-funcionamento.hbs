@@ -547,6 +547,28 @@
     <label class="check-linha" title="{{localize 'PYRO.Magia.UsaDtDica'}}">
       <input type="checkbox" name="system.usaDt" {{checked system.usaDt}} />
       <span>{{localize "PYRO.Magia.UsaDt"}}</span></label>
+
+    {{!-- Com o que o alvo resiste. Só aparece quando há DT: numa magia que
+          não pede teste de ninguém, a pergunta não existe. Mais de uma linha
+          é escolha de quem resiste, e não exigência cumulativa. --}}
+    {{#if system.usaDt}}
+    <h4 class="titulo-secao">{{localize "PYRO.Magia.PericiaResistencia"}}
+      <button type="button" class="icone" data-action="adicionarResistencia"
+              title="{{localize 'PYRO.Magia.AdicionarResistencia'}}"><i class="fa-solid fa-plus"></i></button>
+    </h4>
+    {{#each system.resistencias as |r idx|}}
+    <div class="linha-dano">
+      <input type="text" name="system.resistencias.{{idx}}.pericia"
+             value="{{r.pericia}}" placeholder="{{localize 'PYRO.Magia.PericiaExemplo'}}" />
+      <select name="system.resistencias.{{idx}}.atributo">
+        {{selectOptions @root.atributosResistencia selected=r.atributo localize=true}}
+      </select>
+      <button type="button" class="icone perigo" data-action="removerResistencia" data-index="{{idx}}"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {{/each}}
+    {{pyroDica "PYRO.Magia.PericiaResistenciaDica"}}
+    {{/if}}
   </div>
 
   {{> "pyro.progresso"}}
