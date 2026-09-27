@@ -76,6 +76,12 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
        * todo ataque, além de esticar a zona em que se acerta sem mira.
        */
       alcanceBonus: num(0),
+      /*
+       * PV que a criatura recupera a cada turno que passa em combate. É campo
+       * do ator para que qualquer fonte (a raça, a magia no alvo, o item
+       * vestido) entre pelo mesmo efeito e duas fontes somem.
+       */
+      regeneracao: num(0, { min: 0 }),
       // Quantas mãos a criatura tem para gestos e armas. Efeitos somam ou
       // tiram (membro extra, braço imobilizado).
       maos: num(2, { min: 0 }),

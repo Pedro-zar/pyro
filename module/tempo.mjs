@@ -75,6 +75,33 @@ async function sangrar(actor, relatos) {
 }
 
 /**
+ * Quanto a Regeneração do ator devolve por turno. Um efeito que multiplica o
+ * campo pode deixar fração, e PV é contado inteiro.
+ */
+export const pvDaRegeneracao = actor =>
+  Math.max(0, Math.floor(Number(actor.system?.regeneracao) || 0));
+
+/**
+ * Regenera: o valor inteiro volta a cada turno, até o máximo.
+ *
+ * Vem depois do Queimando e do Sangramento, para o card contar o que a
+ * Regeneração devolveu do que acabou de sair. Quem está caído também
+ * regenera, porque fechar a ferida sozinho é justamente o que o efeito faz.
+ */
+async function regenerar(actor, relatos) {
+  const valor = pvDaRegeneracao(actor);
+  if (!valor) return;
+  const pv = actor.system.recursos?.pv;
+  // Vida cheia não rende linha no card: seria um relato por turno de algo que
+  // não mudou nada.
+  if (!pv || pv.value >= pv.max) return;
+  const antes = pv.value;
+  await actor.aplicarCura(valor);
+  const cura = Math.max(0, (actor.system.recursos?.pv?.value ?? antes) - antes);
+  relatos.push(loc("PYRO.Tempo.Regenerou", { nome: esc(actor.name), valor, cura }));
+}
+
+/**
  * Passa um turno para um ator: as condições com prazo perdem um turno, e as
  * que chegam a zero saem.
  *
@@ -85,6 +112,7 @@ async function sangrar(actor, relatos) {
 async function passarTurnoDoAtor(actor, relatos, rolagens, ehSeuTurno, virouRodada) {
   await queimar(actor, relatos, rolagens);
   await sangrar(actor, relatos);
+  await regenerar(actor, relatos);
   return naFila(actor, () => vencerPrazos(actor, relatos, ehSeuTurno, virouRodada));
 }
 
@@ -136,9 +164,9 @@ async function vencerPrazos(actor, relatos, ehSeuTurno, virouRodada) {
  * Tempo corrido fora do combate: avança o relógio do mundo e desconta o que
  * passou dos efeitos com prazo dos atores dados, num card só.
  *
- * Diferente do turno de combate, aqui ninguém queima: o Queimando é ritmo de
- * luta, e uma hora de estrada queimando seria uma sentença de morte por
- * aritmética. E a rodada, que em combate estica com a quantidade de gente,
+ * Diferente do turno de combate, aqui ninguém queima nem regenera: o
+ * Queimando e a Regeneração são ritmo de luta, e uma hora de estrada
+ * queimando seria uma sentença de morte por aritmética. E a rodada, que em combate estica com a quantidade de gente,
  * fora dele vale um turno — não há fila esticando nada.
  * @param {Actor[]} atores quem sente o tempo passar.
  * @param {number} segundos quanto tempo corre.

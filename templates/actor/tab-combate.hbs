@@ -56,6 +56,12 @@
         <span class="valor numero">{{system.deslocamentoNatacao}}m</span>
         {{#if system.natacaoBloqueada}}<i class="fa-solid fa-ban"></i>{{/if}}</p>
       {{/if}}
+      {{#if system.regeneracao}}
+      <p class="stat-inline" title="{{localize 'PYRO.RegeneracaoDica'}}">
+        <i class="fa-solid fa-heart-circle-plus"></i>
+        {{localize "PYRO.Regeneracao"}}
+        <span class="valor numero">{{system.regeneracao}}</span></p>
+      {{/if}}
       {{!-- Luz que o personagem emite: só aparece em quem está acendendo
             alguma coisa (a tocha, uma magia de luz). --}}
       {{#if system.temLuz}}
