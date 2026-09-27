@@ -77,12 +77,14 @@ export function registrarPercepcao() {
       static getDetectionFilter() {
         if (this._detectionFilter !== undefined) return this._detectionFilter;
         const Contorno = F.OutlineOverlayFilter;
-        if (Contorno) {
-          return this._detectionFilter = Contorno.create({ outlineColor: filtro, knockout: true });
-        }
         const Brilho = F.GlowOverlayFilter;
-        return this._detectionFilter = Brilho
-          ? Brilho.create({ glowColor: filtro }) : null;
+        const criado = Contorno
+          ? Contorno.create({ outlineColor: filtro, knockout: true })
+          : Brilho ? Brilho.create({ glowColor: filtro }) : null;
+        // A marca diz ao token que ele só está sendo visto pelo sentido, e
+        // que a arte dele não pode aparecer (ver o token, mais abaixo).
+        if (criado) criado.pyroSentido = true;
+        return this._detectionFilter = criado;
       }
 
       /** @override */
@@ -115,6 +117,47 @@ export function registrarPercepcao() {
       filtro: PYRO.COR_DO_VAZIO, sente: sys => !cfg.brilha(sys)
     });
   }
+
+  /* --- Quem só é sentido não mostra o rosto -------------------------------- */
+  /*
+   * O filtro de detecção desenha o contorno numa passada à parte, e a arte
+   * do token continua na camada principal. Fora da visão, a névoa cobre essa
+   * arte e sobra só o contorno. Dentro do alcance do sentido, porém, a área
+   * atrás da parede entra no los (ver a fonte de visão, mais abaixo), a névoa
+   * sai de cima e o token aparecia inteiro por baixo do contorno. Aqui a arte
+   * fica transparente enquanto o único jeito de ver o token for o sentido: o
+   * que se percebe é o círculo, colorido em quem carrega o recurso e cinza em
+   * quem não carrega. A passada do contorno força a opacidade cheia, então o
+   * círculo continua aparecendo.
+   *
+   * A conta é refeita nos três lugares em que o Foundry mexe na opacidade da
+   * arte: sem isso, um token que entra na visão normal ficaria invisível até
+   * o próximo redesenho completo.
+   */
+  CONFIG.Token.objectClass = class extends CONFIG.Token.objectClass {
+    #ajustarArte() {
+      if (!this.mesh || this.mesh.destroyed) return;
+      this.mesh.alpha = this.detectionFilter?.pyroSentido ? 0 : this.alpha * this.document.alpha;
+    }
+
+    /** @override */
+    _refreshVisibility() {
+      super._refreshVisibility();
+      this.#ajustarArte();
+    }
+
+    /** @override */
+    _refreshState() {
+      super._refreshState();
+      this.#ajustarArte();
+    }
+
+    /** @override */
+    _refreshMesh() {
+      super._refreshMesh();
+      this.#ajustarArte();
+    }
+  };
 
   /* --- Aparências: como o mundo se parece para quem sente ----------------- */
   /*
