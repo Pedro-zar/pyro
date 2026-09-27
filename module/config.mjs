@@ -1310,6 +1310,17 @@ PYRO.alvosEfeito = {
       "system.luz.penumbra": "PYRO.Efeitos.Alvo.luzPenumbra"
     }
   },
+  /*
+   * O tamanho do contador do turno: ações no próprio turno, reações no dos
+   * outros. Um efeito de "+1 ação" soma aqui, um de "só 3 ações" substitui.
+   */
+  economia: {
+    label: "PYRO.Efeitos.Cat.economia",
+    alvos: {
+      "system.acoesMax": "PYRO.Efeitos.Alvo.acoesMax",
+      "system.reacoesMax": "PYRO.Efeitos.Alvo.reacoesMax"
+    }
+  },
   outros: {
     label: "PYRO.Efeitos.Cat.outros",
     alvos: {
@@ -1381,3 +1392,25 @@ PYRO.guiaAcoes = [
   "escalar", "furtividade", "bloquear", "esquivar", "cobertura",
   "atrasar", "ajudar", "foraDoTurno"
 ];
+
+/**
+ * Ações do Guia que o jogador pode clicar: o custo escrito, o tipo e o que
+ * mais cobram. As que já têm um caminho próprio (esquivar, bloquear, tomar
+ * ar) apontam para ele, e o gasto sai de lá. As que não têm custo fixo
+ * (furtividade, a conversão fora do turno) não são clicáveis.
+ */
+PYRO.acoesDoGuia = {
+  atacar: { acoes: 2 },
+  mirar: { acoes: 1 },
+  mover: { acoes: 1, metodo: "mover" },
+  sacarArma: { acoes: 1 },
+  tomarAr: { acoes: 1, metodo: "tomarAr" },
+  salto: { acoes: 3, estamina: 15 },
+  agarrar: { acoes: 3, estamina: 10 },
+  escalar: { acoes: 3, estamina: 20 },
+  bloquear: { acoes: 1, tipo: "reacao", metodo: "rolarBloqueio" },
+  esquivar: { acoes: 1, tipo: "reacao", metodo: "rolarEsquiva" },
+  cobertura: { acoes: 1, tipo: "reacao" },
+  atrasar: { acoes: 2, metodo: "atrasarAcao" },
+  ajudar: { acoes: 1, tipo: "reacao" }
+};

@@ -98,6 +98,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       rolarEsquiva: PyroActorSheet.#rolarEsquiva,
       rolarBloqueio: PyroActorSheet.#rolarBloqueio,
       tomarAr: PyroActorSheet.#tomarAr,
+      mover: PyroActorSheet.#mover,
+      ajustarEconomia: PyroActorSheet.#ajustarEconomia,
       vontadeDeViver: PyroActorSheet.#vontadeDeViver,
       ajustarExaustao: PyroActorSheet.#ajustarExaustao,
       recuperar: PyroActorSheet.#recuperar,
@@ -717,6 +719,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       exaustao: nivelExaustao(actor),
       // A DET só chega a 0 onde a mesa ligou a regra do prólogo.
       detMin: PYRO.regraAtiva("det0") ? 0 : 1,
+      economia: this.#economia(),
       /*
        * Força de Vontade: os dois usos que dependem do estado da ficha, e não
        * de uma rolagem em andamento. Benefício e Inspiração vivem no diálogo
@@ -839,6 +842,35 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     await this.actor.rolarBloqueio({ rapido: event.shiftKey });
   }
 
+  static async #mover() {
+    await this.actor.mover();
+  }
+
+  static async #ajustarEconomia(event, target) {
+    await this.actor.ajustarEconomia(Number(target.dataset.delta) || 0);
+  }
+
+  /**
+   * O contador do turno como a ficha desenha: uma bolinha por ponto, cheia
+   * enquanto ainda não foi gasto. Fora de combate só os máximos, que é o que
+   * os efeitos mudam e o que o jogador quer conferir.
+   */
+  #economia() {
+    const eco = this.actor.economia;
+    const loc = k => game.i18n.localize(k);
+    return {
+      ...eco,
+      rotulo: loc(eco.modo === "reacoes" ? "PYRO.Economia.Reacoes" : "PYRO.Economia.Acoes"),
+      // O objeto do combate não vai para o template.
+      combate: null,
+      // Com um máximo grande as bolinhas viram uma fila sem leitura: fica o número.
+      pips: eco.max + eco.extra <= 12
+        ? Array.from({ length: eco.max + eco.extra }, (_, i) => i < eco.disponivel) : null,
+      total: eco.max + eco.extra,
+      resumo: game.i18n.format("PYRO.Economia.Resumo", { acoes: eco.acoesMax, reacoes: eco.reacoesMax })
+    };
+  }
+
   static async #tomarAr() {
     await this.actor.tomarAr();
   }
@@ -877,7 +909,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   static #abrirGuiaAcoes() {
-    new GuiaAcoesApp().render(true);
+    new GuiaAcoesApp({ actor: this.actor }).render(true);
   }
 
   /**

@@ -35,6 +35,9 @@ import {
 } from "../duracao.mjs";
 import { donosDe, temDonoJogador } from "../tecnica.mjs";
 import { multRecuperacaoDoAtor, comDensidade } from "../regioes.mjs";
+import {
+  economiaDoAtor, pontosDoCusto, textoDeAcoes, textoDoPagamento, anunciarAcao, dividirGasto
+} from "../economia.mjs";
 
 export class PyroActor extends Actor {
   /**
@@ -610,6 +613,9 @@ export class PyroActor extends Actor {
       if (!res) return;
       opts = { ...opts, ...res, nd: res.nd || null, cobertura: !!res.cobertura };
     }
+    // Cobrado depois da janela: fechar o diálogo não pode levar a reação.
+    const gasto = await this.gastarAcoes(1, { tipo: "reacao" });
+    if (!gasto.ok) return;
     aplicarExaustaoNoTeste(this, opts);
     const vontade = await aplicarVontadeNoTeste(this, opts);
     opts.vantagem += vontade.beneficio;
@@ -626,7 +632,7 @@ export class PyroActor extends Actor {
 
     const formula = formulaReacao(this.system[tipo], cfg.faces, opts);
     const flavor = game.i18n.localize(opts.cobertura ? chaves.flavorCobertura : chaves.flavor)
-      + sufixoND(opts.nd);
+      + sufixoND(opts.nd) + (gasto.texto ? ` · ${gasto.texto}` : "");
     // Montado antes da saída por falha automática: a estamina já foi cobrada,
     // e uma reação que falha sem dizer o que custou parece um bug na mesa.
     const avisoFriagem = friagem > 0
@@ -786,6 +792,107 @@ export class PyroActor extends Actor {
   }
 
   /* ---------------------------------------------------------------------- */
+  /*  Contador de ações e reações (SRD §5)                                  */
+  /* ---------------------------------------------------------------------- */
+
+  /** O contador do turno agora (ver economiaDoAtor). */
+  get economia() {
+    return economiaDoAtor(this);
+  }
+
+  /**
+   * O contador comporta este custo? Avisa quando não. Fora de combate
+   * sempre comporta, porque ali nada é contado.
+   * @param {number} n o custo escrito.
+   * @param {string} [opcoes.tipo] "acao" ou "reacao".
+   */
+  podeGastarAcoes(n, { tipo = "acao", aviso = true } = {}) {
+    const eco = economiaDoAtor(this);
+    if (!eco.rastreia) return true;
+    const pontos = pontosDoCusto(n, tipo, eco.modo);
+    if (pontos <= eco.disponivel) return true;
+    if (aviso) {
+      const unidade = eco.modo === "reacoes" ? "reacao" : "acao";
+      ui.notifications.warn(game.i18n.format("PYRO.Economia.Falta", {
+        custo: textoDoPagamento(n, tipo, eco.modo),
+        resta: textoDeAcoes(eco.disponivel, unidade)
+      }));
+    }
+    return false;
+  }
+
+  /**
+   * Tira um custo do contador do turno. No turno dos outros uma ação sai
+   * como duas reações, e no próprio turno uma reação sai como uma ação.
+   *
+   * Numa fila própria do contador, e não na do ator: quem cobra (a entrada
+   * numa forma, por exemplo) muitas vezes já roda na fila do ator, e ali
+   * esperaria a si mesmo. A fila própria ainda impede que dois cliques
+   * seguidos leiam o mesmo saldo e descontem uma vez só.
+   * @returns {Promise<{ok: boolean, texto: string}>} o texto é o que o card
+   *   mostra como custo: o que saiu do contador em combate, o custo escrito
+   *   fora dele.
+   */
+  async gastarAcoes(n, { tipo = "acao", aviso = true } = {}) {
+    const q = Math.max(0, Math.round(Number(n) || 0));
+    if (!q) return { ok: true, texto: "" };
+    return naFila({ uuid: `${this.uuid}#economia` }, async () => {
+      const eco = economiaDoAtor(this);
+      if (!eco.rastreia) return { ok: true, texto: textoDeAcoes(q, tipo) };
+      if (!this.podeGastarAcoes(q, { tipo, aviso })) return { ok: false, texto: "" };
+      const { doTurno, doExtra } = dividirGasto(eco, pontosDoCusto(q, tipo, eco.modo));
+      await this.update({
+        "system.economia.gastas": eco.gastas + doTurno,
+        "system.economia.marca": eco.marca,
+        ...(doExtra ? { "system.economia.extra": Math.max(0, eco.extra - doExtra) } : {})
+      });
+      return { ok: true, texto: textoDoPagamento(q, tipo, eco.modo) };
+    });
+  }
+
+  /**
+   * Atrasar ação (SRD §5): 2 ações agora por 1 reação a mais até o próximo
+   * turno. Só no próprio turno, porque é dele que as ações saem.
+   */
+  async atrasarAcao() {
+    if (!this.podeAgir()) return;
+    const eco = economiaDoAtor(this);
+    if (eco.rastreia && eco.modo !== "acoes") {
+      return ui.notifications.warn(game.i18n.localize("PYRO.Economia.SoNoTurno"));
+    }
+    const gasto = await this.gastarAcoes(PYRO.acoesDoGuia.atrasar.acoes);
+    if (!gasto.ok) return;
+    if (eco.rastreia) {
+      const de = `${eco.combate.id}:${eco.combate.round}`;
+      const antes = this.system.economia?.extraDe === de ? Number(this.system.economia.extra) || 0 : 0;
+      await this.update({ "system.economia.extra": antes + 1, "system.economia.extraDe": de });
+    }
+    return anunciarAcao(this, game.i18n.localize("PYRO.Guia.atrasar.Feito"), gasto.texto);
+  }
+
+  /**
+   * Acerto manual do contador pela ficha: devolve (+1) ou tira (-1) um
+   * ponto, para corrigir o que a mesa resolveu fora do sistema.
+   */
+  async ajustarEconomia(delta) {
+    const eco = economiaDoAtor(this);
+    if (!eco.rastreia) return;
+    // Só o saldo do turno: as reações do Atrasar ação não se devolvem à mão.
+    const gastas = Math.clamp(eco.gastas - Math.sign(Number(delta) || 0), 0, eco.max);
+    await this.update({ "system.economia.gastas": gastas, "system.economia.marca": eco.marca });
+  }
+
+  /** Mover-se: até a velocidade em metros, por 1 ação (SRD §5). */
+  async mover() {
+    if (!this.podeAgir()) return;
+    const gasto = await this.gastarAcoes(1);
+    if (!gasto.ok) return;
+    return anunciarAcao(this, game.i18n.format("PYRO.Economia.Moveu", {
+      metros: this.system.velocidade ?? 0
+    }), gasto.texto);
+  }
+
+  /* ---------------------------------------------------------------------- */
   /*  Posturas (SRD Técnicas)                                               */
   /* ---------------------------------------------------------------------- */
 
@@ -802,15 +909,18 @@ export class PyroActor extends Actor {
 
   /**
    * Entra numa postura, ou sai dela ao repetir a que já está ativa. Custa 1
-   * ação em combate (SRD Técnicas); o card serve de aviso à mesa, o gasto da
-   * ação continua na contagem do turno.
+   * ação em combate (SRD Técnicas), tirada do contador do turno.
+   * @param {boolean} [opcoes.gratis] entrada pelo lembrete do começo da luta,
+   *   que não cobra: o preço de esquecer é a ação, não o de lembrar.
    */
-  async alternarPostura(item) {
+  async alternarPostura(item, { gratis = false } = {}) {
     if (item && !item.system?.ehPostura) return;
     const saindo = !item || this.posturaAtiva?.id === item.id;
     // Entrar ou trocar custa 1 ação; sair também é a guarda caindo, e aí não
     // há o que segurar — quem está esmagado pelo peso larga a postura.
     if (!saindo && !this.podeAgir()) return;
+    const gasto = saindo || gratis ? { ok: true, texto: "" } : await this.gastarAcoes(1);
+    if (!gasto.ok) return;
     await this.setFlag(SYSTEM_ID, "postura", saindo ? "" : item.id);
     // Entrar é o mesmo card de qualquer habilidade: o que a postura rende e a
     // descrição dela, que é o que a mesa precisa reler enquanto ela durar.
@@ -823,7 +933,9 @@ export class PyroActor extends Actor {
      */
     const sussurro = temDonoJogador(this) ? [] : donosDe(this);
     if (!saindo) {
-      return item.cardDeHabilidade(game.i18n.localize("PYRO.Postura.EntrouMeta"), sussurro);
+      const meta = [game.i18n.localize("PYRO.Postura.EntrouMeta"), gasto.texto]
+        .filter(Boolean).join(" · ");
+      return item.cardDeHabilidade(meta, sussurro);
     }
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
@@ -1139,6 +1251,8 @@ export class PyroActor extends Actor {
   /** Tomar Ar: recupera VIG/2 de estamina, até o máximo. Custa uma ação. */
   async tomarAr() {
     if (!this.podeAgir()) return;
+    const gasto = await this.gastarAcoes(1);
+    if (!gasto.ok) return;
     const estamina = this.system.recursos.estamina;
     // A culpa não deixa respirar direito: metade do fôlego de volta.
     const pelaMetade = regraMental(this, "tomarArMetade");
@@ -1147,7 +1261,7 @@ export class PyroActor extends Actor {
     await this.update({
       "system.recursos.estamina.value": Math.min(estamina.max, estamina.value + rec)
     });
-    const texto = game.i18n.format("PYRO.Chat.TomarAr", { valor: rec })
+    const texto = game.i18n.format("PYRO.Chat.TomarAr", { valor: rec, custo: gasto.texto })
       + (pelaMetade ? ` ${game.i18n.localize("PYRO.Mental.TomarArMetade")}` : "");
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),

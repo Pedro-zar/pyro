@@ -398,6 +398,14 @@ export class PyroItem extends Item {
      * e o token pode andar antes de alguém conferir a pontaria. O resto da
      * regra é a mesma de toda forma de atacar, e mora em conferirMira.
      */
+    // Efeito de custo pode baratear ou encarecer o ataque em ações. O
+    // contador é cobrado antes da munição: sem ações o disparo não sai.
+    const acoes = custoAjustado(sys.acoes, ajustesDeCusto(actor, this).acoes);
+    const gasto = actor
+      ? await actor.gastarAcoes(acoes)
+      : { ok: true, texto: game.i18n.format("PYRO.Chat.CustoAcoes", { acoes }) };
+    if (!gasto.ok) return;
+
     const alcance = alcanceDaArma(actor, this);
     const mira = conferirMira(actor, alcance.maximo || alcance.menor);
     const rolls = [];
@@ -405,10 +413,8 @@ export class PyroItem extends Item {
     // Munição some ao disparar, acertando ou errando.
     if (municao) await municao.update({ "system.quantidade": municao.system.quantidade - 1 });
 
-    // Efeito de custo pode baratear ou encarecer o ataque em ações.
-    const acoes = custoAjustado(sys.acoes, ajustesDeCusto(actor, this).acoes);
     const detalhes = [
-      game.i18n.format("PYRO.Chat.CustoAcoes", { acoes }),
+      gasto.texto,
       textoDeAlcance(alcance)
     ].filter(Boolean).join(" · ");
     const partes = [this.#topoHTML(detalhes)];
@@ -504,6 +510,11 @@ export class PyroItem extends Item {
     if (sys.quantidade < 1) {
       return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemQuantidade"));
     }
+    const acoes = custoAjustado(sys.acoes, ajustesDeCusto(this.actor, this).acoes);
+    const gasto = this.actor
+      ? await this.actor.gastarAcoes(acoes)
+      : { ok: true, texto: game.i18n.format("PYRO.Chat.CustoAcoes", { acoes }) };
+    if (!gasto.ok) return;
     await this.update({ "system.quantidade": sys.quantidade - 1 });
 
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
@@ -513,9 +524,7 @@ export class PyroItem extends Item {
     return ChatMessage.create({
       speaker,
       content: `<div class="pyro-chat">
-        ${this.#topoHTML(game.i18n.format("PYRO.Chat.CustoAcoes", {
-          acoes: custoAjustado(sys.acoes, ajustesDeCusto(this.actor, this).acoes)
-        }))}
+        ${this.#topoHTML(gasto.texto)}
         ${await roll.render()}
         ${htmlEfeitosDeUso(this)}
       </div>`,
@@ -562,6 +571,10 @@ export class PyroItem extends Item {
       }
     }
     const custoAcoes = custoAjustado(sys.custoAcoes, ajustes.acoes);
+    const tipo = sys.tipoCusto === "reacao" ? "reacao" : "acao";
+    // O contador é conferido antes e cobrado depois dos recursos: faltando
+    // mana, as ações ficam onde estavam.
+    if (this.actor && !this.actor.podeGastarAcoes(custoAcoes, { tipo })) return null;
 
     const custos = [];
     if (this.actor && Object.values(cobra).some(v => v > 0)) {
@@ -582,11 +595,11 @@ export class PyroItem extends Item {
       }
     }
 
-    const chaveCusto = sys.tipoCusto === "reacao" ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";
-    return [
-      custoAcoes ? game.i18n.format(chaveCusto, { acoes: custoAcoes }) : null,
-      ...custos
-    ].filter(Boolean).join(" · ");
+    const chaveCusto = tipo === "reacao" ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";
+    const gasto = this.actor
+      ? await this.actor.gastarAcoes(custoAcoes, { tipo })
+      : { ok: true, texto: custoAcoes ? game.i18n.format(chaveCusto, { acoes: custoAcoes }) : "" };
+    return [gasto.texto || null, ...custos].filter(Boolean).join(" · ");
   }
 
   async #usarHabilidade() {
@@ -640,10 +653,12 @@ export class PyroItem extends Item {
     if (this.actor && !this.actor.podeAgir()) return;
     const sys = this.system;
     const speaker = ChatMessage.getSpeaker({ actor: this.actor });
-    const cab = sys.custoAcoes
-      ? game.i18n.format("PYRO.Chat.CustoAcoes", {
-          acoes: custoAjustado(sys.custoAcoes, ajustesDeCusto(this.actor, this).acoes)
-        }) : "";
+    const acoes = custoAjustado(sys.custoAcoes, ajustesDeCusto(this.actor, this).acoes);
+    const gasto = this.actor
+      ? await this.actor.gastarAcoes(acoes)
+      : { ok: true, texto: acoes ? game.i18n.format("PYRO.Chat.CustoAcoes", { acoes }) : "" };
+    if (!gasto.ok) return;
+    const cab = gasto.texto;
 
     if (sys.formula) {
       const dados = this.getRollData();

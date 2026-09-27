@@ -10,6 +10,7 @@ import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
 import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema } from "./sistema.mjs";
 import { registrarUso } from "./progressao.mjs";
+import { combateDoAtor } from "./economia.mjs";
 import {
   aplicarQueimando, aplicarSangramento, aplicarMolhado, aplicarFriagem,
   efeitoComPrazo, pilhasDe
@@ -278,7 +279,10 @@ async function entrarNaPostura({ atorUuid, itemId }) {
   if (actor.posturaAtiva?.id === postura.id) {
     return ui.notifications.info(game.i18n.format("PYRO.Postura.JaEsta", { nome: postura.name }));
   }
-  return actor.alternarPostura(postura);
+  // Na primeira rodada da luta do personagem o lembrete ainda é o da
+  // largada, e entrar sai de graça. Fora de combate não há o que cobrar.
+  const combate = combateDoAtor(actor);
+  return actor.alternarPostura(postura, { gratis: !!combate && combate.round <= 1 });
 }
 
 export function registrarMenuChat() {

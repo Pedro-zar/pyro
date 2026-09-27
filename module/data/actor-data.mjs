@@ -6,7 +6,7 @@ import { PYRO } from "../config.mjs";
 import { formulaPool, juntarDados, calcularFormula } from "../dados.mjs";
 import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "./item-data.mjs";
 import { sentidosDoAtor } from "../percepcao.mjs";
-import { num, dec } from "./campos.mjs";
+import { num, dec, str } from "./campos.mjs";
 
 const fields = foundry.data.fields;
 
@@ -82,6 +82,26 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
        * vestido) entre pelo mesmo efeito e duas fontes somem.
        */
       regeneracao: num(0, { min: 0 }),
+      /*
+       * Ações no próprio turno e reações no turno de cada outro combatente
+       * (SRD §5). São os máximos, e é neles que os efeitos mexem: somar,
+       * multiplicar, substituir, mínimo e máximo, como qualquer outro campo.
+       */
+      acoesMax: num(6, { min: 0 }),
+      reacoesMax: num(2, { min: 0 }),
+      /*
+       * Quanto do contador já saiu e em qual turno (ver economia.mjs). Um
+       * gasto marcado com outro turno não conta: é assim que o contador
+       * enche quando o turno anda.
+       */
+      economia: new fields.SchemaField({
+        gastas: num(0, { min: 0 }),
+        marca: str(""),
+        // Reações a mais do Atrasar ação e a rodada em que foram ganhas
+        // ("<combate>:<rodada>"): valem até o próximo turno do personagem.
+        extra: num(0, { min: 0 }),
+        extraDe: str("")
+      }),
       // Quantas mãos a criatura tem para gestos e armas. Efeitos somam ou
       // tiram (membro extra, braço imobilizado).
       maos: num(2, { min: 0 }),

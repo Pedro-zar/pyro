@@ -643,8 +643,21 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   // O ônus cobra vida além da estamina, no valor do Esforço em si: Esforço 2
   // num traço custa 6 de estamina (a tabela do Esforço) e 2 de vida.
   const cobraPv = custaPv && calc.somaEsforcos > 0;
+
+  const acoesBase = custoAjustado(acoesDaExecucao(sys, ataque),
+    ajustesDeCusto(actor, [item, ataque?.item]).acoes);
+  // A confusão cobra a ação extra por último, sobre o custo já ajustado — e só
+  // em ação: a regra fala de ações, e técnica de reação continua custando o
+  // que custava.
+  const acoes = base?.reacao ? acoesBase : acoesComConfusao(actor, acoesBase);
+  const tipo = base?.reacao ? "reacao" : "acao";
+  // O contador é conferido antes da estamina e cobrado depois dela: sem
+  // estamina, as ações ficam onde estavam.
+  if (!actor.podeGastarAcoes(acoes, { tipo })) return;
+
   const pago = await actor.pagarCustos({ estamina: calc.estamina });
   if (!pago) return;
+  const gasto = await actor.gastarAcoes(acoes, { tipo });
   if (cobraPv) {
     const pv = actor.system.recursos.pv;
     await actor.update({ "system.recursos.pv.value": Math.max(0, pv.value - calc.somaEsforcos) });
@@ -662,18 +675,11 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   const partes = [];
   const danos = [];
 
-  const acoesBase = custoAjustado(acoesDaExecucao(sys, ataque),
-    ajustesDeCusto(actor, [item, ataque?.item]).acoes);
-  // A confusão cobra a ação extra por último, sobre o custo já ajustado — e só
-  // em ação: a regra fala de ações, e técnica de reação continua custando o
-  // que custava.
-  const acoes = base?.reacao ? acoesBase : acoesComConfusao(actor, acoesBase);
-  const chaveCusto = base?.reacao ? "PYRO.Chat.CustoReacoes" : "PYRO.Chat.CustoAcoes";
   // Dizer que a ação a mais veio da confusão: sem isso o custo maior parece
   // conta errada.
   const notaConfusao = acoes > acoesBase ? loc("PYRO.Mental.ConfusaoAcao") : "";
   const meta = [
-    loc(chaveCusto, { acoes }),
+    gasto.texto || null,
     loc(base?.label ?? ""),
     /*
      * Estamina e vida saem na mesma linha: o ônus "custa PV" cobra os dois

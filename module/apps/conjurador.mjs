@@ -424,10 +424,12 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const dados = formData.object;
     // Magia salva: sem re-salvar e o dano rola sempre.
     if (this.fixa) {
-      await conjurar(this.actor, escolhas, {
+      const saiu = await conjurar(this.actor, escolhas, {
         nomeMagia: this.nomeMagia, rolarDano: true, itemMagia: this.itemMagia,
         recursoMental: this.recursoMental, usaDt: this.usaDt
       });
+      // Faltaram ações: a janela fica com as Intenções escolhidas.
+      if (saiu === false) return;
       return this.close();
     }
 
@@ -460,12 +462,13 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       return this.close();
     }
 
-    await conjurar(this.actor, escolhas, {
+    const saiu = await conjurar(this.actor, escolhas, {
       nomeMagia: dados.nomeMagia?.trim() || null,
       rolarDano: !!dados.rolarDano,
       recursoMental: this.recursoMental,
       usaDt: this.usaDt
     });
+    if (saiu === false) return;
     return this.close();
   }
 }

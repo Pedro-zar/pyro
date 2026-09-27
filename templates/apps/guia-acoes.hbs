@@ -1,7 +1,12 @@
 <div class="guia-lista">
   <p class="pyro-nota">{{localize "PYRO.GuiaAcoes.Economia"}}</p>
+  {{#if contador}}<p class="guia-contador"><strong>{{contador}}</strong></p>{{/if}}
+  {{!-- Linha com custo fixo é um botão: cobra do contador e avisa no chat.
+        As outras (furtividade, a conversão) seguem só como lembrete. --}}
   {{#each acoes as |a|}}
-  <div class="guia-acao">
+  <div class="guia-acao {{#if a.clicavel}}clicavel{{/if}}"
+       {{#if a.clicavel}}role="button" tabindex="0" data-action="fazerAcao" data-chave="{{a.chave}}"
+       title="{{localize 'PYRO.GuiaAcoes.Clicar'}}"{{/if}}>
     <div class="guia-cab">
       <strong>{{a.nome}}</strong>
       <span class="guia-custo">{{a.custo}}</span>

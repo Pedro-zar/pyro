@@ -37,8 +37,32 @@
 
     <div class="painel lateral">
       <h3 class="titulo-secao">{{localize "PYRO.Combate"}}</h3>
+      {{!-- O contador do turno: ações no turno do personagem, reações no dos
+            outros. Fora de combate não há turno, e a linha mostra só os
+            máximos que os efeitos deixaram. --}}
+      {{#if economia.rastreia}}
+      <div class="pyro-economia modo-{{economia.modo}}" title="{{localize 'PYRO.Economia.Dica'}}">
+        <span class="economia-rotulo">{{economia.rotulo}}</span>
+        {{#if economia.pips}}
+        <span class="economia-pips">{{#each economia.pips as |cheio|}}<i class="pip {{#if cheio}}cheio{{/if}}"></i>{{/each}}</span>
+        {{/if}}
+        <span class="economia-conta numero">{{economia.disponivel}}/{{economia.total}}</span>
+        <button type="button" class="economia-ajuste" data-action="ajustarEconomia" data-delta="-1"
+                title="{{localize 'PYRO.Economia.Tirar'}}" {{#unless economia.disponivel}}disabled{{/unless}}>
+          <i class="fa-solid fa-minus"></i></button>
+        <button type="button" class="economia-ajuste" data-action="ajustarEconomia" data-delta="1"
+                title="{{localize 'PYRO.Economia.Devolver'}}" {{#unless economia.gastas}}disabled{{/unless}}>
+          <i class="fa-solid fa-plus"></i></button>
+      </div>
+      {{else}}
+      <p class="stat-inline pyro-economia-fora" title="{{localize 'PYRO.Economia.Dica'}}">
+        <i class="fa-solid fa-hourglass-half"></i> {{economia.resumo}}</p>
+      {{/if}}
       <p class="stat-inline"><i class="fa-solid fa-person-running"></i>
-        {{localize "PYRO.Velocidade"}} <span class="valor numero">{{system.velocidade}}m</span></p>
+        {{localize "PYRO.Velocidade"}} <span class="valor numero">{{system.velocidade}}m</span>
+        <button type="button" class="botao-mover" data-action="mover" {{#if system.imobilizado}}disabled{{/if}}
+                title="{{localize 'PYRO.Economia.MoverDica'}}">
+          <i class="fa-solid fa-shoe-prints"></i> {{localize "PYRO.Guia.mover.Nome"}}</button></p>
       {{!-- Voo e natação só aparecem em quem os tem: numa ficha comum os dois
             seriam duas linhas de zero. --}}
       {{#if system.deslocamentoAereo}}

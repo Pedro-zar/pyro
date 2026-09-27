@@ -20,6 +20,7 @@ import { absorverExaustao } from "./efeitos.mjs";
 import { registrarSettings, aplicarSettings } from "./settings.mjs";
 import { registrarMenuChat } from "./chat.mjs";
 import { registrarRelogio } from "./tempo.mjs";
+import { registrarEconomia } from "./economia.mjs";
 import { registrarPercepcao } from "./percepcao.mjs";
 import { registrarRegioes } from "./regioes.mjs";
 import { SYSTEM_ID, flagsDe, formasAtivas, caminho } from "./sistema.mjs";
@@ -96,6 +97,7 @@ Hooks.once("init", () => {
   registrarMenuChat();
   // Cada turno do combate vale 6 segundos para todos em cena (SRD §1).
   registrarRelogio();
+  registrarEconomia();
 
   // Fontes do sistema, também disponíveis nos editores de texto.
   CONFIG.fontDefinitions["PyroDisplay"] = {

@@ -948,6 +948,45 @@
 .pyro .stat-inline {
   margin: 0; font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
 }
+
+/*
+ * Contador do turno: rótulo, uma bolinha por ponto e a conta. As reações
+ * ganham a cor de aviso para que ninguém confunda "2" reações com 2 ações.
+ */
+.pyro .pyro-economia {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--pyro-e-1) var(--pyro-e-2);
+  margin: 0 0 var(--pyro-e-2); font-size: var(--pyro-t-xs); color: var(--pyro-texto-2);
+}
+.pyro .pyro-economia .economia-rotulo { font-weight: 700; color: var(--pyro-acento-ficha); }
+.pyro .pyro-economia.modo-reacoes .economia-rotulo { color: var(--pyro-aviso); }
+.pyro .pyro-economia .economia-pips { display: inline-flex; gap: 3px; }
+.pyro .pyro-economia .pip {
+  width: 10px; height: 10px; border-radius: 50%;
+  border: 1px solid var(--pyro-acento-ficha); background: transparent;
+}
+.pyro .pyro-economia .pip.cheio { background: var(--pyro-acento-ficha); }
+.pyro .pyro-economia.modo-reacoes .pip { border-color: var(--pyro-aviso); }
+.pyro .pyro-economia.modo-reacoes .pip.cheio { background: var(--pyro-aviso); }
+.pyro .pyro-economia .economia-conta { color: var(--pyro-texto); font-weight: 600; }
+.pyro .pyro-economia .economia-ajuste {
+  width: 1.5rem; height: 1.5rem; padding: 0; line-height: 1; font-size: 0.65rem; flex: none;
+}
+.pyro .pyro-economia-fora { margin-bottom: var(--pyro-e-2); }
+.pyro .stat-inline .botao-mover {
+  display: inline-flex; align-items: center; gap: 4px; width: auto; height: auto;
+  margin-left: var(--pyro-e-2); padding: 1px 8px; font-size: 0.7rem; line-height: 1.4;
+}
+
+/* Guia de ações: as linhas que cobram são botões, as outras só lembram. */
+.pyro.guia-acoes .guia-contador { margin: 0 0 var(--pyro-e-2); }
+.pyro.guia-acoes .guia-acao.clicavel { cursor: pointer; border-radius: 4px; }
+.pyro.guia-acoes .guia-acao.clicavel:hover { background: var(--pyro-acento-suave); }
+.pyro.guia-acoes .guia-acao.clicavel:focus-visible { outline: 2px solid var(--pyro-acento-ficha); }
+
+/* Aviso de ação sem card próprio no chat. */
+.pyro-acao-feita { margin: 0; }
+.pyro-acao-feita .pyro-acao-custo { opacity: 0.8; font-size: 0.9em; }
+.pyro-acao-feita .pyro-acao-custo::before { content: "· "; }
 /*
  * Só o botão de ícone puro fica quadrado, e ele diz isso na classe. Antes a
  * regra pegava qualquer botão da barra, e o "Caminho novo (30)" era espremido

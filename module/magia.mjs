@@ -696,7 +696,10 @@ export async function conjurar(actor, escolhas, {
    */
   const classe = calc.sobrecarga > 0 ? null : "rotineira";
 
-  /* --- Gasto de mana (a magia sai de qualquer jeito) ---------------------- */
+  /* --- Ações do turno, e depois a mana (a magia sai de qualquer jeito) ---- */
+  // Falso, e não vazio, diz ao Conjurador que nada saiu e a janela fica.
+  const gasto = await actor.gastarAcoes(calc.acoes);
+  if (!gasto.ok) return false;
   await actor.update({ "system.recursos.mana.value": recursos.mana.value - calc.custoTotal });
 
   /* --- Montagem do card e rolagens ---------------------------------------- */
@@ -732,7 +735,8 @@ export async function conjurar(actor, escolhas, {
     : escolhas.map(e => esc(e.item.system.palavra || e.item.name)).join(" ");
   partes.push(`<header class="pyro-magia-titulo">
     <h3>${titulo}</h3>
-    <span class="pyro-magia-meta">${loc("PYRO.Chat.CustoMagia", { mana: calc.custoTotal, acoes: calc.acoes })}${
+    <span class="pyro-magia-meta">${(gasto.texto ? loc("PYRO.Chat.CustoMagia", { mana: calc.custoTotal, acoes: gasto.texto })
+      : loc("PYRO.Chat.CustoMana", { mana: calc.custoTotal }))}${
       calc.acoes > calc.acoesBase ? ` · ${loc("PYRO.Mental.ConfusaoAcao")}` : ""}</span>
   </header>`);
 
