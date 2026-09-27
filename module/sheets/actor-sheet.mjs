@@ -749,11 +749,11 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       })),
       /*
        * Barra de transformações: mesma pastilha da postura, com o que falta do
-       * prazo na ativa. O prazo é lido do efeito marcador, que é quem o relógio
+       * prazo em cada ativa. Várias podem estar acesas ao mesmo tempo. O prazo é lido do efeito marcador, que é quem o relógio
        * desconta — a habilidade guarda a duração escrita, não a que resta.
        */
       transformacoes: transformacoesDoAtor(actor).map(t => {
-        const ativa = actor.transformacaoAtiva?.id === t.id;
+        const ativa = actor.emTransformacao(t.id);
         const marcador = ativa ? marcadorDeForma(actor, t.id) : null;
         return {
           id: t.id,

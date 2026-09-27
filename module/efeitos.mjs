@@ -10,7 +10,7 @@
 
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
+import { SYSTEM_ID, flagsDe, flagsDoSistema, formasAtivas, naFila } from "./sistema.mjs";
 import { UNIDADE_PADRAO, dadosDePrazo } from "./duracao.mjs";
 
 
@@ -55,10 +55,9 @@ export function efeitoValeParaItem(efeito, item) {
 const deFormaInativa = efeito => {
   const item = efeito.parent;
   if (!(item instanceof Item)) return false;
-  const chave = item.system?.ehPostura ? "postura"
-    : item.system?.ehTransformacao ? "transformacao" : null;
-  if (!chave) return false;
-  return item.actor?.getFlag(SYSTEM_ID, chave) !== item.id;
+  if (item.system?.ehPostura) return item.actor?.getFlag(SYSTEM_ID, "postura") !== item.id;
+  if (item.system?.ehTransformacao) return !formasAtivas(item.actor).includes(item.id);
+  return false;
 };
 
 /**

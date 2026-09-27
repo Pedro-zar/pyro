@@ -270,14 +270,46 @@ export class HabilidadeData extends BaseItemData {
       }),
       /*
        * O preço de voltar ao normal, um recurso por linha:
-       * { mana: { modo: "zerar", valor: "" }, estamina: { modo: "gastar", valor: "@nvl" } }.
+       * [{ recurso: "mana", modo: "zerar", valor: "" }, { recurso: "estamina", modo: "gastar", valor: "@nvl" }].
        * O que o personagem não tiver não vira dívida — cobra-se o que há.
+       *
+       * Lista, e não objeto por recurso: o Foundry funde o objeto guardado com
+       * o que chega no update, e uma linha apagada na ficha continuaria
+       * cobrando. A lista é trocada inteira.
        *
        * A exaustão e as outras marcas do fim não moram aqui: elas são efeitos
        * marcados como "ao acabar" na aba de Efeitos, escritos no mesmo
        * construtor de todos os outros.
        */
-      fimDaForma: new fields.ObjectField(),
+      fimDaForma: new fields.ArrayField(new fields.SchemaField({
+        recurso: str(""),
+        modo: str("gastar", { choices: ["gastar", "zerar"] }),
+        valor: str("")
+      })),
+      /*
+       * A cara da forma: o retrato e a imagem do token enquanto ela estiver
+       * ligada. Vazio é não mexer. Ao sair, volta o que o ator tinha antes da
+       * primeira forma que trocou a imagem.
+       */
+      aparencia: new fields.SchemaField({
+        retrato: str(""),
+        token: str("")
+      }),
+      /*
+       * O preço de continuar na forma: a cada `intervalo` na unidade escolhida,
+       * cobra os recursos de `custos` ([{ recurso: "estamina", valor: "1" }]),
+       * lista pelo mesmo motivo do fim da forma. A entrada já pagou o custo da
+       * habilidade, então a primeira cobrança vem depois do primeiro
+       * intervalo inteiro.
+       */
+      manutencao: new fields.SchemaField({
+        intervalo: num(1, { min: 1 }),
+        unidade: str("minutos", { choices: Object.keys(PYRO.unidadesDeManutencao) }),
+        custos: new fields.ArrayField(new fields.SchemaField({
+          recurso: str(""),
+          valor: str("")
+        }))
+      }),
       // A habilidade base vem junto do caminho e não custa XP.
       ehBase: new fields.BooleanField({ initial: false }),
       // Habilidades de caminhos que concedem recurso próprio (Energia Natural)

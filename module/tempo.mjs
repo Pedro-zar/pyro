@@ -113,7 +113,20 @@ async function passarTurnoDoAtor(actor, relatos, rolagens, ehSeuTurno, virouRoda
   await queimar(actor, relatos, rolagens);
   await sangrar(actor, relatos);
   await regenerar(actor, relatos);
-  return naFila(actor, () => vencerPrazos(actor, relatos, ehSeuTurno, virouRodada));
+  const { relatos: manutencao, caidas } = await actor.manterTransformacoes(1);
+  relatos.push(...manutencao);
+  await naFila(actor, () => vencerPrazos(actor, relatos, ehSeuTurno, virouRodada));
+  await derrubarFormas(actor, caidas);
+}
+
+/**
+ * Acaba as formas que não pagaram a manutenção. Vem depois dos prazos, como
+ * a forma que vence sozinha: os efeitos de "ao acabar" nascem agora e não
+ * perdem logo de saída o tempo que acabou de passar. O card do relógio já
+ * disse que a forma caiu, então a saída só avisa se cobrar algo na volta.
+ */
+async function derrubarFormas(actor, caidas) {
+  for (const id of caidas ?? []) await actor.sairDaTransformacao(id, { aviso: false });
 }
 
 /** Nome do efeito no relato de expiração. */
@@ -166,7 +179,8 @@ async function vencerPrazos(actor, relatos, ehSeuTurno, virouRodada) {
  *
  * Diferente do turno de combate, aqui ninguém queima nem regenera: o
  * Queimando e a Regeneração são ritmo de luta, e uma hora de estrada
- * queimando seria uma sentença de morte por aritmética. E a rodada, que em combate estica com a quantidade de gente,
+ * queimando seria uma sentença de morte por aritmética. A manutenção das
+ * transformações corre, porque ficar transformado uma hora custa uma hora. E a rodada, que em combate estica com a quantidade de gente,
  * fora dele vale um turno — não há fila esticando nada.
  * @param {Actor[]} atores quem sente o tempo passar.
  * @param {number} segundos quanto tempo corre.
@@ -178,7 +192,12 @@ export async function passarTempo(atores, segundos, rotulo) {
   const relatos = [];
   for (const actor of atores) {
     if (!actor?.isOwner) continue;
+    // A manutenção vem antes dos prazos: a forma que vence nesta passagem
+    // ainda paga pelo tempo em que esteve ligada.
+    const { relatos: manutencao, caidas } = await actor.manterTransformacoes(turnos);
+    relatos.push(...manutencao);
     await naFila(actor, () => vencerTempoCorrido(actor, turnos, relatos));
+    await derrubarFormas(actor, caidas);
   }
   return ChatMessage.create({
     content: `<div class="pyro-chat pyro-turno">

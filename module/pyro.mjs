@@ -22,7 +22,7 @@ import { registrarMenuChat } from "./chat.mjs";
 import { registrarRelogio } from "./tempo.mjs";
 import { registrarPercepcao } from "./percepcao.mjs";
 import { registrarRegioes } from "./regioes.mjs";
-import { SYSTEM_ID, flagsDe, caminho } from "./sistema.mjs";
+import { SYSTEM_ID, flagsDe, formasAtivas, caminho } from "./sistema.mjs";
 
 Hooks.once("init", () => {
   console.log(`PYRO | Inicializando sistema (id: ${SYSTEM_ID})`);
@@ -179,11 +179,11 @@ Hooks.on("deleteActiveEffect", (efeito, opcoes, userId) => {
   const ator = efeito?.parent;
   const forma = flagsDe(efeito)?.transformacao;
   if (!forma || !(ator instanceof Actor)) return;
-  // Numa troca de forma a flag já aponta para a nova, e o marcador que está
-  // sendo apagado é o da antiga: nada acabou.
-  if (ator.getFlag(SYSTEM_ID, "transformacao") !== forma) return;
+  // Quem sai pela ficha tira a forma da lista antes de apagar o marcador:
+  // aqui nada acabou que já não tenha sido contado.
+  if (!formasAtivas(ator).includes(forma)) return;
   // O card do turno já anuncia o prazo vencido junto com os outros efeitos.
-  ator.sairDaTransformacao({ aviso: !opcoes?.pyroRelatado })
+  ator.sairDaTransformacao(forma, { aviso: !opcoes?.pyroRelatado })
     .catch(erro => console.error("PYRO | falha ao acabar a transformação", erro));
 });
 
@@ -195,8 +195,8 @@ Hooks.on("deleteItem", (item, opcoes, userId) => {
   if (game.user.id !== userId) return;
   const ator = item?.parent;
   if (!(ator instanceof Actor)) return;
-  if (ator.getFlag(SYSTEM_ID, "transformacao") !== item.id) return;
-  ator.sairDaTransformacao()
+  if (!formasAtivas(ator).includes(item.id)) return;
+  ator.sairDaTransformacao(item.id)
     .catch(erro => console.error("PYRO | falha ao acabar a transformação", erro));
 });
 

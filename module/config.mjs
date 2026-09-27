@@ -801,6 +801,18 @@ PYRO.unidadesDeDuracao = {
   rodadas: { label: "PYRO.Duracao.Rodadas", curto: "PYRO.Duracao.RodadasCurto" }
 };
 
+/**
+ * Unidades do intervalo da manutenção de uma transformação ("1 de estamina
+ * a cada minuto"). A rodada fica de fora: ela estica com a quantidade de
+ * gente em cena, e o preço de manter uma forma não pode depender de quantos
+ * estão lutando. Cada unidade diz quantos turnos vale.
+ */
+PYRO.unidadesDeManutencao = {
+  turnos: { label: "PYRO.Duracao.Turnos", um: "PYRO.Manutencao.turno", varios: "PYRO.Manutencao.turnos", turnos: 1 },
+  minutos: { label: "PYRO.Duracao.Minutos", um: "PYRO.Manutencao.minuto", varios: "PYRO.Manutencao.minutos", turnos: PYRO.turnosDeSegundos(60) },
+  horas: { label: "PYRO.Duracao.Horas", um: "PYRO.Manutencao.hora", varios: "PYRO.Manutencao.horas", turnos: PYRO.turnosDeSegundos(3600) }
+};
+
 /* -------------------------------------------------------------------------- */
 /*  Condições mentais                                                         */
 /* -------------------------------------------------------------------------- */

@@ -403,6 +403,12 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       efeitosAoAcabar: sys.ehTransformacao
         ? item.effects.filter(e => flagsDe(e)?.aoAcabar) : [],
       camposDoFim: this.#camposDoFim(),
+      camposDaManutencao: this.#camposDaManutencao(),
+      // Token em vídeo não cabe num <img>: a prévia mostra só o retrato.
+      previaToken: /\.(webm|mp4|m4v|ogv)$/i.test(sys.aparencia?.token ?? "")
+        ? "" : (sys.aparencia?.token ?? ""),
+      unidadesManutencao: Object.fromEntries(Object.entries(PYRO.unidadesDeManutencao)
+        .map(([chave, cfg]) => [chave, cfg.label])),
       modosDeGasto: PYRO.modosDeGasto,
       subtitulo: this.#subtitulo(),
       // Perícia: uma caixa por atributo que ela aceita.
@@ -685,13 +691,29 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
    */
   #camposDoFim() {
     if (!this.item.system?.ehTransformacao) return [];
-    const fim = this.item.system.fimDaForma ?? {};
+    const fim = Object.fromEntries(
+      (this.item.system.fimDaForma ?? []).map(linha => [linha.recurso, linha]));
     return this.#recursosDaHabilidade().map(({ chave, label }) => ({
       label,
       nomeValor: `system.fimDaForma.${chave}.valor`,
       nomeModo: `system.fimDaForma.${chave}.modo`,
       valor: fim[chave]?.valor ?? "",
       modo: fim[chave]?.modo === "zerar" ? "zerar" : "gastar"
+    }));
+  }
+
+  /**
+   * Linhas da manutenção da transformação: um campo por recurso, com quanto
+   * sai a cada intervalo. Texto, porque aceita fórmula (@nvl).
+   */
+  #camposDaManutencao() {
+    if (!this.item.system?.ehTransformacao) return [];
+    const custos = Object.fromEntries(
+      (this.item.system.manutencao?.custos ?? []).map(linha => [linha.recurso, linha.valor]));
+    return this.#recursosDaHabilidade().map(({ chave, label }) => ({
+      label,
+      name: `system.manutencao.custos.${chave}`,
+      valor: custos[chave] ?? ""
     }));
   }
 
@@ -935,23 +957,41 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }
     }
 
-    if (this.item.type === "habilidade" && sys.fimDaForma) {
-      /*
-       * Fim da forma: o formulário manda uma linha por recurso que a ficha
-       * desenhou, quase todas vazias, e o ObjectField é gravado inteiro — só
-       * o que veio substituiria o resto. Por isso as linhas chegam por cima
-       * das guardadas: um item escrito com energia natural não perde a linha
-       * ao ser aberto numa ficha que não tem esse recurso. Depois ficam só as
-       * que cobram algo.
-       */
-      const guardado = this.item.system.toObject().fimDaForma ?? {};
-      const linhas = { ...guardado, ...sys.fimDaForma };
-      sys.fimDaForma = Object.fromEntries(Object.entries(linhas)
-        .map(([chave, linha]) => [chave, {
+    /*
+     * Fim da forma e manutenção: o formulário manda uma linha por recurso que
+     * a ficha desenhou, quase todas vazias, e o campo guarda uma lista que é
+     * trocada inteira. As linhas do formulário entram por cima das guardadas:
+     * um item escrito com energia natural não perde a linha ao ser aberto
+     * numa ficha que não tem esse recurso. Depois ficam só as que cobram algo.
+     */
+    const porCima = (guardadas, enviadas) => ({
+      ...Object.fromEntries((guardadas ?? []).map(linha => [linha.recurso, linha])),
+      ...enviadas
+    });
+    if (this.item.type === "habilidade" && sys.fimDaForma && !Array.isArray(sys.fimDaForma)) {
+      const linhas = porCima(this.item.system.toObject().fimDaForma, sys.fimDaForma);
+      sys.fimDaForma = Object.entries(linhas)
+        .map(([recurso, linha]) => ({
+          recurso,
           modo: linha?.modo === "zerar" ? "zerar" : "gastar",
           valor: String(linha?.valor ?? "").trim()
-        }])
-        .filter(([, linha]) => linha.modo === "zerar" || linha.valor));
+        }))
+        .filter(linha => linha.modo === "zerar" || linha.valor);
+    }
+    if (this.item.type === "habilidade" && sys.manutencao) {
+      if (sys.manutencao.custos && !Array.isArray(sys.manutencao.custos)) {
+        const guardadas = this.item.system.toObject().manutencao?.custos;
+        const enviadas = Object.fromEntries(Object.entries(sys.manutencao.custos)
+          .map(([recurso, valor]) => [recurso, { recurso, valor }]));
+        sys.manutencao.custos = Object.values(porCima(guardadas, enviadas))
+          .map(linha => ({ recurso: linha.recurso, valor: String(linha.valor ?? "").trim() }))
+          .filter(linha => linha.valor && linha.valor !== "0");
+      }
+      // Campo apagado volta a 1: o intervalo é obrigatório, e um vazio
+      // barraria o formulário inteiro na validação.
+      if ("intervalo" in sys.manutencao && !(Number(sys.manutencao.intervalo) >= 1)) {
+        sys.manutencao.intervalo = 1;
+      }
     }
 
     if (this.item.type === "runa" && sys.scalings && !Array.isArray(sys.scalings)) {

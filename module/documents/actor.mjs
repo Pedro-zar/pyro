@@ -25,7 +25,11 @@ import {
   periciaDeSobrecarga, ajudaDaPericia, textoDoND, ehPericiaDeRegra
 } from "../teste.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
-import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "../sistema.mjs";
+import { SYSTEM_ID, flagsDe, flagsDoSistema, formasAtivas, naFila } from "../sistema.mjs";
+import {
+  aparenciaDasFormas, intervaloDaManutencao, custoDaManutencao, cobrancasDaManutencao,
+  cobrancasPagaveis, textoDaManutencao, nomeDoRecurso
+} from "../transformacao.mjs";
 import {
   dadosDePrazo, UNIDADE_PADRAO, contaEmTurnos, daUnidade, turnosDe
 } from "../duracao.mjs";
@@ -833,33 +837,39 @@ export class PyroActor extends Actor {
   /* ---------------------------------------------------------------------- */
 
   /**
-   * A forma em que o personagem está, ou null. Mesma flag única da postura, e
-   * pelo mesmo motivo: duas formas ligadas ao mesmo tempo empilhariam efeitos
-   * que foram escritos para valer sozinhos. Entrar numa segunda troca a
-   * primeira.
+   * As formas em que o personagem está, na ordem em que entrou nelas. Várias
+   * valem juntas: os efeitos de todas entram na conta, cada linha na ordem e
+   * na prioridade dela, como qualquer outro efeito do ator. A ordem de
+   * entrada só decide a aparência (ver aparenciaDasFormas).
    */
-  get transformacaoAtiva() {
-    const id = this.getFlag(SYSTEM_ID, "transformacao");
-    const item = id ? this.items.get(id) : null;
-    return item?.system?.ehTransformacao ? item : null;
+  get transformacoesAtivas() {
+    return formasAtivas(this)
+      .map(id => this.items.get(id))
+      .filter(item => item?.system?.ehTransformacao);
+  }
+
+  /** O personagem está nesta forma? */
+  emTransformacao(itemId) {
+    return formasAtivas(this).includes(itemId);
   }
 
   /**
    * Entra numa transformação, ou sai dela ao repetir a que já está ativa.
+   * Entrar numa forma não desliga as outras.
    *
    * Diferente da postura, entrar é um uso: os custos da habilidade são
    * cobrados antes, e uma forma que o personagem não pode pagar não começa.
    * O prazo vive num efeito marcador no ator (ver marcadorDeForma) porque é o
    * relógio de tempo.mjs que sabe descontar turno, e é a morte dele que acaba
-   * a forma — inclusive quando o mestre o apaga à mão.
+   * a forma, inclusive quando o mestre o apaga à mão.
    */
   async alternarTransformacao(item) {
     return naFila(this, () => this.#entrarOuSairDaForma(item));
   }
 
   async #entrarOuSairDaForma(item) {
-    if (item && !item.system?.ehTransformacao) return;
-    if (!item || this.transformacaoAtiva?.id === item.id) return this.#acabarForma({});
+    if (!item?.system?.ehTransformacao) return;
+    if (this.emTransformacao(item.id)) return this.#acabarForma(item.id, {});
     // O botão da ficha entra direto na forma, sem passar por usar(): sem esta
     // linha uma habilidade comprada e ainda não recebida seria cobrada aqui.
     if (item.system.adormecidaAtiva) {
@@ -871,33 +881,28 @@ export class PyroActor extends Actor {
     if (custos === null) return; // faltou recurso: a forma não começa
 
     /*
-     * Trocar de forma acaba a anterior por inteiro, com o preço da volta: uma
-     * forma que saísse de graça só por encadear numa segunda tornaria o "ao
-     * acabar" opcional. O custo da nova já foi pago acima, então a troca
-     * acontece mesmo que a conta do fim deixe o personagem sem recurso.
+     * Um marcador perdido desta forma (a lista foi limpa à mão) sai antes de
+     * ela entrar na lista: apagado depois, o ouvinte de expiração entenderia
+     * que a forma que acabou de começar terminou.
      */
-    await this.#acabarForma({});
-
-    /*
-     * A flag muda antes dos marcadores: apagar um marcador com ela ainda
-     * apontando para a forma dele faria o ouvinte de expiração entender que a
-     * forma acabou e anunciar uma saída no meio de uma troca.
-     */
-    await this.setFlag(SYSTEM_ID, "transformacao", item.id);
-    await this.#limparMarcadoresDeForma();
+    await this.#apagarMarcador(item.id);
+    await this.setFlag(SYSTEM_ID, "transformacoes", [...formasAtivas(this), item.id]);
 
     const prazo = duracaoDaForma(item);
     await ActiveEffect.implementation.create(foundry.utils.mergeObject(
       dadosDePrazo(prazo?.valor ?? 0, prazo?.unidade ?? UNIDADE_PADRAO, {
-        transformacao: item.id, rotulo: item.name
+        // Turnos passados desde a última cobrança da manutenção.
+        transformacao: item.id, rotulo: item.name, manutencao: 0
       }),
       { name: item.name, img: item.img, origin: item.uuid }
     ), { parent: this });
+    await this.#vestirAparencia();
 
     const meta = [
       game.i18n.localize("PYRO.Transformacao.EntrouMeta"),
       prazo ? textoDePrazo(prazo) : null,
-      custos || null
+      custos || null,
+      textoDaManutencao(item) || null
     ].filter(Boolean).join(" · ");
     // NPC transformado não entrega a descrição inteira da forma à mesa, pelo
     // mesmo motivo da postura: o card traz tudo o que ela faz.
@@ -906,23 +911,32 @@ export class PyroActor extends Actor {
   }
 
   /**
-   * Acaba a forma ativa: apaga a flag, o marcador de prazo e avisa a mesa.
-   * Sem forma ligada não faz nada, porque é chamada também pela morte do
+   * Acaba uma forma: tira da lista, apaga o marcador de prazo, devolve a
+   * aparência e avisa a mesa. As outras formas continuam. Forma que já não
+   * está ligada não faz nada, porque a saída é chamada também pela morte do
    * marcador, que pode chegar depois de alguém já ter saído pela ficha.
    *
+   * @param {string} itemId a habilidade da forma.
    * @param {boolean} [opcoes.aviso] false quando quem chamou já contou o que
-   *   aconteceu — o card do turno anuncia o prazo vencido com todos os outros,
-   *   e um segundo aviso só repetiria a mesma linha noutra caixa.
+   *   aconteceu. O card do turno anuncia o prazo vencido e a manutenção que
+   *   faltou com todo o resto, e um segundo aviso só repetiria a mesma linha
+   *   noutra caixa.
    */
-  async sairDaTransformacao(opcoes = {}) {
-    return naFila(this, () => this.#acabarForma(opcoes));
+  async sairDaTransformacao(itemId, opcoes = {}) {
+    return naFila(this, () => this.#acabarForma(itemId, opcoes));
   }
 
-  async #acabarForma({ aviso = true }) {
-    const item = this.transformacaoAtiva;
-    if (!item && !this.getFlag(SYSTEM_ID, "transformacao")) return;
-    await this.setFlag(SYSTEM_ID, "transformacao", "");
-    await this.#limparMarcadoresDeForma();
+  async #acabarForma(itemId, { aviso = true }) {
+    if (!this.emTransformacao(itemId)) return;
+    const item = this.items.get(itemId) ?? null;
+    /*
+     * A lista muda antes do marcador: apagar o marcador com a forma ainda
+     * listada faria o ouvinte de expiração acabar a mesma forma de novo.
+     */
+    await this.setFlag(SYSTEM_ID, "transformacoes",
+      formasAtivas(this).filter(id => id !== itemId));
+    await this.#apagarMarcador(itemId);
+    await this.#vestirAparencia();
 
     // O preço da volta é cobrado depois que a forma cai, e não antes: os
     // efeitos dela não devem valer sobre a própria conta do que ela custou.
@@ -949,13 +963,125 @@ export class PyroActor extends Actor {
   }
 
   /**
+   * Cobra a manutenção das formas ligadas pelo tempo que passou. Uma forma
+   * de "1 de estamina por minuto" paga 1 depois do primeiro minuto inteiro,
+   * mais 1 depois do segundo, e assim por diante. A entrada já pagou o custo
+   * da habilidade, então o relógio da manutenção começa em zero.
+   *
+   * Quem não consegue pagar paga as cobranças que couberem e sai da forma.
+   * A estamina que faltar sai dos PV, como em qualquer custo, então ela
+   * nunca derruba a forma sozinha.
+   *
+   * A saída fica com quem chamou, e não acontece aqui: o relógio desconta os
+   * prazos antes de acabar a forma, como faz com a que vence sozinha, e os
+   * efeitos de "ao acabar" começam a contar do zero.
+   * @param {number} turnos quantos turnos passaram.
+   * @returns {Promise<{relatos: string[], caidas: string[]}>} linhas para o
+   *   card do relógio e as formas que não se pagaram.
+   */
+  async manterTransformacoes(turnos = 1) {
+    const relatos = [];
+    const caidas = [];
+    for (const item of this.transformacoesAtivas) {
+      const intervalo = intervaloDaManutencao(item);
+      const cobra = custoDaManutencao(item);
+      if (!intervalo || !Object.keys(cobra).length) continue;
+      const marcador = marcadorDeForma(this, item.id);
+      if (!marcador) continue;
+      const flags = flagsDe(marcador) ?? {};
+      const { vezes, resto } = cobrancasDaManutencao({
+        acumulado: flags.manutencao, turnos, intervalo,
+        restam: flags.turnos ?? flags.rodadas ?? null
+      });
+      if (resto !== (Number(flags.manutencao) || 0)) {
+        await marcador.update({ [`flags.${SYSTEM_ID}.manutencao`]: resto });
+      }
+      if (!vezes) continue;
+
+      const forma = esc(item.name);
+      const nome = esc(this.name);
+      const pagaveis = cobrancasPagaveis(cobra, this.system.recursos, vezes);
+      if (pagaveis > 0) {
+        const total = Object.fromEntries(
+          Object.entries(cobra).map(([chave, valor]) => [chave, valor * pagaveis]));
+        const pago = await this.pagarCustos(total);
+        if (pago) {
+          relatos.push(game.i18n.format("PYRO.Tempo.Manteve", {
+            nome, forma, custos: textosDoPagamento(pago).join(" ")
+          }));
+        }
+      }
+      if (pagaveis < vezes) {
+        relatos.push(game.i18n.format("PYRO.Tempo.FormaCaiu", { nome, forma }));
+        caidas.push(item.id);
+      }
+    }
+    return { relatos, caidas };
+  }
+
+  /**
+   * Veste a aparência das formas ligadas, ou devolve a original quando
+   * nenhuma delas troca a imagem.
+   *
+   * A original é guardada no ator na primeira troca, e não lida da ficha na
+   * saída: com duas formas ligadas, a imagem da ficha já é a de uma delas.
+   * Token não vinculado mexe só no próprio token. O vinculado mexe no token
+   * padrão e em todos os tokens dele nas cenas, cada um voltando para a
+   * imagem que tinha.
+   */
+  async #vestirAparencia() {
+    const { retrato, token } = aparenciaDasFormas(this.transformacoesAtivas);
+    let original = flagsDe(this)?.aparenciaOriginal ?? null;
+    if (!retrato && !token && !original) return;
+
+    const tokens = this.#tokensDoAtor();
+    if (!original) {
+      original = {
+        retrato: this.img,
+        prototipo: this.isToken ? null : (this.prototypeToken?.texture?.src ?? null),
+        tokens: tokens.map(t => ({ uuid: t.uuid, src: t.texture?.src ?? "" }))
+      };
+      await this.setFlag(SYSTEM_ID, "aparenciaOriginal", original);
+    }
+
+    const update = {};
+    const img = retrato ?? original.retrato;
+    if (img && this.img !== img) update.img = img;
+    if (!this.isToken && original.prototipo) {
+      const src = token ?? original.prototipo;
+      if (this.prototypeToken?.texture?.src !== src) update["prototypeToken.texture.src"] = src;
+    }
+    if (Object.keys(update).length) await this.update(update);
+
+    for (const t of tokens) {
+      // Token posto na cena depois da troca não tem original guardado: ele
+      // nasceu do token padrão, e é para o padrão que ele volta.
+      // Com imagem aleatória ("goblin*.webp") o padrão não é um arquivo, e o
+      // token fica como está em vez de ganhar um caminho que não carrega.
+      const src = token
+        ?? original.tokens?.find(o => o.uuid === t.uuid)?.src
+        ?? (original.prototipo?.includes("*") ? null : original.prototipo);
+      if (src && t.texture?.src !== src) await t.update({ "texture.src": src });
+    }
+
+    if (!retrato && !token) await this.unsetFlag(SYSTEM_ID, "aparenciaOriginal");
+  }
+
+  /** Os tokens que mostram este ator, em todas as cenas. */
+  #tokensDoAtor() {
+    if (this.isToken) return this.token ? [this.token] : [];
+    return (game.scenes?.contents ?? []).flatMap(cena =>
+      cena.tokens.filter(t => t.actorLink && t.actorId === this.id));
+  }
+
+  /**
    * Cobra o que a forma leva embora ao cair (SRD não tem isto: é da mesa).
    * Cada linha é um recurso, tirando um tanto ou tudo o que houver. O que o
    * personagem não tem não vira dívida nem cai em PV — a forma já acabou, e
    * cobrar o que não existe mataria por engano.
    */
   async #cobrarFimDaForma(item) {
-    const linhas = Object.entries(item?.system?.fimDaForma ?? {});
+    const linhas = (item?.system?.fimDaForma ?? []).map(linha => [linha.recurso, linha]);
     if (!linhas.length) return [];
     const recursos = this.system.recursos ?? {};
     const dados = item.getRollData();
@@ -1002,10 +1128,10 @@ export class PyroActor extends Actor {
     return notas;
   }
 
-  /** Apaga os marcadores de forma que sobraram, seja qual for a habilidade. */
-  async #limparMarcadoresDeForma() {
+  /** Apaga o marcador de prazo de uma forma, se houver. */
+  async #apagarMarcador(itemId) {
     const ids = (this.effects ?? [])
-      .filter(e => flagsDe(e)?.transformacao)
+      .filter(e => flagsDe(e)?.transformacao === itemId)
       .map(e => e.id);
     if (ids.length) await this.deleteEmbeddedDocuments("ActiveEffect", ids);
   }
@@ -1260,6 +1386,21 @@ export function duracaoDaForma(item) {
    */
   const valor = contaEmTurnos(unidade) ? daUnidade(turnosDe(bruto, unidade), unidade) : bruto;
   return { valor, unidade };
+}
+
+/**
+ * O que pagarCustos devolveu, em frases de card: a estamina, os PV que
+ * cobriram a estamina que faltou e cada recurso gasto.
+ */
+export function textosDoPagamento(pago) {
+  const frases = [];
+  for (const [chave, valor] of Object.entries(pago ?? {})) {
+    if (!(valor > 0)) continue;
+    if (chave === "daEstamina") frases.push(game.i18n.format("PYRO.Chat.CustoEstamina", { valor }));
+    else if (chave === "dosPv") frases.push(game.i18n.format("PYRO.Chat.CustoPv", { valor }));
+    else frases.push(game.i18n.format("PYRO.Chat.CustoRecurso", { valor, recurso: nomeDoRecurso(chave) }));
+  }
+  return frases;
 }
 
 /** "12 turnos", na unidade em que o prazo foi escrito. */

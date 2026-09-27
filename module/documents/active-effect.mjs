@@ -5,7 +5,7 @@
  * `shouldApplyChange` (portão por mudança, na instância) e `applyChange` (a
  * conta em si, estática); o travamento vai no portão.
  */
-import { flagsDe, SYSTEM_ID } from "../sistema.mjs";
+import { flagsDe, formasAtivas, SYSTEM_ID } from "../sistema.mjs";
 
 export class PyroActiveEffect extends ActiveEffect {
   /**
@@ -22,15 +22,15 @@ export class PyroActiveEffect extends ActiveEffect {
    * Efeito de uma postura ou de uma transformação só vale enquanto aquela
    * forma está ativa (SRD Técnicas). Qual está ativa é escolha do ator, então
    * a pergunta é feita de fora do item: a habilidade não sabe se é a guarda do
-   * momento nem se o personagem está transformado nela.
+   * momento nem se o personagem está transformado nela. Postura é uma só por
+   * vez, e transformações valem várias juntas.
    */
   get #formaInativa() {
     const item = this.parent;
     if (item?.documentName !== "Item") return false;
-    const chave = item.system?.ehPostura ? "postura"
-      : item.system?.ehTransformacao ? "transformacao" : null;
-    if (!chave) return false;
-    return item.actor?.getFlag(SYSTEM_ID, chave) !== item.id;
+    if (item.system?.ehPostura) return item.actor?.getFlag(SYSTEM_ID, "postura") !== item.id;
+    if (item.system?.ehTransformacao) return !formasAtivas(item.actor).includes(item.id);
+    return false;
   }
 
   /**

@@ -181,6 +181,42 @@
   </div>
   {{/if}}
 
+  {{!-- Transformação: o que ela cobra para continuar ligada e a cara que ela
+        dá ao personagem. A entrada paga os Custos acima, e a manutenção só
+        começa a cobrar depois do primeiro intervalo inteiro. --}}
+  {{#if system.ehTransformacao}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Transformacao.Manutencao.Titulo"}}</h4>
+    <div class="grade-campos">
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Transformacao.Manutencao.ACada"}}</span>
+        <input type="number" name="system.manutencao.intervalo" value="{{system.manutencao.intervalo}}" min="1" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Efeitos.Unidade"}}</span>
+        <select name="system.manutencao.unidade">{{selectOptions unidadesManutencao selected=system.manutencao.unidade localize=true}}</select></label>
+      {{#each camposDaManutencao as |c|}}
+      <label class="campo"><span class="rotulo">{{c.label}}</span>
+        <input type="text" name="{{c.name}}" value="{{c.valor}}" placeholder="0" /></label>
+      {{/each}}
+    </div>
+    {{pyroDica "PYRO.Transformacao.Manutencao.Dica"}}
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Transformacao.Aparencia.Titulo"}}</h4>
+    <div class="grade-campos">
+      {{!-- div, e não label: o clique no rótulo abriria o seletor de arquivo. --}}
+      <div class="campo largo"><span class="rotulo">{{localize "PYRO.Transformacao.Aparencia.Retrato"}}</span>
+        <file-picker name="system.aparencia.retrato" type="image" value="{{system.aparencia.retrato}}"></file-picker></div>
+      <div class="campo largo"><span class="rotulo">{{localize "PYRO.Transformacao.Aparencia.Token"}}</span>
+        <file-picker name="system.aparencia.token" type="imagevideo" value="{{system.aparencia.token}}"></file-picker></div>
+    </div>
+    <div class="pyro-aparencia-previa">
+      {{#if system.aparencia.retrato}}<img src="{{system.aparencia.retrato}}" alt="" />{{/if}}
+      {{#if previaToken}}<img src="{{previaToken}}" alt="" />{{/if}}
+    </div>
+    {{pyroDica "PYRO.Transformacao.Aparencia.Dica"}}
+  </div>
+  {{/if}}
+
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Rolagem"}}</h4>
     <div class="grade-campos">

@@ -26,6 +26,16 @@ export const caminho = relativo => `systems/${SYSTEM_ID}/${relativo}`;
  */
 export const flagsDe = doc => doc?.flags?.[SYSTEM_ID] ?? doc?.flags?.pyro;
 
+/**
+ * Ids das transformações ligadas no ator, na ordem em que ele entrou nelas.
+ * Mora aqui, e não no documento do ator, porque o portão dos efeitos (ver
+ * PyroActiveEffect) pergunta isso durante a preparação dos dados.
+ */
+export const formasAtivas = actor => {
+  const ids = flagsDe(actor)?.transformacoes;
+  return Array.isArray(ids) ? ids : [];
+};
+
 /** Bloco de flags para dados de criação: { [SYSTEM_ID]: dados }. */
 export const flagsDoSistema = dados => ({ [SYSTEM_ID]: dados });
 

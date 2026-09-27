@@ -875,6 +875,16 @@
 }
 .pyro .grade-campos .campo { display: flex; flex-direction: column; gap: 2px; }
 
+/* Seletor de arquivo da aparência da forma: o caminho ocupa a largura toda. */
+.pyro .grade-campos .campo file-picker { display: flex; min-width: 16rem; }
+.pyro .grade-campos .campo file-picker input { flex: 1 1 auto; min-width: 0; }
+.pyro .pyro-aparencia-previa { display: flex; gap: var(--pyro-e-2); margin-top: var(--pyro-e-2); }
+.pyro .pyro-aparencia-previa:not(:has(img)) { display: none; }
+.pyro .pyro-aparencia-previa img {
+  width: 64px; height: 64px; object-fit: contain;
+  border: 1px solid var(--pyro-borda); border-radius: 4px;
+}
+
 /*
  * Blocos de nota redimensionáveis: o jogador puxa a borda de baixo para ler
  * um texto longo sem depender da rolagem da ficha.
