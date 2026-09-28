@@ -68,7 +68,8 @@ function camposDeVontade(actor, { comInspiracao }) {
  *   oferecer o gasto num diálogo que não rola nada é prometer o que não se cumpre.
  */
 export function camposDeTeste(actor, {
-  dica = "", extras = "", comInspiracao = true, comVontade = true, nd = null, ndFixo = false
+  dica = "", extras = "", comInspiracao = true, comVontade = true, nd = null, ndFixo = false,
+  comND = true
 } = {}) {
   const avisoExaustao = dicaExaustao(actor);
   const campoND = nd === null
@@ -80,7 +81,7 @@ export function camposDeTeste(actor, {
     ${campoNumero("bonus", "PYRO.Teste.Bonus")}
     ${campoNumero("vantagem", "PYRO.Teste.Vantagem", 0, 0)}
     ${campoNumero("desvantagem", "PYRO.Teste.Desvantagem", 0, 0)}
-    <div class="form-group"><label>${loc("PYRO.Teste.ND")}</label>${campoND}</div>
+    ${comND ? `<div class="form-group"><label>${loc("PYRO.Teste.ND")}</label>${campoND}</div>` : ""}
     ${extras}
     ${comVontade ? camposDeVontade(actor, { comInspiracao }) : ""}`;
 }

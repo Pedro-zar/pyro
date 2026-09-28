@@ -26,11 +26,20 @@ export function enriquecer(texto, documento) {
  * @param {string} opcoes.titulo já traduzido.
  * @param {string} opcoes.conteudo HTML do formulário.
  * @param {string} [opcoes.rotuloOk] chave de tradução do botão (padrão: Rolar).
+ * @param {Function} [opcoes.aoRenderizar] recebe o elemento do diálogo, para
+ *   ligar o que o HTML sozinho não faz (linhas que se acrescentam).
  * @returns {Promise<object|null>} os campos preenchidos, ou null se fechou.
  */
-export async function formularioDoAtor(actor, { titulo, conteudo, rotuloOk = "PYRO.Rolar" }) {
+export async function formularioDoAtor(actor, {
+  titulo, conteudo, rotuloOk = "PYRO.Rolar", aoRenderizar = null
+}) {
+  const base = dialogoDoAtor(actor);
   const resposta = await foundry.applications.api.DialogV2.prompt({
-    ...dialogoDoAtor(actor),
+    ...base,
+    render: (event, dialog) => {
+      base.render?.(event, dialog);
+      aoRenderizar?.(dialog.element);
+    },
     window: { title: titulo },
     content: conteudo,
     ok: {

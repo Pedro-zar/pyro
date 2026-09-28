@@ -36,6 +36,9 @@ import {
 import { donosDe, temDonoJogador } from "../tecnica.mjs";
 import { multRecuperacaoDoAtor, comDensidade } from "../regioes.mjs";
 import {
+  camposDeDanoRecebido, ligarCamposDeDano, lerDanoRecebido, htmlContaDoDano, htmlDanoRestante
+} from "../reacao.mjs";
+import {
   economiaDoAtor, pontosDoCusto, textoDeAcoes, textoDoPagamento, anunciarAcao, dividirGasto
 } from "../economia.mjs";
 
@@ -597,21 +600,32 @@ export class PyroActor extends Actor {
       ? { titulo: "PYRO.Esquivar", flavor: "PYRO.Chat.Esquiva", flavorCobertura: "PYRO.Chat.EsquivaCobertura" }
       : { titulo: "PYRO.Bloquear", flavor: "PYRO.Chat.Bloqueio", flavorCobertura: "PYRO.Chat.BloqueioCobertura" };
     let opts = { bonus: 0, vantagem: 0, desvantagem: 0, nd: null, cobertura };
+    let contaDoDano = null;
 
     if (!rapido) {
       const res = await formularioDoAtor(this, {
         titulo: game.i18n.localize(chaves.titulo),
-        // Sem Inspiração Divina: a pool da reação é fixa pelo sistema (d4 no
-        // bloqueio, d12 na esquiva) e não sai de atributo nenhum, então não há
-        // atributo para dobrar.
+        /*
+         * Sem Inspiração Divina: a pool da reação é fixa pelo sistema (d4 no
+         * bloqueio, d12 na esquiva) e não sai de atributo nenhum, então não
+         * há atributo para dobrar. No lugar do ND vem o dano que chega, por
+         * tipo: o ND real é o que sobra depois da defesa de cada tipo.
+         */
         conteudo: camposDeTeste(this, {
           dica: game.i18n.format("PYRO.Reacao.Base", { formula: this.system[tipo] || "0" }),
-          extras: campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura),
-          comInspiracao: false
-        })
+          extras: camposDeDanoRecebido() + campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura),
+          comInspiracao: false,
+          comND: false
+        }),
+        aoRenderizar: ligarCamposDeDano
       });
       if (!res) return;
-      opts = { ...opts, ...res, nd: res.nd || null, cobertura: !!res.cobertura };
+      contaDoDano = lerDanoRecebido(res, this.system.defesas?.totais);
+      opts = {
+        ...opts, ...res,
+        nd: contaDoDano ? contaDoDano.total : null,
+        cobertura: !!res.cobertura
+      };
     }
     // Cobrado depois da janela: fechar o diálogo não pode levar a reação.
     const gasto = await this.gastarAcoes(1, { tipo: "reacao" });
@@ -643,16 +657,24 @@ export class PyroActor extends Actor {
             ? ` ${game.i18n.format("PYRO.Chat.CustoPv", { valor: pagoFriagem.dosPv })}` : ""}</p>`
       : "";
 
+    const conta = contaDoDano ? htmlContaDoDano(contaDoDano) : "";
     if (formula === null) {
-      return this.#falhaAutomatica(flavor, htmlVontadeGasta(vontade) + avisoFriagem);
+      return this.#falhaAutomatica(flavor, conta + htmlVontadeGasta(vontade) + avisoFriagem);
     }
 
     const dados = this.getRollData();
     const roll = await new Roll(prepararFormula(formula, dados), dados).evaluate();
+    /*
+     * A esquiva escapa de tudo ou de nada, e o card diz qual. O bloqueio
+     * reduz: além de dizer se segurou tudo, diz quanto ainda passa.
+     */
+    const resultado = contaDoDano
+      ? htmlResultadoND(roll.total >= contaDoDano.total)
+        + (tipo === "bloqueio" ? htmlDanoRestante(contaDoDano.total, roll.total) : "")
+      : "";
     return this.#cardDeTeste(roll, {
       flavor,
-      html: (opts.nd ? htmlResultadoND(roll.total >= Number(opts.nd)) : "")
-        + avisoFriagem + htmlVontadeGasta(vontade)
+      html: conta + resultado + avisoFriagem + htmlVontadeGasta(vontade)
     });
   }
 

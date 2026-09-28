@@ -1175,6 +1175,26 @@
 
 .pyro-resultado.sucesso { color: var(--pyro-sucesso); font-weight: 700; }
 .pyro-resultado.falha, .pyro-falha-auto { color: var(--pyro-perigo); font-weight: 700; }
+/* Bloqueio: o que ainda passa, ou que segurou tudo. */
+.pyro-dano-restante { margin: 0.2rem 0 0; font-weight: 600; }
+.pyro-dano-restante.segurou { color: var(--pyro-sucesso); }
+.pyro-dano-restante.passa { color: var(--pyro-aviso); }
+.pyro-conta-dano { margin: 0.3rem 0 0; }
+
+/* Diálogo de reação: o dano que chega, uma linha por tipo. */
+.pyro .pyro-dano-recebido {
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-sm);
+  padding: var(--pyro-e-1) var(--pyro-e-2) var(--pyro-e-2); margin: 0;
+}
+.pyro .pyro-dano-recebido legend {
+  display: flex; align-items: center; gap: var(--pyro-e-1);
+  padding: 0 var(--pyro-e-1); color: var(--pyro-texto-2);
+}
+.pyro .pyro-dano-recebido-linhas { display: flex; flex-direction: column; gap: 4px; }
+.pyro .pyro-dano-recebido-linha {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 1.9rem; gap: 4px; align-items: center;
+}
+.pyro .pyro-dano-recebido button.icone { width: 1.6rem; height: 1.6rem; padding: 0; flex: none; }
 .pyro-aviso { color: var(--pyro-aviso); font-size: 0.85rem; }
 .pyro .defesas-colunas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
 .pyro .def-col { display: flex; flex-direction: column; gap: 0.3rem; }
