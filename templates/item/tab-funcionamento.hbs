@@ -129,6 +129,13 @@
         <span class="rotulo">{{localize "PYRO.Item.Categoria"}}</span>
         <select name="system.categoria">{{selectOptions config.categoriasHabilidade selected=system.categoria localize=true}}</select></label>
       {{#if system.ehPostura}}<p class="pyro-nota">{{localize "PYRO.Postura.Dica"}}</p>{{/if}}
+      {{!-- Escala: a habilidade passa a usar pontos como magia e técnica, e o
+            custo em recursos sai da aba Escala. --}}
+      {{#if podeEscalar}}
+      <label class="check-linha campo largo" title="{{localize 'PYRO.Escala.AtivaDica'}}">
+        <input type="checkbox" name="system.escala.ativa" {{checked system.escala.ativa}} />
+        <span>{{localize "PYRO.Escala.Ativa"}}</span></label>
+      {{/if}}
       {{!-- Transformação: quanto a forma dura. O valor aceita fórmula (@nvl),
             e vazio é forma sem prazo, que acaba quando o jogador sair. --}}
       {{#if system.ehTransformacao}}
@@ -173,11 +180,14 @@
       {{!-- Um campo por recurso que a ficha do dono tem, montado na sheet:
             mana só para mago, energia só para feiticeiro, e os recursos de
             raça concedidos (energia natural etc.). --}}
+      {{#unless escalaAtiva}}
       {{#each camposDeCusto as |c|}}
       <label class="campo"><span class="rotulo">{{c.label}}</span>
         <input type="number" name="{{c.name}}" value="{{c.valor}}" min="0" /></label>
       {{/each}}
+      {{/unless}}
     </div>
+    {{#if escalaAtiva}}<p class="pyro-nota">{{localize "PYRO.Escala.CustoNaAba"}}</p>{{/if}}
   </div>
   {{/if}}
 

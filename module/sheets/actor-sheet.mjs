@@ -5,6 +5,7 @@
 import { PYRO } from "../config.mjs";
 import { ConjuradorApp } from "../apps/conjurador.mjs";
 import { NovoCaminhoApp } from "../apps/novo-caminho.mjs";
+import { textosDoCustoDaEscala } from "../escala.mjs";
 import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
 import { ConstrutorEfeitoApp } from "../apps/construtor-efeito.mjs";
 import {
@@ -339,7 +340,13 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         ?? loc(sys.caminho === "geral" ? "PYRO.CaminhoGeral" : "PYRO.CaminhoRemovido");
       // Só a ativável cobra: mostrar o custo de uma postura seria anunciar
       // uma cobrança que não acontece (ver PYRO.cobraCustoDeUso).
-      const custosPartes = !PYRO.cobraCustoDeUso(sys) ? [] : [
+      const custosPartes = !PYRO.cobraCustoDeUso(sys) ? [] : sys.usaEscala ? [
+        // A escalável cobra pela aba Escala: os campos antigos não valem.
+        ...textosDoCustoDaEscala(sys),
+        sys.custoAcoes
+          ? `${sys.custoAcoes} ${umOuVarios(sys.custoAcoes, `PYRO.Custos.${sys.tipoCusto}`, `PYRO.Custos.${sys.tipoCusto}Plural`)}`
+          : null
+      ].filter(Boolean) : [
         sys.custoEstamina ? `${sys.custoEstamina} ${loc("PYRO.Recursos.estamina").toLocaleLowerCase()}` : null,
         sys.custoMana ? `${sys.custoMana} ${loc("PYRO.Recursos.mana").toLocaleLowerCase()}` : null,
         sys.custoEnergia ? `${sys.custoEnergia} ${loc("PYRO.Recursos.energia").toLocaleLowerCase()}` : null,

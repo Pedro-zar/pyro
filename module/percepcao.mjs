@@ -447,7 +447,7 @@ export function registrarPercepcao() {
    * pelo modo de detecção; quem está na linha de visão normal fica sem nada.
    * A aura é permanente: todo token que algum sentido ativo deste cliente
    * alcança ganha um contorno na cor do que carrega — azul de mana por
-   * dentro e verde de energia por fora quando carrega os dois (o segundo
+   * dentro e vermelho de energia por fora quando carrega os dois (o segundo
    * filtro contorna o resultado do primeiro), e nada em quem não carrega
    * nada. Cada cliente vê só o que os próprios sentidos alcançam.
    */

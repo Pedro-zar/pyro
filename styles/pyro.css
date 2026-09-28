@@ -1254,6 +1254,29 @@
 .pyro .scaling-linha input { width: 100%; min-width: 0; text-align: center; font-size: 0.8rem; }
 .pyro .scaling-linha input[type=text] { text-align: left; }
 
+/* Aba Escala da habilidade: linhas de custo e de escalamento. */
+.pyro .escala-cabecalho, .pyro .escala-linha {
+  display: grid; gap: 4px; align-items: center; margin-top: 0.25rem;
+}
+.pyro :is(.escala-cabecalho, .escala-linha).custo {
+  grid-template-columns: minmax(0, 1fr) 5rem minmax(0, 1fr) 1.9rem;
+}
+.pyro .escala-curva { font-size: 0.78rem; color: var(--pyro-texto-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* Janela da escala: a barra de cada recurso na cor dele, como a de mana do conjurador. */
+.pyro .barra-recurso { height: 0.9rem; }
+.pyro .barra-recurso .barra-preenchida {
+  background: color-mix(in srgb, var(--cor) 55%, black 25%);
+}
+.pyro :is(.escala-cabecalho, .escala-linha).escalamento {
+  grid-template-columns: minmax(0, 1fr) 4rem 4.5rem 3.5rem minmax(0, 7rem) 1.9rem;
+}
+.pyro .escala-cabecalho span {
+  font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7;
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.pyro .escala-linha :is(input, select) { width: 100%; min-width: 0; font-size: 0.8rem; }
+.pyro .escala-linha input[type=number] { text-align: center; }
+
 /* ---------- Ajustes: afinidades e efeitos ----------------------------------- */
 
 .pyro .afinidades-lista { flex-basis: 100%; }

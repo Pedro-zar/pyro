@@ -351,6 +351,11 @@ export class PyroItem extends Item {
       case "habilidade":
         if (this.system.ehPostura) return this.actor?.alternarPostura(this);
         if (this.system.ehTransformacao) return this.actor?.alternarTransformacao(this);
+        // A habilidade escalável pergunta os pontos antes de cobrar qualquer coisa.
+        if (this.system.usaEscala && this.actor) {
+          const { abrirEscala } = await import("../apps/escala.mjs");
+          return abrirEscala(this.actor, this);
+        }
         return this.#usarHabilidade();
       case "tecnica": return executarTecnica(this.actor, this);
       case "pericia": return this.actor?.rolarPericia(this);

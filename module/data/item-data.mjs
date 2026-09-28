@@ -363,8 +363,45 @@ export class HabilidadeData extends BaseItemData {
         tipo: str(""),
         alcance: str(""),
         aparencia: str("azulEtereo")
+      }),
+      /*
+       * Habilidade que escala como magia e técnica: cada escalamento recebe
+       * pontos na hora de usar (a Intenção de uma runa, o Esforço de um
+       * traço), e o custo sai de `custos` em vez dos campos de custo acima.
+       *
+       * Custo de um recurso num escalamento com N pontos, a mesma curva da
+       * mana e da estamina: cada ponto custa base x o número dele, somado
+       * aos anteriores. Base 1 dá 1, 3, 6, 10 (a mana), base 2 dá 2, 6, 12,
+       * 20 (o Esforço). O total soma todos os escalamentos. O que o escalamento rende com N:
+       *   floor(base + porPonto x (N - 1)), em dados de `faces` lados quando
+       *   faces > 0 (dano do tipo escolhido) e em número plano quando é 0.
+       *
+       * Ponto acima do limite seguro obriga o teste de sobrecarga, com ND 10
+       * mais a soma dos pontos, como nas magias e técnicas.
+       */
+      escala: new fields.SchemaField({
+        ativa: new fields.BooleanField({ initial: false }),
+        rotulo: str(""),
+        limite: str("@det * 2"),
+        atributo: str("sab", { choices: Object.keys(PYRO.atributos) }),
+        custos: new fields.ArrayField(new fields.SchemaField({
+          recurso: str("mana"),
+          base: dec(1)
+        })),
+        escalamentos: new fields.ArrayField(new fields.SchemaField({
+          nome: str(""),
+          base: dec(1),
+          porPonto: dec(1),
+          faces: num(0, { min: 0 }),
+          tipoDano: str("")
+        }))
       })
     };
+  }
+
+  /** A habilidade usa a janela de pontos, e não o uso simples? */
+  get usaEscala() {
+    return this.escala?.ativa === true && this.categoria === "ativavel";
   }
 
   prepareDerivedData() {

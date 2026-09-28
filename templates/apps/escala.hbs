@@ -1,0 +1,98 @@
+<div class="com-previa">
+<div class="conjurador-corpo">
+
+  <section class="frase-area">
+    <header class="secao-topo">
+      <h3 class="titulo-secao">{{localize "PYRO.Escala.Escalamentos"}}</h3>
+      {{#if acoesTexto}}<span class="pyro-item-meta">{{acoesTexto}}</span>{{/if}}
+      {{#if temEscalamentos}}
+      <button type="button" class="botao-secao" data-action="zerarPontos">
+        <i class="fa-solid fa-eraser"></i> {{localize "PYRO.Escala.Zerar"}}
+      </button>
+      {{/if}}
+    </header>
+
+    {{#if temEscalamentos}}
+    <ol class="frase">
+      {{#each fichas as |f|}}
+      <li class="ficha-runa{{#if f.alem}} excedida{{/if}}">
+        <div class="runa-topo">
+          <span class="ficha-nome">{{f.nome}}</span>
+        </div>
+
+        <div class="intencao-ctrl">
+          <button type="button" class="icone" data-action="descerPonto" data-indice="{{f.indice}}"
+                  title="{{localize 'PYRO.Escala.Menos'}}"><i class="fa-solid fa-minus"></i></button>
+          <span class="intencao-valor numero" title="{{@root.rotulo}}">{{f.pontos}}</span>
+          <button type="button" class="icone" data-action="subirPonto" data-indice="{{f.indice}}"
+                  title="{{localize 'PYRO.Escala.Mais'}}"><i class="fa-solid fa-plus"></i></button>
+        </div>
+
+        <p class="ficha-previa">{{f.efeito}}</p>
+
+        <p class="ficha-custo numero">
+          {{f.custo}}
+          {{#if f.alem}}
+          <span class="perigo" title="{{localize 'PYRO.Executor.AcimaDoLimite'}}">
+            <i class="fa-solid fa-triangle-exclamation"></i> +{{f.alem}}
+          </span>
+          {{/if}}
+        </p>
+      </li>
+      {{/each}}
+    </ol>
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Escala.SemEscalamentos"}}</p>
+    {{/if}}
+  </section>
+
+  <section class="medidores">
+    {{!-- Um medidor por recurso que a habilidade cobra. --}}
+    {{#each medidores as |m|}}
+    <div class="medidor">
+      <div class="medidor-topo">
+        <span class="rotulo">{{m.nome}}</span>
+        <span class="medidor-valor numero {{#if m.falta}}perigo{{/if}}">{{m.custo}} / {{m.atual}}</span>
+      </div>
+      <div class="barra barra-recurso" style="--cor: {{m.cor}}">
+        <div class="barra-preenchida" style="width: {{m.pctUsada}}%"></div>
+        <div class="barra-custo {{#if m.falta}}perigo{{/if}}" style="width: {{m.pctCusto}}%"></div>
+      </div>
+      <p class="medidor-nota">
+        {{#if m.falta}}
+        <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
+          {{localize "PYRO.Escala.RecursoInsuficiente"}}</span>
+        {{else}}
+        {{localize "PYRO.Executor.Restante"}} {{m.restante}}
+        {{/if}}
+      </p>
+    </div>
+    {{/each}}
+    {{#if semCusto}}<p class="pyro-nota">{{localize "PYRO.Escala.SemCusto"}}</p>{{/if}}
+
+    {{#if temLimite}}
+    <div class="medidor {{#if excesso}}alerta{{/if}}">
+      <div class="medidor-topo">
+        <span class="rotulo">{{localize "PYRO.Escala.LimiteSeguro"}}</span>
+        <span class="medidor-valor numero">{{limite}}</span>
+      </div>
+      <p class="medidor-nota">
+        {{#if excesso}}
+        <span class="perigo"><i class="fa-solid fa-fire"></i> {{excessoTexto}}</span>
+        {{else}}
+        <i class="fa-solid fa-check"></i> {{localize "PYRO.Executor.DentroDoLimite"}}
+        {{/if}}
+      </p>
+    </div>
+    {{/if}}
+  </section>
+
+  <footer class="conjurador-rodape">
+    <button type="submit" class="botao-principal" {{#unless podeUsar}}disabled{{/unless}}>
+      <i class="fa-solid fa-wand-sparkles"></i> {{localize "PYRO.Escala.Usar"}}
+    </button>
+  </footer>
+</div>
+
+{{> "pyro.previa"}}
+</div>

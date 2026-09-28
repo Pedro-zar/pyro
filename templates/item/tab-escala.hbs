@@ -1,0 +1,90 @@
+{{!--
+  Escala da habilidade: o custo real em recursos e o que cresce com os
+  pontos. A aba só existe com a escala ligada; sem ela a parte continua sendo
+  desenhada, vazia, para não mandar campos velhos no próximo salvamento.
+--}}
+<section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+  {{#if escala}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Escala.Pontos"}}</h4>
+    <div class="grade-campos">
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Escala.Rotulo"}}</span>
+        <input type="text" name="system.escala.rotulo" value="{{system.escala.rotulo}}"
+               placeholder="{{localize 'PYRO.Escala.RotuloPadrao'}}" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Escala.LimiteSeguro"}}</span>
+        <input type="text" name="system.escala.limite" value="{{system.escala.limite}}"
+               placeholder="{{localize 'PYRO.Escala.SemLimite'}}" /></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Escala.Atributo"}}</span>
+        <select name="system.escala.atributo">{{selectOptions escala.atributoOpts selected=system.escala.atributo}}</select></label>
+    </div>
+    {{#if escala.limiteNaFicha}}<p class="pyro-nota">{{localize "PYRO.Escala.LimiteNaFicha"}}
+      <strong class="numero">{{escala.limiteNaFicha}}</strong></p>{{/if}}
+    {{pyroDica "PYRO.Escala.DicaPontos"}}
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Escala.Custos"}}
+      <button type="button" class="icone" data-action="adicionarCustoEscala"
+              title="{{localize 'PYRO.Escala.AdicionarCusto'}}"><i class="fa-solid fa-plus"></i></button>
+    </h4>
+    {{#if system.escala.custos.length}}
+    <div class="escala-cabecalho custo">
+      <span class="rotulo">{{localize "PYRO.Escala.Recurso"}}</span>
+      <span class="rotulo">{{localize "PYRO.Item.Base"}}</span>
+      <span class="rotulo">{{localize "PYRO.Escala.Curva"}}</span>
+      <span></span>
+    </div>
+    {{#each system.escala.custos as |c ci|}}
+    <div class="escala-linha custo">
+      <select name="system.escala.custos.{{ci}}.recurso">{{selectOptions @root.escala.recursoOpts selected=c.recurso}}</select>
+      <input type="number" step="any" name="system.escala.custos.{{ci}}.base" value="{{c.base}}" />
+      <span class="escala-curva numero">{{lookup (lookup @root.escala.custos ci) "sequencia"}}</span>
+      <button type="button" class="icone perigo" data-action="removerCustoEscala" data-index="{{ci}}"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {{/each}}
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Escala.SemCusto"}}</p>
+    {{/if}}
+    {{pyroDica "PYRO.Escala.DicaCusto"}}
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Escala.Escalamentos"}}
+      <button type="button" class="icone" data-action="adicionarEscalamento"
+              title="{{localize 'PYRO.Escala.AdicionarEscalamento'}}"><i class="fa-solid fa-plus"></i></button>
+    </h4>
+    {{#if system.escala.escalamentos.length}}
+    <div class="escala-cabecalho escalamento">
+      <span class="rotulo">{{localize "PYRO.Item.ScalingNome"}}</span>
+      <span class="rotulo">{{localize "PYRO.Item.Base"}}</span>
+      <span class="rotulo">{{localize "PYRO.Escala.PorPonto"}}</span>
+      <span class="rotulo">{{localize "PYRO.Item.Faces"}}</span>
+      <span class="rotulo">{{localize "PYRO.Escala.TipoDano"}}</span>
+      <span></span>
+    </div>
+    {{#each system.escala.escalamentos as |e ei|}}
+    <div class="escala-linha escalamento">
+      <input type="text" name="system.escala.escalamentos.{{ei}}.nome" value="{{e.nome}}"
+             placeholder="{{localize 'PYRO.Item.ScalingPlaceholder'}}" />
+      <input type="number" step="any" name="system.escala.escalamentos.{{ei}}.base" value="{{e.base}}" />
+      <input type="number" step="any" name="system.escala.escalamentos.{{ei}}.porPonto" value="{{e.porPonto}}" />
+      <input type="number" min="0" step="1" name="system.escala.escalamentos.{{ei}}.faces" value="{{e.faces}}" />
+      {{!-- O tipo de dano só existe no escalamento chamado Dano. --}}
+      {{#if (pyroEhDano e.nome)}}
+      <select name="system.escala.escalamentos.{{ei}}.tipoDano">{{selectOptions @root.escala.tipoDanoOpts selected=e.tipoDano}}</select>
+      {{else}}
+      <span></span>
+      {{/if}}
+      <button type="button" class="icone perigo" data-action="removerEscalamento" data-index="{{ei}}"
+              title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    {{/each}}
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Escala.SemEscalamentos"}}</p>
+    {{/if}}
+    {{pyroDica "PYRO.Escala.DicaEscalamento"}}
+  </div>
+
+  {{/if}}
+</section>

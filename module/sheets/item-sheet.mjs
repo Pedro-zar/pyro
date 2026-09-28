@@ -11,6 +11,9 @@ import { enriquecer } from "../ui.mjs";
 import { calcularFormula } from "../dados.mjs";
 import { opcoesDeUnidade } from "../duracao.mjs";
 import { descreverRequisito } from "../progressao.mjs";
+import {
+  custoDaLinha, nomeDoRecurso, textosDoCustoDaEscala, limiteDaEscala
+} from "../escala.mjs";
 import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "../data/item-data.mjs";
 import {
   tracosCompativeis, valorDoTraco, textoDoValor, ataquesDoAtor, posturasDoAtor, opcoesDoFiltro,
@@ -80,6 +83,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       removerAfinidade: PyroItemSheet.#removerAfinidade,
       adicionarTraco: PyroItemSheet.#adicionarTraco,
       removerTraco: PyroItemSheet.#removerTraco,
+      adicionarCustoEscala: PyroItemSheet.#adicionarCustoEscala,
+      removerCustoEscala: PyroItemSheet.#removerCustoEscala,
+      adicionarEscalamento: PyroItemSheet.#adicionarEscalamento,
+      removerEscalamento: PyroItemSheet.#removerEscalamento,
       criarEfeito: PyroItemSheet.#criarEfeito,
       editarEfeito: PyroItemSheet.#editarEfeito,
       excluirEfeito: PyroItemSheet.#excluirEfeito,
@@ -98,7 +105,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     descricao: { template: caminho("templates/item/tab-descricao.hbs") },
     funcionamento: { template: caminho("templates/item/tab-funcionamento.hbs") },
     efeitos: { template: caminho("templates/item/tab-efeitos.hbs") },
-    recursos: { template: caminho("templates/item/tab-recursos.hbs") }
+    recursos: { template: caminho("templates/item/tab-recursos.hbs") },
+    escala: { template: caminho("templates/item/tab-escala.hbs") }
   };
 
   static TABS = {
@@ -108,7 +116,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         { id: "funcionamento", icon: "fa-solid fa-sliders" },
         { id: "efeitos", icon: "fa-solid fa-bolt" },
         // Só nasce em Caminho que concede recurso; ver #recursosDoCaminho.
-        { id: "recursos", icon: "fa-solid fa-droplet" }
+        { id: "recursos", icon: "fa-solid fa-droplet" },
+        // Só nasce em habilidade com a escala ligada; ver _prepareTabs.
+        { id: "escala", icon: "fa-solid fa-chart-line" }
       ],
       initial: "descricao",
       labelPrefix: "PYRO.ItemTabs"
@@ -177,6 +187,17 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   _prepareTabs(group) {
     const tabs = super._prepareTabs(group);
     if (group !== "primary") return tabs;
+
+    // A aba da escala só existe na habilidade que a ligou; mesmo motivo da
+    // de recursos para a parte continuar sendo desenhada, só que vazia.
+    if (!this.#temEscala()) {
+      delete tabs.escala;
+      if (this.tabGroups.primary === "escala" && tabs.funcionamento) {
+        this.tabGroups.primary = "funcionamento";
+        tabs.funcionamento.active = true;
+        tabs.funcionamento.cssClass = "active";
+      }
+    }
 
     const recursos = this.#recursosDoCaminho();
     if (!recursos.length) {
@@ -420,6 +441,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // Atributo com que se resiste a esta magia (ver MagiaData.resistencias).
       atributosResistencia: item.type === "magia" ? PYRO.atributos : null,
       recursosDoCaminho: this.#recursosDoCaminho(),
+      escalaAtiva: this.#temEscala(),
+      // Só a habilidade ativável é usada, e é nela que a escala faz sentido.
+      podeEscalar: item.type === "habilidade" && sys.categoria === "ativavel",
+      escala: this.#contextoDaEscala(),
       sentidoTipoOpts: Object.fromEntries(
         Object.entries(PYRO.sentidos).map(([k, cfg]) => [k, cfg.label])),
       // O bloco do sentido é da habilidade única "Sentido Espiritual" do
@@ -772,13 +797,17 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
           if (sys.custoAcoes) {
             partes.push(`${sys.custoAcoes} ${loc(`PYRO.Item.Abrev.${sys.tipoCusto}`)}`);
           }
-          if (sys.custoEstamina) partes.push(`${sys.custoEstamina} ${loc("PYRO.Abrev.estamina")}`);
-          if (sys.custoMana) partes.push(`${sys.custoMana} ${loc("PYRO.Abrev.mana")}`);
-          if (sys.custoEnergia) partes.push(`${sys.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
-          if (sys.custoVontade) partes.push(`${sys.custoVontade} ${loc("PYRO.Abrev.vontade")}`);
-          for (const [chave, valor] of Object.entries(sys.custosCustom ?? {})) {
-            const cfg = PYRO.recursosCustom?.[chave];
-            if (cfg && Number(valor) > 0) partes.push(`${Number(valor)} ${loc(cfg.label)}`);
+          // A escalável cobra pela aba Escala: os campos antigos não valem.
+          if (sys.usaEscala) partes.push(...textosDoCustoDaEscala(sys));
+          else {
+            if (sys.custoEstamina) partes.push(`${sys.custoEstamina} ${loc("PYRO.Abrev.estamina")}`);
+            if (sys.custoMana) partes.push(`${sys.custoMana} ${loc("PYRO.Abrev.mana")}`);
+            if (sys.custoEnergia) partes.push(`${sys.custoEnergia} ${loc("PYRO.Abrev.energia")}`);
+            if (sys.custoVontade) partes.push(`${sys.custoVontade} ${loc("PYRO.Abrev.vontade")}`);
+            for (const [chave, valor] of Object.entries(sys.custosCustom ?? {})) {
+              const cfg = PYRO.recursosCustom?.[chave];
+              if (cfg && Number(valor) > 0) partes.push(`${Number(valor)} ${loc(cfg.label)}`);
+            }
           }
         }
         if (sys.adormecidaAtiva) partes.push(loc("PYRO.Despertar.Tag"));
@@ -994,6 +1023,21 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }
     }
 
+    /*
+     * As linhas da escala chegam indexadas pelo formulário; a lista guardada
+     * é a base de cada uma, para um campo que a ficha não desenhou não sumir.
+     */
+    if (this.item.type === "habilidade" && sys.escala) {
+      const guardada = this.item.system.toObject().escala ?? {};
+      for (const campo of ["custos", "escalamentos"]) {
+        const enviado = sys.escala[campo];
+        if (!enviado || Array.isArray(enviado)) continue;
+        sys.escala[campo] = Object.entries(enviado)
+          .sort(([a], [b]) => Number(a) - Number(b))
+          .map(([i, linha]) => ({ ...(guardada[campo]?.[Number(i)] ?? {}), ...linha }));
+      }
+    }
+
     if (this.item.type === "runa" && sys.scalings && !Array.isArray(sys.scalings)) {
       const atuais = this.item.system.toObject().scalings;
       sys.scalings = Object.values(sys.scalings)
@@ -1095,6 +1139,75 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     if (!livre) return;
     arr.push({ chave: livre.chave, grau: 1 });
     await this.item.update({ "system.tracos": arr });
+  }
+
+  /** A habilidade ligou a escala? É o que decide a aba e os campos de custo. */
+  #temEscala() {
+    return this.item.type === "habilidade" && this.item.system.usaEscala === true;
+  }
+
+  /**
+   * A aba da escala: as linhas de custo e de escalamento e as opções dos
+   * selects.
+   */
+  #contextoDaEscala() {
+    if (!this.#temEscala()) return null;
+    const escala = this.item.system.escala;
+    const loc = k => game.i18n.localize(k);
+    /*
+     * Os mesmos recursos do bloco de custos: numa ficha, só os que o dono
+     * tem. Um recurso já escolhido continua na lista, senão o select
+     * mostraria outro e gravaria a troca sozinho no próximo salvamento.
+     */
+    const recursoOpts = Object.fromEntries(this.#recursosDaHabilidade().map(r => [r.chave, r.label]));
+    for (const linha of escala.custos ?? []) {
+      if (!(linha.recurso in recursoOpts)) recursoOpts[linha.recurso] = nomeDoRecurso(linha.recurso);
+    }
+    const limite = this.item.actor ? limiteDaEscala(this.item) : undefined;
+    return {
+      recursoOpts,
+      // O limite como ele sai na ficha do dono: uma fórmula com erro vira 0,
+      // e é aqui que isso aparece antes de todo uso pedir teste.
+      limiteNaFicha: limite === undefined ? null
+        : limite === null ? loc("PYRO.Escala.SemLimiteCurto") : String(limite),
+      atributoOpts: Object.fromEntries(Object.entries(PYRO.atributos)
+        .map(([k, v]) => [k, loc(v.label ?? v)])),
+      tipoDanoOpts: {
+        "": loc("PYRO.Escala.SemTipo"),
+        ...Object.fromEntries(Object.entries(PYRO.tiposDano).map(([k, v]) => [k, loc(v.label)]))
+      },
+      // A curva de cada recurso, para quem escreve a base ver o que ela dá.
+      custos: (escala.custos ?? []).map(linha => ({
+        sequencia: [1, 2, 3, 4, 5].map(n => custoDaLinha(linha, n)).join(", ")
+      }))
+    };
+  }
+
+  static async #adicionarCustoEscala() {
+    const arr = this.item.system.toObject().escala.custos;
+    // Um recurso que ainda não está na lista, para a linha nova não repetir.
+    const usados = new Set(arr.map(l => l.recurso));
+    const livre = PYRO.recursosDeGasto().find(c => !usados.has(c)) ?? "mana";
+    arr.push({ recurso: livre, base: 1 });
+    await this.item.update({ "system.escala.custos": arr });
+  }
+
+  static async #removerCustoEscala(event, target) {
+    const arr = this.item.system.toObject().escala.custos;
+    arr.splice(Number(target.dataset.index), 1);
+    await this.item.update({ "system.escala.custos": arr });
+  }
+
+  static async #adicionarEscalamento() {
+    const arr = this.item.system.toObject().escala.escalamentos;
+    arr.push({ nome: "", base: 1, porPonto: 1, faces: 0, tipoDano: "" });
+    await this.item.update({ "system.escala.escalamentos": arr });
+  }
+
+  static async #removerEscalamento(event, target) {
+    const arr = this.item.system.toObject().escala.escalamentos;
+    arr.splice(Number(target.dataset.index), 1);
+    await this.item.update({ "system.escala.escalamentos": arr });
   }
 
   static async #removerTraco(event, target) {

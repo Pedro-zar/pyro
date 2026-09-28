@@ -497,7 +497,8 @@ PYRO.sentidos = {
   energia: {
     label: "PYRO.Sentidos.energia",
     brilha: sys => !!sys?.temFeiticos,
-    cor: [0.35, 1.0, 0.6, 1.0]
+    // O vermelho de sangue da ficha dos feiticeiros (--pyro-sangue, #c23b52).
+    cor: [0.761, 0.231, 0.322, 1.0]
   }
 };
 
