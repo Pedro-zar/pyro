@@ -420,7 +420,7 @@
   "PYRO.Pericia.ExigeFerramentas": "Exige ferramentas",
   "PYRO.Pericia.FerramentasDica": "Pode ser usada sem elas, mas o ND acima de 10 dobra (acumula com a dobra de perícia não aprendida).",
   "PYRO.Pericia.ContaSoSucesso": "Só sucesso conta para o avanço",
-  "PYRO.Pericia.SoSucessoDica": "Regra da Percepção: rolagem que falhou não conta como progresso.",
+  "PYRO.Pericia.SoSucessoDica": "Regra da Percepção: rolagem que falhou não conta como progresso. Dado no máximo explode.",
   "PYRO.Pericia.Progresso": "Progresso",
   "PYRO.Bloco.Regras": "Regras",
   "PYRO.Rolagem.rotineiraUma": "rotineira",

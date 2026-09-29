@@ -378,7 +378,8 @@ export class PyroActor extends Actor {
     opts.vantagem += vontade.beneficio;
 
     const flavor = game.i18n.format("PYRO.Pericia.TesteDe", { nome: pericia.name, atributo: rotuloAtributo }) + textoND;
-    const formula = formulaTeste(valorComInspiracao(attr.total, vontade), opts);
+    const formula = formulaTeste(valorComInspiracao(attr.total, vontade),
+      { ...opts, explode: sys.contaSoSucesso });
     if (formula === null) return this.#falhaAutomatica(flavor, htmlVontadeGasta(vontade));
 
     const roll = await new Roll(formula).evaluate();
@@ -507,7 +508,8 @@ export class PyroActor extends Actor {
     opts.vantagem += vontade.beneficio;
 
     const flavor = game.i18n.format("PYRO.Sobrecarga.Flavor", { atributo: rotuloAtributo }) + textoND;
-    const formula = formulaTeste(valorComInspiracao(valorAtributo, vontade), opts);
+    const formula = formulaTeste(valorComInspiracao(valorAtributo, vontade),
+      { ...opts, explode: !!pericia?.system?.contaSoSucesso });
     const roll = formula === null ? null : await new Roll(formula).evaluate();
     const sucesso = !!roll && roll.total >= ndFinal;
 

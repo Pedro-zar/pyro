@@ -17,8 +17,14 @@ export function poolDoAtributo(valor) {
  * Monta a fórmula final de um teste de atributo.
  * Vantagem soma dados na pool, desvantagem remove (SRD §6).
  * Retorna null se a pool cair a 0 dados (falha automática).
+ *
+ * `explode` é o dado das perícias que só progridem com sucesso: cada dado
+ * no máximo rola mais um, e o dado extra no máximo rola outro. Quem só
+ * aprende acertando precisa de um jeito de acertar o que a pool sozinha não
+ * alcança. A classe da rolagem continua medida pela pool sem explosão (ver
+ * classificarRolagem), porque sorte no dado não torna a tarefa mais fácil.
  */
-export function formulaTeste(valor, { vantagem = 0, desvantagem = 0, bonus = 0 } = {}) {
+export function formulaTeste(valor, { vantagem = 0, desvantagem = 0, bonus = 0, explode = false } = {}) {
   // "+ -2" rola, mas ninguém escreve assim: o sinal entra no operador.
   const comBonus = base => (!bonus ? base
     : bonus > 0 ? `${base} + ${bonus}` : `${base} - ${-bonus}`);
@@ -29,7 +35,7 @@ export function formulaTeste(valor, { vantagem = 0, desvantagem = 0, bonus = 0 }
   }
   const n = pool.n + vantagem - desvantagem;
   if (n <= 0) return null;
-  return comBonus(`${n}d${pool.faces}`);
+  return comBonus(`${n}d${pool.faces}${explode ? "x" : ""}`);
 }
 
 /**

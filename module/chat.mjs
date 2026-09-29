@@ -322,7 +322,13 @@ function dadosDaMensagem(message) {
     roll.dice.forEach((termo, iTermo) => {
       termo.results.forEach((res, iRes) => {
         if (res.active === false) return;
-        lista.push({ id: `${iRoll}.${iTermo}.${iRes}`, faces: termo.faces, valor: res.result });
+        // O dado que explodiu já tirou o máximo, e trocá-lo deixaria no total
+        // o dado extra que ele fez rolar.
+        if (res.exploded) return;
+        lista.push({
+          id: `${iRoll}.${iTermo}.${iRes}`, faces: termo.faces, valor: res.result,
+          explode: termo.modifiers?.some(m => /^x/i.test(m)) ?? false
+        });
       });
     });
   });
@@ -375,7 +381,8 @@ async function usarSorte(message) {
   if (!Array.isArray(escolha) || !escolha.length) return;
 
   const escolhidos = dados.filter(d => escolha.includes(d.id));
-  const formula = escolhidos.map(d => `1d${d.faces}`).join(" + ");
+  // O dado de uma pool que explode continua explodindo quando é re-rolado.
+  const formula = escolhidos.map(d => `1d${d.faces}${d.explode ? "x" : ""}`).join(" + ");
   const roll = await new Roll(formula).evaluate();
   const antes = escolhidos.reduce((t, d) => t + d.valor, 0);
   const totalAntigo = (message.rolls ?? []).reduce((t, r) => t + (r.total ?? 0), 0);

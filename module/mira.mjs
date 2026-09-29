@@ -146,7 +146,8 @@ async function janelaDeMira(actor, { limite, distanciaSugerida, alcance, pericia
     semFerramentas: exigeFerramentas && !!res.semFerramentas
   });
   const formula = atributo
-    ? formulaTeste(valorComInspiracao(atributo.total, vontade), opts)
+    ? formulaTeste(valorComInspiracao(atributo.total, vontade),
+      { ...opts, explode: !!mirar.pericia?.system?.contaSoSucesso })
     : null;
 
   // Pool zerada por desvantagens: erra sem rolar (mesma regra dos testes).

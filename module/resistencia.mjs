@@ -178,7 +178,8 @@ export async function rolarResistencia(actor, {
     semTreino: !daPericia.aprendida,
     semFerramentas: !!daPericia.pericia?.system?.exigeFerramentas && !!res.semFerramentas
   }) : ndEscrito;
-  const formula = formulaTeste(valorComInspiracao(attr.total, vontade), opts);
+  const formula = formulaTeste(valorComInspiracao(attr.total, vontade),
+    { ...opts, explode: !!daPericia.pericia?.system?.contaSoSucesso });
   // Pool zerada por desvantagens: falha sem rolar (mesma regra dos testes).
   const roll = formula === null ? null : await new Roll(formula).evaluate();
   const passou = !!roll && roll.total >= ndFinal;
