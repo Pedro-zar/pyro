@@ -9,6 +9,7 @@ import { PYRO } from "./config.mjs";
 import { penalidadeExaustao, dicaExaustao } from "./efeitos.mjs";
 import { desvantagemMental } from "./condicoes.mjs";
 import { bonusPorNivel } from "./progressao.mjs";
+import { naFila } from "./sistema.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -190,6 +191,57 @@ export const periciaDeSobrecarga = actor =>
 
 /** A perícia que cobre o teste de mira do tiro à distância. */
 export const periciaDeMira = actor => periciaPorNome(actor, PYRO.NOME_PERICIA_MIRA);
+
+/** "sobrecarga" vira "Sobrecarga": o nome da perícia que a regra cria. */
+export const nomeDaPericiaDeRegra = chave => chave.charAt(0).toUpperCase() + chave.slice(1);
+
+/**
+ * A perícia de um nome na ficha, criada no nível 0 quando ainda não existe.
+ *
+ * Quem rola uma resistência, uma sobrecarga ou uma mira sem ter a perícia
+ * está fazendo o primeiro teste dela. Com ela na ficha o card já oferece o
+ * contar uso, e o próximo teste do mesmo nome acha esta mesma perícia. Nível
+ * 0 é o sem treino (ver PericiaData), então o teste que a criou sai igual ao
+ * que sairia sem ela.
+ *
+ * Uma perícia do mesmo nome no diretório de itens serve de modelo: é onde a
+ * mesa diz que Percepção só conta sucesso ou que Arrombar pede ferramentas.
+ * Do modelo vem tudo menos o progresso, que começa do zero.
+ *
+ * @param {string[]} [atributos] os atributos do teste que a criou. Entram na
+ *   lista da perícia, porque a regra rolou com eles.
+ * @returns {Promise<Item|null>} null quando não há nome ou quem rola não pode
+ *   mexer na ficha.
+ */
+export function garantirPericia(actor, nome, { atributos = [] } = {}) {
+  const limpo = PYRO.normalizarTexto(nome);
+  if (!limpo || !actor?.isOwner) return Promise.resolve(periciaPorNome(actor, limpo));
+  // Numa fila própria: dois testes quase juntos criariam a perícia duas
+  // vezes, e a ficha ficaria com duas trilhas de progresso para um nome.
+  return naFila({ uuid: `${actor.uuid}#pericias` }, async () => {
+    const existente = periciaPorNome(actor, limpo);
+    if (existente) return existente;
+
+    const modelo = game.items?.find(i => i.type === "pericia"
+      && PYRO.normalizarTexto(i.name) === limpo);
+    const dados = modelo
+      ? foundry.utils.deepClone(modelo.toObject())
+      : { name: String(nome).trim(), type: "pericia", system: {} };
+    for (const campo of ["_id", "folder", "sort", "ownership", "_stats"]) delete dados[campo];
+
+    const validos = atributos.filter(k => PYRO.atributos[k]);
+    const daFicha = modelo ? (dados.system.atributos ?? []) : [];
+    if (validos.length) dados.system.atributos = [...new Set([...daFicha, ...validos])];
+    dados.system.progresso = {
+      nivel: 0,
+      nivelMax: dados.system.progresso?.nivelMax ?? 15,
+      contadores: { rotineiras: 0, dificeis: 0, muitoDificeis: 0 }
+    };
+
+    const [criada] = await actor.createEmbeddedDocuments("Item", [dados]);
+    return criada ?? null;
+  });
+}
 
 /**
  * Esta perícia é uma das que o sistema conduz por conta própria?

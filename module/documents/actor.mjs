@@ -22,7 +22,8 @@ import {
 import {
   campoCheckbox, campoNumero, campoSelect, camposDeTeste, aplicarExaustaoNoTeste,
   aplicarVontadeNoTeste, valorComInspiracao, htmlVontadeGasta, sufixoND,
-  periciaDeSobrecarga, ajudaDaPericia, textoDoND, ehPericiaDeRegra
+  periciaDeSobrecarga, ajudaDaPericia, textoDoND, ehPericiaDeRegra, garantirPericia,
+  nomeDaPericiaDeRegra
 } from "../teste.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND, htmlBotaoSorte } from "../chat.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema, formasAtivas, naFila } from "../sistema.mjs";
@@ -424,7 +425,7 @@ export class PyroActor extends Actor {
     const loc = k => game.i18n.localize(k);
     // A perícia clicada manda; só quando a chamada veio de um card é que ela
     // é procurada pelo nome.
-    const { pericia, aprendida, dica, bonus, vantagens } =
+    const { pericia: achada, aprendida, dica, bonus, vantagens } =
       ajudaDaPericia(dePericia ?? periciaDeSobrecarga(this));
     /*
      * A regra que chamou manda no atributo (SAB na magia, VIG na técnica).
@@ -475,7 +476,7 @@ export class PyroActor extends Actor {
           // fica editável porque a mesa às vezes negocia o que o excesso custa.
           extras: campoNumero("exaustao", "PYRO.Sobrecarga.ExaustaoAoFalhar",
             Math.max(0, Math.round(Number(exaustao) || 0)), 0)
-            + (pericia?.system?.exigeFerramentas
+            + (achada?.system?.exigeFerramentas
               ? campoCheckbox("semFerramentas", "PYRO.Pericia.SemFerramentas") : "")
         }),
       rotuloOk: "PYRO.Rolar"
@@ -484,6 +485,10 @@ export class PyroActor extends Actor {
 
     const chave = escolher && opcoesAtributo[res.atributo] ? res.atributo : padrao;
     const rotuloAtributo = loc(PYRO.atributos[chave]);
+    // O primeiro teste de sobrecarga põe a perícia na ficha, para o card
+    // contar o uso. VIG e SAB porque são os atributos que a regra usa.
+    const pericia = achada ?? await garantirPericia(this,
+      nomeDaPericiaDeRegra(PYRO.NOME_PERICIA_SOBRECARGA), { atributos: ["vig", "sab"] });
     const valorAtributo = Math.max(1, this.system.atributos[chave].total + delta);
 
     const opts = { bonus: res.bonus, vantagem: res.vantagem, desvantagem: res.desvantagem };

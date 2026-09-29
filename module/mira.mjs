@@ -16,7 +16,7 @@ import { alcanceDaArma } from "./efeitos.mjs";
 import {
   campoCheckbox, camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste,
   valorComInspiracao, htmlVontadeGasta, periciaDeMira, ajudaDaPericia, textoDoND,
-  distanciaAteAlvo
+  distanciaAteAlvo, garantirPericia, nomeDaPericiaDeRegra
 } from "./teste.mjs";
 import { htmlFalhaAutomatica } from "./chat.mjs";
 
@@ -112,6 +112,9 @@ async function janelaDeMira(actor, { limite, distanciaSugerida, alcance, pericia
     })
   });
   if (!res) return null;
+  // O primeiro tiro com teste põe Mirar na ficha, para o card contar o uso.
+  mirar.pericia ??= await garantirPericia(actor,
+    nomeDaPericiaDeRegra(PYRO.NOME_PERICIA_MIRA), { atributos: [chave] });
 
   /*
    * O ajuste é recalculado com a distância que o jogador confirmou, e não

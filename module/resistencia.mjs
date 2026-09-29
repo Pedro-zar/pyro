@@ -20,7 +20,8 @@ import { formularioDoAtor, esc } from "./ui.mjs";
 import { dicaMental, dicaMentais } from "./condicoes.mjs";
 import {
   campoCheckbox, campoSelect, camposDeTeste, aplicarExaustaoNoTeste, aplicarVontadeNoTeste,
-  valorComInspiracao, htmlVontadeGasta, textoDoND, periciaPorNome, ajudaDaPericia
+  valorComInspiracao, htmlVontadeGasta, textoDoND, periciaPorNome, ajudaDaPericia,
+  garantirPericia
 } from "./teste.mjs";
 import { htmlFalhaAutomatica, htmlResultadoND } from "./chat.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
@@ -156,6 +157,10 @@ export async function rolarResistencia(actor, {
   const nome = daPericia.nome;
   const chave = daPericia.atributo;
   const attr = actor.system.atributos[chave];
+  // O primeiro teste da perícia a põe na ficha, para o card contar o uso.
+  if (nome && !daPericia.pericia) {
+    daPericia.pericia = await garantirPericia(actor, nome, { atributos: [chave] });
+  }
 
   const opts = { ...res, nd: ndEscrito };
   aplicarExaustaoNoTeste(actor, opts, chave);
