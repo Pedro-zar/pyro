@@ -448,16 +448,11 @@ export function efeitosDetalhados(actor) {
 
   const exausto = nivelExaustao(actor);
   if (exausto > 0) {
-    const desvantagens = Math.floor(exausto / 5);
     lista.push(linha(
       "exausto",
       loc("PYRO.Exaustao.Nome"),
       exausto,
-      // A partir do quinto nível a exaustão também traz desvantagem, e a
-      // linha precisa dizer as duas coisas.
-      desvantagens > 0
-        ? loc("PYRO.Efeito.exaustoDesvantagem", { n: exausto, d: desvantagens })
-        : loc("PYRO.Efeito.exausto", { n: exausto }),
+      loc("PYRO.Efeito.exausto", { n: exausto }),
       ""
     ));
   }

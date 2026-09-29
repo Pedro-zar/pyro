@@ -596,23 +596,20 @@ export function nivelExaustao(actor) {
 }
 
 /**
- * O que a exaustão tira de um teste: -1 fixo por nível e, a cada 5 níveis,
- * uma desvantagem (um dado a menos na pool). Exaustão 7 = -7 e 1 desvantagem.
- * Vale para todo teste que não seja dano: atributo, esquiva, bloqueio, mira
- * e sobrecarga passam por aqui.
+ * O que a exaustão tira de um teste: -1 fixo por nível, e nada nos dados.
+ * Exaustão 7 = -7. Vale para todo teste que não seja dano: atributo,
+ * esquiva, bloqueio, mira e sobrecarga passam por aqui.
  */
 export function penalidadeExaustao(actor) {
   const niveis = nivelExaustao(actor);
-  return { niveis, bonus: -niveis, desvantagem: Math.floor(niveis / 5) };
+  return { niveis, bonus: -niveis };
 }
 
 /** Linha de aviso dos diálogos de teste; vazia sem exaustão. */
 export function dicaExaustao(actor) {
   const pen = penalidadeExaustao(actor);
   if (pen.niveis <= 0) return "";
-  return pen.desvantagem > 0
-    ? game.i18n.format("PYRO.Teste.ExaustaoDesvantagem", { n: pen.niveis, d: pen.desvantagem })
-    : game.i18n.format("PYRO.Teste.ExaustaoDica", { n: pen.niveis });
+  return game.i18n.format("PYRO.Teste.ExaustaoDica", { n: pen.niveis });
 }
 
 /**

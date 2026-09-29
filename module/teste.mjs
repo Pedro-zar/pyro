@@ -88,8 +88,8 @@ export function camposDeTeste(actor, {
 
 /**
  * Normaliza os números do formulário e desconta do teste o que o personagem
- * carrega: a exaustão (SRD Atributos) e a condição mental que pesa sobre o
- * atributo deste teste.
+ * carrega: a exaustão (-1 por nível, SRD Atributos) e a condição mental que
+ * pesa sobre o atributo deste teste.
  *
  * @param {string} [atributo] o atributo que a pool usa. Sem ele, só a
  *   exaustão entra — é o caso das reações, que rolam pool fixa.
@@ -98,7 +98,7 @@ export function aplicarExaustaoNoTeste(actor, opts, atributo = null) {
   const pen = penalidadeExaustao(actor);
   opts.bonus = (Number(opts.bonus) || 0) + pen.bonus;
   opts.vantagem = Number(opts.vantagem) || 0;
-  opts.desvantagem = (Number(opts.desvantagem) || 0) + pen.desvantagem
+  opts.desvantagem = (Number(opts.desvantagem) || 0)
     + (atributo ? desvantagemMental(actor, atributo) : 0);
 }
 
