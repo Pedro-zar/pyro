@@ -5,6 +5,7 @@ import { caminho, flagsDe, flagsDoSistema, SYSTEM_ID } from "../sistema.mjs";
 import { UNIDADE_PADRAO, dadosDePrazo, opcoesDeUnidade, inicioAgora } from "../duracao.mjs";
 import { variaveisDeEfeito, nivelDoDono, chaveDaMudanca } from "../regras-efeito.mjs";
 import { previaDaLinha, campoInteiro, formatarNumero } from "../previa-efeito.mjs";
+import { degrau } from "../dados.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -345,7 +346,13 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     const item = this.#item;
     const lista = [];
     if (item) {
-      lista.push({ nome: "nvl", titulo: `@nvl = ${nivelDoDono(item)}` });
+      const nivel = nivelDoDono(item);
+      lista.push({ nome: "nvl", titulo: `@nvl = ${nivel}` });
+      // Um exemplo do degrau: o número depois do @nvl é o nível que liga.
+      lista.push({
+        nome: "nvl5",
+        titulo: game.i18n.format("PYRO.Efeitos.VariavelDegrau", { valor: degrau(nivel, 5) })
+      });
     }
     if (!ator) return lista;
     const semEfeitos = variaveisDeEfeito(ator, null, { naFicha: true });

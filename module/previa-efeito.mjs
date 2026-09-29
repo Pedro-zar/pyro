@@ -9,6 +9,7 @@
  */
 import { PYRO } from "./config.mjs";
 import { avaliarConta } from "./regras-efeito.mjs";
+import { degrau } from "./dados.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -33,7 +34,10 @@ export function trocarVariaveis(texto, vars, doUso = []) {
   const faltando = [];
   const noUso = [];
   const trocado = String(texto).replace(/@([a-z_][\w.]*)/gi, (inteiro, nome) => {
-    const valor = foundry.utils.getProperty(vars ?? {}, nome);
+    // Degrau além dos que existem como dado: a conta é a mesma (ver degrau).
+    const doDegrau = /^nvl(\d+)$/i.exec(nome);
+    const valor = doDegrau && vars?.nvl !== undefined
+      ? degrau(vars.nvl, doDegrau[1]) : foundry.utils.getProperty(vars ?? {}, nome);
     if (valor !== undefined && valor !== null && valor !== "") return String(valor);
     (doUso.includes(nome) ? noUso : faltando).push(nome);
     return inteiro;

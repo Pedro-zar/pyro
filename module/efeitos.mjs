@@ -12,6 +12,7 @@ import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
 import { UNIDADE_PADRAO, dadosDePrazo } from "./duracao.mjs";
+import { trocarDegraus } from "./dados.mjs";
 import { motivoDaPausa, variaveisDoEfeito, avaliarConta } from "./regras-efeito.mjs";
 
 
@@ -461,7 +462,8 @@ export function variaveisDaMensagem(message) {
 export function resolverValorEfeito(valor, vars) {
   const bruto = String(valor ?? "").trim();
   if (!bruto || Number.isFinite(Number(bruto))) return bruto;
-  const resolvido = bruto.includes("@") ? Roll.replaceFormulaData(bruto, vars) : bruto;
+  const comDegraus = vars?.nvl === undefined ? bruto : trocarDegraus(bruto, vars.nvl);
+  const resolvido = comDegraus.includes("@") ? Roll.replaceFormulaData(comDegraus, vars) : comDegraus;
   if (resolvido.includes("@")) return resolvido;
   const numero = avaliarConta(resolvido);
   return Number.isFinite(numero) ? String(numero) : resolvido;

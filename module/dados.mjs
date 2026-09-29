@@ -74,6 +74,32 @@ export function multiplicarDados(formula, fator) {
   return juntarDados([multiplicada]);
 }
 
+/**
+ * Até que nível as variáveis de degrau existem como dado (@nvl1 ... @nvl100).
+ * O núcleo do Foundry resolve as @variáveis de um efeito procurando cada nome
+ * nos dados, então cada degrau precisa estar lá com o nome dele. Nas
+ * fórmulas que passam por prepararFormula o degrau vale para qualquer número.
+ */
+export const MAIOR_DEGRAU = 100;
+
+/**
+ * @nvl5 vale 1 do nível 5 em diante e 0 antes dele; o mesmo para qualquer
+ * número. É o degrau escrito como número, para entrar numa conta:
+ * "@nvl * (1 + @nvl5 + @nvl10)" dobra no 5 e triplica no 10.
+ */
+export const degrau = (nivel, alvo) => ((Number(nivel) || 0) >= Number(alvo) ? 1 : 0);
+
+/** Os degraus de um nível como dados, prontos para as @variáveis. */
+export function degrausDeNivel(nivel) {
+  const dados = {};
+  for (let n = 1; n <= MAIOR_DEGRAU; n++) dados[`nvl${n}`] = degrau(nivel, n);
+  return dados;
+}
+
+/** Troca cada @nvlN do texto pelo 0 ou 1 do nível dado. */
+export const trocarDegraus = (texto, nivel) =>
+  String(texto ?? "").replace(/@nvl(\d+)(?![\w.])/gi, (m, alvo) => String(degrau(nivel, alvo)));
+
 /*
  * Um ramo de degrau vai até o ";" ou até o "]" que fecha o degrau — mas um
  * atalho escrito dentro dele ("[NVL10=2d6 + [FOR];1d6]") traz o próprio par de
@@ -91,6 +117,9 @@ const DEGRAU_DE_NIVEL = new RegExp(String.raw`\[NVL(\d+)\s*=\s*(${RAMO});(${RAMO
  * um atributo de quem usa: é o que faz "1d6 + [NVL]" crescer com o uso, sem o
  * jogador reescrever a fórmula a cada nível.
  *
+ * @nvl5 vale 1 do nível 5 em diante e 0 antes (ver degrau), para qualquer
+ * número depois do @nvl.
+ *
  * Degraus de nível: [NVL5=X;Y] vale X do nível 5 em diante e Y antes dele —
  * assim uma habilidade que dobra nos níveis 5, 10, 15 e 20 se escreve
  * "[NVL] * [NVL5=2;1] * [NVL10=2;1] * [NVL15=2;1] * [NVL20=2;1]". Os dois
@@ -105,12 +134,16 @@ const DEGRAU_DE_NIVEL = new RegExp(String.raw`\[NVL(\d+)\s*=\s*(${RAMO});(${RAMO
  */
 export function prepararFormula(formula, dados = null) {
   const nivel = Number(dados?.nvl) || 0;
-  return String(formula ?? "")
-    .replace(DEGRAU_DE_NIVEL, (m, degrau, sim, nao) => {
-      const ramo = (nivel >= Number(degrau) ? sim : nao).trim();
+  const texto = String(formula ?? "")
+    .replace(DEGRAU_DE_NIVEL, (m, alvo, sim, nao) => {
+      const ramo = (nivel >= Number(alvo) ? sim : nao).trim();
       return `(${ramo || 0})`;
     })
-    .replace(/\[(FOR|VIG|DES|AGI|INT|SAB|PRE|NVL)\]/gi, (m, sigla) => `@${sigla.toLowerCase()}`);
+    .replace(/\[(FOR|VIG|DES|AGI|INT|SAB|PRE|NVL)\]/gi, (m, sigla) => `@${sigla.toLowerCase()}`)
+    .replace(/\[NVL(\d+)\]/gi, (m, alvo) => `@nvl${alvo}`);
+  // Sem o nível nos dados o @nvlN fica escrito: é uma fórmula sendo mostrada,
+  // e não resolvida.
+  return dados?.nvl === undefined ? texto : trocarDegraus(texto, nivel);
 }
 
 /* Depois dos atalhos e das @variáveis, uma conta só tem número e operador. */

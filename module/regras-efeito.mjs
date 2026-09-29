@@ -9,6 +9,7 @@
  */
 import { PYRO } from "./config.mjs";
 import { flagsDe, formasAtivas, SYSTEM_ID } from "./sistema.mjs";
+import { degrausDeNivel } from "./dados.mjs";
 
 /**
  * Por que um efeito não está valendo agora, fora o "desligado" que o jogador
@@ -86,8 +87,9 @@ export function atributosEmJogo(actor) {
 }
 
 /**
- * As @variáveis de um valor de efeito: os atributos de quem tem o efeito e o
- * @nvl do item onde ele mora (0 num efeito do próprio ator).
+ * As @variáveis de um valor de efeito: os atributos de quem tem o efeito, o
+ * @nvl do item onde ele mora (0 num efeito do próprio ator) e os degraus
+ * @nvl1 a @nvl100 desse nível.
  *
  * @param {Actor|null} actor quem tem o efeito.
  * @param {Item|null} [item] o item onde o efeito mora.
@@ -96,7 +98,9 @@ export function atributosEmJogo(actor) {
  */
 export function variaveisDeEfeito(actor, item = null, { naFicha = false } = {}) {
   const atributos = naFicha ? atributosSemEfeitos(actor) : atributosEmJogo(actor);
-  return { ...atributos, nvl: item ? nivelDoDono(item) : 0 };
+  const nvl = item ? nivelDoDono(item) : 0;
+  // @nvl5, @nvl10...: 1 do nível escrito em diante, 0 antes (ver degrau).
+  return { ...atributos, nvl, ...degrausDeNivel(nvl) };
 }
 
 /** As variáveis de um efeito já criado, pelo dono dele. */
