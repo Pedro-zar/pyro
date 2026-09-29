@@ -841,12 +841,12 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   }
 
   // Como nos atributos: clique abre a janela, Shift rola direto.
-  static async #rolarEsquiva(event) {
-    await this.actor.rolarEsquiva({ rapido: event.shiftKey });
+  static async #rolarEsquiva() {
+    await this.actor.rolarEsquiva();
   }
 
-  static async #rolarBloqueio(event) {
-    await this.actor.rolarBloqueio({ rapido: event.shiftKey });
+  static async #rolarBloqueio() {
+    await this.actor.rolarBloqueio();
   }
 
   static async #mover() {

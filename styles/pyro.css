@@ -1195,6 +1195,8 @@
   display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 1.9rem; gap: 4px; align-items: center;
 }
 .pyro .pyro-dano-recebido button.icone { width: 1.6rem; height: 1.6rem; padding: 0; flex: none; }
+.pyro .pyro-dano-recebido.invalido { border-color: var(--pyro-perigo); }
+.pyro .pyro-dano-aviso { margin: var(--pyro-e-1) 0 0; color: var(--pyro-perigo); font-size: var(--pyro-t-xs); }
 .pyro-aviso { color: var(--pyro-aviso); font-size: 0.85rem; }
 .pyro .defesas-colunas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; }
 .pyro .def-col { display: flex; flex-direction: column; gap: 0.3rem; }

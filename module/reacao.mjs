@@ -42,6 +42,7 @@ export function camposDeDanoRecebido() {
         <i class="fa-solid fa-plus"></i></button>
     </legend>
     <div class="pyro-dano-recebido-linhas">${linhaDeDano(0)}</div>
+    <p class="pyro-dano-aviso" hidden>${esc(loc("PYRO.Reacao.SemDano"))}</p>
   </fieldset>`;
 }
 
@@ -49,12 +50,38 @@ export function camposDeDanoRecebido() {
  * Liga os botões de mais e de tirar do bloco. Os índices só crescem: um
  * índice reaproveitado depois de tirar uma linha do meio juntaria duas
  * linhas no mesmo nome do formulário.
+ *
+ * O dano é obrigatório. Confirmar sem nenhum valor não fecha a janela: o
+ * clique é barrado antes de chegar ao diálogo, e o aviso aparece embaixo
+ * das linhas. Linha vazia a mais, junto de uma preenchida, só é ignorada.
  */
 export function ligarCamposDeDano(elemento) {
   const bloco = elemento?.querySelector(".pyro-dano-recebido");
   if (!bloco) return;
   const linhas = bloco.querySelector(".pyro-dano-recebido-linhas");
+  const aviso = bloco.querySelector(".pyro-dano-aviso");
   let proximo = linhas.children.length;
+
+  const temDano = () => [...linhas.querySelectorAll("input")].some(i => i.value.trim());
+  const barrarSemDano = evento => {
+    if (temDano()) return;
+    evento.preventDefault();
+    evento.stopImmediatePropagation();
+    bloco.classList.add("invalido");
+    if (aviso) aviso.hidden = false;
+    linhas.querySelector("input")?.focus();
+  };
+  // Em captura, no botão e no formulário: o clique no confirmar e o Enter
+  // num campo param aqui, antes do diálogo fechar.
+  for (const botao of elemento.querySelectorAll('button[type="submit"], button[data-action="ok"]')) {
+    botao.addEventListener("click", barrarSemDano, { capture: true });
+  }
+  elemento.addEventListener("submit", barrarSemDano, { capture: true });
+  linhas.addEventListener("input", () => {
+    if (!temDano()) return;
+    bloco.classList.remove("invalido");
+    if (aviso) aviso.hidden = true;
+  });
   bloco.addEventListener("click", evento => {
     if (evento.target.closest("[data-pyro-adicionar-dano]")) {
       evento.preventDefault();
@@ -78,7 +105,7 @@ export function ligarCamposDeDano(elemento) {
  * @param {object} resposta o objeto do formulário (chaves "danoRecebido.0.valor").
  * @param {Record<string, number>} defesas as defesas totais do personagem, por tipo.
  * @returns {{linhas: object[], total: number}|null} null quando nenhuma linha
- *   tem valor: aí a reação sai sem ND, como antes.
+ *   tem valor, e aí a reação não sai.
  */
 export function lerDanoRecebido(resposta, defesas = {}) {
   const bruto = foundry.utils.expandObject(resposta ?? {}).danoRecebido ?? {};

@@ -587,11 +587,11 @@ export class PyroActor extends Actor {
   /**
    * Esquiva e bloqueio são testes como os de atributo: mesma janela (bônus
    * fixo, vantagens, desvantagens, ND) mais a cobertura, que dobra os dados
-   * (SRD §5), e a mesma exaustão descontando. Shift na ficha pula a janela.
+   * (SRD §5), e a mesma exaustão descontando.
    * Vantagem e desvantagem mexem no dado da reação — d12 na esquiva, d4 no
    * bloqueio — e os dados que o equipamento soma ficam como estão.
    */
-  async #rolarReacao(tipo, { cobertura = false, rapido = false } = {}) {
+  async #rolarReacao(tipo, { cobertura = false } = {}) {
     if (!this.podeAgir()) return;
     // Insensato não se protege: sem cobertura, sem esquiva e sem bloqueio.
     if (barradoPorMental(this, "semReacoes")) return;
@@ -599,34 +599,35 @@ export class PyroActor extends Actor {
     const chaves = tipo === "esquiva"
       ? { titulo: "PYRO.Esquivar", flavor: "PYRO.Chat.Esquiva", flavorCobertura: "PYRO.Chat.EsquivaCobertura" }
       : { titulo: "PYRO.Bloquear", flavor: "PYRO.Chat.Bloqueio", flavorCobertura: "PYRO.Chat.BloqueioCobertura" };
-    let opts = { bonus: 0, vantagem: 0, desvantagem: 0, nd: null, cobertura };
-    let contaDoDano = null;
 
-    if (!rapido) {
-      const res = await formularioDoAtor(this, {
-        titulo: game.i18n.localize(chaves.titulo),
-        /*
-         * Sem Inspiração Divina: a pool da reação é fixa pelo sistema (d4 no
-         * bloqueio, d12 na esquiva) e não sai de atributo nenhum, então não
-         * há atributo para dobrar. No lugar do ND vem o dano que chega, por
-         * tipo: o ND real é o que sobra depois da defesa de cada tipo.
-         */
-        conteudo: camposDeTeste(this, {
-          dica: game.i18n.format("PYRO.Reacao.Base", { formula: this.system[tipo] || "0" }),
-          extras: camposDeDanoRecebido() + campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura),
-          comInspiracao: false,
-          comND: false
-        }),
-        aoRenderizar: ligarCamposDeDano
-      });
-      if (!res) return;
-      contaDoDano = lerDanoRecebido(res, this.system.defesas?.totais);
-      opts = {
-        ...opts, ...res,
-        nd: contaDoDano ? contaDoDano.total : null,
-        cobertura: !!res.cobertura
-      };
-    }
+    /*
+     * A janela abre sempre, mesmo com Shift: o dano que chega é obrigatório,
+     * e sem ele não há ND nem como dizer se a reação deu certo.
+     *
+     * Sem Inspiração Divina: a pool da reação é fixa pelo sistema (d4 no
+     * bloqueio, d12 na esquiva) e não sai de atributo nenhum, então não há
+     * atributo para dobrar. No lugar do ND vem o dano, por tipo: o ND real é
+     * o que sobra depois da defesa de cada tipo.
+     */
+    const res = await formularioDoAtor(this, {
+      titulo: game.i18n.localize(chaves.titulo),
+      conteudo: camposDeTeste(this, {
+        dica: game.i18n.format("PYRO.Reacao.Base", { formula: this.system[tipo] || "0" }),
+        extras: camposDeDanoRecebido() + campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura),
+        comInspiracao: false,
+        comND: false
+      }),
+      aoRenderizar: ligarCamposDeDano
+    });
+    if (!res) return;
+    const contaDoDano = lerDanoRecebido(res, this.system.defesas?.totais);
+    // O campo já é obrigatório no formulário; isto cobre o que passar dele.
+    if (!contaDoDano) return ui.notifications.warn(game.i18n.localize("PYRO.Reacao.SemDano"));
+    const opts = {
+      bonus: 0, vantagem: 0, desvantagem: 0, ...res,
+      nd: contaDoDano.total,
+      cobertura: !!res.cobertura
+    };
     // Cobrado depois da janela: fechar o diálogo não pode levar a reação.
     const gasto = await this.gastarAcoes(1, { tipo: "reacao" });
     if (!gasto.ok) return;
@@ -657,7 +658,7 @@ export class PyroActor extends Actor {
             ? ` ${game.i18n.format("PYRO.Chat.CustoPv", { valor: pagoFriagem.dosPv })}` : ""}</p>`
       : "";
 
-    const conta = contaDoDano ? htmlContaDoDano(contaDoDano) : "";
+    const conta = htmlContaDoDano(contaDoDano);
     if (formula === null) {
       return this.#falhaAutomatica(flavor, conta + htmlVontadeGasta(vontade) + avisoFriagem);
     }
@@ -668,10 +669,8 @@ export class PyroActor extends Actor {
      * A esquiva escapa de tudo ou de nada, e o card diz qual. O bloqueio
      * reduz: além de dizer se segurou tudo, diz quanto ainda passa.
      */
-    const resultado = contaDoDano
-      ? htmlResultadoND(roll.total >= contaDoDano.total)
-        + (tipo === "bloqueio" ? htmlDanoRestante(contaDoDano.total, roll.total) : "")
-      : "";
+    const resultado = htmlResultadoND(roll.total >= contaDoDano.total)
+      + (tipo === "bloqueio" ? htmlDanoRestante(contaDoDano.total, roll.total) : "");
     return this.#cardDeTeste(roll, {
       flavor,
       html: conta + resultado + avisoFriagem + htmlVontadeGasta(vontade)
