@@ -136,22 +136,10 @@ Hooks.once("init", () => {
 Hooks.once("i18nInit", () => PYRO.construirAfinidades());
 
 /*
- * O tamanho da criatura vem de caminho racial, efeito ou edição direta, então
- * a reação a ele escuta todas essas origens — é ela que redesenha o token e
- * ajusta o PV em proporção. O método sai cedo quando o tamanho não mudou, o
- * que evita laço com o próprio updateActor que ele mesmo dispara.
+ * O tamanho da criatura vem de caminho racial, efeito ou edição direta; quem
+ * reage a ele (redesenha o token e ajusta o PV em proporção) é o próprio
+ * ator, depois de se preparar de novo (ver PyroActor#conferirTamanho).
  */
-const sincronizarTamanho = actor => actor?.aplicarMudancaDeTamanho?.();
-/** Ator dono de um item ou de um efeito (o efeito pode estar num item do ator). */
-const atorDoDocumento = doc => (doc?.parent instanceof Actor ? doc.parent : doc?.parent?.parent);
-
-Hooks.on("updateActor", sincronizarTamanho);
-Hooks.on("createItem", doc => sincronizarTamanho(atorDoDocumento(doc)));
-Hooks.on("updateItem", doc => sincronizarTamanho(atorDoDocumento(doc)));
-Hooks.on("deleteItem", doc => sincronizarTamanho(atorDoDocumento(doc)));
-Hooks.on("createActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
-Hooks.on("updateActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
-Hooks.on("deleteActiveEffect", doc => sincronizarTamanho(atorDoDocumento(doc)));
 
 /*
  * Efeito que chega carregando níveis de exaustão entrega esses níveis para a

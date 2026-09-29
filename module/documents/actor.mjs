@@ -106,23 +106,43 @@ export class PyroActor extends Actor {
 
   #filaDerivados = Promise.resolve();
 
+  /*
+   * O tamanho é conferido aqui, depois do super, e não nos hooks de item e de
+   * efeito. Um efeito que mora num item (o "Massivo" de uma habilidade) avisa
+   * o hook antes de o Foundry preparar o ator de novo: ali o ator ainda tem o
+   * tamanho antigo, a conta não vê mudança nenhuma e o PV só acerta na
+   * próxima edição. O super destes métodos é que prepara o ator.
+   *
+   * Em fila própria: desligar um tamanho pode criar ou tirar o sobrepeso no
+   * mesmo instante, e duas conferências que leem o tamanho antigo antes de a
+   * primeira gravar aplicariam a proporção do PV duas vezes.
+   */
+  #conferirTamanho() {
+    naFila({ uuid: `${this.uuid}#tamanho` }, () => this.aplicarMudancaDeTamanho())
+      .catch(erro => console.error("PYRO | falha ao acertar o tamanho", erro));
+  }
+
   _onUpdate(changed, options, userId) {
     super._onUpdate(changed, options, userId);
+    this.#conferirTamanho();
     this.#acertarDerivados(userId);
   }
 
   _onCreateDescendantDocuments(parent, collection, documents, data, options, userId) {
     super._onCreateDescendantDocuments(parent, collection, documents, data, options, userId);
+    this.#conferirTamanho();
     this.#acertarDerivados(userId);
   }
 
   _onUpdateDescendantDocuments(parent, collection, documents, changes, options, userId) {
     super._onUpdateDescendantDocuments(parent, collection, documents, changes, options, userId);
+    this.#conferirTamanho();
     this.#acertarDerivados(userId);
   }
 
   _onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId) {
     super._onDeleteDescendantDocuments(parent, collection, documents, ids, options, userId);
+    this.#conferirTamanho();
     this.#acertarDerivados(userId);
   }
 
