@@ -7,12 +7,28 @@
   <div class="linha-campos">
     <label class="campo cresce"><span>{{localize "PYRO.Efeitos.NomeEfeito"}}</span>
       <input type="text" name="nome" value="{{nome}}" /></label>
+    {{!-- Passivo não tem prazo: vale enquanto existir. No efeito de item que
+          vale para o dono ele é a única opção, porque ninguém conta o tempo
+          de um efeito que mora num item. --}}
+    <label class="check-linha campo-passivo"
+           {{#if passivoTravado}}title="{{localize 'PYRO.Efeitos.PassivoTravado'}}"{{/if}}>
+      <input type="checkbox" name="passivo" {{checked passivo}} {{disabled passivoTravado}} />
+      <span>{{localize "PYRO.Efeitos.Passivo"}}</span></label>
+    {{#unless passivo}}
     <label class="campo"><span>{{localize "PYRO.Efeitos.Duracao"}}</span>
       <input type="text" name="prazo" value="{{prazo}}" /></label>
     <label class="campo"><span>{{localize "PYRO.Efeitos.Unidade"}}</span>
       <select name="unidade">{{selectOptions unidades selected=unidade}}</select></label>
+    {{/unless}}
   </div>
+  {{#unless passivo}}
   <p class="pyro-nota">{{localize "PYRO.Efeitos.DuracaoDica"}}</p>
+  {{/unless}}
+
+  {{!-- Na edição: se o efeito está valendo agora e, se não, por quê. --}}
+  {{#if situacao}}
+  <p class="pyro-situacao-efeito {{situacao.classe}}">{{situacao.texto}}</p>
+  {{/if}}
 
   {{#if podeSerDeUso}}
   <div class="campos-check">
@@ -40,6 +56,7 @@
       <span>{{localize "PYRO.Efeitos.ModoLabel"}}</span>
       <span>{{localize "PYRO.Efeitos.Valor"}}</span>
       <span>{{localize "PYRO.Efeitos.Ordem"}}</span>
+      <span title="{{localize 'PYRO.Efeitos.Previa.TituloDica'}}">{{localize "PYRO.Efeitos.Previa.Titulo"}}</span>
       <span></span>
     </div>
     {{#each mudancas as |m|}}
@@ -90,7 +107,7 @@
              placeholder="{{pyroSe m.ehCustoMult '0.5' '-2'}}"
              title="{{localize (pyroSe m.ehCustoMult 'PYRO.Efeitos.CustoMultDica' 'PYRO.Efeitos.CustoSomaDica')}}" />
       {{else}}
-      <select name="mudanca.{{m.index}}.modo">
+      <select name="mudanca.{{m.index}}.modo" data-campo="modo">
         {{selectOptions @root.modos selected=m.modo localize=true}}
       </select>
       <input type="text" name="mudanca.{{m.index}}.valor" value="{{m.valor}}" placeholder="2" />
@@ -103,6 +120,9 @@
       <input type="number" name="mudanca.{{m.index}}.ordem" value="{{m.ordem}}" step="1"
              title="{{localize 'PYRO.Efeitos.OrdemDica'}}" />
       {{/if}}
+      {{!-- O que a linha vale de fato, com as variáveis trocadas. Atualiza
+            enquanto se digita. --}}
+      <span class="previa-valor {{m.previa.classe}}" data-previa title="{{m.previa.dica}}">{{m.previa.texto}}</span>
       <button type="button" class="icone perigo" data-action="removerMudanca" data-index="{{m.index}}"
               title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
     </div>
@@ -140,6 +160,19 @@
       {{/each}}
     </div>
     <p class="pyro-nota">{{localize "PYRO.Efeitos.ApenasEmDica"}}</p>
+  </div>
+  {{/if}}
+
+  {{#if variaveisFicha.length}}
+  <div class="variaveis-efeito">
+    <span class="rotulo">{{localize "PYRO.Efeitos.VariaveisFicha"}}</span>
+    <div class="variaveis-lista">
+      {{#each variaveisFicha as |v|}}
+      <button type="button" class="ficha-variavel" data-action="inserirVariavel" data-variavel="{{v.nome}}"
+              title="{{v.titulo}}">@{{v.nome}}</button>
+      {{/each}}
+    </div>
+    <p class="pyro-nota">{{localize "PYRO.Efeitos.VariaveisFichaDica"}}</p>
   </div>
   {{/if}}
 

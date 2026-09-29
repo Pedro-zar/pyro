@@ -1458,9 +1458,25 @@
 .pyro .construtor-corpo { display: flex; flex-direction: column; gap: 0.4rem; }
 .pyro .mudancas { display: flex; flex-direction: column; gap: 2px; }
 .pyro .mudanca-cab, .pyro .mudanca-linha {
-  display: grid; grid-template-columns: 1fr 1.3fr 0.9fr 1.2fr 3.2rem 1.9rem;
+  display: grid; grid-template-columns: 1fr 1.3fr 0.9fr 1.2fr 3.2rem 4.6rem 1.9rem;
   gap: 4px; align-items: center;
 }
+/* O valor de fato da linha: número em destaque, erro em vermelho. */
+.pyro .previa-valor {
+  font-variant-numeric: tabular-nums; font-size: var(--pyro-t-sm);
+  color: var(--pyro-acento-ficha); white-space: nowrap;
+  overflow: hidden; text-overflow: ellipsis; cursor: help;
+}
+.pyro .previa-valor.erro { color: var(--pyro-perigo); font-weight: 600; }
+.pyro .previa-valor.espera { opacity: 0.65; font-style: italic; }
+.pyro .campo-passivo { align-self: center; padding-bottom: 0.3rem; }
+/* Se o efeito está valendo agora, e por que não. */
+.pyro .pyro-situacao-efeito {
+  margin: 0; padding: 0.2rem var(--pyro-e-2);
+  border-left: 3px solid var(--pyro-borda-forte); font-size: var(--pyro-t-sm);
+}
+.pyro .pyro-situacao-efeito.valendo { border-left-color: var(--pyro-acento-ficha); }
+.pyro .pyro-situacao-efeito.parado { border-left-color: var(--pyro-perigo); }
 .pyro .mudanca-cab span {
   font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.03em; opacity: 0.7;
 }

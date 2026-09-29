@@ -3,7 +3,7 @@
  * derivados — atributos em jogo, recursos, tamanho, carga, defesas e reações.
  */
 import { PYRO } from "../config.mjs";
-import { formulaPool, juntarDados, calcularFormula } from "../dados.mjs";
+import { formulaPool, juntarDados, calcularFormula, multiplicarDados } from "../dados.mjs";
 import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "./item-data.mjs";
 import { sentidosDoAtor } from "../percepcao.mjs";
 import { num, dec, str } from "./campos.mjs";
@@ -146,6 +146,16 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
        */
       bloqueioBonus: num(0),
       esquivaBonus: num(0),
+      /*
+       * Multiplicadores das reações. O dos dados multiplica quantos dados
+       * rolam (2d4 ×1,5 vira 3d4); é para onde vai um "Multiplicar" na linha
+       * dos dados (ver chaveDaMudanca). O do resultado multiplica o total
+       * rolado, arredondado para baixo.
+       */
+      bloqueioMult: dec(1, { min: 0 }),
+      esquivaMult: dec(1, { min: 0 }),
+      bloqueioMultResultado: dec(1, { min: 0 }),
+      esquivaMultResultado: dec(1, { min: 0 }),
 
       /*
        * Degraus somados na escada das línguas (humana → élfica → ...). É o
@@ -570,12 +580,20 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
      * fora com a fórmula que estiver escrita nele. Bônus negativo tira dados
      * mas para em zero: rolar dado nenhum já é o pior caso.
      */
-    const reacao = (cfg, bonus, extras) => juntarDados([
+    const reacao = (cfg, bonus, mult, extras) => multiplicarDados(juntarDados([
       `${Math.max(0, cfg.dados + (bonus ?? 0))}d${cfg.faces}`,
       ...extras
-    ]);
-    this.bloqueio = reacao(PYRO.reacoes.bloqueio, this.bloqueioBonus, bloqueioExtra);
-    this.esquiva = reacao(PYRO.reacoes.esquiva, this.esquivaBonus, esquivaExtra);
+    ]), mult);
+    this.bloqueio = reacao(PYRO.reacoes.bloqueio, this.bloqueioBonus, this.bloqueioMult, bloqueioExtra);
+    this.esquiva = reacao(PYRO.reacoes.esquiva, this.esquivaBonus, this.esquivaMult, esquivaExtra);
+    /*
+     * O botão mostra o multiplicador do resultado junto da fórmula: "3d4
+     * ×1,5". Sem ele o jogador veria 3d4 e estranharia o total do card.
+     */
+    const comFator = (formula, fator) => (Number(fator) === 1 || !Number.isFinite(Number(fator)) ? formula
+      : `${formula} ×${Number(fator).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}`);
+    this.bloqueioTexto = comFator(this.bloqueio, this.bloqueioMultResultado);
+    this.esquivaTexto = comFator(this.esquiva, this.esquivaMultResultado);
   }
 }
 

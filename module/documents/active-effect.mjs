@@ -5,80 +5,78 @@
  * `shouldApplyChange` (portão por mudança, na instância) e `applyChange` (a
  * conta em si, estática); o travamento vai no portão.
  */
-import { flagsDe, formasAtivas, SYSTEM_ID } from "../sistema.mjs";
+import {
+  motivoDaPausa, presoAItem, variaveisDoEfeito, valorInteiroDaMudanca, chaveDaMudanca
+} from "../regras-efeito.mjs";
 
 export class PyroActiveEffect extends ActiveEffect {
   /**
-   * Efeito preso a itens não vale o tempo todo. Ele continua listado na ficha,
-   * mas fora da conta dos atributos: quem consome é a rolagem daqueles itens
-   * (ver ajustesDeAtributo e bonusDeDano em efeitos.mjs); senão um "+2 FOR
-   * com a katana" valeria também de mãos vazias.
+   * Por que o efeito não vale agora (ver motivoDaPausa), contando também o
+   * "desligado" e a restrição a itens. Null quando ele está valendo. É o que
+   * o construtor mostra para quem quer saber por que um efeito não soma.
    */
-  get #presoAItem() {
-    return (flagsDe(this)?.alvosItem ?? []).length > 0;
-  }
-
-  /**
-   * Efeito de uma postura ou de uma transformação só vale enquanto aquela
-   * forma está ativa (SRD Técnicas). Qual está ativa é escolha do ator, então
-   * a pergunta é feita de fora do item: a habilidade não sabe se é a guarda do
-   * momento nem se o personagem está transformado nela. Postura é uma só por
-   * vez, e transformações valem várias juntas.
-   */
-  get #formaInativa() {
-    const item = this.parent;
-    if (item?.documentName !== "Item") return false;
-    if (item.system?.ehPostura) return item.actor?.getFlag(SYSTEM_ID, "postura") !== item.id;
-    if (item.system?.ehTransformacao) return !formasAtivas(item.actor).includes(item.id);
-    return false;
-  }
-
-  /**
-   * Efeito de um item que está guardado em vez de vestido. Armadura no chão
-   * não protege e tocha na mochila não ilumina: o que o equipamento faz vale
-   * enquanto ele está equipado. Só pergunta a quem tem o campo — habilidade,
-   * magia e técnica não se equipam, e ali a pergunta não existe.
-   */
-  get #itemGuardado() {
-    const item = this.parent;
-    return item?.documentName === "Item" && item.system?.equipado === false;
-  }
-
-  /**
-   * Prazo vencido no relógio do mundo. Quem apaga os efeitos com prazo é o
-   * relógio do combate (ver tempo.mjs); isto cobre o que foi aplicado fora de
-   * combate, onde ninguém passa turno: o efeito continua listado, mas para de
-   * somar assim que o tempo do mundo passa por ele.
-   */
-  get #prazoVencido() {
-    const d = this.duration;
-    return !!d?.seconds && Number(d.remaining) <= 0;
+  get situacao() {
+    if (this.disabled) return "desligado";
+    return motivoDaPausa(this) ?? (presoAItem(this) ? "presoAItem" : null);
   }
 
   get isSuppressed() {
-    if (this.#presoAItem || this.#formaInativa || this.#itemGuardado) return true;
-    if (this.#prazoVencido) return true;
+    if (presoAItem(this) || motivoDaPausa(this)) return true;
+    /*
+     * O vencido do núcleo não vale para efeito de item: ele não tem relógio
+     * (ver motivoDaPausa), e uma marca de vencido deixada ali por um prazo
+     * antigo desligaria para sempre o que a habilidade faz.
+     */
+    if (this.parent?.documentName === "Item") return !!this.system?.isSuppressed;
     return super.isSuppressed ?? false;
   }
 
   /** O mesmo travamento, no portão que o Foundry consulta por mudança. */
   shouldApplyChange(change, options) {
-    if (this.#presoAItem || this.#formaInativa || this.#itemGuardado) return false;
-    if (this.#prazoVencido) return false;
+    if (presoAItem(this) || motivoDaPausa(this)) return false;
     return super.shouldApplyChange?.(change, options) ?? true;
   }
 
   /**
-   * As @variáveis dos valores de efeito, somando o que o item dono empresta:
-   * @nvl é o nível do item que carrega o efeito (o do progresso, numa
-   * técnica), então "@nvl * 2" numa habilidade escala sozinho quando ela
-   * sobe. Só entra na aplicação — o valor guardado e a ficha do efeito
-   * continuam mostrando "@nvl".
+   * As @variáveis dos valores de efeito: @nvl é o nível do item que carrega o
+   * efeito, e @for, @sab... são os atributos sem efeitos, porque o total
+   * ainda não existe quando os campos são alterados (ver atributosSemEfeitos).
+   * Só entra na aplicação: o valor guardado continua mostrando "@nvl".
+   *
+   * Uma cópia, e não o objeto recebido: o núcleo entrega os mesmos dados a
+   * todos os efeitos do ator, e escrever o @nvl de uma habilidade ali faria
+   * todos os efeitos lerem o nível do último item preparado.
    */
   getReplacementData(baseData) {
-    const dados = super.getReplacementData?.(baseData) ?? { ...(baseData ?? {}) };
-    const sys = this.parent instanceof Item ? this.parent.system : null;
-    if (sys) dados.nvl = Number(sys.progresso?.nivel ?? sys.nivel) || 0;
-    return dados;
+    return { ...(baseData ?? {}), ...variaveisDoEfeito(this, { naFicha: true }) };
+  }
+
+  /**
+   * Multiplicar os dados de uma reação vai para o multiplicador de dados, e
+   * não para o campo de dados a mais (ver chaveDaMudanca).
+   */
+  static applyChange(targetDoc, change, options) {
+    const chave = chaveDaMudanca(change.key, change.type);
+    if (chave !== change.key) change = { ...change, key: chave };
+    return super.applyChange(targetDoc, change, options);
+  }
+
+  /**
+   * Mudança num campo inteiro com conta que não fecha em inteiro: vira a
+   * substituição pelo valor já arredondado (ver valorInteiroDaMudanca).
+   */
+  static applyChangeField(targetDoc, change, options = {}) {
+    const campo = options.field;
+    if (campo instanceof foundry.data.fields.NumberField && campo.integer) {
+      try {
+        const delta = campo._castChangeDelta(change.value, options.replacementData ?? {});
+        const atual = Number(foundry.utils.getProperty(targetDoc, change.key));
+        const inteiro = valorInteiroDaMudanca(change.type, atual, Number(delta));
+        if (inteiro !== null) change = { ...change, type: "override", value: inteiro };
+      } catch {
+        // Fórmula que não resolve: o núcleo avisa no console do jeito dele.
+      }
+    }
+    return super.applyChangeField(targetDoc, change, options);
   }
 }

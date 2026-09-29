@@ -61,6 +61,19 @@ export function formulaReacao(formula, faces, { vantagem = 0, desvantagem = 0, b
   return !bonus ? f : bonus > 0 ? `${f} + ${bonus}` : `${f} - ${-bonus}`;
 }
 
+/**
+ * Multiplica a quantidade de cada dado da fórmula, arredondando para baixo:
+ * 2d4 ×1,5 vira 3d4, e 3d4 ×1,5 vira 4d4. Número fixo não é dado e fica
+ * como está. Um dado que cai a zero sai da fórmula.
+ */
+export function multiplicarDados(formula, fator) {
+  const f = Number(fator);
+  if (!Number.isFinite(f) || f === 1 || f < 0) return formula;
+  const multiplicada = String(formula ?? "")
+    .replace(/(\d+)d(\d+)/g, (x, n, faces) => `${Math.floor(Number(n) * f)}d${faces}`);
+  return juntarDados([multiplicada]);
+}
+
 /*
  * Um ramo de degrau vai até o ";" ou até o "]" que fecha o degrau — mas um
  * atalho escrito dentro dele ("[NVL10=2d6 + [FOR];1d6]") traz o próprio par de

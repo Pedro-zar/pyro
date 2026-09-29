@@ -238,7 +238,7 @@ async function vencerTempoCorrido(actor, turnos, relatos) {
      * o cadáver para a ficha não acumular efeitos mortos.
      */
     const d = efeito.duration;
-    if (d?.seconds && Number(d.remaining) <= 0) {
+    if (Number.isFinite(d?.value) && Number(d.remaining) <= 0) {
       await efeito.delete({ pyroRelatado: true });
       relatos.push(loc("PYRO.Tempo.Expirou", {
         nome: esc(actor.name), condicao: esc(efeito.name)

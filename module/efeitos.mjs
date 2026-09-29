@@ -10,8 +10,9 @@
 
 import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
-import { SYSTEM_ID, flagsDe, flagsDoSistema, formasAtivas, naFila } from "./sistema.mjs";
+import { SYSTEM_ID, flagsDe, flagsDoSistema, naFila } from "./sistema.mjs";
 import { UNIDADE_PADRAO, dadosDePrazo } from "./duracao.mjs";
+import { motivoDaPausa, variaveisDoEfeito, avaliarConta } from "./regras-efeito.mjs";
 
 
 /* -------------------------------------------------------------------------- */
@@ -46,49 +47,13 @@ export function efeitoValeParaItem(efeito, item) {
 }
 
 /** Efeitos ativos do ator, incluindo os que estão presos a algum item. */
-/**
- * Efeito de uma postura ou de uma transformação que não é a forma ativa do
- * dono. O mesmo portão do PyroActiveEffect, para o que o sistema lê por fora do
- * core (bônus de dano, custos, atributos presos a item): sem ele, a guarda
- * desligada seguiria dando o desconto dela.
- */
-const deFormaInativa = efeito => {
-  const item = efeito.parent;
-  if (!(item instanceof Item)) return false;
-  if (item.system?.ehPostura) return item.actor?.getFlag(SYSTEM_ID, "postura") !== item.id;
-  if (item.system?.ehTransformacao) return !formasAtivas(item.actor).includes(item.id);
-  return false;
-};
-
-/**
- * Efeito de um equipamento que está guardado. O mesmo portão do
- * PyroActiveEffect: a tocha na mochila não acende e a armadura no chão não
- * defende, aqui também.
- */
-const deItemGuardado = efeito =>
-  efeito.parent instanceof Item && efeito.parent.system?.equipado === false;
-
-/**
- * Prazo vencido no relógio do mundo. O mesmo portão do PyroActiveEffect: o
- * efeito continua listado até alguém apagá-lo, mas para de somar na hora em
- * que o tempo passa por ele — e isso vale para o que o sistema lê por fora do
- * core (dano, custo, alcance) como vale para as mudanças de campo.
- */
-const dePrazoVencido = efeito => {
-  const d = efeito?.duration;
-  return !!d?.seconds && Number(d.remaining) <= 0;
-};
-
 function efeitosAtivos(actor) {
   const lista = [];
   for (const efeito of actor?.allApplicableEffects?.() ?? []) {
     // `disabled` é escolha do jogador. Efeito preso a item aparece aqui de
     // propósito: ele está suprimido na ficha, mas vale na rolagem certa. Já
-    // o de uma forma desligada não vale em canto nenhum.
-    if (!efeito.disabled && !deFormaInativa(efeito) && !deItemGuardado(efeito)
-        && !dePrazoVencido(efeito)) {
-      lista.push(efeito);
-    }
+    // o de uma forma desligada não vale em canto nenhum (ver motivoDaPausa).
+    if (!efeito.disabled && !motivoDaPausa(efeito)) lista.push(efeito);
   }
   return lista;
 }
@@ -380,15 +345,13 @@ export function custoAjustado(base, ajuste) {
  * numa rolagem isolada.
  */
 /**
- * As variáveis que o item dono de um efeito empresta aos valores dele: @nvl
- * é o nível do item onde o efeito mora (o do progresso, numa técnica). O
- * mesmo @nvl que o core resolve na aplicação (ver getReplacementData no
- * PyroActiveEffect), para os valores que o sistema lê por conta própria.
+ * As variáveis dos valores que o sistema lê por conta própria (dano, custo,
+ * alcance): os dados do ator, com @nvl e os atributos por cima, como o
+ * núcleo faz na aplicação (ver getReplacementData no PyroActiveEffect).
  */
-const varsDoEfeito = efeito => {
-  const sys = efeito?.parent instanceof Item ? efeito.parent.system : null;
-  return sys ? { nvl: Number(sys.progresso?.nivel ?? sys.nivel) || 0 } : {};
-};
+const varsDoEfeito = efeito => ({
+  ...(efeito?.actor?.getRollData?.() ?? {}), ...variaveisDoEfeito(efeito)
+});
 
 export function ajustesDeAtributo(actor, item) {
   const itens = (Array.isArray(item) ? item : [item]).filter(Boolean);
@@ -490,22 +453,18 @@ export function variaveisDaMensagem(message) {
 
 /**
  * Troca as @variáveis pelo valor daquela conjuração e resolve a conta quando
- * o que sobra é aritmética ("@alcance / 2" vira "3"). Referências que não
- * estão no mapa ficam intactas, então "@det" continua valendo o DET de quem
- * recebe o efeito, resolvido pelo Foundry na aplicação.
+ * o que sobra é aritmética ("@alcance / 2" vira "3", "10 / 4 * 10" vira
+ * "25", "floor(@nvl / 2)" vira "7"). Referências que não estão no mapa ficam intactas, então "@det"
+ * continua valendo o DET de quem recebe o efeito, resolvido pelo Foundry na
+ * aplicação.
  */
 export function resolverValorEfeito(valor, vars) {
-  const bruto = String(valor ?? "");
-  if (!bruto.includes("@")) return bruto;
-  const resolvido = Roll.replaceFormulaData(bruto, vars);
+  const bruto = String(valor ?? "").trim();
+  if (!bruto || Number.isFinite(Number(bruto))) return bruto;
+  const resolvido = bruto.includes("@") ? Roll.replaceFormulaData(bruto, vars) : bruto;
   if (resolvido.includes("@")) return resolvido;
-  if (!/^[\d\s+\-*/().]+$/.test(resolvido)) return resolvido;
-  try {
-    return String(Roll.safeEval(resolvido));
-  } catch (erro) {
-    console.warn("PYRO | Valor de efeito não pôde ser calculado", bruto, erro);
-    return resolvido;
-  }
+  const numero = avaliarConta(resolvido);
+  return Number.isFinite(numero) ? String(numero) : resolvido;
 }
 
 /**
@@ -514,12 +473,14 @@ export function resolverValorEfeito(valor, vars) {
  * não mexe em quem já recebeu.
  */
 export function dadosDoEfeitoAplicado(efeito, vars) {
-  // O nível do item que carrega o efeito entra junto das variáveis do card:
-  // "@nvl" num efeito de uso congela no nível que o item tinha ao aplicar —
-  // o alvo não herda um @nvl dele mesmo.
-  vars = { ...varsDoEfeito(efeito), ...vars };
+  // O nível do item e os atributos de quem usa entram junto das variáveis
+  // do card: "@nvl" e "@sab" num efeito de uso congelam no que eram ao
+  // aplicar. A bênção de quem tem SAB 20 vale SAB 20 em quem a recebe.
+  vars = { ...variaveisDoEfeito(efeito), ...vars };
   const dados = efeito.toObject();
   delete dados._id;
+  // O começo é o da aplicação: o do item é de quando o efeito foi escrito.
+  delete dados.start;
   dados.origin = efeito.uuid;
   dados.transfer = false;
   dados.disabled = false;
@@ -558,6 +519,8 @@ export function dadosDoEfeitoAplicado(efeito, vars) {
     dados.duration = { ...(dados.duration ?? {}), ...resolvido.duration };
     dados.flags = foundry.utils.mergeObject(dados.flags ?? {}, resolvido.flags);
   }
+  // A cópia nasce valendo, qualquer que seja a marca que o original carregue.
+  if (dados.duration) dados.duration.expired = false;
   return dados;
 }
 

@@ -134,7 +134,9 @@ export class PyroActor extends Actor {
     const data = { ...super.getRollData() };
     data.dados = {};
     for (const [chave, attr] of Object.entries(this.system.atributos ?? {})) {
-      data[chave] = attr.total;
+      // Durante a aplicação dos efeitos o total ainda não existe: ali vale o
+      // atributo sem efeitos, o mesmo que os valores de efeito enxergam.
+      data[chave] = attr.total ?? Math.max(1, (attr.valor ?? 0) + (attr.bonus ?? 0));
       data.dados[chave] = attr.pool;
     }
     data.det = this.system.det;
@@ -619,7 +621,7 @@ export class PyroActor extends Actor {
     const res = await formularioDoAtor(this, {
       titulo: game.i18n.localize(chaves.titulo),
       conteudo: camposDeTeste(this, {
-        dica: game.i18n.format("PYRO.Reacao.Base", { formula: this.system[tipo] || "0" }),
+        dica: game.i18n.format("PYRO.Reacao.Base", { formula: this.system[`${tipo}Texto`] || "0" }),
         extras: camposDeDanoRecebido() + campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura),
         comInspiracao: false,
         comND: false
@@ -673,14 +675,27 @@ export class PyroActor extends Actor {
     const dados = this.getRollData();
     const roll = await new Roll(prepararFormula(formula, dados), dados).evaluate();
     /*
+     * O multiplicador do resultado entra depois do dado, arredondado para
+     * baixo, e o card mostra a conta: o total da rolagem sozinho não bateria
+     * com o que a reação segurou.
+     */
+    const fator = Number(this.system[`${tipo}MultResultado`]);
+    const multiplica = Number.isFinite(fator) && fator !== 1;
+    const total = multiplica ? Math.max(0, Math.floor(roll.total * fator)) : roll.total;
+    const notaDoFator = multiplica
+      ? `<p class="pyro-nota">${game.i18n.format("PYRO.Reacao.MultResultado", {
+        fator: fator.toLocaleString("pt-BR", { maximumFractionDigits: 2 }), antes: roll.total, depois: total
+      })}</p>`
+      : "";
+    /*
      * A esquiva escapa de tudo ou de nada, e o card diz qual. O bloqueio
      * reduz: além de dizer se segurou tudo, diz quanto ainda passa.
      */
-    const resultado = htmlResultadoND(roll.total >= contaDoDano.total)
-      + (tipo === "bloqueio" ? htmlDanoRestante(contaDoDano.total, roll.total) : "");
+    const resultado = htmlResultadoND(total >= contaDoDano.total)
+      + (tipo === "bloqueio" ? htmlDanoRestante(contaDoDano.total, total) : "");
     return this.#cardDeTeste(roll, {
       flavor,
-      html: conta + resultado + avisoFriagem + htmlVontadeGasta(vontade)
+      html: conta + notaDoFator + resultado + avisoFriagem + htmlVontadeGasta(vontade)
     });
   }
 

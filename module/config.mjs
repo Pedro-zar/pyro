@@ -1212,15 +1212,18 @@ PYRO.alvosEfeito = {
       .map(([k, cfg]) => [`system.defesas.tipos.${k}`, cfg.label]))
   },
   /*
-   * Reação conta dado, não ponto: o valor da linha é quantos dados entram a
-   * mais na rolagem. As faces já são as do sistema, então "+2" no bloqueio é
-   * mais 2d4 e o botão passa a mostrar o total somado.
+   * Reação conta dado, não ponto. Na linha dos dados, somar põe dados a mais
+   * (as faces são as do sistema, então "+2" no bloqueio é mais 2d4) e
+   * multiplicar multiplica quantos dados rolam (2d4 ×1,5 vira 3d4). A linha
+   * do resultado multiplica o total rolado.
    */
   reacoes: {
     label: "PYRO.Efeitos.Cat.reacoes",
     alvos: {
       "system.bloqueioBonus": "PYRO.Efeitos.Alvo.bloqueioBonus",
-      "system.esquivaBonus": "PYRO.Efeitos.Alvo.esquivaBonus"
+      "system.esquivaBonus": "PYRO.Efeitos.Alvo.esquivaBonus",
+      "system.bloqueioMultResultado": "PYRO.Efeitos.Alvo.bloqueioResultado",
+      "system.esquivaMultResultado": "PYRO.Efeitos.Alvo.esquivaResultado"
     }
   },
   condicao: {

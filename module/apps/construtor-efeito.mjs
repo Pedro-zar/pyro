@@ -2,7 +2,9 @@ import { PYRO } from "../config.mjs";
 import { variaveisDoItem } from "../magia.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho, flagsDe, flagsDoSistema, SYSTEM_ID } from "../sistema.mjs";
-import { UNIDADE_PADRAO, dadosDePrazo, opcoesDeUnidade } from "../duracao.mjs";
+import { UNIDADE_PADRAO, dadosDePrazo, opcoesDeUnidade, inicioAgora } from "../duracao.mjs";
+import { variaveisDeEfeito, nivelDoDono, chaveDaMudanca } from "../regras-efeito.mjs";
+import { previaDaLinha, campoInteiro, formatarNumero } from "../previa-efeito.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -61,11 +63,18 @@ const modosDaCategoria = categoria => {
   return PYRO.modosEfeito;
 };
 
-/** Um número, ou uma conta com @variáveis que vira número na hora de usar. */
+/**
+ * Um número, uma conta ("10 / 4 * 10") ou uma conta com @variáveis que vira
+ * número na hora de usar.
+ */
 const ehMedida = valor => {
   const texto = String(valor ?? "").trim();
-  return !!texto && (Number.isFinite(Number(texto)) || texto.includes("@"));
+  return !!texto && (Number.isFinite(Number(texto)) || texto.includes("@")
+    || /^[\d\s+\-*/().]+$/.test(texto));
 };
+
+/** "Infinity" é o que a ficha lê de uma duração indefinida: sem prazo. */
+const ehInfinito = texto => /^[+-]?infinity$/i.test(String(texto ?? "").trim());
 
 /**
  * Lê um efeito gravado de volta para o estado do construtor — é o caminho da
@@ -116,7 +125,7 @@ export function estadoDeEfeito(efeito) {
   for (const c of flags.custos ?? []) {
     mudancas.push({
       categoria: "custo", alvo: c.chave,
-      modo: c.modo === "multiply" ? "multiply" : "add", valor: String(c.valor),
+      modo: c.modo === "multiply" ? "multiply" : "add", valor: String(c.valor ?? ""),
       ordem: Math.round(Number(c.ordem)) || 0
     });
   }
@@ -136,12 +145,14 @@ export function estadoDeEfeito(efeito) {
   }
 
   const prazo = prazoEscrito(efeito);
+  const passivo = prazo.valor === "0" || ehInfinito(prazo.valor);
 
   return {
     nome: efeito.name,
     img: efeito.img,
-    prazo: prazo.valor,
+    prazo: passivo ? "0" : prazo.valor,
     unidade: prazo.unidade,
+    passivo,
     deUso: !!flags.deUso,
     aoAcabar: !!flags.aoAcabar,
     alvosItem: (flags.alvosItem ?? []).filter(a => a.id).map(a => a.id),
@@ -149,7 +160,7 @@ export function estadoDeEfeito(efeito) {
     mudancas,
     avancadas,
     statusPreservados,
-    categoria: efeito.disabled ? "inativos" : prazo.valor !== "0" ? "temporarios" : "passivos"
+    categoria: efeito.disabled ? "inativos" : passivo ? "passivos" : "temporarios"
   };
 }
 
@@ -167,10 +178,17 @@ function prazoEscrito(efeito) {
   if (flags.prazo?.valor) {
     return { valor: String(flags.prazo.valor), unidade: flags.prazo.unidade ?? UNIDADE_PADRAO };
   }
+  /*
+   * A duração do Foundry v14 é um valor e uma unidade. Sem valor ela é
+   * indefinida, e a ficha a prepara como infinita: isso é "sem prazo", e não
+   * um prazo de Infinity segundos.
+   */
   const d = efeito.duration ?? {};
-  if (d.rounds > 0) return { valor: String(d.rounds), unidade: "rodadas" };
-  if (d.turns > 0) return { valor: String(d.turns), unidade: "turnos" };
-  if (d.seconds > 0) return { valor: String(d.seconds), unidade: "segundos" };
+  if (Number.isFinite(d.value) && d.value > 0) {
+    if (d.units === "rounds") return { valor: String(d.value), unidade: "rodadas" };
+    if (d.units === "turns") return { valor: String(d.value), unidade: "turnos" };
+    if (Number.isFinite(d.seconds) && d.seconds > 0) return { valor: String(d.seconds), unidade: "segundos" };
+  }
   return { valor: "0", unidade: UNIDADE_PADRAO };
 }
 
@@ -197,11 +215,14 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
       this.img = estado.img;
       this.prazo = estado.prazo;
       this.unidade = estado.unidade;
+      this.passivo = estado.passivo;
       this.deUso = estado.deUso;
       this.aoAcabar = estado.aoAcabar;
       this.alvosItem = estado.alvosItem;
       this.alvosTipo = estado.alvosTipo;
-      this.mudancas = estado.mudancas.length ? estado.mudancas : [mudancaPadrao()];
+      // Editar um efeito sem linha nenhuma abre sem linha nenhuma: uma linha
+      // padrão ali seria salva junto sem ninguém ter pedido.
+      this.mudancas = estado.mudancas;
       /* O que veio da ficha completa e o construtor não desenha: volta como está. */
       this.avancadas = estado.avancadas;
       this.statusPreservados = estado.statusPreservados;
@@ -212,6 +233,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.img = null;
     this.prazo = categoria === "temporarios" ? "1" : "0";
     this.unidade = UNIDADE_PADRAO;
+    this.passivo = categoria !== "temporarios";
     this.deUso = documento instanceof Item && TIPOS_DE_USO.includes(documento.type);
     /** Efeito que só acontece quando a transformação acaba (ver PyroActor). */
     this.aoAcabar = false;
@@ -235,7 +257,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     id: "pyro-construtor-efeito-{id}",
     classes: ["pyro", "construtor-efeito"],
     tag: "form",
-    position: { width: 620, height: "auto" },
+    position: { width: 700, height: "auto" },
     window: { title: "PYRO.Efeitos.Construtor", resizable: true },
     form: { handler: ConstrutorEfeitoApp.#criar, closeOnSubmit: true },
     actions: {
@@ -258,7 +280,7 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
    * gastos; nos demais itens, só o que o card já grava nas flags.
    */
   #variaveis() {
-    const item = this.documento instanceof Item ? this.documento : null;
+    const item = this.#item;
     if (!item) return [];
     if (["magia", "runa"].includes(item.type)) return variaveisDoItem(item);
     return ["danoTotal", "cura"];
@@ -267,6 +289,95 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
   /** O ator dono, seja o efeito criado na ficha dele ou num item dele. */
   get #ator() {
     return this.documento instanceof Actor ? this.documento : this.documento?.actor ?? null;
+  }
+
+  /** O item onde o efeito mora, ou null num efeito do próprio ator. */
+  get #item() {
+    return this.documento instanceof Item ? this.documento : null;
+  }
+
+  /**
+   * Um efeito de item que vale enquanto o item vale (nem de uso, nem de fim
+   * de forma) não tem prazo: ninguém conta o tempo dele, só o do ator. A
+   * postura e a transformação ligam e desligam os efeitos delas sozinhas.
+   */
+  #passivoTravado(deUso = this.deUso, aoAcabar = this.aoAcabar) {
+    return !!this.#item && !deUso && !aoAcabar;
+  }
+
+  /**
+   * As variáveis que as linhas enxergam, para a prévia. Um campo da ficha lê
+   * os atributos sem efeitos, e o que o sistema lê na hora de usar (dano,
+   * custo, alcance) lê os atributos em jogo: é a mesma conta da aplicação
+   * (ver PyroActiveEffect#getReplacementData e efeitos.mjs).
+   */
+  #dadosDaPrevia() {
+    const ator = this.#ator;
+    const item = this.#item;
+    const daFicha = ator?.getRollData?.() ?? {};
+    const varsUso = { ...daFicha, ...variaveisDeEfeito(ator, item) };
+    /*
+     * O efeito de uso e o de fim de forma chegam como cópia, com os atributos
+     * de quem usa já em jogo (ver dadosDoEfeitoAplicado): ali até o campo da
+     * ficha lê o atributo com os efeitos.
+     */
+    const copia = !!item && (this.deUso || this.aoAcabar);
+    return {
+      varsCampo: copia ? varsUso : { ...daFicha, ...variaveisDeEfeito(ator, item, { naFicha: true }) },
+      varsUso,
+      doUso: this.#variaveis(),
+      ator
+    };
+  }
+
+  /** A prévia de uma linha, pronta para a coluna. */
+  #previa(m, dados = this.#dadosDaPrevia()) {
+    return previaDaLinha(m, { ...dados, inteiro: campoInteiro(dados.ator, chaveDaMudanca(m.alvo, m.modo)) });
+  }
+
+  /**
+   * Os botões de @nvl e dos atributos, com o valor de agora no título. O
+   * título mostra os dois números quando os efeitos mexem no atributo: num
+   * campo da ficha vale o sem efeitos.
+   */
+  #variaveisDaFicha() {
+    const ator = this.#ator;
+    const item = this.#item;
+    const lista = [];
+    if (item) {
+      lista.push({ nome: "nvl", titulo: `@nvl = ${nivelDoDono(item)}` });
+    }
+    if (!ator) return lista;
+    const semEfeitos = variaveisDeEfeito(ator, null, { naFicha: true });
+    const emJogo = variaveisDeEfeito(ator, null);
+    for (const chave of Object.keys(PYRO.atributos)) {
+      if (semEfeitos[chave] === undefined) continue;
+      const titulo = semEfeitos[chave] === emJogo[chave]
+        ? `@${chave} = ${formatarNumero(emJogo[chave])}`
+        : game.i18n.format("PYRO.Efeitos.VariavelDois", {
+          nome: `@${chave}`, emJogo: formatarNumero(emJogo[chave]), semEfeitos: formatarNumero(semEfeitos[chave])
+        });
+      lista.push({ nome: chave, titulo });
+    }
+    return lista;
+  }
+
+  /**
+   * Por que o efeito que está sendo editado vale ou não vale agora. É a
+   * primeira pergunta de quem vê um efeito que não soma na ficha.
+   */
+  #situacao() {
+    const efeito = this.efeito;
+    if (!efeito) return null;
+    const flags = flagsDe(efeito) ?? {};
+    const item = efeito.parent?.documentName === "Item" ? efeito.parent : null;
+    if (item && flags.deUso) return { texto: game.i18n.localize("PYRO.Efeitos.Situacao.deUso"), classe: "" };
+    if (item && flags.aoAcabar) return { texto: game.i18n.localize("PYRO.Efeitos.Situacao.aoAcabar"), classe: "" };
+    const motivo = efeito.situacao ?? null;
+    return {
+      texto: game.i18n.format(`PYRO.Efeitos.Situacao.${motivo ?? "valendo"}`, { nome: item?.name ?? "" }),
+      classe: motivo && motivo !== "presoAItem" ? "parado" : "valendo"
+    };
   }
 
   /**
@@ -323,6 +434,10 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     context.prazo = this.prazo;
     context.unidade = this.unidade;
     context.unidades = opcoesDeUnidade();
+    context.passivoTravado = this.#passivoTravado();
+    context.passivo = context.passivoTravado || !!this.passivo;
+    context.situacao = this.#situacao();
+    context.variaveisFicha = this.#variaveisDaFicha();
     context.variaveis = this.#variaveis();
     context.itensAlvo = this.#itensAlvo();
     context.editando = !!this.efeito;
@@ -331,9 +446,11 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     context.notaAvancadas = avancadas
       ? game.i18n.format("PYRO.Efeitos.AvancadasPreservadas", { n: avancadas })
       : null;
+    const dadosDaPrevia = this.#dadosDaPrevia();
     context.mudancas = this.mudancas.map((m, i) => ({
       ...m,
       index: i,
+      previa: this.#previa(m, dadosDaPrevia),
       // Condição não tem modo nem valor: só marca o alvo com o status.
       ehCondicao: m.categoria === "condicao",
       // Exceto exaustão, que tem níveis: o valor é quantos.
@@ -390,6 +507,13 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
         this.render();
         return;
       }
+      // Passivo esconde o prazo, e os dois checks de destino decidem se o
+      // efeito de item pode ter prazo: os três redesenham a janela.
+      if (alvo.matches("[name=passivo], [name=deUso], [name=aoAcabar]")) {
+        this.#capturar();
+        this.render();
+        return;
+      }
       // Numa condição, trocar o alvo para (ou de) Exausto mostra ou esconde
       // o campo de níveis, então precisa redesenhar a linha.
       if (alvo.matches("select[name$='.alvo']")) {
@@ -400,9 +524,32 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
           m.alvo = alvo.value;
           if (m.alvo === "exausto" && !(Number(m.valor) > 0)) m.valor = 1;
           this.render();
+          return;
         }
+        // Outro alvo pode ser um campo inteiro, e a dica da prévia muda.
+        this.#atualizarPrevia(i);
       }
     });
+    // A prévia acompanha o que se digita, sem redesenhar a janela e tirar o
+    // cursor do campo.
+    this.element.addEventListener("input", event => {
+      const linha = event.target.closest?.(".mudanca-linha[data-index]");
+      if (!linha || !event.target.matches("[name$='.valor']")) return;
+      this.#capturar();
+      this.#atualizarPrevia(Number(linha.dataset.index));
+    });
+  }
+
+  /** Reescreve a coluna de prévia de uma linha com o que está no formulário. */
+  #atualizarPrevia(i) {
+    const m = this.mudancas[i];
+    const alvo = this.element.querySelector(`.mudanca-linha[data-index="${i}"] [data-previa]`);
+    if (!m || !alvo) return;
+    const previa = this.#previa(m);
+    alvo.textContent = previa.texto;
+    alvo.title = previa.dica;
+    alvo.classList.toggle("erro", previa.classe === "erro");
+    alvo.classList.toggle("espera", previa.classe === "espera");
   }
 
   _onRender(context, options) {
@@ -417,7 +564,8 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     for (const campo of this.element.querySelectorAll("input[type=text]")) {
       campo.addEventListener("focus", () => { this._ultimoCampo = campo; });
     }
-    this._ultimoCampo ??= this.element.querySelector("[name$='.valor']");
+    // Cada render troca os campos: o guardado antes dele já não está na tela.
+    if (!this._ultimoCampo?.isConnected) this._ultimoCampo = this.element.querySelector("[name$='.valor']");
   }
 
   /** Lê o formulário na lista de trabalho (sem gravar nada ainda). */
@@ -430,6 +578,10 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     this.unidade = String(dados.unidade ?? this.unidade ?? UNIDADE_PADRAO);
     this.deUso = dados.deUso ?? this.deUso;
     this.aoAcabar = dados.aoAcabar ?? this.aoAcabar;
+    // Travado, o check vem desabilitado e não entra no formulário.
+    if (dados.passivo !== undefined) this.passivo = !!dados.passivo;
+    // Desmarcar o passivo pede um prazo: começa em 1, que é o menor que conta.
+    if (!this.passivo && (this.prazo === "0" || this.prazo === "")) this.prazo = "1";
     // Marcações da árvore de alvos, item a item e por tipo inteiro.
     const marcados = (prefixo, chaves) =>
       chaves.filter(c => dados[`${prefixo}.${c}`]);
@@ -458,15 +610,13 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
   static #removerMudanca(event, target) {
     this.#capturar();
     this.mudancas.splice(Number(target.dataset.index), 1);
-    if (!this.mudancas.length) {
-      this.mudancas.push(mudancaPadrao());
-    }
     this.render();
   }
 
   /** Escreve "@variavel" no último campo de texto em que o cursor esteve. */
   static #inserirVariavel(event, target) {
-    const campo = this._ultimoCampo ?? this.element.querySelector("[name$='.valor']");
+    const campo = this._ultimoCampo?.isConnected
+      ? this._ultimoCampo : this.element.querySelector("[name$='.valor']");
     if (!campo) return;
     const texto = `@${target.dataset.variavel}`;
     const inicio = campo.selectionStart ?? campo.value.length;
@@ -474,6 +624,9 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
     campo.value = campo.value.slice(0, inicio) + texto + campo.value.slice(fim);
     campo.focus();
     campo.setSelectionRange(inicio + texto.length, inicio + texto.length);
+    // Escrever pelo código não dispara o "input": sem ele a prévia ficaria
+    // mostrando a conta de antes.
+    campo.dispatchEvent(new globalThis.Event("input", { bubbles: true }));
     this.#capturar();
   }
 
@@ -505,8 +658,9 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
      * aplicado, com as variáveis daquela conjuração. A unidade vale para os
      * dois casos.
      */
-    const textoPrazo = String(dados.prazo ?? "").trim();
-    const unidade = PYRO.unidadesDeDuracao[dados.unidade] ? dados.unidade : UNIDADE_PADRAO;
+    const passivo = this.#passivoTravado(deUso, aoAcabar) || !!this.passivo;
+    const textoPrazo = passivo || ehInfinito(this.prazo) ? "" : String(this.prazo ?? "").trim();
+    const unidade = PYRO.unidadesDeDuracao[this.unidade] ? this.unidade : UNIDADE_PADRAO;
     const prazoFixo = Number(textoPrazo);
     const prazoEhFormula = textoPrazo !== "" && !Number.isFinite(prazoFixo);
 
@@ -541,11 +695,12 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
         modo: m.modo === "multiply" ? "multiply" : "add",
         ordem: Math.round(Number(m.ordem)) || 0
       }));
+    // Custo aceita conta e @variável, como o alcance: resolve na hora de usar.
     const custos = this.mudancas
-      .filter(m => m.categoria === "custo" && m.alvo && Number.isFinite(Number(m.valor)))
+      .filter(m => m.categoria === "custo" && m.alvo && ehMedida(m.valor))
       .map(m => ({
         chave: m.alvo,
-        valor: Number(m.valor),
+        valor: String(m.valor).trim(),
         modo: m.modo === "multiply" ? "multiply" : "add",
         ordem: Math.round(Number(m.ordem)) || 0
       }));
@@ -640,6 +795,9 @@ export class ConstrutorEfeitoApp extends HandlebarsApplicationMixin(ApplicationV
        * checkbox, e não se muda o que não se mostra.
        */
       if (this.documento instanceof Item) efeito.transfer = !deUso && !aoAcabar;
+      // Prazo reescrito é prazo que começa agora; o de antes contava da
+      // criação do efeito e faria o novo nascer vencido.
+      if (this.documento instanceof Actor && efeito.duration.value) efeito.start = inicioAgora();
       await this.efeito.update(efeito);
       return this.efeito;
     }

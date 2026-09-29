@@ -42,22 +42,26 @@ export function daUnidade(turnos, unidade = UNIDADE_PADRAO) {
 /**
  * Duração nativa equivalente, para a ficha mostrar a contagem e para o efeito
  * parar de valer fora de combate, onde ninguém passa turno (ver
- * PyroActiveEffect#prazoVencido). Quem apaga o efeito é o relógio.
+ * motivoDaPausa). Quem apaga o efeito é o relógio.
+ *
+ * No formato do Foundry v14: um valor e a unidade dele. Turno e segundo vão
+ * em segundos (a régua é a mesma), rodada vai em rodadas. Sem prazo o valor
+ * é nulo, que o núcleo lê como duração indefinida.
+ *
+ * Todos os campos vão escritos, inclusive os nulos: um update do Foundry
+ * funde o que recebe, então mandar só o campo novo deixaria o antigo vivo, e
+ * uma edição que tira a duração não tiraria nada. O vencido volta a falso
+ * porque um prazo novo é um prazo que ainda não passou.
  */
 function duracaoNativa(valor, unidade) {
   const n = Math.max(0, Number(valor) || 0);
+  if (!n) return { value: null, units: "seconds", expiry: null, expired: false };
   const emRodadas = !contaEmTurnos(unidade);
-  /*
-   * Todos os campos vão escritos, inclusive os nulos: um update do Foundry
-   * funde o que recebe, então mandar só o campo novo deixaria o antigo vivo —
-   * um prazo trocado de turnos para rodadas ficaria com os dois contando, e
-   * uma edição que tira a duração não tiraria nada.
-   */
   return {
-    seconds: n && !emRodadas ? daUnidade(turnosDe(n, unidade), "segundos") : null,
-    rounds: n && emRodadas ? n : null,
-    turns: null,
-    startTime: n && !emRodadas ? (game.time?.worldTime ?? 0) : null
+    value: emRodadas ? n : daUnidade(turnosDe(n, unidade), "segundos"),
+    units: emRodadas ? "rounds" : "seconds",
+    expiry: "turnStart",
+    expired: false
   };
 }
 
@@ -71,8 +75,10 @@ export function dadosDePrazo(valor, unidade = UNIDADE_PADRAO, extras = {}) {
    * O total guardado é o que o relógio de fato vai contar: em segundos, um
    * prazo de 10s cabe em 2 turnos, então ele vale 12s. Guardar os 10 escritos
    * faria a ficha mostrar "12 / 10 s" no instante em que o efeito nasce.
+   * Infinito é "sem prazo", como zero.
    */
-  const escrito = Math.max(0, Number(valor) || 0);
+  const bruto = Number(valor);
+  const escrito = Number.isFinite(bruto) ? Math.max(0, bruto) : 0;
   const n = emTurnos ? daUnidade(turnosDe(escrito, unidade), unidade) : escrito;
   return {
     duration: duracaoNativa(n, unidade),
@@ -87,10 +93,18 @@ export function dadosDePrazo(valor, unidade = UNIDADE_PADRAO, extras = {}) {
   };
 }
 
+/**
+ * O começo de um prazo que passa a contar agora. Na criação o Foundry o
+ * preenche sozinho, mas não num update: um prazo renovado sem ele seria
+ * medido desde a criação do efeito e já nasceria vencido.
+ */
+export const inicioAgora = () =>
+  globalThis.ActiveEffect?.implementation?.getEffectStart?.() ?? { time: game.time?.worldTime ?? 0 };
+
 /** O mesmo, achatado para um update de efeito já existente. */
 export function updateDePrazo(valor, unidade = UNIDADE_PADRAO) {
   const { duration, flags } = dadosDePrazo(valor, unidade);
-  const dados = { duration };
+  const dados = { duration, start: inicioAgora() };
   for (const [chave, v] of Object.entries(flags[SYSTEM_ID])) {
     dados[`flags.${SYSTEM_ID}.${chave}`] = v;
   }
@@ -120,7 +134,7 @@ export function rotuloDePrazo(efeito) {
     // Condição sem prazo (o Molhado espera o frio) não tem contagem nenhuma:
     // a etiqueta do Foundry diria "Nenhum", que é o oposto do que ela faz.
     const d = efeito?.duration;
-    return d?.seconds || d?.rounds || d?.turns ? d.label ?? "" : "";
+    return Number.isFinite(d?.value) ? d.label ?? "" : "";
   }
   const unidade = loc(PYRO.unidadesDeDuracao[prazo.unidade]?.curto ?? prazo.unidade);
   return loc("PYRO.Duracao.Restam", {

@@ -22,6 +22,9 @@
               {{localize "PYRO.Exaustao.Nivel"}} {{ef.exaustao}}</span>
             {{/if}}
             <span class="detalhe col-parte" title="{{localize 'PYRO.Efeitos.Origem'}}">{{ef.origem}}</span>
+            {{#if ef.pausa}}
+            <span class="detalhe destaque-lingua">{{ef.pausa}}</span>
+            {{/if}}
             {{#if ef.restrito}}
             <span class="detalhe destaque-lingua" title="{{localize 'PYRO.Efeitos.ApenasEmDica'}}">
               {{localize "PYRO.Efeitos.ApenasEm"}} {{ef.restrito}}</span>

@@ -24,7 +24,8 @@ const ICONES_DE_CONDICAO = {
 };
 
 import { selosDePoder, pintarTema } from "../tema.mjs";
-import { SYSTEM_ID, caminho } from "../sistema.mjs";
+import { SYSTEM_ID, caminho, flagsDe } from "../sistema.mjs";
+import { motivoDaPausa } from "../regras-efeito.mjs";
 import { enriquecer } from "../ui.mjs";
 import { comUnidade, calcularFormula } from "../dados.mjs";
 import { custoDeCaminhoNovo } from "../data/item-data.mjs";
@@ -1463,10 +1464,23 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   /*  Active Effects (estilo T20: temporários / passivos / inativos)        */
   /* ---------------------------------------------------------------------- */
 
-  /** Junta efeitos do ator e os transferidos de itens (habilidades etc.). */
+  /**
+   * Junta efeitos do ator e os transferidos de itens (habilidades etc.).
+   *
+   * Os de uma postura ou transformação são passivos que só valem com ela
+   * ligada: fora dela caem em Inativos, com a etiqueta dizendo por quê, e
+   * voltam a Passivos quando ela liga. Efeito de item nunca é temporário,
+   * porque ninguém conta o prazo dele.
+   *
+   * O marcador que conta o prazo de uma forma não entra: ele não altera
+   * nada, e o prazo dela já aparece no quadro de Transformação.
+   */
   #categoriasEfeitos() {
     const cats = { temporarios: [], passivos: [], inativos: [] };
     for (const ef of this.actor.allApplicableEffects()) {
+      if (ef.parent === this.actor && flagsDe(ef)?.transformacao) continue;
+      const deItem = ef.parent !== this.actor;
+      const pausa = motivoDaPausa(ef);
       // Efeito preso a item não soma na ficha: a etiqueta diz onde ele vale,
       // senão pareceria um efeito passivo que simplesmente não funciona.
       const presoA = restricaoDoEfeito(ef).map(a => a.nome).filter(Boolean);
@@ -1476,15 +1490,16 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
         img: ef.img,
         name: ef.name,
         disabled: ef.disabled,
-        duracao: rotuloDePrazo(ef),
+        duracao: deItem ? "" : rotuloDePrazo(ef),
+        pausa: pausa ? game.i18n.localize(`PYRO.Efeitos.Pausa.${pausa}`) : "",
         // Exaustão mostra o número de níveis ao lado do nome: ele mora na
         // flag, não no nome, então a linha precisa dizer.
         exaustao: ehExaustao(ef) ? niveisDoEfeito(ef) : null,
         restrito: presoA.join(", "),
         origem: ef.parent === this.actor ? "" : ef.parent?.name ?? ""
       };
-      if (ef.disabled) cats.inativos.push(view);
-      else if (ef.isTemporary) cats.temporarios.push(view);
+      if (ef.disabled || pausa) cats.inativos.push(view);
+      else if (ef.isTemporary && !deItem) cats.temporarios.push(view);
       else cats.passivos.push(view);
     }
     return cats;
