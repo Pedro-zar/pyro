@@ -199,6 +199,8 @@ export async function passarTempo(atores, segundos, rotulo) {
     await naFila(actor, () => vencerTempoCorrido(actor, turnos, relatos));
     await derrubarFormas(actor, caidas);
   }
+  // O tempo corrido fora de combate passa para as áreas de todas as cenas.
+  await vencerAreas(game.scenes ?? [], turnos);
   return ChatMessage.create({
     content: `<div class="pyro-chat pyro-turno">
       <header class="pyro-turno-topo">
@@ -210,6 +212,28 @@ export async function passarTempo(atores, segundos, rotulo) {
         : `<p class="pyro-nota">${loc("PYRO.Tempo.NadaExpirou")}</p>`}
     </div>`
   });
+}
+
+/**
+ * Desconta o tempo das áreas postas no mapa (ver posicionarArea) e apaga as
+ * que venceram. A de 1 turno é a instantânea: some no primeiro turno que
+ * passa. Só quem é dono da região mexe nela; as outras ficam para o cliente
+ * do mestre, que passa o turno do combate. Sem card: uma explosão que some
+ * no turno seguinte não é notícia.
+ *
+ * @param {Scene[]} cenas onde o tempo passou.
+ * @param {number} turnos quantos turnos passaram.
+ */
+async function vencerAreas(cenas, turnos) {
+  for (const cena of cenas) {
+    for (const regiao of cena?.regions ?? []) {
+      const restam = Number(flagsDe(regiao)?.prazoArea);
+      if (!Number.isFinite(restam) || !regiao.isOwner) continue;
+      const novo = restam - turnos;
+      if (novo > 0) await regiao.setFlag(SYSTEM_ID, "prazoArea", novo);
+      else await regiao.delete();
+    }
+  }
 }
 
 /** Desconta os turnos corridos dos prazos de um ator e recolhe o que venceu. */
@@ -260,6 +284,8 @@ export async function passarTurno(combate, atorDoTurno = null, virouRodada = fal
       actor, relatos, rolagens, actor.uuid === atorDoTurno, virouRodada
     );
   }
+  // Um turno do combate passa para as áreas da cena em que ele acontece.
+  await vencerAreas([combate.scene ?? game.scenes?.viewed].filter(Boolean), 1);
   return publicarTurno(relatos, rolagens);
 }
 

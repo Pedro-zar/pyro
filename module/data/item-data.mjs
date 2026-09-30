@@ -413,6 +413,40 @@ export class HabilidadeData extends BaseItemData {
   }
 }
 
+/* ---------------------------- Área ------------------------------------------- */
+
+/**
+ * A área de uma magia ou técnica (ver area.mjs): as formas que o card põe no
+ * mapa e quanto tempo elas ficam lá. As medidas são texto porque aceitam fórmula, que lê as variáveis da
+ * conjuração ("@runas.cone.comprimento", "@linha"). A posição e o giro de
+ * cada forma são em relação ao ponto de origem da área, em metros e graus.
+ */
+const campoDeArea = () => new fields.SchemaField({
+  ativa: new fields.BooleanField({ initial: false }),
+  /*
+   * Quanto a região fica no mapa. 1 turno é o instantâneo: some assim que o
+   * turno passa. Aceita fórmula, como as medidas ("@runas.persistente.duracao").
+   */
+  duracao: str("1"),
+  unidade: str("turnos", { choices: Object.keys(PYRO.unidadesDeManutencao) }),
+  // Quantas vezes a área inteira sai, cada uma posicionada no seu lugar.
+  alvos: str("1"),
+  // Presa ao conjurador: cola no token dele e anda junto, sem posicionar.
+  presa: new fields.BooleanField({ initial: false }),
+  formas: new fields.ArrayField(new fields.SchemaField({
+    tipo: str("circulo", { choices: ["circulo", "cone", "linha"] }),
+    raio: str("1"),
+    comprimento: str("6"),
+    largura: str("1"),
+    angulo: str("60"),
+    // Em quantas partes a linha se divide; cada parte vira na hora de posicionar.
+    divisoes: str("1"),
+    x: dec(0),
+    y: dec(0),
+    rotacao: dec(0)
+  }), { initial: [] })
+});
+
 /* ---------------------------- Técnica ---------------------------------------- */
 
 /**
@@ -468,7 +502,8 @@ export class TecnicaData extends BaseItemData {
        * copiada para outro personagem. Sem o ônus, o campo não vale nada.
        */
       postura: new fields.SchemaField({ id: str(""), nome: str("") }),
-      progresso: nivelPorUso(1)
+      progresso: nivelPorUso(1),
+      area: campoDeArea()
     };
   }
 
@@ -611,7 +646,8 @@ export class MagiaData extends BaseItemData {
           porIntencao: dec(0),
           faces: num(0, { min: 0 })
         }), { initial: [] })
-      }))
+      })),
+      area: campoDeArea()
     };
   }
 

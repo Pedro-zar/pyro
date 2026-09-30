@@ -1,0 +1,99 @@
+{{!--
+  Área da magia ou da técnica: as formas que o card põe no mapa, com as
+  medidas em fórmula, a posição de cada uma em relação à origem e o desenho
+  de como ficam. A aba só existe com a área ligada; sem ela a parte continua
+  sendo desenhada, vazia, para não mandar campos velhos no próximo salvamento.
+--}}
+<section class="tab {{tab.cssClass}}" data-tab="{{tab.id}}" data-group="{{tab.group}}">
+  {{#if area}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Area.Desenho"}}
+      <label class="pyro-area-previa">{{area.rotuloPrevia}}
+        <input type="number" min="1" step="1" value="{{area.previa}}" data-previa-area /></label>
+    </h4>
+    {{#if area.svg}}
+    <div class="pyro-area-desenho">{{{area.svg}}}</div>
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Area.SemFormas"}}</p>
+    {{/if}}
+    {{#if area.semRunas}}<p class="pyro-nota">{{localize "PYRO.Area.SemRunas"}}</p>{{/if}}
+  </div>
+
+  {{!-- Quanto a região fica no mapa (1 turno é o instantâneo: some assim que
+        o turno passa) e quantas vezes ela sai. --}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Area.DuracaoEAlvos"}}</h4>
+    <div class="pyro-area-linha">
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Area.Duracao"}}</span>
+        <input type="text" name="system.area.duracao" value="{{area.duracao.valor}}" placeholder="1" data-medida />
+        <span class="pyro-area-resultado numero">{{area.duracao.resultado}}</span></label>
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Efeitos.Unidade"}}</span>
+        <select name="system.area.unidade">{{selectOptions area.duracao.unidadeOpts selected=area.duracao.unidade localize=true}}</select></label>
+    </div>
+    {{#if area.duracao.faltando}}<p class="pyro-nota pyro-area-aviso">{{area.duracao.faltando}}</p>{{/if}}
+    {{!-- Presa ao conjurador: a área cola no token de quem usou e anda com
+          ele. Aí ela sai uma vez só, e os alvos não se aplicam. --}}
+    <label class="check-linha">
+      <input type="checkbox" name="system.area.presa" {{checked area.presa}} />
+      <span>{{localize "PYRO.Area.Presa"}}</span></label>
+    {{#unless area.presa}}
+    {{!-- Alvos: quantas vezes a área inteira sai, cada uma no seu lugar. --}}
+    <div class="pyro-area-linha">
+      <label class="campo"><span class="rotulo">{{localize "PYRO.Area.AlvosRotulo"}}</span>
+        <input type="text" name="system.area.alvos" value="{{area.alvos.valor}}" placeholder="1" data-medida />
+        <span class="pyro-area-resultado numero">{{area.alvos.resultado}}</span></label>
+    </div>
+    {{#if area.alvos.faltando}}<p class="pyro-nota pyro-area-aviso">{{area.alvos.faltando}}</p>{{/if}}
+    {{/unless}}
+  </div>
+
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Area.Formas"}}
+      <button type="button" class="icone" data-action="adicionarFormaArea"
+              title="{{localize 'PYRO.Area.Adicionar'}}"><i class="fa-solid fa-plus"></i></button>
+      <button type="button" class="icone" data-action="sugerirArea"
+              title="{{localize 'PYRO.Area.Sugerir'}}"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+    </h4>
+    {{#each area.formas as |f|}}
+    <div class="pyro-area-forma">
+      <div class="pyro-area-linha">
+        <label class="campo"><span class="rotulo">{{localize "PYRO.Area.Tipo.rotulo"}}</span>
+          <select name="system.area.formas.{{f.indice}}.tipo">
+            {{selectOptions @root.area.tipoOpts selected=f.tipo localize=true}}</select></label>
+        {{#each f.medidas as |m|}}
+        <label class="campo"><span class="rotulo">{{m.rotulo}}{{#if m.unidade}} ({{m.unidade}}){{/if}}</span>
+          <input type="text" name="system.area.formas.{{f.indice}}.{{m.campo}}" value="{{m.valor}}" data-medida />
+          <span class="pyro-area-resultado numero">{{m.resultado}}</span></label>
+        {{/each}}
+        <button type="button" class="icone perigo" data-action="removerFormaArea" data-index="{{f.indice}}"
+                title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      <div class="pyro-area-linha posicao">
+        <label class="campo"><span class="rotulo">{{localize "PYRO.Area.X"}}</span>
+          <input type="number" step="any" name="system.area.formas.{{f.indice}}.x" value="{{f.x}}" /></label>
+        <label class="campo"><span class="rotulo">{{localize "PYRO.Area.Y"}}</span>
+          <input type="number" step="any" name="system.area.formas.{{f.indice}}.y" value="{{f.y}}" /></label>
+        <label class="campo"><span class="rotulo">{{localize "PYRO.Area.Giro"}}</span>
+          <input type="number" step="any" name="system.area.formas.{{f.indice}}.rotacao" value="{{f.rotacao}}" /></label>
+      </div>
+      {{#if f.faltando}}<p class="pyro-nota pyro-area-aviso">{{f.faltando}}</p>{{/if}}
+    </div>
+    {{else}}
+    <p class="secao-vazia">{{localize "PYRO.Area.SemFormas"}}</p>
+    {{/each}}
+    {{pyroDica "PYRO.Area.Dica"}}
+  </div>
+
+  {{#if area.variaveis.length}}
+  <div class="variaveis-efeito">
+    <span class="rotulo">{{localize "PYRO.Area.Variaveis"}}</span>
+    <div class="variaveis-lista">
+      {{#each area.variaveis as |v|}}
+      <button type="button" class="ficha-variavel" data-action="inserirVariavelArea" data-variavel="{{v.nome}}"
+              title="@{{v.nome}} = {{v.valor}}">@{{v.nome}} <span class="numero">{{v.valor}}</span></button>
+      {{/each}}
+    </div>
+  </div>
+  {{/if}}
+  {{/if}}
+</section>

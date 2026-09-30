@@ -280,6 +280,10 @@
         <select name="system.acaoBase">{{selectOptions acoesBaseOpts selected=system.acaoBase localize=true}}</select></label>
       <label class="campo largo"><span class="rotulo">{{localize "PYRO.Item.Ranque"}}</span>
         <select name="system.ranque">{{selectOptions ranqueOpts selected=system.ranque}}</select></label>
+      {{!-- Área: liga a aba em que se desenha o que a técnica cobre no mapa. --}}
+      <label class="check-linha campo largo">
+        <input type="checkbox" name="system.area.ativa" {{checked system.area.ativa}} />
+        <span>{{localize "PYRO.Area.Ativa"}}</span></label>
       {{!-- Técnica que prende uma arma compara o seu custo com o dela. A que
             aceita várias cobra o da arma escolhida na hora, e um campo fixo
             aqui prometeria um custo que ela não tem. A que não golpeia cobra
@@ -622,6 +626,10 @@
     <label class="check-linha" title="{{localize 'PYRO.Magia.UsaDtDica'}}">
       <input type="checkbox" name="system.usaDt" {{checked system.usaDt}} />
       <span>{{localize "PYRO.Magia.UsaDt"}}</span></label>
+    {{!-- Área: liga a aba em que se desenha o que a magia cobre no mapa. --}}
+    <label class="check-linha">
+      <input type="checkbox" name="system.area.ativa" {{checked system.area.ativa}} />
+      <span>{{localize "PYRO.Area.Ativa"}}</span></label>
 
     {{!-- Com o que o alvo resiste. Só aparece quando há DT: numa magia que
           não pede teste de ninguém, a pergunta não existe. Mais de uma linha

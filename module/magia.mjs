@@ -15,6 +15,7 @@ import { htmlLinhaDeDT } from "./resistencia.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
 import { acoesComConfusao } from "./condicoes.mjs";
+import { dadosDaAreaNoCard, htmlBotaoArea } from "./area.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -264,6 +265,59 @@ export function variaveisDoItem(item) {
     for (const ref of item.system.runas ?? []) juntar(ref.scalings);
   }
   return [...chaves];
+}
+
+/**
+ * Os números de cada runa da conjuração, separados por runa: "@runas.cone.
+ * comprimento" é o comprimento do Cone e "@runas.linha.comprimento" o da
+ * Linha, cada um com a Intenção posta nele. As variáveis soltas do card
+ * juntam os escalonamentos de mesmo nome e ficam com o maior, e numa frase
+ * de Cone e Linha isso faria as duas formas crescerem juntas.
+ *
+ * A chave é o nome da runa; duas runas de mesmo nome viram "cone" e
+ * "cone2". Escalonamento de dado vale a quantidade de dados.
+ */
+export function variaveisDasRunas(calc) {
+  const runas = {};
+  for (const { pr, chave } of chavesDasRunas(calc)) {
+    const valores = { intencao: pr.intencaoEfetiva ?? pr.intencao };
+    for (const sc of pr.scalings ?? []) {
+      const nome = chaveVariavel(sc.nome);
+      if (!nome) continue;
+      valores[nome] = sc.faces > 0 ? dadosDeDano(pr, sc) : valorEfetivo(pr, sc, calc.passosAlcance);
+    }
+    runas[chave] = valores;
+  }
+  return runas;
+}
+
+/** Cada runa da conjuração com a chave dela em @runas (ver variaveisDasRunas). */
+function chavesDasRunas(calc) {
+  const usadas = new Set();
+  return (calc?.porRuna ?? []).map(pr => {
+    const base = chaveVariavel(pr.item.system.palavra || pr.item.name) || "runa";
+    let chave = base;
+    for (let n = 2; usadas.has(chave); n++) chave = `${base}${n}`;
+    usadas.add(chave);
+    return { pr, chave };
+  });
+}
+
+/**
+ * A duração que alguma runa da frase escreve, para a área durar o mesmo:
+ * o escalonamento "Duração (minutos)" do Persistente, "Duração (turnos)" de
+ * outro gesto. A unidade sai do parêntese do nome; sem ela, turnos.
+ * @returns {{variavel: string, unidade: string}|null}
+ */
+export function duracaoDasRunas(calc) {
+  for (const { pr, chave } of chavesDasRunas(calc)) {
+    const sc = (pr.scalings ?? []).find(s => chaveVariavel(s.nome) === "duracao");
+    if (!sc) continue;
+    const texto = PYRO.normalizarTexto(sc.nome);
+    const unidade = /hora/.test(texto) ? "horas" : /min/.test(texto) ? "minutos" : "turnos";
+    return { variavel: `runas.${chave}.duracao`, unidade };
+  }
+  return null;
 }
 
 /**
@@ -721,7 +775,9 @@ export async function conjurar(actor, escolhas, {
     mana: calc.custoTotal,
     acoes: calc.acoes,
     danoTotal: 0,
-    cura: 0
+    cura: 0,
+    // Os números de cada runa, sem juntar os de mesmo nome (ver variaveisDasRunas).
+    runas: variaveisDasRunas(calc)
   };
   // Duas runas com o mesmo escalonamento (dois alcances): vale o maior.
   const publicar = (nome, valor) => {
@@ -981,6 +1037,13 @@ export async function conjurar(actor, escolhas, {
 
   if (efeitosRegra.length) partes.push(htmlEfeitosDeRegra(efeitosRegra));
 
+  /*
+   * A área da magia salva, com as medidas desta conjuração. É o botão que a
+   * põe no mapa; frase montada na hora não tem área escrita em lugar nenhum.
+   */
+  const area = dadosDaAreaNoCard(itemMagia, { ...(itemMagia?.getRollData() ?? {}), ...variaveis });
+  partes.push(htmlBotaoArea(area));
+
   // Botões dos efeitos de uso: os da magia salva e os das runas da frase.
   partes.push(htmlEfeitosDeUso(itemMagia, calc.porRuna.map(pr => pr.item)));
   /*
@@ -1000,6 +1063,7 @@ export async function conjurar(actor, escolhas, {
       ...(usaDt ? { resistencia: { nd: calc.dt, opcoes: resistencias } } : {}),
       // Qual recurso o dano mental drena é escolha da conjuração (SRD §6).
       recursoMental,
+      ...(area ? { area } : {}),
       ...flagsDaClasse(classe, itemMagia)
     }),
     sound: CONFIG.sounds.dice

@@ -1972,3 +1972,44 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 .pyro.grupo .grupo-atributo { display: flex; flex-direction: column; align-items: center; gap: 0.05rem; min-width: 1.8rem; }
 .pyro.grupo .grupo-atributo label { font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.04em; opacity: 0.6; }
 .pyro.grupo .grupo-atributo strong { font-size: var(--pyro-t-sm); }
+
+/* ---------- Área de magia e técnica ---------------------------------------- */
+
+.pyro .pyro-area-previa {
+  margin-left: auto; display: inline-flex; align-items: center; gap: var(--pyro-e-1);
+  font-size: var(--pyro-t-xs); text-transform: none; letter-spacing: 0;
+}
+.pyro .pyro-area-previa input { width: 3.5rem; }
+/* O desenho: grade de 1 m, formas translúcidas, a origem e a seta da frente. */
+.pyro .pyro-area-desenho {
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-sm);
+  background: var(--pyro-painel); padding: var(--pyro-e-1);
+}
+.pyro .pyro-area-svg { display: block; width: 100%; height: 14rem; }
+.pyro .pyro-area-svg .grade { stroke: var(--pyro-borda); stroke-width: calc(var(--traco) * 0.6); }
+.pyro .pyro-area-svg .forma { stroke-width: var(--traco); fill-opacity: 0.28; }
+.pyro .pyro-area-svg .forma-0 { fill: var(--pyro-acento-ficha); stroke: var(--pyro-acento-ficha); }
+.pyro .pyro-area-svg .forma-1 { fill: #4fa3d9; stroke: #4fa3d9; }
+.pyro .pyro-area-svg .forma-2 { fill: #6cc07a; stroke: #6cc07a; }
+.pyro .pyro-area-svg .forma-3 { fill: #d9b44f; stroke: #d9b44f; }
+.pyro .pyro-area-svg .origem { fill: var(--pyro-texto); }
+.pyro .pyro-area-svg .emenda { fill: var(--pyro-painel); stroke: var(--pyro-texto); stroke-width: var(--traco); }
+.pyro .pyro-area-svg .seta { stroke: var(--pyro-texto); stroke-width: var(--traco); fill: none; }
+/* Uma forma por caixa: tipo e medidas em cima, posição embaixo. */
+.pyro .pyro-area-forma {
+  display: flex; flex-direction: column; gap: var(--pyro-e-1);
+  padding: var(--pyro-e-2); margin-bottom: var(--pyro-e-2);
+  border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-sm);
+  background: var(--pyro-painel-alto);
+}
+.pyro .pyro-area-linha { display: flex; flex-wrap: wrap; gap: var(--pyro-e-2); align-items: flex-end; }
+.pyro .pyro-area-linha .campo { flex: 1; min-width: 6rem; }
+.pyro .pyro-area-linha.posicao .campo { max-width: 7rem; }
+.pyro .pyro-area-linha > .icone { margin-left: auto; }
+.pyro .pyro-area-resultado { font-size: var(--pyro-t-xs); color: var(--pyro-acento-ficha); min-height: 1em; }
+.pyro .pyro-area-aviso { color: var(--pyro-perigo); margin: 0; }
+.pyro .ficha-variavel .numero { opacity: 0.7; margin-left: 0.25em; }
+/* No card: o botão e o tamanho de cada forma. */
+.pyro-chat .pyro-area-card {
+  display: flex; flex-direction: column; gap: 2px; margin: 0.3rem 0;
+}

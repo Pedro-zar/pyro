@@ -4,7 +4,13 @@
  */
 import { PYRO } from "../config.mjs";
 import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
-import { scalingsPadrao, chaveVariavel, SEM_DANO } from "../magia.mjs";
+import {
+  scalingsPadrao, chaveVariavel, SEM_DANO, calcular, variaveisDasRunas, duracaoDasRunas
+} from "../magia.mjs";
+import {
+  TIPOS_DE_FORMA, formaNova, resolverArea, svgDaArea, opcoesDeTipo, sugestaoDasRunas,
+  sugestaoDosTracos, textoDaForma, duracaoDaArea, textoDaDuracao, alvosDaArea, alvosSugeridos
+} from "../area.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho, flagsDe } from "../sistema.mjs";
 import { enriquecer } from "../ui.mjs";
@@ -18,7 +24,7 @@ import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "../data/i
 import {
   tracosCompativeis, valorDoTraco, textoDoValor, ataquesDoAtor, posturasDoAtor, opcoesDoFiltro,
   exigePostura, temEspecificidade,
-  acoesBaseDaArma
+  acoesBaseDaArma, tracosDaTecnica, calcularEsforco
 } from "../tecnica.mjs";
 
 /**
@@ -87,6 +93,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       removerCustoEscala: PyroItemSheet.#removerCustoEscala,
       adicionarEscalamento: PyroItemSheet.#adicionarEscalamento,
       removerEscalamento: PyroItemSheet.#removerEscalamento,
+      adicionarFormaArea: PyroItemSheet.#adicionarFormaArea,
+      removerFormaArea: PyroItemSheet.#removerFormaArea,
+      sugerirArea: PyroItemSheet.#sugerirArea,
+      inserirVariavelArea: PyroItemSheet.#inserirVariavelArea,
       criarEfeito: PyroItemSheet.#criarEfeito,
       editarEfeito: PyroItemSheet.#editarEfeito,
       excluirEfeito: PyroItemSheet.#excluirEfeito,
@@ -106,7 +116,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     funcionamento: { template: caminho("templates/item/tab-funcionamento.hbs") },
     efeitos: { template: caminho("templates/item/tab-efeitos.hbs") },
     recursos: { template: caminho("templates/item/tab-recursos.hbs") },
-    escala: { template: caminho("templates/item/tab-escala.hbs") }
+    escala: { template: caminho("templates/item/tab-escala.hbs") },
+    area: { template: caminho("templates/item/tab-area.hbs") }
   };
 
   static TABS = {
@@ -118,7 +129,9 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         // Só nasce em Caminho que concede recurso; ver #recursosDoCaminho.
         { id: "recursos", icon: "fa-solid fa-droplet" },
         // Só nasce em habilidade com a escala ligada; ver _prepareTabs.
-        { id: "escala", icon: "fa-solid fa-chart-line" }
+        { id: "escala", icon: "fa-solid fa-chart-line" },
+        // Só nasce em magia e técnica com a área ligada.
+        { id: "area", icon: "fa-solid fa-draw-polygon" }
       ],
       initial: "descricao",
       labelPrefix: "PYRO.ItemTabs"
@@ -199,6 +212,15 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }
     }
 
+    if (!this.#temArea()) {
+      delete tabs.area;
+      if (this.tabGroups.primary === "area" && tabs.funcionamento) {
+        this.tabGroups.primary = "funcionamento";
+        tabs.funcionamento.active = true;
+        tabs.funcionamento.cssClass = "active";
+      }
+    }
+
     const recursos = this.#recursosDoCaminho();
     if (!recursos.length) {
       delete tabs.recursos;
@@ -230,7 +252,32 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
   _onRender(context, options) {
     super._onRender?.(context, options);
     pintarTema(this.element, this.item.actor ?? null);
+
+    /*
+     * A Intenção (ou o Esforço) da prévia da área é da janela, e não do
+     * item: mudar o número só redesenha. O campo não tem nome, para não ir
+     * junto no salvamento.
+     */
+    const previa = this.element.querySelector("[data-previa-area]");
+    previa?.addEventListener("change", () => {
+      this.#previaArea = Math.max(1, Math.round(Number(previa.value) || 1));
+      this.render();
+    });
+    // O último campo de medida tocado, para o botão de variável saber onde
+    // escrever.
+    for (const campo of this.element.querySelectorAll("[data-medida]")) {
+      campo.addEventListener("focus", () => { this.#ultimaMedida = campo.name; });
+    }
   }
+
+  /** Intenção (magia) ou Esforço (técnica) com que a aba Área desenha. */
+  #previaArea = 1;
+
+  /** Nome do último campo de medida da aba Área em que o cursor esteve. */
+  #ultimaMedida = null;
+
+  /** A runa de duração da magia, achada no último desenho da aba Área. */
+  #duracaoDasRunas = null;
 
   async _prepareContext(options) {
     const context = await super._prepareContext(options);
@@ -445,6 +492,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       // Só a habilidade ativável é usada, e é nela que a escala faz sentido.
       podeEscalar: item.type === "habilidade" && sys.categoria === "ativavel",
       escala: this.#contextoDaEscala(),
+      podeTerArea: ["magia", "tecnica"].includes(item.type),
+      area: this.#contextoDaArea(),
       sentidoTipoOpts: Object.fromEntries(
         Object.entries(PYRO.sentidos).map(([k, cfg]) => [k, cfg.label])),
       // O bloco do sentido é da habilidade única "Sentido Espiritual" do
@@ -1038,6 +1087,15 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       }
     }
 
+    // As formas da área chegam indexadas; a guardada é a base de cada linha.
+    if (["magia", "tecnica"].includes(this.item.type) && sys.area?.formas
+        && !Array.isArray(sys.area.formas)) {
+      const guardadas = this.item.system.toObject().area?.formas ?? [];
+      sys.area.formas = Object.entries(sys.area.formas)
+        .sort(([a], [b]) => Number(a) - Number(b))
+        .map(([i, forma]) => ({ ...(guardadas[Number(i)] ?? formaNova()), ...forma }));
+    }
+
     if (this.item.type === "runa" && sys.scalings && !Array.isArray(sys.scalings)) {
       const atuais = this.item.system.toObject().scalings;
       sys.scalings = Object.values(sys.scalings)
@@ -1139,6 +1197,182 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     if (!livre) return;
     arr.push({ chave: livre.chave, grau: 1 });
     await this.item.update({ "system.tracos": arr });
+  }
+
+  /** A magia ou técnica ligou a área? É o que decide a aba. */
+  #temArea() {
+    return ["magia", "tecnica"].includes(this.item.type) && this.item.system.area?.ativa === true;
+  }
+
+  /**
+   * As variáveis com que a aba Área desenha: as mesmas que a conjuração ou a
+   * execução publica, numa Intenção (ou Esforço) escolhida na aba. A magia
+   * precisa das runas do dono para fazer a conta; solta no mundo, ela só tem
+   * o que não depende delas.
+   */
+  #variaveisDaArea() {
+    const item = this.item;
+    const actor = item.actor;
+    const n = this.#previaArea;
+    const vars = { ...item.getRollData() };
+    this.#duracaoDasRunas = null;
+    if (item.type === "magia") {
+      if (!actor) return vars;
+      const escolhas = (item.system.runas ?? []).map(ref => {
+        const runa = actor.items.get(ref.itemId);
+        return runa ? {
+          item: runa, intencao: n, scalings: ref.scalings, subjulgar: ref.subjulgar, tipoDano: ref.tipoDano
+        } : null;
+      }).filter(Boolean);
+      if (!escolhas.length) return vars;
+      const calc = calcular(actor, escolhas, item);
+      const runas = variaveisDasRunas(calc);
+      this.#duracaoDasRunas = duracaoDasRunas(calc);
+      vars.intencao = calc.somaIntencoes;
+      vars.runas = runas;
+      // As soltas do card: o maior de cada escalonamento entre as runas.
+      for (const valores of Object.values(runas)) {
+        for (const [chave, valor] of Object.entries(valores)) {
+          if (chave === "intencao") continue;
+          vars[chave] = Math.max(vars[chave] ?? Number.NEGATIVE_INFINITY, valor);
+        }
+      }
+      return vars;
+    }
+    const usados = tracosDaTecnica(item.system).map(t => ({ ...t, esforco: n }));
+    const calc = calcularEsforco(actor, usados, [item]);
+    vars.esforco = calc.somaEsforcos;
+    for (const linha of calc.linhas) vars[linha.chave] = linha.valor;
+    return vars;
+  }
+
+  /**
+   * A aba Área: as formas com os campos de cada tipo, o desenho na Intenção
+   * da prévia e as variáveis que as medidas podem ler, com o valor de agora.
+   */
+  #contextoDaArea() {
+    if (!this.#temArea()) return null;
+    const loc = k => game.i18n.localize(k);
+    const vars = this.#variaveisDaArea();
+    const formas = this.item.system.area.formas ?? [];
+    const resolvidas = resolverArea({ formas }, vars);
+    const numero = n => Number(n).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
+
+    const variaveis = [];
+    if (vars.runas) {
+      for (const [runa, valores] of Object.entries(vars.runas)) {
+        for (const [chave, valor] of Object.entries(valores)) {
+          variaveis.push({ nome: `runas.${runa}.${chave}`, valor: numero(valor) });
+        }
+      }
+    }
+    const soltas = this.item.type === "magia"
+      ? ["intencao"]
+      : ["esforco", ...tracosDaTecnica(this.item.system).map(t => t.chave)];
+    for (const chave of [...soltas, "nvl"]) {
+      if (typeof vars[chave] === "number") variaveis.push({ nome: chave, valor: numero(vars[chave]) });
+    }
+
+    const duracao = duracaoDaArea(this.item.system.area, vars);
+    const alvos = alvosDaArea(this.item.system.area, vars);
+    return {
+      presa: !!this.item.system.area.presa,
+      alvos: {
+        valor: this.item.system.area.alvos,
+        resultado: alvos.valor === 1 ? loc("PYRO.Area.Alvo") : game.i18n.format("PYRO.Area.Alvos", { n: alvos.valor }),
+        faltando: alvos.faltando.length
+          ? game.i18n.format("PYRO.Area.Faltando", { nomes: alvos.faltando.map(n => `@${n}`).join(", ") })
+          : ""
+      },
+      duracao: {
+        valor: this.item.system.area.duracao,
+        unidade: this.item.system.area.unidade,
+        unidadeOpts: Object.fromEntries(Object.entries(PYRO.unidadesDeManutencao)
+          .map(([chave, cfg]) => [chave, cfg.label])),
+        resultado: textoDaDuracao(duracao),
+        faltando: duracao.faltando.length
+          ? game.i18n.format("PYRO.Area.Faltando", { nomes: duracao.faltando.map(n => `@${n}`).join(", ") })
+          : ""
+      },
+      rotuloPrevia: loc(this.item.type === "magia" ? "PYRO.Area.PreviaIntencao" : "PYRO.Area.PreviaEsforco"),
+      previa: this.#previaArea,
+      semRunas: this.item.type === "magia" && !vars.runas,
+      tipoOpts: opcoesDeTipo(),
+      svg: resolvidas.length ? svgDaArea(resolvidas) : "",
+      variaveis,
+      formas: formas.map((f, i) => {
+        const r = resolvidas[i];
+        return {
+          indice: i,
+          tipo: f.tipo,
+          x: f.x, y: f.y, rotacao: f.rotacao,
+          medidas: (TIPOS_DE_FORMA[f.tipo]?.medidas ?? []).map(({ campo, unidade }) => ({
+            campo, unidade,
+            rotulo: loc(`PYRO.Area.Medida.${campo}`),
+            valor: f[campo],
+            resultado: r ? `${numero(r[campo])} ${unidade}`.trim() : ""
+          })),
+          texto: r ? textoDaForma(r) : "",
+          faltando: r?.faltando?.length
+            ? game.i18n.format("PYRO.Area.Faltando", { nomes: r.faltando.map(n => `@${n}`).join(", ") })
+            : ""
+        };
+      })
+    };
+  }
+
+  static async #adicionarFormaArea() {
+    const arr = this.item.system.toObject().area.formas;
+    arr.push(formaNova());
+    await this.item.update({ "system.area.formas": arr });
+  }
+
+  static async #removerFormaArea(event, target) {
+    const arr = this.item.system.toObject().area.formas;
+    arr.splice(Number(target.dataset.index), 1);
+    await this.item.update({ "system.area.formas": arr });
+  }
+
+  /**
+   * Formas prontas a partir do que o item já tem: as runas de área da magia
+   * (Cone, Linha, Explosão, Aura, Muro) ou os traços de área da técnica. Elas
+   * entram depois das que já existem, para não apagar um desenho feito à mão.
+   * Na magia, a runa com Duração também preenche a duração da área.
+   */
+  static async #sugerirArea() {
+    const vars = this.#variaveisDaArea();
+    const novas = this.item.type === "magia"
+      ? sugestaoDasRunas(vars.runas)
+      : sugestaoDosTracos(tracosDaTecnica(this.item.system).map(t => t.chave));
+    // A runa de duração (a do Persistente, por exemplo) vira a duração da área,
+    // e a de alvos (o Dividir, o traço Alvos) vira os alvos.
+    const duracao = this.item.type === "magia" ? this.#duracaoDasRunas : null;
+    const alvos = alvosSugeridos({
+      runas: vars.runas, tracos: tracosDaTecnica(this.item.system).map(t => t.chave)
+    });
+    if (!novas.length && !duracao && !alvos) {
+      return ui.notifications.info(game.i18n.localize("PYRO.Area.SemSugestao"));
+    }
+    const arr = this.item.system.toObject().area.formas;
+    await this.item.update({
+      "system.area.formas": [...arr, ...novas],
+      ...(duracao ? {
+        "system.area.duracao": `@${duracao.variavel}`, "system.area.unidade": duracao.unidade
+      } : {}),
+      ...(alvos ? { "system.area.alvos": alvos } : {})
+    });
+  }
+
+  /** Escreve "@variavel" no último campo de medida tocado e salva. */
+  static #inserirVariavelArea(event, target) {
+    const campo = (this.#ultimaMedida && this.element.querySelector(`[name="${this.#ultimaMedida}"]`))
+      ?? this.element.querySelector("[data-medida]");
+    if (!campo) return;
+    const texto = `@${target.dataset.variavel}`;
+    const inicio = campo.selectionStart ?? campo.value.length;
+    const fim = campo.selectionEnd ?? campo.value.length;
+    campo.value = campo.value.slice(0, inicio) + texto + campo.value.slice(fim);
+    campo.dispatchEvent(new globalThis.Event("change", { bubbles: true }));
   }
 
   /** A habilidade ligou a escala? É o que decide a aba e os campos de custo. */

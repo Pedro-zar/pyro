@@ -18,6 +18,7 @@ import { htmlBotaoSobrecarga, htmlBotaoMira, conferirMira, motivoDaMira } from "
 import { flagsDoSistema } from "./sistema.mjs";
 import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
 import { semForNoDano, acoesComConfusao } from "./condicoes.mjs";
+import { dadosDaAreaNoCard, htmlBotaoArea } from "./area.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -856,6 +857,17 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   const efeitosRegra = condicoesDosTracos(calc);
   if (efeitosRegra.length) partes.push(htmlEfeitosDeRegra(efeitosRegra));
 
+  const variaveis = {
+    esforco: calc.somaEsforcos,
+    estamina: calc.estamina,
+    acoes,
+    danoTotal: danos.reduce((t, d) => t + d.total, 0),
+    ...Object.fromEntries(calc.linhas.map(l => [l.chave, l.valor]))
+  };
+  // A área da técnica, com os traços do Esforço desta execução.
+  const area = dadosDaAreaNoCard(item, { ...item.getRollData(), ...variaveis });
+  partes.push(htmlBotaoArea(area));
+
   // Os efeitos de uso da arma do golpe também entram no card da técnica.
   partes.push(htmlEfeitosDeUso(item, ataque?.item));
   partes.push(htmlClasseDaRolagem(classe, item));
@@ -865,14 +877,8 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     content: `<div class="pyro-chat pyro-tecnica">${partes.join("")}</div>`,
     rolls,
     flags: flagsDoSistema({
-      danos, cura: 0, efeitosRegra,
-      variaveis: {
-        esforco: calc.somaEsforcos,
-        estamina: calc.estamina,
-        acoes,
-        danoTotal: danos.reduce((t, d) => t + d.total, 0),
-        ...Object.fromEntries(calc.linhas.map(l => [l.chave, l.valor]))
-      },
+      danos, cura: 0, efeitosRegra, variaveis,
+      ...(area ? { area } : {}),
       ...flagsDaClasse(classe, item)
     }),
     sound: rolls.length ? CONFIG.sounds.dice : undefined

@@ -304,6 +304,7 @@ export function registrarMenuChat() {
     prepararBotaoContarUso(message, element);
     prepararBotaoSobrecarga(message, element);
     prepararBotaoMira(message, element);
+    prepararBotaoArea(message, element);
     prepararBotoesDeMente(message, element);
     prepararBotaoResistencia(message, element);
     prepararBotaoSorte(message, element);
@@ -521,6 +522,39 @@ function prepararBotaoSobrecarga(message, element) {
  * diálogo não é modal, e sem desabilitar o botão dois cliques virariam dois
  * testes para o mesmo tiro.
  */
+/**
+ * "Posicionar área": põe no mapa a área que a conjuração ou a execução
+ * mediu, ou a cola no token de quem conjurou quando a área é presa a ele. Quem pode é quem controla o personagem do card; o botão continua
+ * valendo depois do primeiro uso, porque a mesma magia pode ser lançada de
+ * novo no mesmo lugar ou a região pode ter sido apagada por engano.
+ */
+function prepararBotaoArea(message, element) {
+  const dados = flagsDe(message)?.area;
+  for (const botao of element.querySelectorAll(".pyro-posicionar-area")) {
+    botao.addEventListener("click", async () => {
+      const actor = ChatMessage.getSpeakerActor(message.speaker);
+      if (actor && !actor.isOwner) {
+        return ui.notifications.warn(game.i18n.localize("PYRO.Uso.SemPermissao"));
+      }
+      const { posicionarArea, prenderAoToken } = await import("./area.mjs");
+      const falhou = erro => {
+        console.error("PYRO | falha ao posicionar a área", erro);
+        ui.notifications.error(game.i18n.localize("PYRO.Area.Falhou"));
+      };
+      if (!dados?.presa) return posicionarArea(dados).catch(falhou);
+      /*
+       * Presa ao conjurador: o token do card, se ele está na cena aberta; senão
+       * o primeiro token do personagem nela.
+       */
+      const cena = canvas?.scene;
+      const token = (message.speaker?.scene === cena?.id ? cena?.tokens.get(message.speaker?.token) : null)
+        ?? actor?.getActiveTokens(false, true)?.[0] ?? null;
+      if (!token) return ui.notifications.warn(game.i18n.localize("PYRO.Area.SemToken"));
+      await prenderAoToken(dados, token).catch(falhou);
+    });
+  }
+}
+
 function prepararBotaoMira(message, element) {
   for (const botao of element.querySelectorAll(".pyro-teste-mira")) {
     if (flagsDe(message)?.miraFeita) {
