@@ -179,6 +179,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const actor = this.actor;
     const nativa = actor.system.linguaNativa;
     const mana = actor.system.recursos.mana;
+    const estamina = actor.system.recursos.estamina;
     const loc = k => game.i18n.localize(k);
 
     const escolhas = this.#escolhas();
@@ -270,6 +271,20 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       acoes: calc.acoes,
       acoesTexto: game.i18n.format("PYRO.Conjurador.Acoes", { n: calc.acoes }),
       restanteTexto: game.i18n.format("PYRO.Conjurador.Restante", { n: mana.value - calc.custoTotal }),
+      /*
+       * A estamina tem a barra dela, como a mana. Faltar estamina não impede
+       * a magia, porque o resto sai da vida, e o aviso diz quanto antes de
+       * conjurar.
+       */
+      custoEstamina: calc.custoEstamina,
+      estaminaAtual: estamina.value,
+      pctEstaminaUsada: estamina.max > 0 ? Math.clamp((estamina.value / estamina.max) * 100, 0, 100) : 0,
+      pctEstaminaCusto: estamina.max > 0 ? Math.clamp((calc.custoEstamina / estamina.max) * 100, 0, 100) : 0,
+      faltaEstamina: calc.custoEstamina > estamina.value,
+      estaminaTexto: calc.custoEstamina > estamina.value
+        ? game.i18n.format("PYRO.Conjurador.EstaminaEVida",
+          { n: calc.custoEstamina, pv: calc.custoEstamina - Math.max(0, estamina.value) })
+        : game.i18n.format("PYRO.Conjurador.RestaEstamina", { n: estamina.value - calc.custoEstamina }),
       sobrecarga: calc.sobrecarga,
       sobrecargaTexto: calc.sobrecarga > 0
         ? game.i18n.format("PYRO.Conjurador.SobrecargaN", { nivel: calc.sobrecarga, nd: calc.nd })

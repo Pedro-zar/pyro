@@ -652,11 +652,18 @@ export function calcular(actor, escolhas, itemMagia = null) {
   // Efeitos de custo entram por último, sobre o total. As reduções acumulam,
   // mas com piso 1: desconto nenhum deixa a magia de graça.
   const ajustes = ajustesDeCusto(actor, itemMagia);
+  const custoMana = custoAjustado(custoTotal, ajustes.mana);
 
   return {
     porRuna,
-    custoTotal: custoAjustado(custoTotal, ajustes.mana),
+    custoTotal: custoMana,
     custoBase: custoTotal,
+    /*
+     * Conjurar cansa o corpo na mesma medida: cada ponto de mana gasto custa
+     * um de estamina, já sobre o custo ajustado. Efeito de custo de estamina
+     * ainda mexe nessa parte sem tocar na mana.
+     */
+    custoEstamina: custoAjustado(custoMana, ajustes.estamina),
     sobrecarga,
     somaIntencoes,
     maos: maosUsadas,
@@ -754,7 +761,9 @@ export async function conjurar(actor, escolhas, {
   // Falso, e não vazio, diz ao Conjurador que nada saiu e a janela fica.
   const gasto = await actor.gastarAcoes(calc.acoes);
   if (!gasto.ok) return false;
-  await actor.update({ "system.recursos.mana.value": recursos.mana.value - calc.custoTotal });
+  // Estamina que falta sai da vida, como em qualquer outro custo de estamina.
+  const pago = await actor.pagarCustos({ mana: calc.custoTotal, estamina: calc.custoEstamina });
+  if (!pago) return false;
 
   /* --- Montagem do card e rolagens ---------------------------------------- */
   const rolls = [];
@@ -773,6 +782,7 @@ export async function conjurar(actor, escolhas, {
     intencao: calc.somaIntencoes,
     intencaoMax: calc.porRuna.reduce((m, pr) => Math.max(m, pr.intencao), 0),
     mana: calc.custoTotal,
+    estamina: calc.custoEstamina,
     acoes: calc.acoes,
     danoTotal: 0,
     cura: 0,
@@ -793,6 +803,8 @@ export async function conjurar(actor, escolhas, {
     <h3>${titulo}</h3>
     <span class="pyro-magia-meta">${(gasto.texto ? loc("PYRO.Chat.CustoMagia", { mana: calc.custoTotal, acoes: gasto.texto })
       : loc("PYRO.Chat.CustoMana", { mana: calc.custoTotal }))}${
+      pago.daEstamina > 0 ? ` · ${loc("PYRO.Chat.CustoMagiaEstamina", { valor: pago.daEstamina })}` : ""}${
+      pago.dosPv > 0 ? ` · ${loc("PYRO.Chat.CustoMagiaPv", { valor: pago.dosPv })}` : ""}${
       calc.acoes > calc.acoesBase ? ` · ${loc("PYRO.Mental.ConfusaoAcao")}` : ""}</span>
   </header>`);
 

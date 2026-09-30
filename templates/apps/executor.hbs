@@ -81,18 +81,20 @@
     <div class="medidor">
       <div class="medidor-topo">
         <span class="rotulo">{{localize "PYRO.Executor.GastoTotal"}}</span>
-        <span class="medidor-valor numero {{#if faltaEstamina}}perigo{{/if}}">
+        <span class="medidor-valor numero {{#if pagaComVida}}perigo{{/if}}">
           {{custoTotal}} / {{estaminaAtual}}
         </span>
       </div>
       <div class="barra barra-estamina">
         <div class="barra-preenchida" style="width: {{pctUsada}}%"></div>
-        <div class="barra-custo {{#if faltaEstamina}}perigo{{/if}}" style="width: {{pctCusto}}%"></div>
+        <div class="barra-custo {{#if pagaComVida}}perigo{{/if}}" style="width: {{pctCusto}}%"></div>
       </div>
       <p class="medidor-nota">
         {{#if faltaEstamina}}
         <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
           {{localize "PYRO.Executor.EstaminaInsuficiente"}}</span>
+        {{else if pagaComVida}}
+        {{localize "PYRO.Executor.Restante"}} {{restante}} · <span class="perigo">{{vidaTexto}}</span>
         {{else}}
         {{localize "PYRO.Executor.Restante"}} {{restante}}
         {{/if}}

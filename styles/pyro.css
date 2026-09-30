@@ -1837,7 +1837,7 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
   color: var(--pyro-texto-3); white-space: nowrap;
 }
 
-/* Executor: mesma barra em duas camadas do conjurador, na cor da estamina. */
+/* A barra de mana em duas camadas, na cor da estamina: no executor e no custo de estamina das magias. */
 .pyro .barra-estamina { height: 0.9rem; }
 .pyro .barra-estamina .barra-preenchida {
   background: color-mix(in srgb, var(--pyro-estamina) 55%, black 25%);

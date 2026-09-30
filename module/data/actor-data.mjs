@@ -325,16 +325,15 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     recursos.mana.max = maxDeFormula("mana",
       caminhos.find(c => c.system.usaMagia) ?? null) + recursos.mana.bonus;
     /*
-     * A recuperação é metade do atributo, e só. O multiplicador de patamar
-     * mexe no que cabe no tanque, não no ritmo com que ele enche — a regra
-     * antiga aplicava os 10% aqui também e fazia a recuperação pular a cada
-     * ponto de Determinação.
+     * A mana volta a INT inteira por cena, e a energia metade da INT. O
+     * multiplicador de patamar mexe no que cabe no tanque, não no ritmo com
+     * que ele enche: com ele a recuperação pularia a cada ponto de
+     * Determinação.
      */
-    const recuperacao = Math.floor(atributos.int.total / 2);
-    recursos.mana.recuperacao = recuperacao;
+    recursos.mana.recuperacao = atributos.int.total;
     recursos.energia.max = maxDeFormula("energia",
       caminhos.find(c => c.system.usaFeiticaria) ?? null) + recursos.energia.bonus;
-    recursos.energia.recuperacao = recuperacao;
+    recursos.energia.recuperacao = Math.floor(atributos.int.total / 2);
     recursos.vontade.max = det * 5 + recursos.vontade.bonus;
 
     /*

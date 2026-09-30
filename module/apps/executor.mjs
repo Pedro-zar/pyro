@@ -187,7 +187,12 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       estaminaAtual: estamina.value,
       estaminaMax: estamina.max,
       custoTotal: calc.estamina,
-      restante: estamina.value - calc.estamina,
+      restante: Math.max(0, estamina.value - calc.estamina),
+      // Estamina que não houver sai da vida: a janela diz quanto antes de executar.
+      pagaComVida: calc.estamina > estamina.value,
+      vidaTexto: game.i18n.format("PYRO.Executor.EstaminaEVida", {
+        n: calc.estamina, pv: calc.estamina - Math.max(0, estamina.value)
+      }),
       pctUsada: estamina.max > 0 ? Math.clamp((estamina.value / estamina.max) * 100, 0, 100) : 0,
       pctCusto: estamina.max > 0 ? Math.clamp((calc.estamina / estamina.max) * 100, 0, 100) : 0,
       faltaEstamina,

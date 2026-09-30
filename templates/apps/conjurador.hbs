@@ -59,7 +59,7 @@
         {{/if}}
 
         <p class="ficha-custo numero">
-          {{f.custo}} {{localize "PYRO.Recursos.mana"}}
+          {{f.custo}} {{localize "PYRO.Recursos.mana"}} · {{f.custo}} {{localize "PYRO.Recursos.estamina"}}
           {{#if f.excesso}}
           <span class="perigo" title="{{localize 'PYRO.Conjurador.AcimaDoLimite'}}">
             <i class="fa-solid fa-triangle-exclamation"></i> +{{f.excesso}}
@@ -88,12 +88,22 @@
         <div class="barra-preenchida" style="width: {{pctUsada}}%"></div>
         <div class="barra-custo {{#if faltaMana}}perigo{{/if}}" style="width: {{pctCusto}}%"></div>
       </div>
+      <div class="medidor-topo">
+        <span class="rotulo">{{localize "PYRO.Conjurador.GastoEstamina"}}</span>
+        <span class="medidor-valor numero {{#if faltaEstamina}}perigo{{/if}}">
+          {{custoEstamina}} / {{estaminaAtual}}
+        </span>
+      </div>
+      <div class="barra barra-estamina">
+        <div class="barra-preenchida" style="width: {{pctEstaminaUsada}}%"></div>
+        <div class="barra-custo {{#if faltaEstamina}}perigo{{/if}}" style="width: {{pctEstaminaCusto}}%"></div>
+      </div>
       <p class="medidor-nota">
         {{#if faltaMana}}
         <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
           {{localize "PYRO.Conjurador.ManaInsuficiente"}}</span>
         {{else}}
-        {{restanteTexto}} · {{acoesTexto}}{{#if dtTexto}} · {{dtTexto}}{{/if}}{{#if maosTexto}} · <span class="{{#if excedeMaos}}perigo{{/if}}">{{maosTexto}}</span>{{/if}}
+        {{restanteTexto}} · <span class="{{#if faltaEstamina}}perigo{{/if}}">{{estaminaTexto}}</span> · {{acoesTexto}}{{#if dtTexto}} · {{dtTexto}}{{/if}}{{#if maosTexto}} · <span class="{{#if excedeMaos}}perigo{{/if}}">{{maosTexto}}</span>{{/if}}
         {{/if}}
       </p>
     </div>
