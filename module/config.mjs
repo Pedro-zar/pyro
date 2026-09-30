@@ -471,6 +471,14 @@ PYRO.recursosCustomPadrao = {
 
 PYRO.recursosCustom = foundry.utils.deepClone(PYRO.recursosCustomPadrao);
 
+/*
+ * Reforço de magia: quem tem o recurso pode gastá-lo junto da conjuração,
+ * na mesma quantidade da mana, e a magia sai com os efeitos multiplicados
+ * pelo fator. É o mesmo multiplicador que a língua élfica dá às runas, e os
+ * dois se somam multiplicando.
+ */
+PYRO.reforcoDeMagia = { recurso: "energiaNatural", fator: 2 };
+
 /* -------------------------------------------------------------------------- */
 /*  Sentidos espirituais                                                      */
 /* -------------------------------------------------------------------------- */

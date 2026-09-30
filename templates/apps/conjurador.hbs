@@ -59,7 +59,8 @@
         {{/if}}
 
         <p class="ficha-custo numero">
-          {{f.custo}} {{localize "PYRO.Recursos.mana"}} · {{f.custo}} {{localize "PYRO.Recursos.estamina"}}
+          {{!-- Os recursos custam sempre o mesmo número: ele aparece uma vez só. --}}
+          {{f.custo}} {{localize "PYRO.Recursos.mana"}} · {{localize "PYRO.Recursos.estamina"}}{{#if @root.reforco}} · {{@root.reforcoNome}}{{/if}}
           {{#if f.excesso}}
           <span class="perigo" title="{{localize 'PYRO.Conjurador.AcimaDoLimite'}}">
             <i class="fa-solid fa-triangle-exclamation"></i> +{{f.excesso}}
@@ -98,10 +99,25 @@
         <div class="barra-preenchida" style="width: {{pctEstaminaUsada}}%"></div>
         <div class="barra-custo {{#if faltaEstamina}}perigo{{/if}}" style="width: {{pctEstaminaCusto}}%"></div>
       </div>
+      {{#if reforco}}
+      <div class="medidor-topo">
+        <span class="rotulo">{{reforcoGastoRotulo}}</span>
+        <span class="medidor-valor numero {{#if faltaReforco}}perigo{{/if}}">
+          {{custoReforco}} / {{reforcoAtual}}
+        </span>
+      </div>
+      <div class="barra barra-reforco">
+        <div class="barra-preenchida" style="width: {{pctReforcoUsado}}%"></div>
+        <div class="barra-custo {{#if faltaReforco}}perigo{{/if}}" style="width: {{pctReforcoCusto}}%"></div>
+      </div>
+      {{/if}}
       <p class="medidor-nota">
         {{#if faltaMana}}
         <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
           {{localize "PYRO.Conjurador.ManaInsuficiente"}}</span>
+        {{else if faltaReforco}}
+        <span class="perigo"><i class="fa-solid fa-triangle-exclamation"></i>
+          {{faltaReforcoTexto}}</span>
         {{else}}
         {{restanteTexto}} · <span class="{{#if faltaEstamina}}perigo{{/if}}">{{estaminaTexto}}</span> · {{acoesTexto}}{{#if dtTexto}} · {{dtTexto}}{{/if}}{{#if maosTexto}} · <span class="{{#if excedeMaos}}perigo{{/if}}">{{maosTexto}}</span>{{/if}}
         {{/if}}
@@ -125,6 +141,15 @@
 
   {{!-- Nem toda frase impõe resistência: a DT só entra no card quando esta
         conjuração usa uma. Magia salva responde isso na ficha dela. --}}
+  {{!-- Gastar o recurso de reforço junto da mana multiplica os efeitos da
+        magia. Só aparece para quem tem o recurso. --}}
+  {{#if temReforco}}
+  <label class="check-linha" title="{{localize 'PYRO.Conjurador.ReforcoDica'}}">
+    <input type="checkbox" name="reforco" {{checked reforco}} />
+    <span>{{reforcoRotulo}}</span>
+  </label>
+  {{/if}}
+
   {{#if perguntaDt}}
   <label class="check-linha" title="{{localize 'PYRO.Magia.UsaDtDica'}}">
     <input type="checkbox" name="usaDt" {{checked usaDt}} />

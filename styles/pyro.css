@@ -1843,6 +1843,12 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
   background: color-mix(in srgb, var(--pyro-estamina) 55%, black 25%);
 }
 
+/* Reforço de magia no conjurador: a mesma barra, na cor dos recursos de raça. */
+.pyro .barra-reforco { height: 0.9rem; }
+.pyro .barra-reforco .barra-preenchida {
+  background: color-mix(in srgb, var(--pyro-recurso-custom) 55%, black 25%);
+}
+
 /* Card do chat: um traço por linha, com o Esforço e o que ele rendeu. */
 .pyro-tracos { list-style: none; margin: 0.4rem 0; padding: 0; }
 .pyro-tracos li {

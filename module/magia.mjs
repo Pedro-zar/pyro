@@ -582,8 +582,9 @@ export function tabelaSubjulgar(det, total) {
  *   conjurador e a conjuração chamam a mesma função, a prévia nunca mostra um
  *   custo diferente do que vai ser cobrado.
  */
-export function calcular(actor, escolhas, itemMagia = null) {
+export function calcular(actor, escolhas, itemMagia = null, { reforco = false } = {}) {
   const fatorRaca = actor.system.fatorLinguistico ?? 1;
+  const fatorReforco = reforco ? (Number(PYRO.reforcoDeMagia?.fator) || 1) : 1;
   const limiteBase = actor.system.sobrecargaLimite;
 
   let custoTotal = 0;
@@ -617,7 +618,7 @@ export function calcular(actor, escolhas, itemMagia = null) {
       scalings: scalings ?? sys.scalings ?? [],
       subjulgar: subjulgar ?? sys.subjulgar ?? false,
       tipoDano: tipoDano ?? sys.tipoDano ?? "",
-      efeitoMult: lingua.efeito
+      efeitoMult: lingua.efeito * fatorReforco
     });
   }
 
@@ -664,6 +665,10 @@ export function calcular(actor, escolhas, itemMagia = null) {
      * ainda mexe nessa parte sem tocar na mana.
      */
     custoEstamina: custoAjustado(custoMana, ajustes.estamina),
+    // O reforço também sai 1 para 1 com a mana (ver PYRO.reforcoDeMagia).
+    reforco,
+    custoReforco: reforco
+      ? custoAjustado(custoMana, ajustes[PYRO.reforcoDeMagia.recurso]) : 0,
     sobrecarga,
     somaIntencoes,
     maos: maosUsadas,
@@ -727,13 +732,26 @@ function contarSeis(roll) {
  * publica o card no chat.
  * @param {object} [opcoes.itemMagia] magia do grimório de origem, quando houver.
  */
+/** O ator tem o recurso que reforça magias? Só quem o recebe de um caminho. */
+export function podeReforcar(actor) {
+  const chave = PYRO.reforcoDeMagia?.recurso;
+  return !!chave && (actor?.system?.recursosConcedidos ?? []).includes(chave);
+}
+
+/** Nome do recurso de reforço como a mesa o configurou ("Energia Natural"). */
+export function rotuloDoReforco() {
+  const chave = PYRO.reforcoDeMagia?.recurso;
+  return game.i18n.localize(PYRO.recursosCustom?.[chave]?.label ?? `PYRO.Recursos.${chave}`);
+}
+
 export async function conjurar(actor, escolhas, {
-  nomeMagia = null, rolarDano = true, itemMagia = null, recursoMental = "mana", usaDt = true
+  nomeMagia = null, rolarDano = true, itemMagia = null, recursoMental = "mana", usaDt = true,
+  reforco = false
 } = {}) {
   if (!escolhas.length) return;
   if (!actor.podeAgir()) return;
 
-  const calc = calcular(actor, escolhas, itemMagia);
+  const calc = calcular(actor, escolhas, itemMagia, { reforco: reforco && podeReforcar(actor) });
   const recursos = actor.system.recursos;
 
   // Toda magia precisa de ao menos um Elemento e uma Forma (SRD Magia).
@@ -742,6 +760,14 @@ export async function conjurar(actor, escolhas, {
   }
   if (calc.custoTotal > recursos.mana.value) {
     return ui.notifications.warn(loc("PYRO.Avisos.SemMana", { custo: calc.custoTotal, mana: recursos.mana.value }));
+  }
+  // Conferido antes das ações, como a mana: sem o reforço, nada é gasto.
+  const chaveReforco = PYRO.reforcoDeMagia.recurso;
+  const temReforco = recursos[chaveReforco]?.value ?? 0;
+  if (calc.custoReforco > temReforco) {
+    return ui.notifications.warn(loc("PYRO.Avisos.SemRecurso", {
+      recurso: rotuloDoReforco(), custo: calc.custoReforco, atual: temReforco
+    }));
   }
   const maosDisponiveis = actor.system.maos ?? 2;
   if (calc.maos > maosDisponiveis) {
@@ -762,7 +788,9 @@ export async function conjurar(actor, escolhas, {
   const gasto = await actor.gastarAcoes(calc.acoes);
   if (!gasto.ok) return false;
   // Estamina que falta sai da vida, como em qualquer outro custo de estamina.
-  const pago = await actor.pagarCustos({ mana: calc.custoTotal, estamina: calc.custoEstamina });
+  const pago = await actor.pagarCustos({
+    mana: calc.custoTotal, estamina: calc.custoEstamina, [chaveReforco]: calc.custoReforco
+  });
   if (!pago) return false;
 
   /* --- Montagem do card e rolagens ---------------------------------------- */
@@ -783,6 +811,8 @@ export async function conjurar(actor, escolhas, {
     intencaoMax: calc.porRuna.reduce((m, pr) => Math.max(m, pr.intencao), 0),
     mana: calc.custoTotal,
     estamina: calc.custoEstamina,
+    // Quanto do recurso de reforço foi gasto: zero quando a magia saiu sem ele.
+    reforco: calc.custoReforco,
     acoes: calc.acoes,
     danoTotal: 0,
     cura: 0,
@@ -805,6 +835,9 @@ export async function conjurar(actor, escolhas, {
       : loc("PYRO.Chat.CustoMana", { mana: calc.custoTotal }))}${
       pago.daEstamina > 0 ? ` · ${loc("PYRO.Chat.CustoMagiaEstamina", { valor: pago.daEstamina })}` : ""}${
       pago.dosPv > 0 ? ` · ${loc("PYRO.Chat.CustoMagiaPv", { valor: pago.dosPv })}` : ""}${
+      calc.custoReforco > 0 ? ` · ${loc("PYRO.Chat.CustoMagiaReforco", {
+        valor: calc.custoReforco, recurso: rotuloDoReforco(), fator: PYRO.reforcoDeMagia.fator
+      })}` : ""}${
       calc.acoes > calc.acoesBase ? ` · ${loc("PYRO.Mental.ConfusaoAcao")}` : ""}</span>
   </header>`);
 

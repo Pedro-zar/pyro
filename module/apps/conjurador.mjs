@@ -1,6 +1,7 @@
 import { PYRO } from "../config.mjs";
 import {
-  calcular, conjurar, previaRuna, emprestaIntencao, temDanoMental, resumoDaFrase, fatorPtBR
+  calcular, conjurar, previaRuna, emprestaIntencao, temDanoMental, resumoDaFrase, fatorPtBR,
+  podeReforcar, rotuloDoReforco
 } from "../magia.mjs";
 import { bonusDeDano, operacoesDeAlcance } from "../efeitos.mjs";
 import { juntarDados } from "../dados.mjs";
@@ -33,6 +34,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
      * for guardada no grimório.
      */
     this.usaDt = itemMagia ? itemMagia.system.usaDt !== false : true;
+    /** Gastar o recurso de reforço junto da mana (ver PYRO.reforcoDeMagia). */
+    this.reforco = false;
   }
 
   /** Conjurando uma magia salva, o título é o nome dela. */
@@ -184,7 +187,9 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
     const escolhas = this.#escolhas();
     // Passa a magia salva: efeitos de custo presos a ela contam já na prévia.
-    const calc = calcular(actor, escolhas, this.itemMagia);
+    const temReforco = podeReforcar(actor);
+    const reforco = temReforco && this.reforco;
+    const calc = calcular(actor, escolhas, this.itemMagia, { reforco });
 
     /* --- Fichas da frase montada ----------------------------------------- */
     const fichas = calc.porRuna.map((pr, indice) => {
@@ -243,8 +248,10 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     /* --- Medidores -------------------------------------------------------- */
     const faltaMana = calc.custoTotal > mana.value;
     const excedeMaos = calc.maos > maosDisponiveis;
+    const recursoReforco = actor.system.recursos[PYRO.reforcoDeMagia.recurso] ?? { value: 0, max: 0 };
+    const faltaReforco = calc.custoReforco > recursoReforco.value;
     const podeConjurar = escolhas.length > 0 && calc.temElemento && calc.temForma
-      && !faltaMana && !excedeMaos;
+      && !faltaMana && !excedeMaos && !faltaReforco;
     // Guardar no grimório não gasta mana nem mãos: só a frase precisa valer.
     this._podeConjurar = podeConjurar;
     this._podeGuardar = escolhas.length > 0 && calc.temElemento && calc.temForma;
@@ -281,6 +288,26 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       pctEstaminaUsada: estamina.max > 0 ? Math.clamp((estamina.value / estamina.max) * 100, 0, 100) : 0,
       pctEstaminaCusto: estamina.max > 0 ? Math.clamp((calc.custoEstamina / estamina.max) * 100, 0, 100) : 0,
       faltaEstamina: calc.custoEstamina > estamina.value,
+
+      /*
+       * O reforço só aparece para quem tem o recurso. Marcado, ganha a
+       * barra dele, e faltar recurso trava a conjuração como a mana.
+       */
+      temReforco,
+      reforco,
+      reforcoRotulo: game.i18n.format("PYRO.Conjurador.Reforco", {
+        recurso: rotuloDoReforco(), fator: PYRO.reforcoDeMagia.fator
+      }),
+      reforcoNome: rotuloDoReforco(),
+      reforcoGastoRotulo: game.i18n.format("PYRO.Conjurador.GastoReforco", { recurso: rotuloDoReforco() }),
+      custoReforco: calc.custoReforco,
+      reforcoAtual: recursoReforco.value,
+      pctReforcoUsado: recursoReforco.max > 0
+        ? Math.clamp((recursoReforco.value / recursoReforco.max) * 100, 0, 100) : 0,
+      pctReforcoCusto: recursoReforco.max > 0
+        ? Math.clamp((calc.custoReforco / recursoReforco.max) * 100, 0, 100) : 0,
+      faltaReforco,
+      faltaReforcoTexto: game.i18n.format("PYRO.Conjurador.ReforcoInsuficiente", { recurso: rotuloDoReforco() }),
       estaminaTexto: calc.custoEstamina > estamina.value
         ? game.i18n.format("PYRO.Conjurador.EstaminaEVida",
           { n: calc.custoEstamina, pv: calc.custoEstamina - Math.max(0, estamina.value) })
@@ -335,6 +362,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     this.recursoMental = form.querySelector("[name=recursoMental]")?.value ?? this.recursoMental;
     this.usaDt = form.querySelector("[name=usaDt]")?.checked ?? this.usaDt;
+    this.reforco = form.querySelector("[name=reforco]")?.checked ?? this.reforco;
     this.salvar = form.querySelector("[name=salvar]")?.checked ?? this.salvar;
     this.rolarDano = form.querySelector("[name=rolarDano]")?.checked ?? this.rolarDano;
   }
@@ -427,6 +455,11 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
         this.render();
       });
     }
+    // O reforço muda custo, barras e a prévia do efeito: redesenha na hora.
+    form.querySelector("[name=reforco]")?.addEventListener("change", () => {
+      this.#capturarCampos();
+      this.render();
+    });
   }
 
   /* ---------------------------------------------------------------------- */
@@ -441,7 +474,7 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     if (this.fixa) {
       const saiu = await conjurar(this.actor, escolhas, {
         nomeMagia: this.nomeMagia, rolarDano: true, itemMagia: this.itemMagia,
-        recursoMental: this.recursoMental, usaDt: this.usaDt
+        recursoMental: this.recursoMental, usaDt: this.usaDt, reforco: this.reforco
       });
       // Faltaram ações: a janela fica com as Intenções escolhidas.
       if (saiu === false) return;
@@ -481,7 +514,8 @@ export class ConjuradorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       nomeMagia: dados.nomeMagia?.trim() || null,
       rolarDano: !!dados.rolarDano,
       recursoMental: this.recursoMental,
-      usaDt: this.usaDt
+      usaDt: this.usaDt,
+      reforco: this.reforco
     });
     if (saiu === false) return;
     return this.close();
