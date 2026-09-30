@@ -266,7 +266,8 @@ PYRO.elementos = foundry.utils.deepClone(PYRO.elementosPadrao);
  * Línguas rúnicas e potenciais mágicos — a mesma escala.
  * fator: peso na escala de mana. Custo de uma runa é relativo:
  *   custo = base x (fator da língua / fator mágico do conjurador).
- * efeito: multiplica os valores por Intenção (nº de dados).
+ * efeito: multiplica a Intenção com que os números da runa são calculados
+ *   (ver intencaoDosNumeros), sem mexer no limite seguro nem no custo.
  * povo: rótulo usado no campo "Potencial mágico" dos caminhos.
  */
 PYRO.linguasPadrao = {
@@ -473,9 +474,9 @@ PYRO.recursosCustom = foundry.utils.deepClone(PYRO.recursosCustomPadrao);
 
 /*
  * Reforço de magia: quem tem o recurso pode gastá-lo junto da conjuração,
- * na mesma quantidade da mana, e a magia sai com os efeitos multiplicados
- * pelo fator. É o mesmo multiplicador que a língua élfica dá às runas, e os
- * dois se somam multiplicando.
+ * na mesma quantidade da mana, e os números da magia saem como se a
+ * Intenção fosse multiplicada pelo fator. É o mesmo multiplicador que a
+ * língua élfica dá às runas, e os dois se somam multiplicando.
  */
 PYRO.reforcoDeMagia = { recurso: "energiaNatural", fator: 2 };
 

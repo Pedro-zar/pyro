@@ -75,37 +75,45 @@ export function escalonamentoComPassos(scaling, passos = 0) {
 }
 
 /**
- * Valor de um escalonamento na conjuração: a Intenção efetiva da runa (já com
- * o que o Toque emprestou), os passos que o Longo somou ao alcance e o
- * multiplicador de efeito da língua.
+ * A Intenção com que os números da runa são calculados: a efetiva (já com o
+ * que o Toque emprestou) vezes o multiplicador da língua e do reforço.
+ *
+ * O multiplicador conta como Intenção a mais, e não como fator sobre o
+ * valor, como o Esforço das técnicas soma graus em vez de multiplicar o
+ * traço: uma Linha de 6 com +4 por Intenção, élfica (x2), vale 10 na
+ * Intenção 1 e ganha 8 por Intenção, e não 12 com +8. A base não dobra.
+ * Limite seguro, sobrecarga e custo continuam lendo a Intenção declarada,
+ * e o dano também: nele o multiplicador dobra os dados (ver dadosDeDano).
+ */
+export function intencaoDosNumeros(pr, intencao = pr.intencaoEfetiva ?? pr.intencao) {
+  return intencao * (pr.efeitoMult ?? 1);
+}
+
+/**
+ * Valor de um escalonamento na conjuração: a Intenção dos números (ver
+ * intencaoDosNumeros) e os passos que o Longo somou ao alcance.
  * @param {object} pr entrada de calc.porRuna.
  * @param {number} [passos] passos de alcance que o Longo somou à frase.
  */
 export function valorEfetivo(pr, scaling, passos = 0) {
   const ajustado = escalonamentoComPassos(scaling, passos);
-  const intencao = pr.intencaoEfetiva ?? pr.intencao;
-  /*
-   * O multiplicador da língua entra ANTES do arredondamento, que é um só e
-   * do total: base 2,25 élfica (x2) na Intenção 2 é 4,5 x 2 = 9 — arredondar
-   * o 4,5 primeiro comeria um dado.
-   */
-  const cru = ajustado.base + ajustado.porIntencao * (intencao - 1);
-  return Math.floor(cru * (pr.efeitoMult ?? 1));
+  return Math.floor(ajustado.base + ajustado.porIntencao * (intencaoDosNumeros(pr) - 1));
 }
 
 /**
  * Multiplicador do dano de um escalonamento com dados: a Intenção não soma
- * dados, ela multiplica o total rolado — 1 + porIntencao x (Intenção - 1).
- * A língua fica de fora de propósito: potencial mágico multiplica a
- * QUANTIDADE de dados (ver dadosDeDano) — o elfo rola 6d6 onde o humano rola
- * 3d6, que é mais forte e mais bonito de ver na mesa.
+ * dados, ela multiplica o total rolado, 1 + porIntencao x (Intenção - 1).
+ * É a Intenção declarada: no dano o multiplicador já dobrou os dados.
  */
 export function fatorDeDano(pr, scaling) {
   const intencao = pr.intencaoEfetiva ?? pr.intencao;
   return 1 + (Number(scaling.porIntencao) || 0) * (intencao - 1);
 }
 
-/** Quantos dados o dano rola: a base vezes o potencial mágico da língua. */
+/**
+ * Quantos dados o dano rola: a base vezes o multiplicador da língua e do
+ * reforço. O elfo rola 6d6 onde o humano rola 3d6.
+ */
 export function dadosDeDano(pr, scaling) {
   return Math.max(1, Math.round((Number(scaling.base) || 0) * (pr.efeitoMult ?? 1)));
 }
