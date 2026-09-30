@@ -45,7 +45,7 @@
 |-----------------------|------------------------------:|------:|-----:|--------:|--------------------|-----:|------:|------------------------------------------|
 | Lasca                 | 2d4                           |     1 |    1 |      0m | Cortante           |    1 |    20 | Arma improvisada pequena.                |
 | Cacetete              | 2d8                           |     2 |    1 |      0m | Impacto            |    3 |    20 | Arma improvisada de uma mão.             |
-| Marreta               | 3d12                          |     3 |    2 |      0m | Impacto            |    9 |    17 | Arma improvisada pesada.                 |
+| Marreta               | 3d12                          |     3 |    2 |      0m | Impacto            |    3 |    17 | Arma improvisada pesada.                 |
 | Funda                 | 2d6                           |     2 |    2 |   5/10m | Impacto            |    1 |    19 | Usa pedras ou outros projéteis pequenos. |
 ### Comuns
 | Arma                  | Dano                          | Ações | Mãos | Alcance | Tipo               | Peso | Custo | Notas                                    |
