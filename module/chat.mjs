@@ -10,6 +10,13 @@ import { dadosDoEfeitoAplicado, variaveisDaMensagem } from "./efeitos.mjs";
 import { esc } from "./ui.mjs";
 import { SYSTEM_ID, flagsDe, flagsDoSistema } from "./sistema.mjs";
 import { registrarUso } from "./progressao.mjs";
+import { prepararBotaoDescanso } from "./descanso.mjs";
+
+/** A janela de ações de descanso, importada na hora (ela importa este arquivo). */
+async function abrirDescanso(dados) {
+  const { DescansoApp } = await import("./apps/descanso.mjs");
+  return new DescansoApp(dados).render(true);
+}
 import { combateDoAtor } from "./economia.mjs";
 import {
   aplicarQueimando, aplicarSangramento, aplicarMolhado, aplicarFriagem,
@@ -308,6 +315,7 @@ export function registrarMenuChat() {
     prepararBotoesDeMente(message, element);
     prepararBotaoResistencia(message, element);
     prepararBotaoSorte(message, element);
+    prepararBotaoDescanso(message, element, abrirDescanso);
     injetarRodape(message, element);
   });
 }

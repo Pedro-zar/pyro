@@ -1,13 +1,15 @@
 /**
  * Ficha do Grupo: a party numa tela só. Cada linha é um membro lido na hora
  * (vida, vontade, DET, carga, exaustão, caminhos), e os botões do topo fazem
- * o tempo da mesa: passar turno/minuto/hora/dia desconta os prazos de todo
- * mundo, e nova cena/capítulo recupera todo mundo de uma vez.
+ * o tempo da mesa: passar turno/minuto/hora desconta os prazos de todo
+ * mundo, nova cena recupera todo mundo de uma vez e o descanso manda a cada
+ * jogador a escolha do que o personagem faz (ver descanso.mjs).
  */
 import { PYRO } from "../config.mjs";
 import { caminho } from "../sistema.mjs";
 import { nivelExaustao } from "../efeitos.mjs";
 import { passarTempo } from "../tempo.mjs";
+import { pedirDescanso } from "../descanso.mjs";
 
 const { HandlebarsApplicationMixin } = foundry.applications.api;
 const { ActorSheetV2 } = foundry.applications.sheets;
@@ -18,8 +20,7 @@ const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 const TEMPOS = {
   turno: PYRO.SEGUNDOS_POR_TURNO,
   minuto: 60,
-  hora: 3600,
-  dia: 86400
+  hora: 3600
 };
 
 export class PyroGrupoSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
@@ -31,7 +32,8 @@ export class PyroGrupoSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       abrirMembro: PyroGrupoSheet.#abrirMembro,
       removerMembro: PyroGrupoSheet.#removerMembro,
       passarTempo: PyroGrupoSheet.#passarTempo,
-      recuperar: PyroGrupoSheet.#recuperar
+      recuperar: PyroGrupoSheet.#recuperar,
+      pedirDescanso: PyroGrupoSheet.#pedirDescanso
     }
   };
 
@@ -154,14 +156,22 @@ export class PyroGrupoSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
 
   static async #recuperar(event, target) {
     if (!game.user.isGM) return;
-    const metodo = {
-      cena: "recuperarCena",
-      capitulo: "recuperarCapitulo"
-    }[target.dataset.tipo];
-    if (!metodo) return;
-    for (const membro of this.#membros()) {
-      if (membro.isOwner) await membro[metodo]();
+    /*
+     * O capítulo não recupera nada: ele fica separado das recuperações, e
+     * por enquanto só marca no chat que um capítulo começou.
+     */
+    if (target.dataset.tipo === "capitulo") {
+      return ChatMessage.create({ content: `<p>${loc("PYRO.Chat.NovoCapitulo")}</p>` });
     }
+    if (target.dataset.tipo !== "cena") return;
+    for (const membro of this.#membros()) {
+      if (membro.isOwner) await membro.recuperarCena();
+    }
+  }
+
+  static async #pedirDescanso() {
+    if (!game.user.isGM) return;
+    return pedirDescanso(this.#membros());
   }
 }
 

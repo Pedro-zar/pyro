@@ -1,0 +1,46 @@
+<div class="descanso-corpo">
+  <p class="descanso-qualidade">
+    <strong>{{qualidade}}</strong>
+    <span class="numero">{{totalTexto}}</span>
+    {{#if tiraExaustao}}<span class="pyro-nota">{{localize "PYRO.Descanso.TiraExaustao"}}</span>{{/if}}
+  </p>
+  <p class="pyro-nota">{{localize (pyroSe semAcoes "PYRO.Descanso.SemAcoes" "PYRO.Descanso.Dica")}}</p>
+
+  <ul class="descanso-acoes">
+    {{#each acoes as |a|}}
+    <li class="descanso-acao{{#if a.vezes}} marcada{{/if}}">
+      {{!-- A seta conta as vezes; cada vez custa o que a ação custa. Sem
+            ação sobrando, o + para de oferecer o que não cabe. --}}
+      <div class="intencao-ctrl descanso-ctrl">
+        <button type="button" class="icone" data-action="menos" data-chave="{{a.chave}}"
+                {{#unless a.podeMenos}}disabled{{/unless}}><i class="fa-solid fa-minus"></i></button>
+        <span class="intencao-valor numero">{{a.vezes}}</span>
+        <button type="button" class="icone" data-action="mais" data-chave="{{a.chave}}"
+                {{#unless a.podeMais}}disabled{{/unless}}><i class="fa-solid fa-plus"></i></button>
+      </div>
+      <strong class="descanso-nome">{{a.nome}}</strong>
+      <span class="descanso-duracao">{{#if a.vezes}}{{a.gastoTexto}}{{else}}{{a.duracao}}{{/if}}</span>
+      <span class="descanso-beneficio">{{a.beneficio}}</span>
+      {{#if a.escolhas.length}}
+      {{#if @root.semPericias}}
+      <span class="pyro-nota descanso-detalhe">{{localize "PYRO.Descanso.SemPericias"}}</span>
+      {{else}}
+      <div class="descanso-detalhe descanso-pericias">
+        {{#each a.escolhas as |e|}}
+        <select name="pericia.{{a.chave}}.{{e.i}}" title="{{localize 'PYRO.Descanso.Pericia'}}">
+          {{#each e.opcoes as |p|}}
+          <option value="{{p.id}}" {{#if p.marcada}}selected{{/if}}>{{p.nome}}</option>
+          {{/each}}
+        </select>
+        {{/each}}
+      </div>
+      {{/if}}
+      {{/if}}
+    </li>
+    {{/each}}
+  </ul>
+
+  <footer class="descanso-rodape">
+    <button type="submit" class="destaque"><i class="fa-solid fa-bed"></i> {{localize "PYRO.Descanso.Descansar"}}</button>
+  </footer>
+</div>

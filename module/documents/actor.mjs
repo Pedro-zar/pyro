@@ -1466,8 +1466,12 @@ export class PyroActor extends Actor {
     return (this.system.recursosConcedidos ?? []).filter(c => this.system.recursos[c]);
   }
 
-  /** Início de cena: estamina cheia, +VIG de PV, +recuperação de mana. */
-  async recuperarCena() {
+  /**
+   * Início de cena: estamina cheia, +VIG de PV, +recuperação de mana.
+   * `aviso: false` deixa o card para quem chamou: o descanso conta a cena
+   * junto com o resto num card só.
+   */
+  async recuperarCena({ aviso = true } = {}) {
     const recursos = this.system.recursos;
     const vig = this.system.atributos.vig.total;
     /*
@@ -1493,37 +1497,10 @@ export class PyroActor extends Actor {
       "system.recursos.energia.value": Math.min(recursos.energia.max,
         recursos.energia.value + comDensidade(recursos.energia.recuperacao, fEnergia))
     });
+    if (!aviso) return null;
     return ChatMessage.create({
       speaker: ChatMessage.getSpeaker({ actor: this }),
       content: `<p>${game.i18n.localize("PYRO.Chat.NovaCena")}</p>`
-    });
-  }
-
-  /**
-   * Início de capítulo: vida e mana completas. É a maior recuperação da mesa —
-   * a passagem de tempo do sistema vai até aqui.
-   *
-   * A Força de Vontade fica de fora de propósito. Ela não volta com o tempo
-   * (SRD Atributos): todo ponto é conquistado em jogo — por um instinto que
-   * criou problema, por uma crença defendida —, e enchê-la aqui tornaria o
-   * resto dessa economia decorativa.
-   */
-  async recuperarCapitulo() {
-    const recursos = this.system.recursos;
-    const extras = {};
-    for (const chave of this.#recursosExtras()) {
-      extras[`system.recursos.${chave}.value`] = recursos[chave].max;
-    }
-    await this.update({
-      ...extras,
-      "system.recursos.pv.value": recursos.pv.max,
-      "system.recursos.mana.value": recursos.mana.max,
-      "system.recursos.energia.value": recursos.energia.max,
-      "system.recursos.estamina.value": recursos.estamina.max
-    });
-    return ChatMessage.create({
-      speaker: ChatMessage.getSpeaker({ actor: this }),
-      content: `<p>${game.i18n.localize("PYRO.Chat.NovoCapitulo")}</p>`
     });
   }
 

@@ -906,7 +906,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static async #recuperar(event, target) {
     const escopo = target.dataset.escopo;
     if (escopo === "cena") await this.actor.recuperarCena();
-    else if (escopo === "capitulo") await this.actor.recuperarCapitulo();
   }
 
   static #abrirConjurador() {
@@ -1245,20 +1244,22 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     return lista;
   }
 
-  /** Menu único de recuperação: cena ou capítulo. */
+  /**
+   * Recuperação de cena pela ficha, com confirmação: um clique solto no
+   * cabeçalho encheria a estamina no meio da luta. O capítulo não recupera
+   * nada, e o descanso sai da ficha do Grupo.
+   */
   static async #abrirRecuperacao() {
     const loc = k => game.i18n.localize(k);
     const escolha = await foundry.applications.api.DialogV2.wait({
       window: { title: loc("PYRO.Recuperar.Titulo") },
       content: `<p class="hint">${loc("PYRO.Recuperar.Explicacao")}</p>`,
       buttons: [
-        { action: "cena", label: loc("PYRO.Recuperar.Cena"), icon: "fa-solid fa-hourglass-start" },
-        { action: "capitulo", label: loc("PYRO.Recuperar.Capitulo"), icon: "fa-solid fa-hourglass-end" }
+        { action: "cena", label: loc("PYRO.Recuperar.Cena"), icon: "fa-solid fa-hourglass-start" }
       ],
       rejectClose: false
     });
     if (escolha === "cena") return this.actor.recuperarCena();
-    if (escolha === "capitulo") return this.actor.recuperarCapitulo();
   }
 
 

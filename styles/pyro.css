@@ -2019,3 +2019,25 @@ button.selo-poder:hover { opacity: 1; border-color: var(--cor-selo); }
 .pyro-chat .pyro-area-card {
   display: flex; flex-direction: column; gap: 2px; margin: 0.3rem 0;
 }
+
+/* Descanso: uma linha por ação, com o que ela ocupa e o que dá. */
+.pyro.descanso .descanso-corpo { display: flex; flex-direction: column; gap: var(--pyro-e-2); padding: var(--pyro-e-3); }
+.pyro.descanso .descanso-qualidade { margin: 0; display: flex; gap: var(--pyro-e-2); align-items: baseline; }
+.pyro.descanso .descanso-acoes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--pyro-e-1); }
+.pyro.descanso .descanso-acao {
+  display: grid; grid-template-columns: 6.5rem 11rem 4.5rem minmax(0, 1fr); gap: var(--pyro-e-1) var(--pyro-e-2);
+  align-items: center; padding: var(--pyro-e-1) var(--pyro-e-2);
+  background: var(--pyro-painel); border: 1px solid var(--pyro-borda); border-radius: var(--pyro-r-sm);
+}
+.pyro.descanso .descanso-acao.marcada { border-color: var(--pyro-acento-ficha); }
+.pyro.descanso .descanso-duracao { font-size: var(--pyro-t-xs); color: var(--pyro-texto-2); }
+.pyro.descanso .descanso-beneficio { font-size: var(--pyro-t-sm); color: var(--pyro-texto-2); }
+.pyro.descanso .descanso-detalhe { grid-column: 2 / -1; }
+.pyro.descanso .descanso-pericias { display: flex; flex-wrap: wrap; gap: var(--pyro-e-1); }
+.pyro.descanso .descanso-pericias select { width: auto; }
+.pyro.descanso .descanso-ctrl { margin: 0; }
+.pyro.descanso .descanso-nome { font-size: var(--pyro-t-sm); }
+.pyro.descanso .descanso-rodape { display: flex; justify-content: flex-end; align-items: center; gap: var(--pyro-e-2); }
+.pyro.descanso .descanso-rodape button { width: auto; }
+.pyro-chat.pyro-descanso-card ul { margin: 0.3rem 0; padding-left: 1.1rem; }
+.pyro-chat.pyro-descanso-card button { width: 100%; }
