@@ -1,0 +1,537 @@
+# Compêndio "Habilidades" do PYRO.
+#
+# Cada item é uma entrada da lista. `npm run build` gera o compêndio a partir
+# daqui: edite, compile e o Foundry mostra a versão nova depois de recarregar.
+#
+#   nome:     obrigatório.
+#   id:       16 letras ou números. Sem ele, o id sai do nome e da pasta, e
+#             trocar um dos dois troca o id. Depois de criado, não mude.
+#   pasta:    pastas do compêndio separadas por "/", como "Elfo/Formas".
+#   img:      caminho da imagem. Sem ela, fica o ícone do tipo. "systems/pyro/"
+#             vira o id do sistema no build.
+#   system:   só os campos que fogem do padrão do tipo. O que faltar vem do
+#             padrão ao carregar, então não precisa escrever campo vazio.
+#   efeitos:  os efeitos ativos, no formato do Foundry (name, system.changes,
+#             disabled, transfer...). id segue a mesma regra do item.
+#   flags:    flags do item, se houver. As do sistema ficam sob "pyro", e o
+#             build troca pelo id do sistema.
+#
+# Para copiar um item feito no mundo, exporte de novo com a macro e rode
+# `npm run importar`: o que já está aqui não é tocado, só entra o que é novo.
+
+- nome: Adquirir Informação
+  id: lUWlanR2N2BCwavt
+  pasta: Batedor
+  system:
+    descricao: <p>Ao identificar uma voz audível, você pode concentrar sua escuta nela. Enquanto mantiver essa atenção, consegue acompanhar suas palavras mesmo quando outras conversas, música ou ruídos comuns tornariam a fala indistinta. Ao fazer isso, você deixa de ouvir ou acompanhar outras informações de outras conversas ou sons.</p>
+    escalaPorNivel: aumente o alcance em 2 metros.
+    formula: 4+[NVL]*2
+    unidadeFormula: ' metros de distância do som'
+
+- nome: Memória Afiada
+  id: FE3lOyK64St21Jh7
+  pasta: Batedor
+  system:
+    ehBase: true
+    descricao: '<p>Você pode dedicar atenção para memorizar uma informação que esteja percebendo: uma conversa breve, um rosto, um trecho de texto, a disposição de uma sala ou um percurso curto.</p><p>Depois disso, consegue recordar fielmente o que registrou, sem precisar de teste para se lembrar.</p>'
+    categoria: passiva
+    escalaPorNivel: Reduza o tempo necessário em 1 segundo por nível.
+    formula: 21-[NVL]
+    unidadeFormula: ' segundos necessários'
+
+- nome: Sinal de Alerta
+  id: ZgEqq3JpDfjJEAp0
+  pasta: Batedor
+  system:
+    ehBase: true
+    descricao: <p>Quando você percebe uma ameaça antes de ela atingir o grupo, pode emitir um aviso imediato. Você e um aliado em alcance curto que consiga perceber e compreender o aviso podem se deslocar até metade de sua movimentação, sem gastar ações, antes do início do confronto.</p>
+
+- nome: Despertar da Lua
+  id: K3uwM7Nwc4syNyzt
+  pasta: Demi-Humanos
+  system:
+    descricao: '<p><span>Durante uma noite de lua cheia, quando seu <strong>gatilho emocional</strong> estiver presente, você pode gastar <strong>1 ação e 1 ponto de Força de Vontade</strong> para assumir sua forma lunar.</span></p><p><span>O gatilho deve expressar algo importante para o personagem: proteger alguém querido, perseguir um inimigo específico, não aceitar ser subjugado, entre outros.</span></p><h3><span>Transformação</span></h3><p><span>Enquanto transformado:</span></p><ul><li><p><span>Você possui <strong>8 ações no próprio turno</strong>.</span></p></li><li><p><span>Você possui <strong>3 reações por turno que não seja seu</strong>.</span></p></li><li><p><span>Sua distância de movimentação é dobrada.</span></p></li><li><p>Seus custos de estamina são cortados pela metade.</p></li><li><p><span>Sua <strong>Herança Animal assume uma manifestação extraordinária</strong>.</span></p></li></ul><p><span>A duração é de <strong>3 minutos por nível</strong>, dobrada cumulativamente nos níveis 5, 10, 15 e 20.</span></p><h2><span>Descontrole</span></h2><p><span>Enquanto transformado, seu gatilho emocional se torna um <strong>impulso dominante</strong>. Quando surgir uma decisão importante que contrarie esse impulso, você escolhe:</span></p><ul><li><p><span><strong>Seguir o impulso:</strong> permanece transformado, sem teste.</span></p></li><li><p><span><strong>Resistir:</strong> realiza um teste de Vontade (<strong>SAB</strong>).</span></p><ul><li><p><span><strong>Sucesso:</strong> recupera o controle e encerra a transformação.</span></p></li><li><p><span><strong>Falha:</strong> permanece transformado e entra em <strong>Frenesi</strong>.</span></p></li></ul></li></ul><h3><span>Frenesi</span></h3><p><span>Durante o Frenesi, você precisa agir diretamente para satisfazer o impulso, negligenciando objetivos incompatíveis com ele.</span></p><p><span>Isso <strong>não significa atacar aliados aleatoriamente</strong>. Eles podem se tornar obstáculos se tentarem impedir você, mas a ameaça deve nascer do impulso: atravessar uma posição segura para perseguir alguém, destruir o que bloqueia o caminho ou se recusar a abandonar um protegido.</span></p><p><span>Em combate, você pode repetir o teste <strong>no início do próprio turno</strong>. Fora dele, uma intervenção significativa ou mudança da situação permite uma nova tentativa. Um sucesso encerra a transformação.</span></p><h3><span>Encerrando a Transformação</span></h3><p>Ao sair da transformação de qualquer maneira, o peso acumulado da transformação recai sob o corpo, recebendo 5 de exaustão, nos níveis 5, 10, 15 e 20 esse valor é reduzido em 1.</p>'
+    categoria: transformacao
+    ehBase: true
+    escalaPorNivel: +3 minutos de duração por nível
+    custoAcoes: 1
+    formula: '[NVL]*3*[NVL5=2;1]*[NVL10=2;1]*[NVL15=2;1]*[NVL20=2;1]'
+    unidadeFormula: ' minutos de duração'
+    duracao:
+      valor: '@nvl *30'
+    custoVontade: 1
+  efeitos:
+    - id: RJw1bVYnPG25tso4
+      name: Despertar da Lua (exaustao)
+      img: icons/svg/sleep.svg
+      statuses:
+        - exausto
+      transfer: false
+      flags:
+        pyro:
+          aoAcabar: true
+          exaustao: 5
+    - id: aUSNMvwusgaI0UJ3
+      name: Despertar da Lua
+      system:
+        changes:
+          - key: system.velocidadeMult
+            value: 1
+            priority: 20
+          - key: system.acoesMax
+            value: 2
+            priority: 20
+          - key: system.reacoesMax
+            value: 1
+            priority: 20
+      flags:
+        pyro:
+          custos:
+            - chave: estamina
+              valor: 0.5
+              modo: multiply
+              ordem: 0
+    - id: gfxDcKUJjFWR7FxD
+      name: Despertar da Lua (alcance)
+      flags:
+        pyro:
+          alcances:
+            - formula: '2'
+              modo: multiply
+              prioridade: 1
+          alvosItem:
+            - nome: Caudas
+
+- nome: Nove Caudas
+  id: q9srHWToobSr11os
+  pasta: Demi-Humanos/Raposa de Nove Caudas
+  system:
+    ehBase: true
+    descricao: <p><span>Suas nove caudas são móveis e podem trabalhar em conjunto para segurar, envolver e manipular objetos.</span></p><p><span>Você pode utilizá-las para abrir uma porta destrancada, carregar uma lanterna, puxar uma alavanca, recolher algo atrás de si ou manter um objeto seguro enquanto suas mãos estão ocupadas.</span></p><ul><li><p><span>As caudas alcançam <strong>1 metro além do seu corpo</strong>.</span></p></li><li><p><span>Podem sustentar, entre todas elas, <strong>Carga igual ao nível da habilidade</strong>. Isso não aumenta sua capacidade total de carga.</span></p></li></ul><p><span><strong>Nos níveis 5, 10 e 15:</strong> o alcance aumenta em 1 metro.</span></p><p></p><h5>Manifestação lunar — Mar de Caudas</h5><p><span>Na transformação, <strong>cada uma das nove caudas se desdobra em outras nove</strong>, formando um manto de <strong>81 caudas</strong>, mais longas e capazes de agir coordenadamente.</span></p><h6><span>Manto Protetor</span></h6><p><span>O alcance das caudas é dobrado. Você pode envolvê-las ao redor de criaturas nesse alcance e <strong>usar sua reação de Bloquear para proteger uma delas</strong>, utilizando sua própria rolagem de Bloqueio.</span></p><ul><li><p><span>Você precisa perceber o ataque e conseguir colocar as caudas entre ele e a criatura.</span></p></li><li><p><span>A redução se aplica ao dano que aquela criatura receberia.</span></p></li><li><p><span>O bloqueio é aplicado antes da Esquiva ou Bloqueio da criatura protegida contra o mesmo ataque.</span></p></li><li><p><span>Cada uso protege uma criatura de uma instância de dano. Um ataque em área não é bloqueado para o grupo inteiro com uma única reação.</span></p></li></ul>
+    categoria: passiva
+  efeitos:
+    - id: MuFsrwGj2T7ZfE6u
+      name: Nove Caudas
+      flags:
+        pyro:
+          alcances:
+            - formula: '@nvl1+@nvl5+@nvl10+@nvl15'
+              modo: add
+              ordem: 0
+          alvosItem:
+            - nome: Caudas
+
+- nome: Criar Técnicas Bestiais
+  id: 6BY7ya4Xi9KpB9bu
+  pasta: Demi-Humanos
+  system:
+    descricao: '<p>Você é capaz de criar técnicas* usando pontos de técnica, conforme o custo abaixo:</p><table><tbody><tr><td data-colwidth="88"><p>Ranque</p></td><td data-colwidth="25"><p>1</p></td><td data-colwidth="25"><p>2</p></td><td data-colwidth="25"><p>3</p></td><td data-colwidth="25"><p>4</p></td><td data-colwidth="48"><p>5</p></td><td data-colwidth="48"><p>6</p></td><td data-colwidth="52"><p>7</p></td></tr><tr><td data-colwidth="88"><p>Pontos</p></td><td data-colwidth="25"><p>1</p></td><td data-colwidth="25"><p>3</p></td><td data-colwidth="25"><p>6</p></td><td data-colwidth="25"><p>10</p></td><td data-colwidth="48"><p>15</p></td><td data-colwidth="48"><p>21</p></td><td data-colwidth="52"><p>28</p></td></tr></tbody></table><p>*: o ranque máximo de uma técnica aprendida pode ser no máximo igual ao seu DET+1.</p><p>Você só pode criar habilidades que utilizem seus ataques desarmados.</p><p>Sempre que essa habilidade subir de nível, você pode recuperar pontos de técnica e redistribuir entre as técnicas, criar novas, ou até mesmo esquecer técnicas.</p><p>Essa habilidade sobe de nível baseado no nível das técnicas usadas (converta Rotineiras para níveis 1 à 5, Difíceis para 6 à 10, e técnicas nível 11+ são consideradas Muito Difíceis).</p><p>Ao atingir nível 5, 10, 15, 20: Aumente em 1 a quantidade de Pontos ganho por nível, retroativamente.</p>'
+    categoria: passiva
+    ranque: 2
+    escalaPorNivel: +1 pontos de técnica por nível.
+    formula: '[NVL]*(1+[NVL5=1;0]+[NVL10=1;0]+[NVL15=1;0]+[NVL20=1;0])'
+    unidadeFormula: ' pontos de técnicas'
+
+- nome: Clã do Corvo
+  id: 9r8I640xILUw7GC2
+  pasta: Elfo
+  system:
+    ehBase: true
+    categoria: passiva
+    escalaPorNivel: +5 de energia natural por nível.
+    formula: 5 * [NVL]
+    unidadeFormula: ' de energia natural'
+
+- nome: Furto Ardiloso
+  id: MeeEI0AEzXi6f847
+  pasta: Gatuno
+  system:
+    descricao: <p>Quando você realiza um furto bem-sucedido sem ser percebido, pode acomodar os pertences restantes, ajeitar a roupa ou substituir o volume retirado para disfarçar a ausência do furto.</p><p>Durante 1 minuto, a vítima não percebe a falta por sinais incidentais, como uma bolsa mais leve, um bolso menos volumoso ou a ausência do tilintar das moedas.</p><p>Procurar, conferir ou tentar usar o objeto revela a falta normalmente. A habilidade não esconde você durante o furto nem transforma falha em sucesso.</p>
+    categoria: passiva
+    ehBase: true
+    escalaPorNivel: 1 minuto adicional antes de ser percebido, por nível.
+    formula: '[NVL]*[NVL5=2;1] *[NVL10=2;1]*[NVL15=2;1]*[NVL20=2;1]'
+    unidadeFormula: ' minutos antes de ser percebido'
+
+- nome: Mestre das Fechaduras
+  id: JTGEhUTuWMODzDD0
+  pasta: Gatuno
+  system:
+    ehBase: true
+    descricao: <p>Depois de arrombar uma fechadura ou mecanismo de fechamento sem destruí-lo, você pode deixar uma adaptação discreta, permitindo fechar a passagem e abri-la novamente sem repetir o teste.</p><p>A adaptação funciona apenas naquele mecanismo e pode ser utilizada por alguém que você tenha instruído. Ela deixa de funcionar se for encontrada e removida, se o mecanismo for reparado/substituído ou após 1 uso. Encontrá-la exige uma inspeção apropriada, não sendo evidente para quem apenas passa pelo local.</p><p>Isso não remove alarmes, armadilhas ou proteções mágicas independentes da fechadura.</p>
+    categoria: passiva
+    escalaPorNivel: +1 quantidade de uso antes de quebrar por nível
+    formula: (1+[NVL])*[NVL5=2;1] *[NVL10=2;1]*[NVL15=2;1]*[NVL20=2;1]
+    unidadeFormula: ' usos antes de quebrar a adaptação'
+
+- nome: Aprendizado Rápido
+  id: z9Oev2DrpH8YrEd0
+  pasta: Humano
+  system:
+    categoria: passiva
+    ehBase: true
+
+- nome: Postura do Tigre
+  id: XLM7WPLZU27QyqQi
+  pasta: Lutador
+  system:
+    descricao: <p>Você se compromete com golpes fortes, abrindo a guarda enquanto pressiona o adversário.</p><p>Ataques corpo a corpo com armas médias ou pesadas que você realizar causam 1d4+1 de dano do mesmo tipo do ataque.</p><p>Enquanto estiver nessa postura, suas rolagens de Bloqueio perdem 1d4.</p>
+    categoria: postura
+    escalaPorNivel: +1 de dano por nível.
+    formula: 1d4+[NVL]+[NVL5=1d4;0]+[NVL10=1d4;0]+[NVL15=1d4;0]+[NVL20=1d4;0]
+    unidadeFormula: ' dano adicional'
+  efeitos:
+    - id: izbgPryDJQGfCwIK
+      name: Postura do Tigre (defesa)
+      system:
+        changes:
+          - key: system.bloqueioBonus
+            value: -1
+            priority: 20
+    - id: sbup4J7PSWZ0OeOs
+      name: Postura do Tigre
+      flags:
+        pyro:
+          danos:
+            - formula: 1d4+@nvl
+              tipo: ''
+          alvosItem:
+            - nome: Espada Longa
+
+- nome: Fôlego de Lutador
+  id: mR9dSHvxVJ57SoDD
+  pasta: Lutador
+  system:
+    descricao: <p>Ao usar Tomar Ar, você recupera Estamina adicional.</p><p>Além disso, uma vez no seu turno, pode usar Tomar Ar durante uma ação Mover-se, sem gastar uma ação adicional. Você pode recuperar o fôlego antes, durante ou depois desse deslocamento.</p>
+    categoria: passiva
+    ehBase: true
+    escalaPorNivel: +1 de estamina recuperada
+    formula: '[NVL]'
+    unidadeFormula: ' de estamina recuperada adicional'
+
+- nome: Postura da Andorinha
+  id: 667cF2m1AG9Q1OZi
+  pasta: Lutador
+  system:
+    descricao: <p><em>Você luta circulando o adversário, entrando e saindo do alcance sem interromper o movimento.</em></p><p>Enquanto estiver nessa postura, você pode realizar ataques antes de finalizar os metros da sua ação Mover-se sem perder a distância restante, podendo terminar o movimento após o(s) ataque(s).</p><p>Além disso aumente sua velocidade de movimento.</p><p>Ao usar bloquear, sai da postura.</p>
+    categoria: postura
+    escalaPorNivel: +1 metro de deslocamento por nível
+    formula: '[NVL]'
+    unidadeFormula: ' metros adicionais'
+  efeitos:
+    - id: 84UVOOX9UgmdIDCX
+      name: Postura da Andorinha
+      system:
+        changes:
+          - key: system.velocidadeBonus
+            value: '@nvl'
+            priority: 20
+
+- nome: Postura da Tartaruga
+  id: Q4AIiHpO4xS9g2AD
+  pasta: Lutador
+  system:
+    ehBase: true
+    descricao: <p><em>Você firma os pés e recebe os golpes com o corpo inteiro, dificultando que atravessem sua guarda.</em></p><p>Suas rolagens de Bloqueio recebem 1d4. Além disso, após realizar um bloqueio, caso o dano restante seja igual ou menor que o nível da habilidade, reduza ele a 0.</p><p>Sua distância percorrida com a ação Mover-se é reduzida em 2m.</p><p>A cada 5 níveis, aumenta em 1d4 o aumento de Bloqueio.</p>
+    categoria: postura
+    escalaPorNivel: +1 de dano a mais que pode ser reduzido completamente após bloquear
+    formula: '[NVL]'
+    unidadeFormula: ' de dano que pode ser reduzido'
+  efeitos:
+    - id: HljKqDwfSxvuR4Nn
+      name: Postura da Tartaruga
+      system:
+        changes:
+          - key: system.bloqueioBonus
+            value: 1
+            priority: 20
+          - key: system.velocidadeBonus
+            value: -2
+            priority: 20
+
+- nome: Aprendizado de Runas
+  id: T3MrlXSY4qw7cvrJ
+  pasta: Mago
+  system:
+    descricao: <p>Aprenda uma nova runa ou gesto. Aprenda mais uma runa a cada nível da habilidade.</p><p>Essa habilidade sobe de nível baseado no nível das magias usadas:</p><ul><li><p>Converta Rotineiras para níveis 1 à 5</p></li><li><p>Difíceis para 6 à 10</p></li><li><p>E nível 11+ são consideradas Muito Difíceis\</p></li></ul>
+    categoria: passiva
+    escalaPorNivel: +1 runa do léxico humano por nível.
+    formula: '[NVL]'
+    unidadeFormula: ' runas aprendidas'
+
+- nome: Conjuração Divina
+  id: mtuMHBEQHUr8mp2S
+  pasta: Mago
+  system:
+    ehBase: true
+    categoria: passiva
+
+- nome: Sentido Espiritual
+  id: JhDS0jQwfrGnJu1A
+  pasta: Mago
+  system:
+    descricao: <p>Através do sentidos de mana e da capacidade, o usuário pode enxergar através da presença e ausência de mana no ambiente.</p><p>Recebe sentido espiritual de mana até metade do seu [SAB] metros de distância.</p>
+    categoria: passiva
+    escalaPorNivel: +10% de distância do sentido por nível.
+    formula: '[SAB]*(0.9+0.1*[NVL])*[NVL5=2;1] *[NVL10=2;1]*[NVL15=2;1]*[NVL20=2;1]'
+    unidadeFormula: ' metros'
+    sentido:
+      tipo: mana
+      alcance: '[SAB]*(0.9+0.1*[NVL])*[NVL5=2;1] *[NVL10=2;1]*[NVL15=2;1]*[NVL20=2;1]'
+    ranque: 2
+
+- nome: Vida Austéra
+  id: sLVIOTu8dZlw6QV0
+  pasta: Monge
+  system:
+    ehBase: true
+    descricao: '<p>Seu corpo está habituado a viver com pouco. A quantidade de alimento necessária para sua alimentação diária é reduzida.</p><p>Além disso, você consegue descansar normalmente em condições simples: chão firme, ausência de cama, roupas desconfortáveis e ruídos cotidianos não impedem seu descanso confortável.</p><p>Isso não permite descansar em meio a perigo imediato nem ignora frio extremo, calor extremo, doenças ou outras condições nocivas.</p>'
+    categoria: passiva
+    escalaPorNivel: 5% por nível da habilidade
+    formula: '5'
+    unidadeFormula: '% de alimentos necessários a menos'
+
+- nome: Didática
+  id: BWwGmMzwXaXXMkqR
+  pasta: Professor
+  system:
+    ehBase: true
+    descricao: <p>Você pode orientar o aprendizado de uma perícia que possua nível superior ao do aluno.</p><p>Quando um aluno realiza uma tarefa sob sua orientação, ele recebe um registro adicional de progresso da mesma dificuldade daquele teste. Isso não altera a rolagem, não garante sucesso e não dispensa condições específicas de progressão.</p><ul><li><p>Cada aluno pode receber esse benefício uma vez por objetivo, mesmo que faça vários testes.</p></li><li><p>Você precisa acompanhar a execução e se comunicar com ele, o orientando durante a cena.</p></li><li><p>Não pode usar a habilidade em si mesmo.</p></li></ul>
+    escalaPorNivel: Pode orientar um aluno adicional por nível.
+    custoAcoes: 2
+    tipoCusto: reacao
+    formula: '[NVL]'
+    unidadeFormula: ' alunos orientados simultaneamente'
+
+- nome: O Jeito Certo
+  id: rmCflzND9q5MwQxE
+  pasta: Professor
+  system:
+    descricao: <p>Quando algum aluno faz algo, ele erra, por isso os professores existem. Após um aluno falhar em uma ação próximo a você, você pode orientá-lo corretamente em como prosseguir, permitindo que ele tente novamente o teste desde que as condições o permitam.</p><p>Quando o aluno refizer o teste ele receberá um bônus.</p>
+    escalaPorNivel: +1 bônus ao teste por nível.
+    custoAcoes: 1
+    tipoCusto: reacao
+    formula: '[NVL]'
+    unidadeFormula: ' bônus no teste'
+
+- nome: Reflexão Prática
+  id: aJc08AiBAlwBPcVr
+  pasta: Professor
+  system:
+    ehBase: true
+    descricao: '<p>Após enfrentar um objetivo no qual tenha usado uma perícia, você pode dedicar um tempo a revisar sua atuação: reconstruir o raciocínio, comparar métodos, identificar erros ou experimentar outra abordagem.</p><p>Escolha uma perícia que tenha utilizado e ganho um registro para aumentar seu nível há no máximo um dia. Ao concluir a revisão, receba um registro adicional da mesma categoria.</p><ul><li><p>Cada objetivo permite <strong>uma única revisão</strong>, de uma única perícia.</p></li></ul>'
+    escalaPorNivel: Tempo de revisão reduzido em 2 minutos por nível
+    formula: 60-[NVL]*2
+    unidadeFormula: ' minutos de tempo de revisão.'
+
+- nome: Passo das Sombras
+  id: 8jpywSXratrKOTEu
+  pasta: Sicário
+  system:
+    descricao: '<p>Uma vez no seu turno, imediatamente depois de um ataque corpo a corpo com uma arma leve, você pode se mover até 2 metros sem gastar ações e sem produzir som.</p><p>Esse movimento deve começar ou terminar em uma posição na qual você possa tentar se esconder do alvo (atrás de cobertura, fora de sua linha de visão ou em outra situação apropriada).</p><p>A habilidade não esconde você automaticamente: testes de Furtividade continuam necessários.</p>'
+    ehBase: true
+    escalaPorNivel: se mova 1 metro adicional por nível da habilidade
+    formula: 1+[NVL]
+    unidadeFormula: ' metros'
+
+- nome: Postura do Sicário
+  id: kIXOkiKDg6Fxmk9v
+  pasta: Sicário
+  img: systems/pyro/icons/tecnica.svg
+  system:
+    ehBase: true
+    descricao: <p>Enquanto nessa postura, ao realizar ataques com armas leves, tem chance de realizar um segundo ataque com a mesma arma do ataque original.</p><p>Além disso, se realizar a ação "Tomar ar", sai da postura.</p>
+    categoria: postura
+    escalaPorNivel: 1% de chance adicional por nível
+    formula: '[NVL]*(1+[NVL5=1;0]+[NVL10=1;0]+[NVL15=1;0]+[NVL20=1;0])'
+    unidadeFormula: '% de chance'
+
+- nome: Doutrina Militar
+  id: 2pp5PXFMhtCryNwn
+  pasta: Soldado
+  system:
+    descricao: '<p>Ao preparar uma operação, você pode combinar um procedimento de contingência com seus aliados: uma instrução associada a uma condição clara, funcionando como um Instinto temporário adicional para os aliados.</p><p>Exemplos:</p><ul><li><p>“Ao ouvir duas batidas, fechem a passagem.”</p></li><li><p>“Se o portador da tocha cair, quem estiver mais próximo assume a iluminação.”</p></li><li><p>“Quando a retirada for anunciada, reúnam-se na escadaria.”</p></li></ul><p></p><p>Dura até o final da operação.</p><p>Pode incluir a sí mesmo como alvo (não conta para o limite de alvos)</p><p>Ao atingir nível 5, 10, 15: Permite escolher diferentes instintos para diferentes alvos (ainda limitado a 1 por alvo).</p>'
+    categoria: passiva
+    ehBase: true
+    escalaPorNivel: +1 aliado por nível.
+    formula: '[NVL]'
+    unidadeFormula: ' quantidade de aliados orientados.'
+
+- nome: Organização de Bagagem
+  id: D9fNrVW9Bq2nhVNr
+  pasta: Soldado
+  system:
+    ehBase: true
+    descricao: <p>Você sabe distribuir peso, ajustar correias e organizar seus pertences para carregar equipamento durante longas jornadas.</p><p>Após 10 minutos organizando sua bagagem, sua capacidade de carga aumenta, enquanto transportar os objetos devidamente acondicionados em mochilas, bolsas ou presos ao corpo.</p><p>Esse aumento não se aplica a carregar criaturas, erguer objetos ou transportar algo solto nas mãos.</p><p>Retirar ou guardar um objeto não desfaz a organização. Os 10 minutos só precisam ser repetidos quando você reorganizar substancialmente a carga.</p>
+    categoria: passiva
+    escalaPorNivel: +2 de peso por nível
+    formula: 2*[NVL]
+    unidadeFormula: ' de peso adicional'
+
+- nome: Ronda Atenta
+  id: zTxvVjlJUh5PzOdZ
+  pasta: Soldado
+  system:
+    descricao: '<p>Você sabe preparar pequenos indicadores de passagem: alinhar objetos, posicionar fios discretos, aproveitar poeira, marcar uma porta ou utilizar materiais semelhantes.</p><p>Após <strong>1 minuto preparando um acesso</strong>, quem atravessá-lo deixa um sinal de passagem que você consegue reconhecer ao inspecioná-lo, sem precisar de um teste para interpretar seu próprio indicador.</p><p>Isso revela que alguém passou, não sua identidade, quantidade ou posição atual. Não dispara um aviso à distância.</p><p>Cada preparação pode cobrir uma passagem de até 1 metro de largura, aumentando em 1 por nível.</p>'
+    escalaPorNivel: +1 metro de largura
+    formula: '[NVL]'
+    unidadeFormula: ' largura da passagem'
+
+- nome: Criar Técnicas
+  id: uxvUU5bND5BYkTwJ
+  system:
+    descricao: '<p>Você é capaz de criar técnicas* usando pontos de técnica, conforme o custo abaixo:</p><table><tbody><tr><td data-colwidth="88"><p>Ranque</p></td><td data-colwidth="25"><p>1</p></td><td data-colwidth="25"><p>2</p></td><td data-colwidth="25"><p>3</p></td><td data-colwidth="25"><p>4</p></td><td data-colwidth="48"><p>5</p></td><td data-colwidth="48"><p>6</p></td><td data-colwidth="52"><p>7</p></td></tr><tr><td data-colwidth="88"><p>Pontos</p></td><td data-colwidth="25"><p>1</p></td><td data-colwidth="25"><p>3</p></td><td data-colwidth="25"><p>6</p></td><td data-colwidth="25"><p>10</p></td><td data-colwidth="48"><p>15</p></td><td data-colwidth="48"><p>21</p></td><td data-colwidth="52"><p>28</p></td></tr></tbody></table><p>*: o ranque máximo de uma técnica aprendida pode ser no máximo igual ao seu DET+1.</p><p>Sempre que essa habilidade subir de nível, você pode recuperar pontos de técnica e redistribuir entre as técnicas, criar novas, ou até mesmo esquecer técnicas.</p><p>Essa habilidade sobe de nível baseado no nível das técnicas usadas (converta Rotineiras para níveis 1 à 5, Difíceis para 6 à 10, e técnicas nível 11+ são consideradas Muito Difíceis).</p><p>Ao atingir nível 5, 10, 15, 20: Aumente em 1 a quantidade de Pontos ganho por nível, retroativamente.</p>'
+    categoria: passiva
+    escalaPorNivel: +1 pontos de técnica por nível.
+    formula: '[NVL]*(1+[NVL5=1;0]+[NVL10=1;0]+[NVL15=1;0]+[NVL20=1;0])'
+    unidadeFormula: ' pontos de técnicas'
+
+- nome: Feitiçaria - Conter Aura
+  id: RJNlEgvBtvEICAph
+  pasta: Feitiçaria
+  system:
+    descricao: <p>É o oposto da Aura de Proteção, o usuário desliga completamente e contém a energia dele dentro do corpo, tornando-o indetectável a outros usuários de energia espiritual. É uma técnica principalmente furtiva, um usuário experiente se torna invisível a detecção baseada em energia espiritual.</p><p>Quando ativo, a Aura de Proteção será desativada, e a Aura de Energia não poderá ser usada.</p><p>Também é usado passivamente para recuperar de exaustão de energia, pois suprimir a energia ajuda o corpo a recuperar ela mais rapidamente.</p>
+    categoria: transformacao
+
+- nome: Feitiçaria - Criar Feitiços
+  id: 5JtyoSIwuTqHMBKM
+  pasta: Feitiçaria
+  system:
+    descricao: <p>Feitiços são a expressão das habilidades pessoais únicas através da sua energia. A aplicação individual da energia é formada pela natureza, desejos e afinidade do usuário. É o que torna fortes feiticeiros diferentes uns dos outros.</p><p>Os feitiços são inseparáveis da afinidade de energia. Um fortificador amplifica seu físico, conjurador cria objetos, um transmutador transforma propriedades da energia, um emissor projeta energia, um manipulador controla coisas e um especialista é alguém com uma habilidade que não se enquadra nas categorias padrão. O poder de um feitiço escala diretamente com o quanto ele se alinha com a natureza real do usuário.</p>
+    categoria: passiva
+    escalaPorNivel: +1 ponto de criação por nível
+    formula: '[NVL]*(2+[NVL5=1;0]+[NVL10=1;0]+[NVL15=1;0]+[NVL20=1;0])'
+    unidadeFormula: ' pontos'
+
+- nome: Feitiçaria Avançada - Esconder Aura
+  id: ZnSf4RSXLfHEdaVn
+  pasta: Feitiçaria
+  system:
+    descricao: <p>In renders the user's aura — or a conjured object's aura — completely invisible. While Suprimir Aura suppresses aura output entirely, In specifically hides aura from detection without removing its effects. The practical use is to conceal active Feitiço constructs (invisible threads, hidden weapons, silent attacks).</p><p>In is the opposite of Gyo. Gyo counters In by giving the user the perception to detect hidden aura. At high levels, the contest between In and Gyo users becomes the central dynamic of advanced Nen combat.</p>
+    ranque: 2
+
+- nome: Feitiçaria Avançada - Sentido Espiritual
+  id: PoaUJ693Ud0WCzCa
+  pasta: Feitiçaria
+  system:
+    descricao: <p>En extends the user's aura as an expanding sphere around their body, creating a field of spatial awareness. Anything that enters the En field is sensed — shape, size, speed, Nen presence. It's the most comprehensive detection technique available.</p><p>En range varies dramatically with the user's aura output. Average users manage a few meters; elite users extend dozens. The cost is continuous aura consumption proportional to the sphere's radius.</p>
+    categoria: passiva
+    ranque: 2
+    escalaPorNivel: +10% de distância do sentido por nível.
+    formula: '[PRE]/2*(0.9+0.1*[NVL])*[NVL5=2;1] *[NVL10=2;1]*[NVL15=2;1]*[NVL20=2;1]'
+    unidadeFormula: ' metros'
+    sentido:
+      tipo: energia
+      alcance: '[PRE]/2*(0.9+0.1*[NVL])*[NVL5=2;1] *[NVL10=2;1]*[NVL15=2;1]*[NVL20=2;1]'
+
+- nome: Feitiçaria Avançada - Focar Aura
+  id: wuDHT9xtzDhKgIuz
+  pasta: Feitiçaria
+  system:
+    descricao: '<p>Ko forces all of the user''s aura into a single point — typically a fist or other striking surface — creating an attack of extreme destructive power.</p><p>The risk is absolute: every other part of the body is completely unprotected during Ko. A skilled opponent who reads the technique can exploit the exposed areas fatally. Ko is reserved for decisive moments where the goal is maximum damage over survival.</p>'
+    ranque: 2
+
+- nome: Conjuração Demoníaca
+  id: akmqMaS6P89MjI19
+  pasta: Feitiçaria
+  system:
+    ehBase: true
+    descricao: <p>Transmutação 100%</p><p>Fortificação e Conjuração 80%</p><p>Emissão 60%</p><p>Manipulação 40%</p>
+    categoria: passiva
+
+- nome: Fortificar Ataque
+  id: kcXT8z3mWoZDoWGl
+  pasta: Feitiçaria
+  system:
+    ehBase: true
+    escala:
+      ativa: true
+      rotulo: Intenção
+      atributo: pre
+      custos:
+        - recurso: energia
+          base: 1.25
+      escalamentos:
+        - nome: Dano
+          base: 1
+          porPonto: 1
+          faces: 8
+          tipoDano: cortante
+
+- nome: Regeneração Demoníaca
+  id: 2IQrFfeD0ypOMOmi
+  pasta: Feitiçaria
+  system:
+    categoria: passiva
+    ehBase: true
+    formula: '[PRE]/10*[NVL]'
+    unidadeFormula: ' de vida por turno'
+  efeitos:
+    - id: 0q8SAWzRfEpOYq8D
+      name: Regeneração Demoníaca
+      system:
+        changes:
+          - key: system.regeneracao
+            value: '@nvl*@pre/10'
+            priority: 20
+
+- nome: Feitiçaria - Aura de Proteção
+  id: zWaWmNNQV0Xd9iAA
+  pasta: Feitiçaria
+  system:
+    descricao: <p>O usuário mantém uma camada fina de aura constantemente em seu corpo inteiro. Provendo uma proteção passiva contra danos físicos e energéticos.</p><p>Está sempre ativo.</p>
+    categoria: transformacao
+    escalaPorNivel: Aumenta a defesa recebida em 1
+    formula: '[NVL]*[NVL5=2;1]*[NVL10=2;1]*[NVL15=2;1]*[NVL20=2;1]'
+    unidadeFormula: ' de defesa física e energética'
+  efeitos:
+    - id: WO9sL5wU5H6s44Uv
+      name: Aura de Proteção
+      system:
+        changes:
+          - key: system.defesas.categorias.energetico
+            value: '@nvl*2'
+            priority: 20
+          - key: system.defesas.categorias.fisico
+            value: '@nvl*2'
+            priority: 20
+
+- nome: Feitiçaria - Aura de Energia
+  id: 3H1n1Eliw1AOQvH6
+  pasta: Feitiçaria
+  system:
+    descricao: '<p>Projeta a energia do usuário pra fora em grandes quantidades, intensificando dramaticamente as suas capacidades físicas: força, velocidade e durabilidade são aumentados. <br>A aura de energia é a fundação de combate feiticeiro ofensivo, a maioria das habilidades requerem a aura ativa para atingir poder total.</p><p>Para manter a aura ativa, há um consumo de energia espiritual, drenando as reservas de energia do usuário conforme o tempo.</p><p>Os valores dessa habilidade escalam com a afinidade de Fortificação.</p>'
+    categoria: transformacao
+    escalaPorNivel: +1 nos bônus fixos e 10% do dano em armas físicas
+    custoEnergia: 1
+    formula: 0.8*[NVL]
+    unidadeFormula: ' de defesa física, energética, metros de velocidade e dano físico.'
+    manutencao:
+      custos:
+        - recurso: energia
+          valor: '1'
+  efeitos:
+    - id: VChjWaghSoPAyIrJ
+      name: Aura de Energia
+      system:
+        changes:
+          - key: system.velocidadeBonus
+            value: '@nvl *0.8'
+            priority: 20
+          - key: system.defesas.categorias.fisico
+            value: '@nvl *0.8'
+            priority: 20
+          - key: system.defesas.categorias.energetico
+            value: '@nvl *0.8'
+            priority: 20
+    - id: RTdxwfypYofNd3AX
+      name: Aura de Energia (dano)
+      flags:
+        pyro:
+          multsDano:
+            - formula: 1+0.8*(0.1*@nvl)
+              tipo: ''
+              ordem: 0
+          alvosItem:
+            - nome: Garras
+            - nome: Mordida

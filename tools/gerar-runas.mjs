@@ -61,7 +61,18 @@ const ELEMENTOS = [
   { tipoDano: "indefinido", chave: "morte", nome: "Morte", dano: [2, 1, 12], subjulgar: true,
     desc: "Não causa dano direto: o resultado é comparado com a vida máxima do alvo (ver Subjulgar)." },
   { chave: "espaco", nome: "Espaço", dano: null, tipoDano: "",
-    desc: "Portais, teleporte e dimensões de bolso. Sem dano padrão: o efeito é combinado com o mestre." }
+    desc: "Portais, teleporte e dimensões de bolso. Sem dano padrão: o efeito é combinado com o mestre." },
+  /*
+   * Palavras com efeito próprio sobre um elemento da tabela: o elemento dá o
+   * tipo e a cor, e a palavra é o nome com que as magias as procuram (ver
+   * runaDaMagia). Os números são os das magias que as usam.
+   */
+  { chave: "deslocarSe", elemento: "espaco", nome: "Deslocar-se", dano: null, tipoDano: "",
+    extras: [escala("Teleportes", 1, 1)],
+    desc: "Teleporta quem conjura. 1 teleporte, +1 por Intenção. Se divide em tantos trechos quantos forem os teleportes. Não causa dano." },
+  { chave: "iluminar", elemento: "fogo", nome: "Iluminar", dano: null, tipoDano: "nenhum",
+    extras: [escala("Raio (metros)", 3, 2)],
+    desc: "Chamas que iluminam em vez de ferir: não causa dano. Ilumina normalmente num raio de 3 metros, +2 por Intenção, e em penumbra até o dobro dessa distância." }
 ];
 
 /** Formas: a Intenção define alcance, área e número de alvos. */
@@ -83,7 +94,9 @@ const FORMAS = [
   { chave: "aura", nome: "Aura", scalings: [escala("Raio (metros)", 1, 1)],
     desc: "1 metro, +1 metro por Intenção." },
   { chave: "toque", nome: "Toque", scalings: [escala("Intenção extra", 1, 1)],
-    desc: "Alcance 0. Cada Intenção em Toque dá +1 de Intenção a uma outra runa da frase, escolhida na conjuração." }
+    desc: "Alcance 0. Cada Intenção em Toque dá +1 de Intenção a uma outra runa da frase, escolhida na conjuração." },
+  { chave: "barreira", nome: "Barreira", scalings: [escala("Duração (golpes)", 1, 1)],
+    desc: "Envolve quem conjura numa barreira que aguenta 1 golpe, +1 golpe por Intenção." }
 ];
 
 /** Modificadores: gestos que escalam a magia de outras formas. */
@@ -108,14 +121,17 @@ function idEstavel(...partes) {
   return BigInt(`0x${hash}`).toString(36).padStart(16, "0").slice(0, 16);
 }
 
-function documento({ tipoRuna, chave, nome, scalings, desc, subjulgar = false, tipoDano = "", folder, sort }) {
+function documento({
+  tipoRuna, chave, elemento = chave, palavra = "", nome, scalings, desc,
+  subjulgar = false, tipoDano = "", folder, sort
+}) {
   const id = idEstavel("runa", tipoRuna, chave);
   return {
     _id: id,
     _key: `!items!${id}`,
     name: nome,
     type: "runa",
-    img: ICONES[chave] ?? icone("aura"),
+    img: ICONES[chave] ?? ICONES[elemento] ?? icone("aura"),
     folder,
     sort,
     system: {
@@ -123,14 +139,14 @@ function documento({ tipoRuna, chave, nome, scalings, desc, subjulgar = false, t
       tipoRuna,
       // Só o elemento tem subtipo: é a linha da tabela de dano. O gesto é
       // reconhecido pelo nome, quando tem regra própria.
-      subtipo: tipoRuna === "elemento" ? chave : "",
+      subtipo: tipoRuna === "elemento" ? elemento : "",
       /*
        * A palavra é da mesa: "Chamas" para Fogo, "Sopro" para Vento. No
        * elemento ela fica vazia, porque o nome vem da tabela de elementos; no
        * gesto o nome é a própria palavra, e deixá-la vazia faria a ficha
        * mostrar um traço onde deveria estar "Toque".
        */
-      palavra: tipoRuna === "elemento" ? "" : nome,
+      palavra: tipoRuna === "elemento" ? palavra : nome,
       lingua: "humana",
       subjulgar,
       maos: tipoRuna === "elemento" ? 0 : 1,
@@ -172,11 +188,16 @@ function main() {
   });
 
   ELEMENTOS.forEach((el, i) => {
-    const scalings = el.dano
-      ? [escala("Dano", el.dano[0], el.dano[1], el.dano[2]), ...(el.extras ?? [])]
-      : [];
+    const scalings = [
+      ...(el.dano ? [escala("Dano", el.dano[0], el.dano[1], el.dano[2])] : []),
+      ...(el.extras ?? [])
+    ];
+    // Palavra própria (ver o fim de ELEMENTOS): o nome é a palavra, e é ela
+    // que a ficha mostra e que a magia procura.
+    const palavra = el.elemento ? el.nome : "";
     escrever(`elemento-${el.chave}.json`, documento({
-      tipoRuna: "elemento", chave: el.chave, nome: el.nome, scalings, desc: el.desc,
+      tipoRuna: "elemento", chave: el.chave, elemento: el.elemento ?? el.chave, palavra,
+      nome: el.nome, scalings, desc: el.desc,
       subjulgar: !!el.subjulgar, tipoDano: el.tipoDano ?? "",
       folder: idPasta.elemento, sort: (i + 1) * 100000
     }));

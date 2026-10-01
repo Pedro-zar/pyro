@@ -1,0 +1,21 @@
+# Compêndio "Caminhos" do PYRO.
+#
+# Cada item é uma entrada da lista. `npm run build` gera o compêndio a partir
+# daqui: edite, compile e o Foundry mostra a versão nova depois de recarregar.
+#
+#   nome:     obrigatório.
+#   id:       16 letras ou números. Sem ele, o id sai do nome e da pasta, e
+#             trocar um dos dois troca o id. Depois de criado, não mude.
+#   pasta:    pastas do compêndio separadas por "/", como "Elfo/Formas".
+#   img:      caminho da imagem. Sem ela, fica o ícone do tipo. "systems/pyro/"
+#             vira o id do sistema no build.
+#   system:   só os campos que fogem do padrão do tipo. O que faltar vem do
+#             padrão ao carregar, então não precisa escrever campo vazio.
+#   efeitos:  os efeitos ativos, no formato do Foundry (name, system.changes,
+#             disabled, transfer...). id segue a mesma regra do item.
+#   flags:    flags do item, se houver. As do sistema ficam sob "pyro", e o
+#             build troca pelo id do sistema.
+#
+# Para copiar um item feito no mundo, exporte de novo com a macro e rode
+# `npm run importar`: o que já está aqui não é tocado, só entra o que é novo.
+

@@ -3,7 +3,7 @@
  * nos hooks de criação e edição, e o "usar" de cada tipo (cards do chat).
  */
 import { PYRO } from "../config.mjs";
-import { conjurarMagiaSalva, scalingsPadrao } from "../magia.mjs";
+import { conjurarMagiaSalva, scalingsPadrao, religarRunas } from "../magia.mjs";
 import { executarTecnica } from "../tecnica.mjs";
 import { formulaPool, prepararFormula, comUnidade } from "../dados.mjs";
 import {
@@ -113,13 +113,31 @@ export class PyroItem extends Item {
     if (this.type === "runa" && data.system?.palavra) {
       this.updateSource({ name: nomeDaRuna(this.system) });
     }
+    // Magia que chega numa ficha prende as runas dela (ver religarRunas).
+    if (this.type === "magia" && this.actor) {
+      const runas = religarRunas(this.actor, this.system.toObject().runas);
+      if (runas) this.updateSource({ "system.runas": runas });
+    }
   }
 
-  /** Caminho novo num ator já nasce com a habilidade base dele. */
+  /**
+   * Caminho novo num ator já nasce com a habilidade base dele. Runa nova
+   * prende as magias da ficha que esperavam uma runa com o nome dela: a
+   * magia pode ter chegado antes da runa.
+   */
   async _onCreate(data, options, userId) {
     super._onCreate(data, options, userId);
-    // Só o cliente que criou monta a habilidade, senão duplica.
-    if (userId !== game.user.id || this.type !== "caminho" || !this.actor) return;
+    // Só o cliente que criou mexe nos outros itens, senão duplica.
+    if (userId !== game.user.id || !this.actor) return;
+    if (this.type === "runa") {
+      const updates = this.actor.items.filter(i => i.type === "magia").map(magia => {
+        const runas = religarRunas(this.actor, magia.system.toObject().runas);
+        return runas ? { _id: magia.id, "system.runas": runas } : null;
+      }).filter(Boolean);
+      if (updates.length) await this.actor.updateEmbeddedDocuments("Item", updates);
+      return;
+    }
+    if (this.type !== "caminho") return;
     await Item.implementation.create({
       name: game.i18n.localize("PYRO.Item.HabilidadeBase"),
       type: "habilidade",

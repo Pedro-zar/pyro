@@ -5,7 +5,7 @@
 import { PYRO } from "../config.mjs";
 import { ConstrutorEfeitoApp } from "./../apps/construtor-efeito.mjs";
 import {
-  scalingsPadrao, chaveVariavel, SEM_DANO, calcular, variaveisDasRunas, duracaoDasRunas
+  scalingsPadrao, chaveVariavel, SEM_DANO, calcular, variaveisDasRunas, duracaoDasRunas, runaDaMagia
 } from "../magia.mjs";
 import {
   TIPOS_DE_FORMA, formaNova, resolverArea, svgDaArea, opcoesDeTipo, sugestaoDasRunas,
@@ -392,7 +392,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       tipoDanoOpts: opcoesTipoDano(),
       runasMagia: item.type === "magia"
         ? (sys.runas ?? []).map(r => {
-            const runa = actor?.items.get(r.itemId);
+            const runa = runaDaMagia(actor, r);
             const cfg = runa?.system.tipoRuna === "elemento"
               ? PYRO.elementos[runa.system.subtipo] : null;
             // A cópia guardada na magia manda: ela pode ter ganhado Intenções
@@ -1218,7 +1218,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
     if (item.type === "magia") {
       if (!actor) return vars;
       const escolhas = (item.system.runas ?? []).map(ref => {
-        const runa = actor.items.get(ref.itemId);
+        const runa = runaDaMagia(actor, ref);
         return runa ? {
           item: runa, intencao: n, scalings: ref.scalings, subjulgar: ref.subjulgar, tipoDano: ref.tipoDano
         } : null;

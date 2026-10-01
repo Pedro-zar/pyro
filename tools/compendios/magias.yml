@@ -1,0 +1,703 @@
+# Compêndio "Magias" do PYRO.
+#
+# Cada item é uma entrada da lista. `npm run build` gera o compêndio a partir
+# daqui: edite, compile e o Foundry mostra a versão nova depois de recarregar.
+#
+#   nome:     obrigatório.
+#   id:       16 letras ou números. Sem ele, o id sai do nome e da pasta, e
+#             trocar um dos dois troca o id. Depois de criado, não mude.
+#   pasta:    pastas do compêndio separadas por "/", como "Elfo/Formas".
+#   img:      caminho da imagem. Sem ela, fica o ícone do tipo. "systems/pyro/"
+#             vira o id do sistema no build.
+#   system:   só os campos que fogem do padrão do tipo. O que faltar vem do
+#             padrão ao carregar, então não precisa escrever campo vazio.
+#   efeitos:  os efeitos ativos, no formato do Foundry (name, system.changes,
+#             disabled, transfer...). id segue a mesma regra do item.
+#   flags:    flags do item, se houver. As do sistema ficam sob "pyro", e o
+#             build troca pelo id do sistema.
+#
+# Para copiar um item feito no mundo, exporte de novo com a macro e rode
+# `npm run importar`: o que já está aqui não é tocado, só entra o que é novo.
+
+- nome: Deslocar-se
+  id: dF2fXVqOTDQGnK3x
+  system:
+    usaDt: false
+    runas:
+      - nome: Deslocar-se
+        scalings:
+          - nome: Teleportes
+            base: 1
+            porIntencao: 1
+            faces: 0
+      - nome: Linha
+        scalings:
+          - nome: Comprimento
+            base: 6
+            porIntencao: 4
+            faces: 0
+    area:
+      ativa: true
+      formas:
+        - tipo: linha
+          raio: '1'
+          comprimento: '@runas.linha.comprimento'
+          largura: 1+@runas.amplo.amplitude
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '@runas.deslocarSe.teleportes'
+
+- nome: Disparo de Choque
+  id: 5r2aLVH9SldE1pWi
+  system:
+    usaDt: false
+    runas:
+      - nome: Descarregar
+        tipoDano: energia
+        scalings:
+          - nome: Dano
+            base: 2
+            porIntencao: 0.25
+            faces: 10
+          - nome: Corrente
+            base: 0.5
+            porIntencao: 0.5
+            faces: 0
+      - nome: Linha
+        scalings:
+          - nome: Comprimento
+            base: 6
+            porIntencao: 4
+            faces: 0
+    area:
+      ativa: true
+      formas:
+        - tipo: linha
+          raio: '1'
+          comprimento: '@runas.linha.comprimento'
+          largura: 1+@runas.amplo.amplitude
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '1'
+
+- nome: Hiraishin
+  id: xSDOpmBYom0YuQT7
+  system:
+    usaDt: false
+    runas:
+      - nome: Descarregar
+        tipoDano: energia
+        scalings:
+          - nome: Dano
+            base: 2
+            porIntencao: 0.25
+            faces: 10
+          - nome: Corrente
+            base: 0.5
+            porIntencao: 0.5
+            faces: 0
+      - nome: Deslocar-se
+        scalings:
+          - nome: Teleportes
+            base: 1
+            porIntencao: 1
+            faces: 0
+      - nome: Linha
+        scalings:
+          - nome: Comprimento
+            base: 6
+            porIntencao: 4
+            faces: 0
+    area:
+      ativa: true
+      formas:
+        - tipo: linha
+          raio: '1'
+          comprimento: '@runas.linha.comprimento'
+          largura: 1+@runas.amplo.amplitude
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '@runas.deslocarSe.teleportes'
+
+- nome: Lufada de Vento
+  id: VLXCH9tcvoKDP6bb
+  system:
+    runas:
+      - nome: Sopro
+        tipoDano: impacto
+        scalings:
+          - nome: Dano
+            base: 4
+            porIntencao: 1
+            faces: 4
+          - nome: Empurrado (metros)
+            base: 1
+            porIntencao: 1
+            faces: 0
+      - nome: Rajada
+        scalings:
+          - nome: Comprimento
+            base: 6
+            porIntencao: 4
+            faces: 0
+    descricao: '<p>Dispara uma rajada de vento em uma linha, causando dano e empurrando todos inimigos na linha.</p><p>Caso o usuário esteja no ar, ele é empurrado em uma distância igual aos alvos atingidos.</p><p></p><p>Intenção 0: Realiza um sopro constante breve e constante de vento não muito forte.</p>'
+    resistencias:
+      - pericia: Firmeza
+        atributo: for
+      - pericia: Reflexos
+        atributo: agi
+    area:
+      ativa: true
+      formas:
+        - tipo: linha
+          raio: '1'
+          comprimento: '@runas.rajada.comprimento'
+          largura: '1'
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '1'
+
+- nome: Saia
+  id: 8kh7NOaxsDWIjycV
+  system:
+    runas:
+      - nome: Deslocar-los
+        scalings:
+          - nome: Distância (metros)
+            base: 1
+            porIntencao: 1
+            faces: 0
+      - nome: Toque
+        scalings:
+          - nome: Intenção extra
+            base: 1
+            porIntencao: 1
+            faces: 0
+    resistencias:
+      - pericia: Resistir a magia
+        atributo: sab
+
+- nome: Tocha
+  id: 0eJZYr18q5X7gfUY
+  system:
+    usaDt: false
+    runas:
+      - nome: Iluminar
+        tipoDano: nenhum
+        scalings:
+          - nome: Raio (metros)
+            base: 3
+            porIntencao: 2
+            faces: 0
+      - nome: Manifestar
+        scalings:
+          - nome: Duração (minutos)
+            base: 1
+            porIntencao: 1
+            faces: 0
+    descricao: <p>Manifesta uma esfera de chamas na mão, iluminando em volta do usuário como uma tocha.</p><p>A iluminação terá iluminação normal igual ao valor da distância, e iluminação penumbra com o dobro dessa distância.</p>
+  efeitos:
+    - id: Rxp5K7VY2VSugcoH
+      name: Tocha
+      system:
+        changes:
+          - key: system.luz.normal
+            value: '@raio'
+            type: upgrade
+            priority: 20
+          - key: system.luz.penumbra
+            value: '@raio *2'
+            type: upgrade
+            priority: 20
+      duration:
+        value: 6
+        expiry: turnStart
+        expired: true
+      transfer: false
+      flags:
+        pyro:
+          deUso: true
+          prazoFormula:
+            formula: '@duracao *10'
+            unidade: turnos
+          prazo:
+            valor: 1
+            unidade: turnos
+          turnos: 1
+
+- nome: Aura Elétrica (Bonus)
+  id: OUFUBnCzXal1Qeqh
+  system:
+    usaDt: false
+    runas:
+      - nome: Estática
+        tipoDano: energia
+        scalings:
+          - nome: Deslocamento
+            base: 2
+            porIntencao: 1
+            faces: 0
+      - nome: Imbuir
+        scalings:
+          - nome: Duração (minutos)
+            base: 1
+            porIntencao: 1
+            faces: 0
+  efeitos:
+    - id: SyoftK04vPG5r45B
+      name: Aura Elétrica
+      system:
+        changes:
+          - key: system.velocidadeBonus
+            value: '@deslocamento'
+            priority: 20
+      duration:
+        value: 6
+        expiry: turnStart
+        expired: true
+      transfer: false
+      flags:
+        pyro:
+          deUso: true
+          prazoFormula:
+            formula: 10*@duracao
+            unidade: turnos
+          prazo:
+            valor: 1
+            unidade: turnos
+          turnos: 1
+
+- nome: Reconstrução Corporal
+  id: f79FAmbIBY6zVUyE
+  system:
+    usaDt: false
+    runas:
+      - nome: Restaurar
+        tipoDano: cura
+        scalings:
+          - nome: ''
+            base: 0
+            porIntencao: 0
+            faces: 0
+      - nome: Apertar
+        scalings:
+          - nome: ''
+            base: 0
+            porIntencao: 0
+            faces: 0
+    descricao: '<p>Intenção 0: Ao usar essa magia diariamente em um alvo, de maneira constante, o usuário é capaz de iniciar um processo de regeneração que pode ser capaz de recuperar membros ou outras partes que normalmente não seriam.</p>'
+
+- nome: Armadura Curativa
+  id: U7mxXYITAXWiHb8q
+  system:
+    usaDt: false
+    runas:
+      - nome: Aglomerar
+        tipoDano: nenhum
+        scalings:
+          - nome: Defesa Física
+            base: 1
+            porIntencao: 1
+            faces: 0
+      - nome: Restaurar
+        tipoDano: cura
+        scalings:
+          - nome: Dano
+            base: 2
+            porIntencao: 1
+            faces: 8
+      - nome: Toque
+        scalings:
+          - nome: Intenção extra
+            base: 1
+            porIntencao: 1
+            faces: 0
+
+- nome: Toque Restaurador
+  id: 0zvjPzaHMU2lls85
+  system:
+    usaDt: false
+    runas:
+      - nome: Restaurar
+        tipoDano: cura
+        scalings:
+          - nome: Dano
+            base: 2
+            porIntencao: 1
+            faces: 8
+      - nome: Toque
+        scalings:
+          - nome: Intenção extra
+            base: 1
+            porIntencao: 1
+            faces: 0
+
+- nome: Soco de Pedras
+  id: bOx87ynWrEcrPLdr
+  system:
+    usaDt: false
+    runas:
+      - nome: Aglomerar
+        tipoDano: impacto
+        scalings:
+          - nome: Dano
+            base: 3
+            porIntencao: 0.5
+            faces: 12
+          - nome: Defesa Física
+            base: 1
+            porIntencao: 1
+            faces: 0
+      - nome: Toque
+        scalings:
+          - nome: Intenção extra
+            base: 1
+            porIntencao: 1
+            faces: 0
+
+- nome: Prisão de Pedra
+  id: raiT9luXgnIOZx7P
+  system:
+    runas:
+      - nome: Aglomerar
+        tipoDano: nenhum
+        scalings:
+          - nome: Defesa Física
+            base: 1
+            porIntencao: 1
+            faces: 0
+          - nome: Pontos de Vida
+            base: 20
+            porIntencao: 10
+            faces: 0
+      - nome: Apertar
+        scalings:
+          - nome: Tamanho do Alvo (metros)
+            base: 0.5
+            porIntencao: 0.5
+            faces: 0
+          - nome: Alcance (metros)
+            base: 6
+            porIntencao: 0
+            faces: 0
+    resistencias:
+      - pericia: Reflexos
+        atributo: agi
+
+- nome: Rajada de Calor
+  id: yrwdLji5l75hyNZt
+  system:
+    runas:
+      - nome: Abrasar
+        tipoDano: calor
+        scalings:
+          - nome: Dano
+            base: 3
+            porIntencao: 1
+            faces: 6
+      - nome: Sopro
+        tipoDano: calor
+        scalings:
+          - nome: Dano
+            base: 4
+            porIntencao: 1
+            faces: 4
+          - nome: Empurrado (metros)
+            base: 0.75
+            porIntencao: 0.75
+            faces: 0
+      - nome: Rajada
+        scalings:
+          - nome: Comprimento
+            base: 6
+            porIntencao: 4
+            faces: 0
+    descricao: '<p>Dispara uma rajada de calor da mão em uma linha, causando dano de calor em todos os alvos e empurrando eles caso falhem em um teste de FOR.</p><p>Elemento: Calor (vento + fogo)<br>Multi-elemental: Causa 75% do dano e dos efeitos de cada runa elemental por ser uma magia de mais de um elemento.<br>Aplica normalmente efeitos de Queimadura e Empurrão de Fogo e Vento.</p><p></p><p>Intenção 0: Dispara um sopro de ar quente brevemente, porém de forma constante.</p>'
+    resistencias:
+      - pericia: Reflexos
+        atributo: agi
+      - pericia: Firmeza
+        atributo: for
+    area:
+      ativa: true
+      formas:
+        - tipo: linha
+          raio: '1'
+          comprimento: '@runas.rajada.comprimento'
+          largura: 1+@runas.amplo.amplitude
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '1'
+  efeitos:
+    - id: pGTcfzFwpCjjHsrD
+      name: Rajada de Calor
+      flags:
+        pyro:
+          multsDano:
+            - formula: '0.75'
+              tipo: ''
+              ordem: 0
+          alvosItem:
+            - nome: Rajada de Calor
+
+- nome: Fluxo incandescente
+  id: ukc50QiJuPrYxaYn
+  system:
+    usaDt: false
+    runas:
+      - nome: Abrasar
+        tipoDano: calor
+        scalings:
+          - nome: Dano
+            base: 3
+            porIntencao: 1
+            faces: 6
+      - nome: Rajada
+        scalings:
+          - nome: Comprimento
+            base: 6
+            porIntencao: 4
+            faces: 0
+    descricao: '<p>Um laser de fogo condensado, que atinge os alvos numa linha causando dano.<br></p><p>Intenção 0: cria uma solda com um raio de fogo concentrado.</p>'
+    area:
+      ativa: true
+      formas:
+        - tipo: linha
+          raio: '1'
+          comprimento: '@runas.rajada.comprimento'
+          largura: 1+@runas.amplo.amplitude
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '1'
+
+- nome: Bolsa de ar
+  id: LGN4GBZIBoZEhD8M
+  system:
+    usaDt: false
+    runas:
+      - nome: Sopro
+        tipoDano: nenhum
+        scalings:
+          - nome: Raio (metros)
+            base: 0.5
+            porIntencao: 0.5
+            faces: 0
+      - nome: Manifestar
+        scalings:
+          - nome: Duração (minutos)
+            base: 1
+            porIntencao: 1
+            faces: 0
+    area:
+      ativa: true
+      formas:
+        - tipo: circulo
+          raio: '@runas.sopro.raio'
+          comprimento: '@runas.rajada.comprimento'
+          largura: 1+@runas.amplo.amplitude
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '1'
+      duracao: '@runas.manifestar.duracao'
+      unidade: minutos
+      presa: true
+  efeitos:
+    - id: bBXqIuV2NIPpqS4E
+      name: Bolsão de Ar
+      system:
+        changes:
+          - key: system.atributos.for.bonus
+            value: 0
+            priority: 20
+      duration:
+        value: 6
+        expiry: turnStart
+        expired: true
+      transfer: false
+      flags:
+        pyro:
+          deUso: true
+          prazoFormula:
+            formula: 10*@duracao
+            unidade: turnos
+          prazo:
+            valor: 1
+            unidade: turnos
+          turnos: 1
+
+- nome: Barragem Eólica
+  id: fXD9DnJaK98fYoaQ
+  system:
+    usaDt: false
+    runas:
+      - nome: Sopro
+        tipoDano: nenhum
+        scalings:
+          - nome: Redução de Dano
+            base: 10
+            porIntencao: 10
+            faces: 0
+      - nome: Barreira
+        scalings:
+          - nome: Duração (golpes)
+            base: 1
+            porIntencao: 1
+            faces: 0
+    descricao: <p>Cria uma barreira em volta do usuário que é capaz de reduzir uma quantidade de dano por uma certa quantidade de golpes.</p>
+
+- nome: Vórtice
+  id: r7XEaesM2U1Mu0Oa
+  system:
+    runas:
+      - nome: Sopro
+        tipoDano: nenhum
+        scalings:
+          - nome: Puxado (metros)
+            base: 5
+            porIntencao: 5
+            faces: 0
+      - nome: Condensar/Apertar
+        scalings:
+          - nome: Raio (metros)
+            base: 1
+            porIntencao: 1
+            faces: 0
+    descricao: '<p>Puxa todos alvos na área em direção à ponto específico, cada alvo é puxado até X metros.</p><p></p><p>Intenção 0: Consegue puxar para a mão enquanto fecha ela. O objeto não pode pegar mais que 3kg e deve estar até a 5 metros de distância.</p>'
+    resistencias:
+      - pericia: Firmeza
+        atributo: for
+      - pericia: Reflexos
+        atributo: agi
+    area:
+      ativa: true
+      formas:
+        - tipo: circulo
+          raio: '@runas.condensarApertar.raio'
+          comprimento: '6'
+          largura: '1'
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '1'
+
+- nome: Fissão
+  id: lGCiUrAgvXpuw6Tv
+  system:
+    usaDt: false
+    runas:
+      - nome: Abrasar
+        tipoDano: calor
+        scalings:
+          - nome: Dano
+            base: 3
+            porIntencao: 1
+            faces: 6
+      - nome: Condensar/Apertar
+        scalings:
+          - nome: Tamanho (metros)
+            base: 1
+            porIntencao: 1
+            faces: 0
+          - nome: Distância Adjacente (metros)
+            base: 1
+            porIntencao: 1
+            faces: 0
+          - nome: Alcance (metros)
+            base: 6
+            porIntencao: 0
+            faces: 0
+    descricao: <p>Condensa chamas em um único ponto, criando um sol em miniatura em até 6 metros de alcance. Quem estiver no mesmo espaço que o sol, recebe dano completo, e pessoas adjacentes a ele recebem metade do dano.</p>
+    area:
+      ativa: true
+      formas:
+        - tipo: circulo
+          raio: '@runas.condensarApertar.tamanho'
+          comprimento: '@runas.rajada.comprimento'
+          largura: 1+@runas.amplo.amplitude
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '1'
+        - tipo: circulo
+          raio: 2*@runas.condensarApertar.distanciaAdjacente
+          comprimento: '6'
+          largura: '1'
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '1'
+
+- nome: Aura Elétrica (Dano)
+  id: swoENihO4e1dyZek
+  system:
+    usaDt: false
+    runas:
+      - nome: Descarregar
+        tipoDano: energia
+        scalings:
+          - nome: Dano
+            base: 2
+            porIntencao: 0.25
+            faces: 10
+          - nome: Corrente
+            base: 0.5
+            porIntencao: 0.5
+            faces: 0
+      - nome: Aura
+        scalings:
+          - nome: Raio
+            base: 1
+            porIntencao: 1
+            faces: 0
+    area:
+      ativa: true
+      formas:
+        - tipo: circulo
+          raio: '@runas.aura.raio'
+          comprimento: '6'
+          largura: '1'
+          angulo: '60'
+          x: 0
+          'y': 0
+          rotacao: 0
+          divisoes: '1'
+
+- nome: Choque do Trovão
+  id: pjqLoLmZoRjf1s4O
+  system:
+    usaDt: false
+    runas:
+      - nome: Descarregar
+        tipoDano: energia
+        scalings:
+          - nome: Dano
+            base: 2
+            porIntencao: 0.25
+            faces: 10
+          - nome: Corrente
+            base: 0.5
+            porIntencao: 0.5
+            faces: 0
+      - nome: Toque
+        scalings:
+          - nome: Intenção extra
+            base: 1
+            porIntencao: 1
+            faces: 0

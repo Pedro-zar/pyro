@@ -636,7 +636,8 @@ export class MagiaData extends BaseItemData {
         atributo: str("sab", { choices: Object.keys(PYRO.atributos) })
       })),
       runas: new fields.ArrayField(new fields.SchemaField({
-        itemId: new fields.StringField({ required: true }),
+        // Vazio na magia de compêndio: a runa é achada pelo nome (ver runaDaMagia).
+        itemId: new fields.StringField({ required: true, initial: "" }),
         nome: new fields.StringField({ required: true }),
         subjulgar: new fields.BooleanField({ initial: false }),
         tipoDano: new fields.StringField({ required: true, initial: "" }),

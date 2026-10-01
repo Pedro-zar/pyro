@@ -75,6 +75,72 @@
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
       }
+    },
+    {
+      "name": "caminhos",
+      "label": "Caminhos",
+      "path": "packs/caminhos",
+      "type": "Item",
+      "system": "pyro-dev",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "habilidades",
+      "label": "Habilidades",
+      "path": "packs/habilidades",
+      "type": "Item",
+      "system": "pyro-dev",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "tecnicas",
+      "label": "Técnicas",
+      "path": "packs/tecnicas",
+      "type": "Item",
+      "system": "pyro-dev",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "feiticos",
+      "label": "Feitiços",
+      "path": "packs/feiticos",
+      "type": "Item",
+      "system": "pyro-dev",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "magias",
+      "label": "Magias",
+      "path": "packs/magias",
+      "type": "Item",
+      "system": "pyro-dev",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
+    },
+    {
+      "name": "pericias",
+      "label": "Perícias",
+      "path": "packs/pericias",
+      "type": "Item",
+      "system": "pyro-dev",
+      "ownership": {
+        "PLAYER": "OBSERVER",
+        "ASSISTANT": "OWNER"
+      }
     }
   ],
   "packFolders": [
@@ -83,7 +149,13 @@
       "sorting": "m",
       "packs": [
         "itens",
-        "runas"
+        "runas",
+        "caminhos",
+        "habilidades",
+        "tecnicas",
+        "feiticos",
+        "magias",
+        "pericias"
       ]
     }
   ],

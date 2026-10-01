@@ -17,3 +17,9 @@ node_modules/
 # antes de empacotar o zip.
 /packs/*
 #!/packs/_source/  # Só caso vá publicar por manifesto
+# Exportação do mundo (tools/exportar-mundo.macro.js): é só a entrada do
+# importar-mundo.mjs, e o que vale fica em tools/compendios/.
+tools/pyro-export.json
+
+# Exportação das runas (tools/exportar-runas.macro.js), só para comparar.
+tools/pyro-runas.json

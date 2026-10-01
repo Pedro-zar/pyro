@@ -1132,12 +1132,45 @@ export async function conjurar(actor, escolhas, {
  * de novo a cada conjuração, no mesmo conjurador usado para montar frases —
  * assim o gasto de mana e a sobrecarga aparecem antes de confirmar.
  */
+/**
+ * A runa da ficha a que uma magia salva se refere. O id resolve na ficha em
+ * que a magia foi montada; em qualquer outra (magia vinda de compêndio ou de
+ * outro personagem) a runa é achada pelo nome.
+ */
+export function runaDaMagia(actor, ref) {
+  const porId = ref?.itemId ? actor?.items?.get(ref.itemId) : null;
+  if (porId) return porId;
+  const nome = PYRO.normalizarTexto(ref?.nome);
+  if (!nome) return null;
+  return actor?.items?.find(i => i.type === "runa"
+    && (PYRO.normalizarTexto(i.name) === nome || PYRO.normalizarTexto(i.system.palavra) === nome)) ?? null;
+}
+
+/**
+ * As referências de runa de uma magia presas às runas desta ficha. A que já
+ * aponta para uma runa da ficha fica como está; a que não aponta (magia de
+ * compêndio, ou trazida de outro personagem) passa a apontar para a runa de
+ * mesmo nome. Dali em diante a ligação é pelo id, e renomear a runa não solta
+ * a magia. Devolve null quando nada muda.
+ */
+export function religarRunas(actor, refs) {
+  let mudou = false;
+  const saida = (refs ?? []).map(ref => {
+    if (ref.itemId && actor?.items?.get(ref.itemId)?.type === "runa") return ref;
+    const runa = runaDaMagia(actor, { ...ref, itemId: "" });
+    if (!runa) return ref;
+    mudou = true;
+    return { ...ref, itemId: runa.id };
+  });
+  return mudou ? saida : null;
+}
+
 export async function conjurarMagiaSalva(actor, magia) {
   const frase = [];
   const faltando = [];
 
   for (const ref of magia.system.runas) {
-    const item = actor.items.get(ref.itemId);
+    const item = runaDaMagia(actor, ref);
     if (!item) {
       faltando.push(ref.nome);
       continue;

@@ -4,6 +4,7 @@
  */
 import { PYRO } from "../config.mjs";
 import { ConjuradorApp } from "../apps/conjurador.mjs";
+import { runaDaMagia } from "../magia.mjs";
 import { NovoCaminhoApp } from "../apps/novo-caminho.mjs";
 import { textosDoCustoDaEscala } from "../escala.mjs";
 import { GuiaAcoesApp } from "../apps/guia-acoes.mjs";
@@ -560,7 +561,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       // Cores dos elementos das runas: uma vira friso, várias viram gradiente.
       const cores = [];
       for (const ref of item.system.runas) {
-        const runa = actor.items.get(ref.itemId);
+        const runa = runaDaMagia(actor, ref);
         const sub = runa?.system.tipoRuna === "elemento" ? runa.system.subtipo : null;
         if (sub && PYRO.elementos[sub] && !cores.includes(sub)) cores.push(sub);
       }
