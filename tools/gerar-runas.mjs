@@ -34,6 +34,9 @@ const ICONES = Object.fromEntries([
   "projetil", "explosao", "cone", "linha", "muro", "aura", "toque",
   "amplo", "longo", "persistente", "preciso", "dividir"
 ].map(chave => [chave, icone(chave)]));
+// Gestos sem desenho próprio emprestam o de um gesto parecido.
+ICONES.apertar = icone("toque");
+ICONES.manifestar = icone("explosao");
 
 const escala = (nome, base, porIntencao, faces = 0) => ({ nome, base, porIntencao, faces });
 
@@ -95,6 +98,8 @@ const FORMAS = [
     desc: "1 metro, +1 metro por Intenção." },
   { chave: "toque", nome: "Toque", scalings: [escala("Intenção extra", 1, 1)],
     desc: "Alcance 0. Cada Intenção em Toque dá +1 de Intenção a uma outra runa da frase, escolhida na conjuração." },
+  { chave: "manifestar", nome: "Manifestar", scalings: [escala("Duração (minutos)", 1, 1)],
+    desc: "Manifesta o efeito junto de quem conjura, como uma esfera de chamas na mão. Dura 1 minuto, +1 por Intenção." },
   { chave: "barreira", nome: "Barreira", scalings: [escala("Duração (golpes)", 1, 1)],
     desc: "Envolve quem conjura numa barreira que aguenta 1 golpe, +1 golpe por Intenção." }
 ];
@@ -187,6 +192,25 @@ function main() {
     });
   });
 
+  /*
+   * Cada elemento tem a sua pasta dentro de Elementos, com a runa da tabela e
+   * as palavras de efeito próprio dele (Iluminar fica em Fogo). As pastas
+   * seguem a ordem da tabela de elementos.
+   */
+  const pastaDoElemento = {};
+  for (const el of ELEMENTOS) {
+    const elemento = el.elemento ?? el.chave;
+    if (pastaDoElemento[elemento]) continue;
+    const base = ELEMENTOS.find(e => e.chave === elemento) ?? el;
+    const id = idEstavel("pasta", "runa", "elemento", elemento);
+    pastaDoElemento[elemento] = id;
+    escrever(`_pasta-elemento-${elemento}.json`, {
+      _id: id, _key: `!folders!${id}`, name: base.nome, type: "Item",
+      folder: idPasta.elemento, sorting: "m",
+      sort: (Object.keys(pastaDoElemento).length) * 100000, color: null
+    });
+  }
+
   ELEMENTOS.forEach((el, i) => {
     const scalings = [
       ...(el.dano ? [escala("Dano", el.dano[0], el.dano[1], el.dano[2])] : []),
@@ -199,7 +223,7 @@ function main() {
       tipoRuna: "elemento", chave: el.chave, elemento: el.elemento ?? el.chave, palavra,
       nome: el.nome, scalings, desc: el.desc,
       subjulgar: !!el.subjulgar, tipoDano: el.tipoDano ?? "",
-      folder: idPasta.elemento, sort: (i + 1) * 100000
+      folder: pastaDoElemento[el.elemento ?? el.chave], sort: (i + 1) * 100000
     }));
   });
 

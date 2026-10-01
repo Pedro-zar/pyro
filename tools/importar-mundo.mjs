@@ -21,6 +21,7 @@ import {
   RAIZ, PASTA_YAML, COMPENDIOS, compendioDoTipo, EFEITO_PADRAO, MUDANCA_PADRAO, IMG_ITEM_PADRAO,
   lerCompendio
 } from "./compendios.mjs";
+import { elementosDoCompendioDeRunas, normalizar } from "./pastas-de-magia.mjs";
 
 const args = process.argv.slice(2);
 const substituir = args.includes("--substituir");
@@ -238,6 +239,19 @@ function limparSistema(item, limpo) {
   return podar(limpo);
 }
 
+/*
+ * Runa que o compêndio de runas não conhece leva o elemento escrito na
+ * referência da magia, tirado da exportação: é o que decide a pasta da magia
+ * (ver pastas-de-magia.mjs).
+ */
+const DO_COMPENDIO = elementosDoCompendioDeRunas();
+const DA_EXPORTACAO = new Map(Object.entries(exportado.runas ?? {}).map(([nome, v]) => [normalizar(nome), v]));
+function comElemento(ref) {
+  const nome = normalizar(ref.nome);
+  if (DO_COMPENDIO.has(nome) || !DA_EXPORTACAO.has(nome)) return ref;
+  return { ...ref, elemento: DA_EXPORTACAO.get(nome) };
+}
+
 function entradaDoItem(item, rotulo) {
   const padrao = exportado.padroes?.[item.type] ?? {};
   const entrada = { nome: item.name, id: item._id };
@@ -250,6 +264,7 @@ function entradaDoItem(item, rotulo) {
     entrada.img = imagemNeutra(item.img);
   }
   const sistema = diferenca(limparSistema(item, foundryClone(item.system ?? {})), padrao);
+  if (Array.isArray(sistema?.runas)) sistema.runas = sistema.runas.map(comElemento);
   if (sistema && Object.keys(sistema).length) entrada.system = sistema;
   const efeitos = (item.effects ?? []).map(limparEfeito);
   if (efeitos.length) entrada.efeitos = efeitos;
@@ -271,6 +286,10 @@ const CABECALHO = rotulo => `# Compêndio "${rotulo}" do PYRO.
 #   id:       16 letras ou números. Sem ele, o id sai do nome e da pasta, e
 #             trocar um dos dois troca o id. Depois de criado, não mude.
 #   pasta:    pastas do compêndio separadas por "/", como "Elfo/Formas".
+#             Magia sem pasta vai sozinha para a do elemento dela, ou da
+#             combinação (Fogo + Vento = Calor). Runa da magia que não está
+#             no compêndio de runas diz o elemento na referência:
+#             "elemento: vento", ou "elemento: gesto" se for forma.
 #   img:      caminho da imagem. Sem ela, fica o ícone do tipo. "systems/pyro/"
 #             vira o id do sistema no build.
 #   system:   só os campos que fogem do padrão do tipo. O que faltar vem do

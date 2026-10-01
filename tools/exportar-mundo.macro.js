@@ -20,13 +20,26 @@ const padroes = Object.fromEntries(TIPOS.map(tipo => [
   tipo, new Item.implementation({ name: "padrão", type: tipo }).toObject().system
 ]));
 
+/*
+ * O elemento de cada runa do mundo e das fichas, pelo nome e pela palavra. É
+ * o que põe uma magia na pasta do elemento dela quando a runa é uma palavra
+ * de personagem, que o compêndio de runas não conhece.
+ */
+const runas = {};
+for (const runa of [...game.items, ...game.actors.contents.flatMap(a => [...a.items])]) {
+  if (runa.type !== "runa") continue;
+  const elemento = runa.system.tipoRuna === "elemento" ? runa.system.subtipo : "gesto";
+  for (const nome of [runa.name, runa.system.palavra]) if (nome) runas[nome] ??= elemento;
+}
+
 const dados = {
   sistema: game.system.id,
   versao: game.system.version,
   exportado: new Date().toISOString(),
   padroes,
   pastas: pastas.map(f => f.toObject()),
-  itens: itens.map(i => i.toObject())
+  itens: itens.map(i => i.toObject()),
+  runas
 };
 
 foundry.utils.saveDataToFile(JSON.stringify(dados, null, 2), "application/json", "pyro-export.json");

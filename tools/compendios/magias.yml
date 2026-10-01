@@ -7,6 +7,10 @@
 #   id:       16 letras ou números. Sem ele, o id sai do nome e da pasta, e
 #             trocar um dos dois troca o id. Depois de criado, não mude.
 #   pasta:    pastas do compêndio separadas por "/", como "Elfo/Formas".
+#             Magia sem pasta vai sozinha para a do elemento dela, ou da
+#             combinação (Fogo + Vento = Calor). Runa da magia que não está
+#             no compêndio de runas diz o elemento na referência:
+#             "elemento: vento", ou "elemento: gesto" se for forma.
 #   img:      caminho da imagem. Sem ela, fica o ícone do tipo. "systems/pyro/"
 #             vira o id do sistema no build.
 #   system:   só os campos que fogem do padrão do tipo. O que faltar vem do
@@ -55,6 +59,7 @@
     usaDt: false
     runas:
       - nome: Descarregar
+        elemento: raio
         tipoDano: energia
         scalings:
           - nome: Dano
@@ -90,6 +95,7 @@
     usaDt: false
     runas:
       - nome: Descarregar
+        elemento: raio
         tipoDano: energia
         scalings:
           - nome: Dano
@@ -130,6 +136,7 @@
   system:
     runas:
       - nome: Sopro
+        elemento: vento
         tipoDano: impacto
         scalings:
           - nome: Dano
@@ -141,6 +148,7 @@
             porIntencao: 1
             faces: 0
       - nome: Rajada
+        elemento: gesto
         scalings:
           - nome: Comprimento
             base: 6
@@ -170,6 +178,7 @@
   system:
     runas:
       - nome: Deslocar-los
+        elemento: espaco
         scalings:
           - nome: Distância (metros)
             base: 1
@@ -239,6 +248,7 @@
     usaDt: false
     runas:
       - nome: Estática
+        elemento: raio
         tipoDano: energia
         scalings:
           - nome: Deslocamento
@@ -281,6 +291,7 @@
     usaDt: false
     runas:
       - nome: Restaurar
+        elemento: vida
         tipoDano: cura
         scalings:
           - nome: ''
@@ -301,6 +312,7 @@
     usaDt: false
     runas:
       - nome: Aglomerar
+        elemento: terra
         tipoDano: nenhum
         scalings:
           - nome: Defesa Física
@@ -308,6 +320,7 @@
             porIntencao: 1
             faces: 0
       - nome: Restaurar
+        elemento: vida
         tipoDano: cura
         scalings:
           - nome: Dano
@@ -327,6 +340,7 @@
     usaDt: false
     runas:
       - nome: Restaurar
+        elemento: vida
         tipoDano: cura
         scalings:
           - nome: Dano
@@ -346,6 +360,7 @@
     usaDt: false
     runas:
       - nome: Aglomerar
+        elemento: terra
         tipoDano: impacto
         scalings:
           - nome: Dano
@@ -368,6 +383,7 @@
   system:
     runas:
       - nome: Aglomerar
+        elemento: terra
         tipoDano: nenhum
         scalings:
           - nome: Defesa Física
@@ -397,6 +413,7 @@
   system:
     runas:
       - nome: Abrasar
+        elemento: fogo
         tipoDano: calor
         scalings:
           - nome: Dano
@@ -404,6 +421,7 @@
             porIntencao: 1
             faces: 6
       - nome: Sopro
+        elemento: vento
         tipoDano: calor
         scalings:
           - nome: Dano
@@ -415,6 +433,7 @@
             porIntencao: 0.75
             faces: 0
       - nome: Rajada
+        elemento: gesto
         scalings:
           - nome: Comprimento
             base: 6
@@ -456,6 +475,7 @@
     usaDt: false
     runas:
       - nome: Abrasar
+        elemento: fogo
         tipoDano: calor
         scalings:
           - nome: Dano
@@ -463,6 +483,7 @@
             porIntencao: 1
             faces: 6
       - nome: Rajada
+        elemento: gesto
         scalings:
           - nome: Comprimento
             base: 6
@@ -488,6 +509,7 @@
     usaDt: false
     runas:
       - nome: Sopro
+        elemento: vento
         tipoDano: nenhum
         scalings:
           - nome: Raio (metros)
@@ -545,6 +567,7 @@
     usaDt: false
     runas:
       - nome: Sopro
+        elemento: vento
         tipoDano: nenhum
         scalings:
           - nome: Redução de Dano
@@ -564,6 +587,7 @@
   system:
     runas:
       - nome: Sopro
+        elemento: vento
         tipoDano: nenhum
         scalings:
           - nome: Puxado (metros)
@@ -571,6 +595,7 @@
             porIntencao: 5
             faces: 0
       - nome: Condensar/Apertar
+        elemento: gesto
         scalings:
           - nome: Raio (metros)
             base: 1
@@ -601,6 +626,7 @@
     usaDt: false
     runas:
       - nome: Abrasar
+        elemento: fogo
         tipoDano: calor
         scalings:
           - nome: Dano
@@ -608,6 +634,7 @@
             porIntencao: 1
             faces: 6
       - nome: Condensar/Apertar
+        elemento: gesto
         scalings:
           - nome: Tamanho (metros)
             base: 1
@@ -650,6 +677,7 @@
     usaDt: false
     runas:
       - nome: Descarregar
+        elemento: raio
         tipoDano: energia
         scalings:
           - nome: Dano
@@ -685,6 +713,7 @@
     usaDt: false
     runas:
       - nome: Descarregar
+        elemento: raio
         tipoDano: energia
         scalings:
           - nome: Dano

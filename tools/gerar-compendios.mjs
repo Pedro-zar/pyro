@@ -14,6 +14,9 @@ import path from "node:path";
 import {
   PASTA_FONTE, COMPENDIOS, CAMPOS_DA_ENTRADA, idEstavel, idValido, lerCompendio
 } from "./compendios.mjs";
+import {
+  pastaDaMagia, ordemDaPasta, elementosDoCompendioDeRunas, normalizar, VALORES_DE_ELEMENTO
+} from "./pastas-de-magia.mjs";
 
 /*
  * Os arquivos escrevem "pyro" no lugar do id do sistema, nas imagens e nas
@@ -32,6 +35,17 @@ function flagsDoSistema(flags) {
 }
 
 const erros = [];
+const avisos = [];
+
+/** O `elemento` das referências de runa só serve para a pasta: não vai para o item. */
+function semElementoNasRunas(sistema) {
+  if (!Array.isArray(sistema.runas)) return sistema;
+  return { ...sistema, runas: sistema.runas.map(ref => {
+    if (!ref || typeof ref !== "object" || !("elemento" in ref)) return ref;
+    const { elemento, ...resto } = ref;
+    return resto;
+  }) };
+}
 
 /** "Elfo / Formas/" vira ["Elfo", "Formas"]. */
 const partesDaPasta = pasta => String(pasta ?? "").split("/").map(p => p.trim()).filter(Boolean);
@@ -74,6 +88,37 @@ function gerar(nome) {
     return id;
   }
 
+  /*
+   * Magia sem pasta escrita vai para a do elemento dela (ver
+   * pastas-de-magia.mjs). As pastas são criadas antes dos itens, já na ordem
+   * de elementos e combinações, e não na ordem em que as magias aparecem.
+   */
+  const pastaAutomatica = new Map();
+  if (tipo === "magia") {
+    const doCompendio = elementosDoCompendioDeRunas();
+    entradas.forEach((entrada, indice) => {
+      if (!entrada?.nome || entrada.pasta) return;
+      const elementos = [];
+      for (const ref of entrada.system?.runas ?? []) {
+        const escrito = ref?.elemento;
+        if (escrito !== undefined && !VALORES_DE_ELEMENTO.includes(escrito)) {
+          erros.push(`${nome}.yml, ${entrada.nome}: runa ${ref.nome} com elemento "${escrito}", `
+            + `que não é um destes: ${VALORES_DE_ELEMENTO.join(", ")}`);
+          continue;
+        }
+        const valor = escrito ?? doCompendio.get(normalizar(ref?.nome));
+        if (valor === undefined) {
+          avisos.push(`${nome}.yml, ${entrada.nome}: não sei o elemento da runa ${ref?.nome}. `
+            + "Escreva elemento: <elemento> ou elemento: gesto na referência dela.");
+        } else if (valor !== "gesto") elementos.push(valor);
+      }
+      pastaAutomatica.set(indice, pastaDaMagia(elementos));
+    });
+    [...new Set(pastaAutomatica.values())]
+      .sort((a, b) => ordemDaPasta(a) - ordemDaPasta(b) || a.localeCompare(b))
+      .forEach(pasta => idDaPasta([pasta]));
+  }
+
   /* --- Itens ------------------------------------------------------------- */
   const ids = new Set();
   const nomesDeArquivo = new Set();
@@ -90,8 +135,11 @@ function gerar(nome) {
       return;
     }
 
-    const partes = partesDaPasta(entrada.pasta);
-    const id = entrada.id ?? idEstavel(nome, partes.join("/"), entrada.nome);
+    // A pasta automática é uma só, mesmo com "/" no nome ("Água/Fogo/Raio").
+    const partes = pastaAutomatica.has(indice) ? [pastaAutomatica.get(indice)] : partesDaPasta(entrada.pasta);
+    // O id vem da pasta escrita, não da automática: trocar uma runa da magia
+    // muda a pasta dela, e não pode mudar o id.
+    const id = entrada.id ?? idEstavel(nome, partesDaPasta(entrada.pasta).join("/"), entrada.nome);
     if (!idValido(id)) erros.push(`${onde}: id "${id}" precisa ter 16 letras ou números`);
     if (ids.has(id)) erros.push(`${onde}: id ${id} repetido`);
     ids.add(id);
@@ -122,7 +170,7 @@ function gerar(nome) {
       img: imagemDoSistema(entrada.img ?? `systems/${ESCOPO}/icons/${tipo}.svg`),
       folder: idDaPasta(partes),
       sort: (indice + 1) * 100000,
-      system: entrada.system ?? {},
+      system: semElementoNasRunas(entrada.system ?? {}),
       effects: efeitos,
       flags: flagsDoSistema(entrada.flags),
       ownership: { default: 0 }
@@ -137,6 +185,8 @@ for (const nome of Object.keys(COMPENDIOS)) {
   const total = gerar(nome);
   console.log(`${nome}: ${total} itens`);
 }
+
+for (const aviso of avisos) console.log(`  aviso: ${aviso}`);
 
 if (erros.length) {
   console.error("\nO build parou. Corrija nos arquivos de tools/compendios/:");
