@@ -8,6 +8,7 @@
  * personagem guarda a mensagem em que já descansou: o mesmo card não
  * descansa duas vezes.
  */
+import { PYRO } from "./config.mjs";
 import { esc } from "./ui.mjs";
 import { flagsDe, flagsDoSistema, SYSTEM_ID } from "./sistema.mjs";
 import { aplicarExaustao, nivelExaustao } from "./efeitos.mjs";
@@ -31,14 +32,15 @@ export const QUALIDADES = {
 /**
  * O que dá para fazer durante o descanso, e quantas ações cada vez custa.
  * Uma ação pode ser feita mais de uma vez: dois Meditar recuperam o dobro,
- * dois Praticar treinam duas perícias. `pericias` diz se ela pede uma
- * perícia por vez ("porVez") ou uma só para todas ("uma"). As que ainda não
- * têm mecânica só aparecem no card do descanso.
+ * dois Praticar treinam duas perícias. `escolhe` diz o que a ação pede a
+ * quem a faz (uma perícia, um recurso), e `quantas` se é uma escolha por vez
+ * ("porVez") ou uma só para todas ("uma"). As que ainda não têm mecânica só
+ * aparecem no card do descanso.
  */
 export const ACOES = {
-  meditar: { custo: 1 },
-  praticar: { custo: 1, pericias: "porVez" },
-  aprender: { custo: 1, pericias: "uma", variavel: true },
+  meditar: { custo: 1, escolhe: "recurso", quantas: "porVez" },
+  praticar: { custo: 1, escolhe: "pericia", quantas: "porVez" },
+  aprender: { custo: 1, escolhe: "pericia", quantas: "uma", variavel: true },
   tratar: { custo: 1 },
   repousar: { custo: 2 },
   fabricar: { custo: 1 },
@@ -51,6 +53,34 @@ export const ACOES = {
 export function acoesGastas(escolhas = {}) {
   return Object.entries(escolhas).reduce((soma, [chave, e]) =>
     soma + (ACOES[chave]?.custo ?? 0) * Math.max(0, Math.floor(Number(e?.vezes) || 0)), 0);
+}
+
+/**
+ * Os recursos que o personagem pode meditar: os que a ficha dele mostra,
+ * menos vida, estamina e vontade. Mana só de quem tem magia, energia só de
+ * quem tem feitiçaria e os de raça só de quem tem o caminho que os concede.
+ */
+export function recursosMeditaveis(actor) {
+  const sys = actor?.system ?? {};
+  return Object.keys(sys.recursos ?? {}).filter(chave => {
+    if (["pv", "estamina", "vontade"].includes(chave)) return false;
+    if (chave === "mana") return !!sys.temMagia;
+    if (chave === "energia") return !!sys.temFeiticos;
+    return (sys.recursosConcedidos ?? []).includes(chave);
+  }).map(chave => ({
+    id: chave,
+    nome: loc(PYRO.recursosCustom?.[chave]?.label ?? `PYRO.Recursos.${chave}`)
+  }));
+}
+
+/** O que cada ação deixa escolher nesta ficha: [{ id, nome }] por tipo. */
+export function opcoesDeEscolha(actor) {
+  return {
+    recurso: recursosMeditaveis(actor),
+    pericia: actor.items.filter(i => i.type === "pericia")
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(i => ({ id: i.id, nome: i.name }))
+  };
 }
 
 /** "1 ação", "3 ações". */
@@ -118,8 +148,9 @@ export function prepararBotaoDescanso(message, element, abrir) {
  * @param {object} opts
  * @param {string} opts.qualidade chave de QUALIDADES.
  * @param {string} opts.mensagemId o card de onde o descanso saiu.
- * @param {object} opts.escolhas { meditar: { vezes: 2 }, praticar: { vezes,
- *   pericias: [id, id] }, aprender: { vezes, pericias: [id] }, ... }.
+ * @param {object} opts.escolhas { meditar: { vezes: 2, alvos: ["mana",
+ *   "energiaNatural"] }, praticar: { vezes, alvos: [id, id] }, aprender:
+ *   { vezes, alvos: [id] }, repousar: { vezes }, ... }.
  */
 export async function descansar(actor, { qualidade, mensagemId, escolhas = {} }) {
   const q = QUALIDADES[qualidade];
@@ -141,16 +172,25 @@ export async function descansar(actor, { qualidade, mensagemId, escolhas = {} })
   const linhas = [];
   const recursos = actor.system.recursos;
 
-  /* --- Meditar: INT a mais de mana e energia por vez, além da cena ------ */
+  /*
+   * --- Meditar: INT a mais, além da cena, no recurso escolhido em cada vez.
+   * Duas meditações podem ir para o mesmo recurso ou para dois.
+   */
   if (vezes("meditar")) {
-    const valor = actor.system.atributos.int.total * vezes("meditar");
-    const update = {};
-    for (const chave of ["mana", "energia"]) {
-      const rec = recursos[chave];
-      if (rec?.max > 0) update[`system.recursos.${chave}.value`] = Math.min(rec.max, rec.value + valor);
+    const int = actor.system.atributos.int.total;
+    const meditaveis = recursosMeditaveis(actor);
+    const ganho = new Map();
+    for (let i = 0; i < vezes("meditar"); i++) {
+      const alvo = meditaveis.find(r => r.id === escolhas.meditar.alvos?.[i]) ?? meditaveis[0];
+      if (alvo) ganho.set(alvo, (ganho.get(alvo) ?? 0) + int);
     }
-    if (Object.keys(update).length) await actor.update(update);
-    linhas.push(loc("PYRO.Descanso.Meditou", { valor }));
+    const update = {};
+    for (const [alvo, valor] of ganho) {
+      const rec = recursos[alvo.id];
+      update[`system.recursos.${alvo.id}.value`] = Math.min(rec.max, rec.value + valor);
+      linhas.push(loc("PYRO.Descanso.Meditou", { valor, recurso: esc(alvo.nome) }));
+    }
+    if (ganho.size) await actor.update(update);
   }
 
   /* --- Exaustão: a do descanso e 1 por repouso profundo ----------------- */
@@ -163,7 +203,7 @@ export async function descansar(actor, { qualidade, mensagemId, escolhas = {} })
   }
 
   /* --- Praticar: um uso rotineiro em cada perícia escolhida ------------- */
-  const praticadas = (escolhas.praticar?.pericias ?? []).slice(0, vezes("praticar"))
+  const praticadas = (escolhas.praticar?.alvos ?? []).slice(0, vezes("praticar"))
     .map(id => actor.items.get(id)).filter(Boolean);
   for (const pericia of praticadas) {
     await registrarUso(pericia, "rotineira");
@@ -172,7 +212,7 @@ export async function descansar(actor, { qualidade, mensagemId, escolhas = {} })
 
   /* --- As que ainda não têm mecânica: só ficam registradas -------------- */
   if (vezes("aprender")) {
-    const aprendida = actor.items.get(escolhas.aprender?.pericias?.[0]);
+    const aprendida = actor.items.get(escolhas.aprender?.alvos?.[0]);
     linhas.push(loc("PYRO.Descanso.Aprendeu", {
       pericia: esc(aprendida?.name ?? "—"), acoes: textoDeAcoes(vezes("aprender"))
     }));
@@ -222,6 +262,7 @@ export function acoesParaEscolher() {
     beneficio: loc(`PYRO.Descanso.Opcao.${chave}.beneficio`),
     duracao: a.variavel ? loc("PYRO.Descanso.Variavel") : textoDeAcoes(a.custo),
     custo: a.custo,
-    pericias: a.pericias ?? null
+    escolhe: a.escolhe ?? null,
+    quantas: a.quantas ?? null
   }));
 }

@@ -21,20 +21,19 @@
       <strong class="descanso-nome">{{a.nome}}</strong>
       <span class="descanso-duracao">{{#if a.vezes}}{{a.gastoTexto}}{{else}}{{a.duracao}}{{/if}}</span>
       <span class="descanso-beneficio">{{a.beneficio}}</span>
+      {{#if a.semOpcoes}}
+      <span class="pyro-nota descanso-detalhe">{{a.semOpcoes}}</span>
+      {{/if}}
       {{#if a.escolhas.length}}
-      {{#if @root.semPericias}}
-      <span class="pyro-nota descanso-detalhe">{{localize "PYRO.Descanso.SemPericias"}}</span>
-      {{else}}
       <div class="descanso-detalhe descanso-pericias">
         {{#each a.escolhas as |e|}}
-        <select name="pericia.{{a.chave}}.{{e.i}}" title="{{localize 'PYRO.Descanso.Pericia'}}">
-          {{#each e.opcoes as |p|}}
-          <option value="{{p.id}}" {{#if p.marcada}}selected{{/if}}>{{p.nome}}</option>
+        <select name="alvo.{{a.chave}}.{{e.i}}" title="{{a.rotuloDaEscolha}}">
+          {{#each e.opcoes as |o|}}
+          <option value="{{o.id}}" {{#if o.marcada}}selected{{/if}}>{{o.nome}}</option>
           {{/each}}
         </select>
         {{/each}}
       </div>
-      {{/if}}
       {{/if}}
     </li>
     {{/each}}

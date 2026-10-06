@@ -67,8 +67,8 @@
 | Adaga Serrilhada      | 5d4                   |     1 |    1 |      0m | Cortante           |    3 |   240 | Ao acertar, o alvo recebe Sangramento 1 por 1 minuto. |
 | Lâmina de Raio        | 2d4 + 2d10 de Energia |     1 |    1 |      0m | Cortante + Energia |    3 |   284 | O dano de Energia é uma magia de Raio Intenção 1. |
 | Bastão Ferrado        | 5d8                   |     2 |    1 |      1m | Impacto            |    9 |   230 | +1 dado em testes para Derrubar.         |
-| Katana Temperada      | 8d6                   |     2 |    2 |      0m | Cortante           |    9 |   260 | Quebra-guarda 1.                         |
-| Claymore de Titânia   | 10d8                  |     3 |    2 |      2m | Cortante           |   12 |   280 | Ao acertar, empurra o alvo 1m.           |
+| Katana Temperada      | 8d6                   |     2 |    2 |      1m | Cortante           |    9 |   260 | Quebra-guarda 1.                         |
+| Claymore de Titânio   | 10d8                  |     3 |    2 |      2m | Cortante           |   12 |   280 | Ao acertar, empurra o alvo 1m.           |
 | Arco do Rastreador    | 5d8                   |     3 |    2 |  20/40m | Perfurante         |    3 |   240 | Usa SAB no teste de mira. Consome 1 flecha. |
 | Arbalesta de Pedra    | 4d12                  |     2 |    2 |  20/40m | Impacto            |    6 |   280 | Produz a própria munição de Pedra, não consome virotes e não exige recarga. Dano é considerado como magia de terra intenção 1 |
 ### Raros
@@ -97,34 +97,9 @@
 
 ## Itens Arcanos
 ### Brutos
-| Peça                         | Parte do Corpo | Peso | Custo | Efeito individual                                                                                                                         |
-|------------------------------|----------------|-----:|------:|-------------------------------------------------------------------------------------------------------------------------------------------|
-| Tecido de Conjuração Rasgado | Costas         | 1    |    20 | Parte do Conjunto Arcano Bruto.                                                                                                           |
-| Anéis Arcanos Quebrados      | Anel           | 1    |    20 | Parte do Conjunto Arcano Bruto.                                                                                                           |
-| Colar de Símbolo Arcano      | Pescoço        | 1    |    20 | Parte do Conjunto Arcano Bruto. Caso as 3 peças do conjunto estejam equipadas, magias conjuradas custam 1 de mana a menos (mínimo de 1)   |
-| Símbolo Rúnico Simples       | Mão            | 1    |    10 | Enquanto segurado na mão, magias que o usuário conjurar custam 1 de mana a menos (mínimo de 1)                                            |
 ### Comum
-| Peça                         | Parte do Corpo | Peso | Custo | Efeito individual                                                                                                                         |
-|------------------------------|----------------|-----:|------:|-------------------------------------------------------------------------------------------------------------------------------------------|
-| Tecido de Conjuração         | Costas         | 1    |    80 | Parte do Conjunto Arcano.                                                                                                                 |
-| Anéis Arcanos                | Anel           | 1    |    80 | Parte do Conjunto Arcano.                                                                                                                 |
-| Colar Arcano                 | Pescoço        | 1    |    80 | Parte do Conjunto Arcano. Caso as 3 peças do conjunto estejam equipadas, magias conjuradas custam 2 de mana a menos (mínimo de 1)         |
-| Livro de Runas               | Mão            | 3    |    60 | Enquanto segurado na mão, magias que o usuário conjurar custam 2 de mana a menos (mínimo de 1)                                            |
 ### Incomum
-| Peça                         | Parte do Corpo | Peso | Custo | Efeito individual                                                                                                                         |
-|------------------------------|----------------|-----:|------:|-------------------------------------------------------------------------------------------------------------------------------------------|
-| Anéis Arcanos Adornados      | Anel           | 1    |   240 | Parte do Conjunto Arcano Incomum.                                                                                                         |
-| Amuleto Arcano               | Pescoço        | 1    |   240 | Parte do Conjunto Arcano Incomum. Caso as 2 peças do conjunto estejam equipadas, magias conjuradas custam 2 de mana a menos (mínimo de 1) e o usuário recupera +4 de mana no início de cada cena |
-| Tabuleta de Runas            | Mão            | 3    |   240 | Enquanto segurada na mão, magias que o usuário conjurar custam 3 de mana a menos (mínimo de 1)                                            |
-| Anel do Gesto                | Anel           | 1    |   260 | Escolha um gesto de Forma ao criar o item. Enquanto usado, o portador conhece esse gesto. Ocupa um slot de Anel |
 ### Raros
-| Peça                         | Parte do Corpo | Peso | Custo | Efeito individual                                                                                                                         |
-|------------------------------|----------------|-----:|------:|-------------------------------------------------------------------------------------------------------------------------------------------|
-| Tecido Rúnico                | Costas         | 1    |   800 | Parte do Conjunto Rúnico.                                                                                                                 |
-| Anéis Rúnicos                | Anel           | 1    |   800 | Parte do Conjunto Rúnico.                                                                                                                 |
-| Colar Rúnico                 | Pescoço        | 1    |   800 | Parte do Conjunto Rúnico. Caso as 3 peças do conjunto estejam equipadas, magias conjuradas custam 4 de mana a menos (mínimo de 1) e o usuário recupera +8 de mana no início de cada cena |
-| Grimório Vivo                | Mão            | 3    |   860 | Enquanto segurado na mão, magias que o usuário conjurar custam 7 de mana a menos (mínimo de 1) e a ação Tomar ar também recupera INT/4 de mana |
-| Foco de Precisão             | Anel           | 1    |   840 | +2 na DT das suas magias e +2 no teste de mira de magias. Ocupa um slot de Anel                               |
 ### Lendários
 ### Míticos
 
