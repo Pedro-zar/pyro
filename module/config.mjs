@@ -643,7 +643,7 @@ const linha = (rr, rd, rmd, modo = "ou") => ({ rr, rd, rmd, modo });
 PYRO.avancoPorUsoPadrao = {
   // SRD 3b — perícias criadas no nível 0.
   pericia: [
-    linha(5, 1, 1), linha(1, 1, 1), linha(2, 1, 1), linha(3, 2, 1), linha(4, 2, 1),
+    linha(1, 1, 1), linha(2, 1, 1), linha(3, 1, 1), linha(4, 2, 1), linha(5, 2, 1),
     linha(0, 3, 2, "e"), linha(0, 3, 2, "e"), linha(0, 4, 2, "e"), linha(0, 4, 2, "e"), linha(0, 5, 3, "e"),
     linha(0, 5, 3, "e"), linha(0, 6, 3, "e"), linha(0, 6, 3, "e"), linha(0, 7, 4, "e"), linha(0, 7, 4, "e"),
     linha(0, 8, 4, "e"), linha(0, 8, 4, "e"), linha(0, 9, 5, "e"), linha(0, 9, 5, "e"), linha(0, 10, 5, "e")
