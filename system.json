@@ -1,7 +1,7 @@
 {
-  "id": "pyro-dev",
-  "title": "PYRO Dev",
-  "description": "Sistema PYRO (desenvolvimento)",
+  "id": "pyro",
+  "title": "PYRO",
+  "description": "Sistema PYRO",
   "version": "0.3.0",
   "compatibility": {
     "minimum": "14",
@@ -59,7 +59,7 @@
       "label": "Itens",
       "path": "packs/itens",
       "type": "Item",
-      "system": "pyro-dev",
+      "system": "pyro",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
@@ -70,7 +70,7 @@
       "label": "Runas e Gestos",
       "path": "packs/runas",
       "type": "Item",
-      "system": "pyro-dev",
+      "system": "pyro",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
@@ -81,7 +81,7 @@
       "label": "Caminhos",
       "path": "packs/caminhos",
       "type": "Item",
-      "system": "pyro-dev",
+      "system": "pyro",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
@@ -92,7 +92,7 @@
       "label": "Habilidades",
       "path": "packs/habilidades",
       "type": "Item",
-      "system": "pyro-dev",
+      "system": "pyro",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
@@ -103,7 +103,7 @@
       "label": "Técnicas",
       "path": "packs/tecnicas",
       "type": "Item",
-      "system": "pyro-dev",
+      "system": "pyro",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
@@ -114,7 +114,7 @@
       "label": "Feitiços",
       "path": "packs/feiticos",
       "type": "Item",
-      "system": "pyro-dev",
+      "system": "pyro",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
@@ -125,7 +125,7 @@
       "label": "Magias",
       "path": "packs/magias",
       "type": "Item",
-      "system": "pyro-dev",
+      "system": "pyro",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
@@ -136,7 +136,7 @@
       "label": "Perícias",
       "path": "packs/pericias",
       "type": "Item",
-      "system": "pyro-dev",
+      "system": "pyro",
       "ownership": {
         "PLAYER": "OBSERVER",
         "ASSISTANT": "OWNER"
