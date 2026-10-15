@@ -939,15 +939,16 @@ PYRO.tiposCusto = {
  * base dele é a arma escolhida (ver PYRO.pontosDeAcoes).
  *
  *   ataca      a técnica rola um ataque da ficha (arma ou desarmado).
- *   reacao     é usada fora do próprio turno, e gasta reação em vez de ação.
+ *   reacao     é usada fora do próprio turno, gasta reação em vez de ação, e
+ *              diz qual reação a técnica abre (a chave em PYRO.reacoes).
  */
 PYRO.acoesBaseTecnica = {
   atacar:   { label: "PYRO.Tecnica.Base.atacar",   ataca: true },
   agarrar:  { label: "PYRO.Tecnica.Base.agarrar",  ataca: true },
   mover:    { label: "PYRO.Tecnica.Base.mover" },
   saltar:   { label: "PYRO.Tecnica.Base.saltar" },
-  bloquear: { label: "PYRO.Tecnica.Base.bloquear", reacao: true },
-  esquivar: { label: "PYRO.Tecnica.Base.esquivar", reacao: true }
+  bloquear: { label: "PYRO.Tecnica.Base.bloquear", reacao: "bloqueio" },
+  esquivar: { label: "PYRO.Tecnica.Base.esquivar", reacao: "esquiva" }
 };
 
 /**
@@ -1004,6 +1005,29 @@ PYRO.pontosDeAcoes = (base, alvo) => {
   let total = 0;
   for (let n = de; n < para; n++) total += PYRO.custoDeAcoes[n]?.subir ?? 0;
   for (let n = de; n > para; n--) total -= PYRO.custoDeAcoes[n]?.descer ?? 0;
+  return total;
+};
+
+/**
+ * Técnica de reação (Bloquear, Esquivar): não há arma com que comparar, e a
+ * concessão é gastar mais de uma reação na mesma defesa. Os +3 da segunda
+ * reação igualam a especificidade "tipo" e são provisórios, até o
+ * balanceamento.
+ *
+ *   subir[n]   pontos que a técnica ganha ao ir de n para n+1 reações
+ */
+PYRO.custoDeReacoes = {
+  1: { subir: 3 }
+};
+
+/** Teto do custo de uma técnica de reação. */
+PYRO.REACOES_MAX_TECNICA = 2;
+
+/** Pontos que as reações a mais rendem, contados a partir de uma. */
+PYRO.pontosDeReacoes = alvo => {
+  const para = Math.min(PYRO.REACOES_MAX_TECNICA, Math.max(1, Math.round(Number(alvo) || 0)));
+  let total = 0;
+  for (let n = 1; n < para; n++) total += PYRO.custoDeReacoes[n]?.subir ?? 0;
   return total;
 };
 
@@ -1084,8 +1108,12 @@ PYRO.tracosTecnicaPadrao = {
   silencioso:   traco("mobilidade", 1, 1, "PYRO.Tecnica.Un.dadosFurtividade"),
 
   // Reação e defesa (ação base Bloquear ou Esquivar).
-  guarda:       traco("defesa", 1, 1, "PYRO.Tecnica.Un.dadosBloqueio", { bases: ["bloquear"], regra: "bloqueio" }),
-  evasao:       traco("defesa", 1, 1, "PYRO.Tecnica.Un.dadosEsquiva", { bases: ["esquivar"], regra: "esquiva" }),
+  // Guarda e Evasão fazem com a reação o que a Potência faz com o dano: um
+  // décimo de multiplicador por vez sobre o TOTAL rolado, junto com o
+  // multiplicador de resultado da própria ficha. A regra é a chave da reação
+  // em PYRO.reacoes, que é como a execução acha o traço da reação que abriu.
+  guarda:       traco("defesa", 0.1, 0.1, "PYRO.Tecnica.Un.dadosBloqueio", { bases: ["bloquear"], regra: "bloqueio" }),
+  evasao:       traco("defesa", 0.1, 0.1, "PYRO.Tecnica.Un.dadosEsquiva", { bases: ["esquivar"], regra: "esquiva" }),
   firmeza:      traco("defesa", 1, 1, "PYRO.Tecnica.Un.dadosFirmeza")
 };
 

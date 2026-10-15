@@ -297,14 +297,17 @@
           {{#if pontosDeAcoes}}<span class="pyro-nota">({{pontosDeAcoes}})</span>{{/if}}</span></div>
       {{else unless temEspecificidade}}
       {{!-- Sem ataque não há arma contra a qual comparar: o custo é o que
-            está aqui, e é ele que a execução cobra. --}}
-      <label class="campo">
-        <span class="rotulo">{{localize "PYRO.Acoes"}}</span>
-        <input type="number" name="system.acoes" value="{{system.acoes}}" min="1" max="6" /></label>
+            está aqui, e é ele que a execução cobra. Na técnica de reação o
+            número é de reações, e a segunda rende pontos. --}}
+      <label class="campo"{{#if ehReacao}} title="{{localize 'PYRO.Tecnica.ReacoesDica'}}"{{/if}}>
+        <span class="rotulo">{{#if ehReacao}}{{localize "PYRO.Item.Reacao"}}{{else}}{{localize "PYRO.Acoes"}}{{/if}}
+          {{#if pontosDeAcoes}}<span class="pyro-nota">({{pontosDeAcoes}})</span>{{/if}}</span>
+        <input type="number" name="system.acoes" value="{{system.acoes}}" min="1" max="{{acoesMax}}" /></label>
       {{/if}}
     </div>
     {{#if acoesDaBase}}<p class="pyro-nota">{{localize "PYRO.Tecnica.AcoesDica"}}</p>
-    {{else if temEspecificidade}}<p class="pyro-nota">{{localize "PYRO.Tecnica.AcoesVariam"}}</p>{{/if}}
+    {{else if temEspecificidade}}<p class="pyro-nota">{{localize "PYRO.Tecnica.AcoesVariam"}}</p>
+    {{else if ehReacao}}<p class="pyro-nota">{{localize "PYRO.Tecnica.ReacoesDica"}}</p>{{/if}}
   </div>
 
   {{!-- A condição imposta ao ataque, e o filtro que separa as armas da ficha

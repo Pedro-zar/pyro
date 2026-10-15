@@ -17,7 +17,7 @@ import {
 import { htmlBotaoSobrecarga, htmlBotaoMira, conferirMira, motivoDaMira } from "./teste.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
-import { semForNoDano, acoesComConfusao } from "./condicoes.mjs";
+import { semForNoDano, acoesComConfusao, barradoPorMental } from "./condicoes.mjs";
 import { dadosDaAreaNoCard, htmlBotaoArea } from "./area.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
@@ -35,6 +35,9 @@ const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
  * guardado: trocar a ação base de volta para Atacar devolve a escolha.
  */
 export const temEspecificidade = sys => !!PYRO.acoesBaseTecnica[sys?.acaoBase]?.ataca;
+
+/** A reação que a técnica abre ("esquiva", "bloqueio"), ou null quando ela é de ação. */
+export const reacaoDaTecnica = sys => PYRO.acoesBaseTecnica[sys?.acaoBase]?.reacao || null;
 
 /**
  * Ações da arma que a técnica usa como base, ou null quando não há uma.
@@ -64,7 +67,10 @@ export function acoesBaseDaArma(sys) {
  */
 export function acoesDaExecucao(sys, ataque = null) {
   const arma = temEspecificidade(sys) && acoesBaseDaArma(sys) === null && ataque;
-  return Math.max(1, Number(arma ? ataque.acoes : sys?.acoes) || 1);
+  const acoes = Math.max(1, Number(arma ? ataque.acoes : sys?.acoes) || 1);
+  // A técnica que veio de compêndio não passa pelo _preUpdate que corta o
+  // número, e cobrar três reações dela prometeria pontos que a tabela não dá.
+  return reacaoDaTecnica(sys) ? Math.min(PYRO.REACOES_MAX_TECNICA, acoes) : acoes;
 }
 
 /** O custo varia com a arma escolhida na hora de usar? */
@@ -73,9 +79,11 @@ export const acoesVariam = sys => temEspecificidade(sys) && acoesBaseDaArma(sys)
 /**
  * Pontos que a diferença de ações rende (SRD Técnicas). Positivo quando a
  * técnica é mais lenta que a arma, negativo quando é mais rápida; zero quando
- * não há arma base contra a qual comparar.
+ * não há arma base contra a qual comparar. Na técnica de reação a conta é a
+ * das reações a mais (ver PYRO.pontosDeReacoes).
  */
 export function ajusteDeAcoes(sys) {
+  if (reacaoDaTecnica(sys)) return PYRO.pontosDeReacoes(sys?.acoes);
   const base = acoesBaseDaArma(sys);
   if (base === null) return 0;
   return PYRO.pontosDeAcoes(base, Math.max(1, Number(sys?.acoes) || 1));
@@ -510,15 +518,18 @@ export function numeroDoTraco(valor) {
   return Number(valor || 0).toLocaleString("pt-BR", { maximumFractionDigits: 2 });
 }
 
+/** Regras de traço que somam multiplicador: a Potência no dano, Guarda e Evasão na reação. */
+const REGRAS_MULT = new Set(["danoMult", "bloqueio", "esquiva"]);
+
 /**
  * Texto de um valor de traço ("3 m", "1,25 x dados de dano").
  *
  * Multiplicador é o único que não sai como o traço rendeu: a Potência soma
- * um quarto por vez, e quem lê a ficha quer o total que vai multiplicar os
- * dados — "0,25 x dados de dano" leria como se o golpe encolhesse.
+ * uma fração por vez, e quem lê a ficha quer o total que vai multiplicar —
+ * "0,1 x dano total" leria como se o golpe encolhesse.
  */
 export function textoDoValor(cfg, valor) {
-  const total = cfg?.regra === "danoMult" ? 1 + valor : valor;
+  const total = REGRAS_MULT.has(cfg?.regra) ? 1 + valor : valor;
   return `${numeroDoTraco(total)} ${loc(cfg?.unidade)}`;
 }
 
@@ -540,6 +551,19 @@ export function multiplicadorDeDano(calc) {
   return 1 + calc.linhas
     .filter(l => l.cfg.regra === "danoMult")
     .reduce((total, l) => total + l.valor, 0);
+}
+
+/**
+ * Multiplicador do resultado da reação que a técnica abre: 1 mais o que a
+ * Guarda (bloqueio) ou a Evasão (esquiva) somarem, na mesma conta da Potência.
+ */
+export function multiplicadorDeReacao(calc, reacao) {
+  const soma = calc.linhas
+    .filter(l => reacao && l.cfg.regra === reacao)
+    .reduce((total, l) => total + l.valor, 0);
+  // Décimos somados em ponto flutuante dão 1,2999..., e o floor do resultado
+  // comeria um ponto de bloqueio que o traço deu.
+  return Math.round((1 + soma) * 1e6) / 1e6;
 }
 
 /**
@@ -629,6 +653,10 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   if (actor && !posturaPermite(actor, item.system)) return;
   const sys = item.system;
   const base = PYRO.acoesBaseTecnica[sys.acaoBase];
+  const reacao = reacaoDaTecnica(sys);
+  // A reação vem logo depois do card, e quem não pode reagir não pode pagar
+  // por uma técnica que termina numa reação barrada.
+  if (actor && reacao && barradoPorMental(actor, "semReacoes")) return;
   const usados = tracosDaTecnica(sys)
     // Esforço mínimo 1, como a Intenção das magias: um traço só entra na
     // execução fazendo alguma coisa.
@@ -872,7 +900,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   partes.push(htmlEfeitosDeUso(item, ataque?.item));
   partes.push(htmlClasseDaRolagem(classe, item));
 
-  return ChatMessage.create({
+  const mensagem = await ChatMessage.create({
     speaker: ChatMessage.getSpeaker({ actor }),
     content: `<div class="pyro-chat pyro-tecnica">${partes.join("")}</div>`,
     rolls,
@@ -883,6 +911,18 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     }),
     sound: rolls.length ? CONFIG.sounds.dice : undefined
   });
+
+  /*
+   * A técnica de reação é a própria esquiva ou o próprio bloqueio: a janela
+   * da reação abre em seguida, já paga aqui e com o multiplicador dos traços.
+   * Sem await, para o Executor fechar enquanto o jogador preenche o dano.
+   */
+  if (reacao) {
+    const opcoes = { tecnica: { nome: item.name, fator: multiplicadorDeReacao(calc, reacao) } };
+    if (reacao === "esquiva") actor.rolarEsquiva(opcoes);
+    else actor.rolarBloqueio(opcoes);
+  }
+  return mensagem;
 }
 
 /**
@@ -892,6 +932,7 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
 export async function executarTecnica(actor, item) {
   if (actor && !actor.podeAgir()) return;
   if (actor && !posturaPermite(actor, item.system)) return;
+  if (actor && reacaoDaTecnica(item.system) && barradoPorMental(actor, "semReacoes")) return;
   const { ExecutorApp } = await import("./apps/executor.mjs");
   return new ExecutorApp({ actor, item }).render(true);
 }

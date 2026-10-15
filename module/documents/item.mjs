@@ -220,6 +220,22 @@ export class PyroItem extends Item {
       changed.system = sys;
     }
 
+    /*
+     * Técnica de reação custa uma ou duas reações. Quem troca a base para
+     * Bloquear ou Esquivar vem de um custo em ações (duas, no Atacar), e
+     * herdar esse número daria a segunda reação e os pontos dela sem ninguém
+     * ter pedido: a troca volta para uma, a não ser que venha junto um número.
+     */
+    if (this.type === "tecnica" && ("acaoBase" in sys || "acoes" in sys)) {
+      const base = sys.acaoBase ?? this.system.acaoBase;
+      if (PYRO.acoesBaseTecnica[base]?.reacao) {
+        const trocouBase = "acaoBase" in sys && sys.acaoBase !== this.system.acaoBase;
+        const pedidas = "acoes" in sys ? sys.acoes : (trocouBase ? 1 : this.system.acoes);
+        sys.acoes = Math.min(PYRO.REACOES_MAX_TECNICA, Math.max(1, Math.round(Number(pedidas) || 1)));
+        changed.system = sys;
+      }
+    }
+
     if (this.type === "tecnica" && "ataque" in sys) {
       const id = sys.ataque.id ?? this.system.ataque.id;
       const arma = id ? this.actor?.items?.get(id) : null;

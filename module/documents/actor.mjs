@@ -619,8 +619,12 @@ export class PyroActor extends Actor {
    * (SRD §5), e a mesma exaustão descontando.
    * Vantagem e desvantagem mexem no dado da reação — d12 na esquiva, d4 no
    * bloqueio — e os dados que o equipamento soma ficam como estão.
+   *
+   * @param {object} [opcoes.tecnica] a técnica de reação que abriu a janela:
+   *   { nome, fator }. Ela já cobrou a reação, e o fator dos traços (Guarda,
+   *   Evasão) multiplica o resultado junto com o da ficha.
    */
-  async #rolarReacao(tipo, { cobertura = false } = {}) {
+  async #rolarReacao(tipo, { cobertura = false, tecnica = null } = {}) {
     if (!this.podeAgir()) return;
     // Insensato não se protege: sem cobertura, sem esquiva e sem bloqueio.
     if (barradoPorMental(this, "semReacoes")) return;
@@ -638,8 +642,9 @@ export class PyroActor extends Actor {
      * atributo para dobrar. No lugar do ND vem o dano, por tipo: o ND real é
      * o que sobra depois da defesa de cada tipo.
      */
+    const titulo = game.i18n.localize(chaves.titulo);
     const res = await formularioDoAtor(this, {
-      titulo: game.i18n.localize(chaves.titulo),
+      titulo: tecnica ? `${titulo}: ${tecnica.nome}` : titulo,
       conteudo: camposDeTeste(this, {
         dica: game.i18n.format("PYRO.Reacao.Base", { formula: this.system[`${tipo}Texto`] || "0" }),
         extras: camposDeDanoRecebido() + campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura),
@@ -657,8 +662,9 @@ export class PyroActor extends Actor {
       nd: contaDoDano.total,
       cobertura: !!res.cobertura
     };
-    // Cobrado depois da janela: fechar o diálogo não pode levar a reação.
-    const gasto = await this.gastarAcoes(1, { tipo: "reacao" });
+    // Cobrado depois da janela: fechar o diálogo não pode levar a reação. A
+    // técnica já cobrou as dela, e cobrar aqui seria pagar a defesa duas vezes.
+    const gasto = tecnica ? { ok: true, texto: "" } : await this.gastarAcoes(1, { tipo: "reacao" });
     if (!gasto.ok) return;
     aplicarExaustaoNoTeste(this, opts);
     const vontade = await aplicarVontadeNoTeste(this, opts);
@@ -676,7 +682,8 @@ export class PyroActor extends Actor {
 
     const formula = formulaReacao(this.system[tipo], cfg.faces, opts);
     const flavor = game.i18n.localize(opts.cobertura ? chaves.flavorCobertura : chaves.flavor)
-      + sufixoND(opts.nd) + (gasto.texto ? ` · ${gasto.texto}` : "");
+      + sufixoND(opts.nd) + (gasto.texto ? ` · ${gasto.texto}` : "")
+      + (tecnica ? ` · ${esc(tecnica.nome)}` : "");
     // Montado antes da saída por falha automática: a estamina já foi cobrada,
     // e uma reação que falha sem dizer o que custou parece um bug na mesa.
     const avisoFriagem = friagem > 0
@@ -699,13 +706,22 @@ export class PyroActor extends Actor {
      * baixo, e o card mostra a conta: o total da rolagem sozinho não bateria
      * com o que a reação segurou.
      */
-    const fator = Number(this.system[`${tipo}MultResultado`]);
-    const multiplica = Number.isFinite(fator) && fator !== 1;
+    const daFicha = Number(this.system[`${tipo}MultResultado`]);
+    const daTecnica = Number(tecnica?.fator);
+    /*
+     * Ficha e técnica são fatores próprios, como a Potência e os efeitos no
+     * dano: floor(rolagem x ficha x técnica), um arredondamento só.
+     */
+    const fator = (Number.isFinite(daFicha) ? daFicha : 1) * (Number.isFinite(daTecnica) ? daTecnica : 1);
+    const multiplica = fator !== 1;
     const total = multiplica ? Math.max(0, Math.floor(roll.total * fator)) : roll.total;
+    const dadosDaNota = {
+      fator: fator.toLocaleString("pt-BR", { maximumFractionDigits: 2 }),
+      antes: roll.total, depois: total, nome: esc(tecnica?.nome ?? "")
+    };
     const notaDoFator = multiplica
-      ? `<p class="pyro-nota">${game.i18n.format("PYRO.Reacao.MultResultado", {
-        fator: fator.toLocaleString("pt-BR", { maximumFractionDigits: 2 }), antes: roll.total, depois: total
-      })}</p>`
+      ? `<p class="pyro-nota">${game.i18n.format(
+        tecnica && daTecnica !== 1 ? "PYRO.Reacao.MultTecnica" : "PYRO.Reacao.MultResultado", dadosDaNota)}</p>`
       : "";
     /*
      * A esquiva escapa de tudo ou de nada, e o card diz qual. O bloqueio

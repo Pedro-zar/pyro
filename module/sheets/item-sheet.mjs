@@ -618,6 +618,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
        * Sem ela o campo mostra o porquê, em vez de um número que não vale.
        */
       acoesDaBase: acoesBaseDaArma(sys),
+      // A técnica de reação conta reações, com teto e pontos próprios.
+      ehReacao: !!PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao,
+      acoesMax: PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao
+        ? PYRO.REACOES_MAX_TECNICA : PYRO.ACOES_MAX_TECNICA,
       // Com sinal: o número diz sozinho se a diferença dá ou custa ponto.
       pontosDeAcoes: sys.pontos?.dasAcoes
         ? `${sys.pontos.dasAcoes > 0 ? "+" : ""}${sys.pontos.dasAcoes}`
@@ -865,7 +869,10 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         partes.push(loc(PYRO.acoesBaseTecnica[sys.acaoBase]?.label ?? ""));
         partes.push(`${loc("PYRO.Item.Ranque")} ${sys.ranque}`);
         partes.push(`${loc("PYRO.Uso.Nivel")} ${sys.progresso.nivel}`);
-        partes.push(`${sys.acoes} ${loc("PYRO.AcoesAbrev")}`);
+        const reacao = PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao;
+        const unidade = !reacao ? "PYRO.AcoesAbrev"
+          : sys.acoes === 1 ? "PYRO.Custos.reacao" : "PYRO.Custos.reacaoPlural";
+        partes.push(`${sys.acoes} ${loc(unidade)}`);
         break;
       }
       case "pericia": {
