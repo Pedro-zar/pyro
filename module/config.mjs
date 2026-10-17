@@ -952,6 +952,17 @@ PYRO.acoesBaseTecnica = {
 };
 
 /**
+ * Técnicas básicas (ver tecnicas-basicas.mjs): todo personagem e todo NPC tem
+ * as três, e é só por elas que se ataca com arma, se esquiva e se bloqueia. A
+ * chave é a ação base, e o traço é o único que a técnica tem e pode subir.
+ */
+PYRO.tecnicasBasicas = {
+  atacar:   { nome: "PYRO.Tecnica.Basica.atacar",   traco: "potencia", img: "icons/svg/sword.svg" },
+  esquivar: { nome: "PYRO.Tecnica.Basica.esquivar", traco: "evasao",   img: "icons/svg/wing.svg" },
+  bloquear: { nome: "PYRO.Tecnica.Basica.bloquear", traco: "guarda",   img: "icons/svg/shield.svg" }
+};
+
+/**
  * Especificidade (SRD Técnicas): condições impostas ao ataque rendem pontos, e
  * a técnica não funciona fora delas. `filtro` diz qual lista de opções a ficha
  * oferece; a especificidade sem filtro ("nenhuma") aceita qualquer ataque, e
@@ -1436,12 +1447,13 @@ PYRO.guiaAcoes = [
 
 /**
  * Ações do Guia que o jogador pode clicar: o custo escrito, o tipo e o que
- * mais cobram. As que já têm um caminho próprio (esquivar, bloquear, tomar
- * ar) apontam para ele, e o gasto sai de lá. As que não têm custo fixo
+ * mais cobram. As que já têm um caminho próprio (tomar ar, atrasar) apontam
+ * para ele, e as que viraram técnica básica (atacar, esquivar, bloquear)
+ * abrem a técnica: o gasto sai de lá. As que não têm custo fixo
  * (furtividade, a conversão fora do turno) não são clicáveis.
  */
 PYRO.acoesDoGuia = {
-  atacar: { acoes: 2 },
+  atacar: { acoes: 2, basica: "atacar" },
   mirar: { acoes: 1 },
   mover: { acoes: 1, metodo: "mover" },
   sacarArma: { acoes: 1 },
@@ -1449,8 +1461,8 @@ PYRO.acoesDoGuia = {
   salto: { acoes: 3, estamina: 15 },
   agarrar: { acoes: 3, estamina: 10 },
   escalar: { acoes: 3, estamina: 20 },
-  bloquear: { acoes: 1, tipo: "reacao", metodo: "rolarBloqueio" },
-  esquivar: { acoes: 1, tipo: "reacao", metodo: "rolarEsquiva" },
+  bloquear: { acoes: 1, tipo: "reacao", basica: "bloquear" },
+  esquivar: { acoes: 1, tipo: "reacao", basica: "esquivar" },
   cobertura: { acoes: 1, tipo: "reacao" },
   atrasar: { acoes: 2, metodo: "atrasarAcao" },
   ajudar: { acoes: 1, tipo: "reacao" }

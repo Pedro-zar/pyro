@@ -42,7 +42,7 @@ export function selosDePoder(actor) {
   if ((sys.recursosConcedidos ?? []).some(c => PYRO.recursosCustom?.[c])) {
     selos.push({ chave: "natural", cor: "var(--pyro-recurso-custom)", label: loc("PYRO.Vocacao.natural") });
   }
-  if (sys.temTecnicas) {
+  if (sys.vocacaoFisica) {
     selos.push({ chave: "fisico", cor: "var(--pyro-vontade)", label: loc("PYRO.Vocacao.fisico") });
   }
 

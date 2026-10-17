@@ -24,7 +24,7 @@ import { rotuloCurtoDoCaminho, configDoRecurso, nivelDoRecurso } from "../data/i
 import {
   tracosCompativeis, valorDoTraco, textoDoValor, ataquesDoAtor, posturasDoAtor, opcoesDoFiltro,
   exigePostura, temEspecificidade,
-  acoesBaseDaArma, tracosDaTecnica, calcularEsforco
+  acoesBaseDaArma, tracosDaTecnica, calcularEsforco, acoesVariam
 } from "../tecnica.mjs";
 
 /**
@@ -597,8 +597,16 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
       ? ataquesDoAtor(actor).map(a => ({ id: a.id, nome: a.nome, acoes: a.acoes }))
       : null;
 
+    // Técnica básica: a ficha mostra só o que pode mudar nela, o grau do traço.
+    const basica = !!sys.basica;
+    const tracoFixo = basica ? PYRO.tracosTecnica[PYRO.tecnicasBasicas[sys.basica]?.traco] : null;
+
     return {
-      temEspecificidade: comEspecificidade,
+      basica,
+      basicaTexto: basica
+        ? game.i18n.format("PYRO.Tecnica.BasicaDica", { traco: loc(tracoFixo?.label ?? "") })
+        : "",
+      temEspecificidade: comEspecificidade && !basica,
       pontos: sys.pontos,
       // O aviso é só aviso: a técnica com pontos sobrando ainda está sendo
       // montada, e a que passou do teto é uma conversa com o mestre.
@@ -646,6 +654,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         return {
           indice,
           chave: t.chave,
+          nome: cfg ? loc(cfg.label) : t.chave,
           grau: t.grau,
           custo: PYRO.custoDoGrau(t.grau),
           desconhecido: !cfg,
@@ -659,7 +668,7 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
             .map(c => [c.chave, loc(c.label)]))
         };
       }),
-      podeAdicionarTraco: compativeis.some(c => !jaUsados.has(c.chave)),
+      podeAdicionarTraco: !basica && compativeis.some(c => !jaUsados.has(c.chave)),
       onusOpts: Object.entries(PYRO.onusTecnica).map(([chave, cfg]) => ({
         chave,
         label: `${loc(cfg.label)} (+${cfg.pontos})`,
@@ -872,7 +881,8 @@ export class PyroItemSheet extends HandlebarsApplicationMixin(ItemSheetV2) {
         const reacao = PYRO.acoesBaseTecnica[sys.acaoBase]?.reacao;
         const unidade = !reacao ? "PYRO.AcoesAbrev"
           : sys.acoes === 1 ? "PYRO.Custos.reacao" : "PYRO.Custos.reacaoPlural";
-        partes.push(`${sys.acoes} ${loc(unidade)}`);
+        // A que aceita várias armas cobra o da arma escolhida na hora.
+        partes.push(acoesVariam(sys) ? loc("PYRO.Tecnica.AcoesDaArmaCurto") : `${sys.acoes} ${loc(unidade)}`);
         break;
       }
       case "pericia": {

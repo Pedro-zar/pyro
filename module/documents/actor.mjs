@@ -34,10 +34,11 @@ import {
 import {
   dadosDePrazo, UNIDADE_PADRAO, contaEmTurnos, daUnidade, turnosDe
 } from "../duracao.mjs";
-import { donosDe, temDonoJogador } from "../tecnica.mjs";
+import { donosDe, temDonoJogador, executarTecnica } from "../tecnica.mjs";
+import { basicasQueFaltam, dadosDaBasica, tecnicaBasica } from "../tecnicas-basicas.mjs";
 import { multRecuperacaoDoAtor, comDensidade } from "../regioes.mjs";
 import {
-  camposDeDanoRecebido, ligarCamposDeDano, lerDanoRecebido, htmlContaDoDano, htmlDanoRestante
+  camposDaReacao, ligarCamposDeDano, lerDanoRecebido, htmlContaDoDano, htmlDanoRestante
 } from "../reacao.mjs";
 import {
   economiaDoAtor, pontosDoCusto, textoDeAcoes, textoDoPagamento, anunciarAcao, dividirGasto
@@ -53,6 +54,14 @@ export class PyroActor extends Actor {
   async _preCreate(data, options, user) {
     const permitido = await super._preCreate(data, options, user);
     if (permitido === false) return false;
+
+    // As técnicas básicas entram já na criação, antes do retorno da ficha que
+    // vem de um compêndio ou de uma cópia: essa também pode estar sem elas.
+    const faltam = basicasQueFaltam(this.type, this._source.items ?? []);
+    if (faltam.length) {
+      this.updateSource({ items: [...(this._source.items ?? []), ...faltam.map(dadosDaBasica)] });
+    }
+
     if (data.prototypeToken?.actorLink !== undefined) return;
 
     const personagem = this.type === "personagem";
@@ -605,6 +614,22 @@ export class PyroActor extends Actor {
   /*  Reações                                                               */
   /* ---------------------------------------------------------------------- */
 
+  /**
+   * Abre a técnica básica `chave` (atacar, esquivar, bloquear). É o caminho do
+   * Guia de ações e do clique na arma, que já chega com o ataque escolhido.
+   *
+   * @param {object} [opcoes.ataqueId] arma que o Atacar abre selecionada.
+   */
+  async usarTecnicaBasica(chave, { ataqueId = null } = {}) {
+    const item = tecnicaBasica(this, chave);
+    if (!item) {
+      return ui.notifications.warn(game.i18n.format("PYRO.Tecnica.SemBasica", {
+        nome: this.name, tecnica: game.i18n.localize(PYRO.tecnicasBasicas[chave]?.nome ?? chave)
+      }));
+    }
+    return executarTecnica(this, item, { ataqueId });
+  }
+
   async rolarEsquiva(opcoes = {}) {
     return this.#rolarReacao("esquiva", opcoes);
   }
@@ -620,11 +645,13 @@ export class PyroActor extends Actor {
    * Vantagem e desvantagem mexem no dado da reação — d12 na esquiva, d4 no
    * bloqueio — e os dados que o equipamento soma ficam como estão.
    *
-   * @param {object} [opcoes.tecnica] a técnica de reação que abriu a janela:
+   * @param {object} [opcoes.tecnica] a técnica de reação que pediu a rolagem:
    *   { nome, fator }. Ela já cobrou a reação, e o fator dos traços (Guarda,
    *   Evasão) multiplica o resultado junto com o da ficha.
+   * @param {object} [opcoes.respostas] os campos já preenchidos no Executor da
+   *   técnica. Com eles a janela própria da reação não abre.
    */
-  async #rolarReacao(tipo, { cobertura = false, tecnica = null } = {}) {
+  async #rolarReacao(tipo, { cobertura = false, tecnica = null, respostas = null } = {}) {
     if (!this.podeAgir()) return;
     // Insensato não se protege: sem cobertura, sem esquiva e sem bloqueio.
     if (barradoPorMental(this, "semReacoes")) return;
@@ -634,23 +661,14 @@ export class PyroActor extends Actor {
       : { titulo: "PYRO.Bloquear", flavor: "PYRO.Chat.Bloqueio", flavorCobertura: "PYRO.Chat.BloqueioCobertura" };
 
     /*
-     * A janela abre sempre, mesmo com Shift: o dano que chega é obrigatório,
-     * e sem ele não há ND nem como dizer se a reação deu certo.
-     *
-     * Sem Inspiração Divina: a pool da reação é fixa pelo sistema (d4 no
-     * bloqueio, d12 na esquiva) e não sai de atributo nenhum, então não há
-     * atributo para dobrar. No lugar do ND vem o dano, por tipo: o ND real é
-     * o que sobra depois da defesa de cada tipo.
+     * Sem os campos do Executor, a janela abre sempre, mesmo com Shift: o
+     * dano que chega é obrigatório, e sem ele não há ND nem como dizer se a
+     * reação deu certo.
      */
     const titulo = game.i18n.localize(chaves.titulo);
-    const res = await formularioDoAtor(this, {
+    const res = respostas ?? await formularioDoAtor(this, {
       titulo: tecnica ? `${titulo}: ${tecnica.nome}` : titulo,
-      conteudo: camposDeTeste(this, {
-        dica: game.i18n.format("PYRO.Reacao.Base", { formula: this.system[`${tipo}Texto`] || "0" }),
-        extras: camposDeDanoRecebido() + campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura),
-        comInspiracao: false,
-        comND: false
-      }),
+      conteudo: camposDaReacao(this, tipo, { cobertura }),
       aoRenderizar: ligarCamposDeDano
     });
     if (!res) return;

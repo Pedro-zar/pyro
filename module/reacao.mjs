@@ -11,6 +11,7 @@
 import { PYRO } from "./config.mjs";
 import { calcularFormula } from "./dados.mjs";
 import { esc } from "./ui.mjs";
+import { camposDeTeste, campoCheckbox } from "./teste.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
 
@@ -44,6 +45,26 @@ export function camposDeDanoRecebido() {
     <div class="pyro-dano-recebido-linhas">${linhaDeDano(0)}</div>
     <p class="pyro-dano-aviso" hidden>${esc(loc("PYRO.Reacao.SemDano"))}</p>
   </fieldset>`;
+}
+
+/**
+ * Todos os campos de uma reação: os dados base, bônus e vantagens, o dano que
+ * chega, a cobertura e a Força de Vontade. A janela própria da reação e o
+ * Executor da técnica de reação mostram os mesmos, e a rolagem lê os dois do
+ * mesmo jeito.
+ *
+ * Sem Inspiração Divina: a pool da reação é fixa pelo sistema (d4 no
+ * bloqueio, d12 na esquiva) e não sai de atributo nenhum, então não há
+ * atributo para dobrar. No lugar do ND vem o dano, por tipo: o ND real é o
+ * que sobra depois da defesa de cada tipo.
+ */
+export function camposDaReacao(actor, tipo, { cobertura = false } = {}) {
+  return camposDeTeste(actor, {
+    dica: loc("PYRO.Reacao.Base", { formula: actor.system[`${tipo}Texto`] || "0" }),
+    extras: camposDeDanoRecebido() + campoCheckbox("cobertura", "PYRO.Reacao.Cobertura", cobertura),
+    comInspiracao: false,
+    comND: false
+  });
 }
 
 /**

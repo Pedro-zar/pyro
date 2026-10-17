@@ -273,6 +273,14 @@
 {{/if}}
 
 {{#if isTecnica}}
+  {{!-- Técnica básica: base, custo e traço são os de todo mundo, e só o grau
+        do traço sobe. O bloco diz isso em vez de mostrar campos travados. --}}
+  {{#if basica}}
+  <div class="bloco">
+    <h4 class="titulo-secao">{{localize "PYRO.Bloco.Identificacao"}}</h4>
+    <p class="pyro-nota">{{basicaTexto}}</p>
+  </div>
+  {{else}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Bloco.Identificacao"}}</h4>
     <div class="grade-campos">
@@ -309,6 +317,7 @@
     {{else if temEspecificidade}}<p class="pyro-nota">{{localize "PYRO.Tecnica.AcoesVariam"}}</p>
     {{else if ehReacao}}<p class="pyro-nota">{{localize "PYRO.Tecnica.ReacoesDica"}}</p>{{/if}}
   </div>
+  {{/if}}
 
   {{!-- A condição imposta ao ataque, e o filtro que separa as armas da ficha
         sozinho: quem escolhe "armas pesadas" não marca arma por arma. Só nas
@@ -354,12 +363,19 @@
     </div>
     {{#each tracosDaTecnica as |t|}}
     <div class="config-linha tracos-item">
+      {{#if @root.basica}}
+      <span class="valor-texto">{{t.nome}}</span>
+      <input type="hidden" name="system.tracos.{{t.indice}}.chave" value="{{t.chave}}" />
+      {{else}}
       <select name="system.tracos.{{t.indice}}.chave">{{selectOptions t.opcoes selected=t.chave}}</select>
+      {{/if}}
       <input type="number" name="system.tracos.{{t.indice}}.grau" value="{{t.grau}}" min="1" />
       <span class="valor-texto numero">{{t.custo}}</span>
       <span class="valor-texto">{{t.efeito}}</span>
+      {{#if @root.basica}}<span></span>{{else}}
       <button type="button" class="icone perigo" data-action="removerTraco" data-index="{{t.indice}}"
               title="{{localize 'PYRO.Excluir'}}"><i class="fa-solid fa-xmark"></i></button>
+      {{/if}}
     </div>
     {{/each}}
     {{else}}
@@ -375,6 +391,7 @@
     {{/if}}
   </div>
 
+  {{#unless basica}}
   <div class="bloco">
     <h4 class="titulo-secao">{{localize "PYRO.Tecnica.PontosFracos"}}</h4>
     <p class="pyro-nota">{{localize "PYRO.Tecnica.OnusDica"}}</p>
@@ -419,6 +436,7 @@
     </div>
   </div>
   {{/if}}
+  {{/unless}}
 
   {{> "pyro.progresso"}}
 {{/if}}

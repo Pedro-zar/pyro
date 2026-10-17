@@ -37,6 +37,7 @@ import {
   posturasDoAtor, tracosDaTecnica, valorDoTraco, textoDoValor, textoDaCondicao,
   posturaExigida, posturaAtivaVale, acoesVariam
 } from "../tecnica.mjs";
+import { ehBasica } from "../tecnicas-basicas.mjs";
 
 /**
  * O que fazer com um drop que caiu em cima de uma linha do inventário.
@@ -98,8 +99,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
     form: { submitOnChange: true },
     actions: {
       rolarAtributo: PyroActorSheet.#rolarAtributo,
-      rolarEsquiva: PyroActorSheet.#rolarEsquiva,
-      rolarBloqueio: PyroActorSheet.#rolarBloqueio,
       tomarAr: PyroActorSheet.#tomarAr,
       mover: PyroActorSheet.#mover,
       ajustarEconomia: PyroActorSheet.#ajustarEconomia,
@@ -737,13 +736,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       podeVontadeDeViver: actor.system.caido
         && actor.system.recursos.vontade.value >= PYRO.CUSTO_VONTADE_DE_VIVER,
       custoVontadeDeViver: PYRO.CUSTO_VONTADE_DE_VIVER,
-      /*
-       * Não há reação a oferecer: ou o peso prendeu o personagem, ou o
-       * insensato não se protege (ver PYRO.condicoesMentais). Uma marca só,
-       * porque o botão é o mesmo — o motivo aparece no aviso ao clicar e na
-       * lista de condições.
-       */
-      semReagir: !!actor.system.imobilizado || regraMental(actor, "semReacoes"),
       // Caminho novo custa 10 x os que já tem (SRD §2), já com a regra de
       // progressão solta do personagem; o botão mostra o preço antes de abrir
       // a janela de repartir a XP.
@@ -840,15 +832,6 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
   static async #rolarAtributo(event, target) {
     // Shift+clique: rolagem rápida, sem diálogo.
     await this.actor.rolarAtributo(target.dataset.atributo, { rapido: event.shiftKey });
-  }
-
-  // Como nos atributos: clique abre a janela, Shift rola direto.
-  static async #rolarEsquiva() {
-    await this.actor.rolarEsquiva();
-  }
-
-  static async #rolarBloqueio() {
-    await this.actor.rolarBloqueio();
   }
 
   static async #mover() {
@@ -1359,6 +1342,7 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       {
         name: "PYRO.Menu.Duplicar",
         icon: '<i class="fa-solid fa-copy"></i>',
+        condition: li => !ehBasica(item(li)),
         callback: async li => {
           const original = item(li);
           if (original) {
@@ -1369,6 +1353,8 @@ export class PyroActorSheet extends HandlebarsApplicationMixin(ActorSheetV2) {
       {
         name: "PYRO.Menu.Excluir",
         icon: '<i class="fa-solid fa-trash"></i>',
+        // A técnica básica não sai da ficha (ver o _preDelete do item).
+        condition: li => !ehBasica(item(li)),
         callback: async li => {
           const alvo = item(li);
           if (!alvo) return;

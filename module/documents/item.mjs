@@ -5,14 +5,12 @@
 import { PYRO } from "../config.mjs";
 import { conjurarMagiaSalva, scalingsPadrao, religarRunas } from "../magia.mjs";
 import { executarTecnica } from "../tecnica.mjs";
+import { ehBasica, tecnicaBasica, tracoDaBasica } from "../tecnicas-basicas.mjs";
 import { formulaPool, prepararFormula, comUnidade } from "../dados.mjs";
 import {
-  htmlEfeitosDeUso, bonusDeDano, multiplicadoresDeDano, aplicarMultDeDano,
-  ajustesDeAtributo, ajustesDeCusto, custoAjustado, alcanceDaArma, textoDeAlcance
+  htmlEfeitosDeUso, ajustesDeAtributo, ajustesDeCusto, custoAjustado
 } from "../efeitos.mjs";
-import { esc, enriquecer, formularioDoAtor } from "../ui.mjs";
-import { htmlBotaoMira, conferirMira, motivoDaMira } from "../teste.mjs";
-import { semForNoDano, regraMental } from "../condicoes.mjs";
+import { esc, enriquecer } from "../ui.mjs";
 import { flagsDoSistema } from "../sistema.mjs";
 
 /** Nome automático de um caminho: "Caminho do <raça ou profissão>". */
@@ -57,6 +55,13 @@ export class PyroItem extends Item {
   async _preCreate(data, options, user) {
     const permitido = await super._preCreate(data, options, user);
     if (permitido === false) return false;
+
+    // Cada básica é uma por ficha: a segunda cópia (duplicar, arrastar de
+    // outra ficha) dividiria o nível e os traços em dois itens.
+    if (ehBasica(this) && this.actor && tecnicaBasica(this.actor, this.system.basica)) {
+      ui.notifications.warn(game.i18n.format("PYRO.Tecnica.BasicaRepetida", { nome: this.name }));
+      return false;
+    }
 
     /*
      * Ícone do tipo, quando ninguém escolheu um. O Foundry dá a mesma sacola a
@@ -226,6 +231,24 @@ export class PyroItem extends Item {
      * herdar esse número daria a segunda reação e os pontos dela sem ninguém
      * ter pedido: a troca volta para uma, a não ser que venha junto um número.
      */
+    /*
+     * Técnica básica: só o grau do traço dela sobe. O resto da técnica é a
+     * régua comum de todo mundo, e a mudança que chegar por fora da ficha
+     * (macro, arrastar dados) é descartada aqui, onde todo caminho passa.
+     */
+    if (this.type === "tecnica" && this.system.basica) {
+      for (const campo of ["basica", "acaoBase", "acoes", "especificidade", "filtro", "ataque",
+        "onus", "ranque", "postura", "area"]) delete sys[campo];
+      if ("tracos" in sys) {
+        const fixo = tracoDaBasica(this.system.basica);
+        const pedidos = Object.values(sys.tracos ?? {});
+        const pedido = pedidos.find(t => t?.chave === fixo) ?? pedidos[0];
+        const atual = this.system.tracos.find(t => t.chave === fixo)?.grau ?? 1;
+        sys.tracos = [{ chave: fixo, grau: Math.max(1, Math.round(Number(pedido?.grau) || atual)) }];
+      }
+      changed.system = sys;
+    }
+
     if (this.type === "tecnica" && ("acaoBase" in sys || "acoes" in sys)) {
       const base = sys.acaoBase ?? this.system.acaoBase;
       if (PYRO.acoesBaseTecnica[base]?.reacao) {
@@ -346,31 +369,14 @@ export class PyroItem extends Item {
     return dados;
   }
 
-  /**
-   * Rolagens de dano que os efeitos somam a este item, já renderizadas.
-   * Cada bônus entra como parcela própria, com tipo, para o desconto de
-   * defesa no chat continuar batendo tipo a tipo.
-   */
-  async #bonusDeDanoHTML(tipoPadrao) {
-    const partes = [];
-    const danos = [];
-    const rolls = [];
-
-    for (const bonus of bonusDeDano(this.actor, this)) {
-      const dados = semForNoDano(this.actor, this.getRollData());
-      const roll = await new Roll(prepararFormula(bonus.formula, dados), dados).evaluate();
-      rolls.push(roll);
-      // Sem tipo escolhido, o bônus herda o tipo do ataque que ele acompanha.
-      const tipo = bonus.tipo || tipoPadrao || "";
-      // A fórmula acompanha a parcela: é dela que o Molhado tira o dado a somar.
-      danos.push({ tipo, total: roll.total, formula: bonus.formula });
-      const rotulo = tipo ? game.i18n.localize(PYRO.tiposDano[tipo]?.label ?? tipo) : "";
-      partes.push(
-        `<p class="pyro-linha-dano dano-${tipo}">${esc(bonus.nome)}${rotulo ? ` — ${rotulo}` : ""}</p>`,
-        await roll.render()
-      );
+  /** Técnica básica não sai da ficha: sem ela não há como atacar nem reagir. */
+  async _preDelete(options, user) {
+    const permitido = await super._preDelete(options, user);
+    if (permitido === false) return false;
+    if (ehBasica(this) && this.actor) {
+      ui.notifications.warn(game.i18n.format("PYRO.Tecnica.BasicaNaoExclui", { nome: this.name }));
+      return false;
     }
-    return { partes, danos, rolls };
   }
 
   /** Ponto de entrada único de "usar" um item — a ficha chama isso. */
@@ -380,7 +386,10 @@ export class PyroItem extends Item {
       return ui.notifications.warn(game.i18n.format("PYRO.Despertar.AdormecidaAviso", { nome: this.name }));
     }
     switch (this.type) {
-      case "arma": return this.#atacar();
+      // Arma não golpeia sozinha: o clique abre o Atacar já com ela escolhida.
+      case "arma": return this.actor
+        ? this.actor.usarTecnicaBasica("atacar", { ataqueId: this.id })
+        : this.mostrarNoChat();
       case "consumivel": return this.#consumir();
       case "habilidade":
         if (this.system.ehPostura) return this.actor?.alternarPostura(this);
@@ -400,148 +409,6 @@ export class PyroItem extends Item {
   }
 
   /* ---------------------------------------------------------------------- */
-
-  async #atacar() {
-    const sys = this.system;
-    const actor = this.actor;
-    if (actor && !actor.podeAgir()) return;
-    const speaker = ChatMessage.getSpeaker({ actor });
-
-    /* --- Munição: escolhe antes de qualquer gasto ------------------------- */
-    let municao = null;
-    if (sys.usaMunicao && actor) {
-      const opcoes = actor.items.filter(i =>
-        i.type === "consumivel" && i.system.municao && i.system.quantidade > 0
-      );
-      if (!opcoes.length) {
-        return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemMunicao"));
-      }
-      const selects = opcoes.map(m =>
-        `<option value="${m.id}">${esc(m.name)} (x${m.system.quantidade})</option>`
-      ).join("");
-      const res = await formularioDoAtor(actor, {
-        titulo: game.i18n.localize("PYRO.Municao.Titulo"),
-        conteudo: `<div class="form-group">
-          <label>${game.i18n.localize("TYPES.Item.consumivel")}</label>
-          <select name="municao">${selects}</select>
-        </div>`
-      });
-      if (!res) return;
-      municao = actor.items.get(res.municao);
-      if (!municao) return;
-    }
-
-    /* --- Mira: o card pede o teste, e o jogador escolhe quando rolar -------- */
-    /*
-     * A distância é medida agora, e não no clique do botão: o tiro saiu daqui,
-     * e o token pode andar antes de alguém conferir a pontaria. O resto da
-     * regra é a mesma de toda forma de atacar, e mora em conferirMira.
-     */
-    // Efeito de custo pode baratear ou encarecer o ataque em ações. O
-    // contador é cobrado antes da munição: sem ações o disparo não sai.
-    const acoes = custoAjustado(sys.acoes, ajustesDeCusto(actor, this).acoes);
-    const gasto = actor
-      ? await actor.gastarAcoes(acoes)
-      : { ok: true, texto: game.i18n.format("PYRO.Chat.CustoAcoes", { acoes }) };
-    if (!gasto.ok) return;
-
-    const alcance = alcanceDaArma(actor, this);
-    const mira = conferirMira(actor, alcance.maximo || alcance.menor);
-    const rolls = [];
-
-    // Munição some ao disparar, acertando ou errando.
-    if (municao) await municao.update({ "system.quantidade": municao.system.quantidade - 1 });
-
-    const detalhes = [
-      gasto.texto,
-      textoDeAlcance(alcance)
-    ].filter(Boolean).join(" · ");
-    const partes = [this.#topoHTML(detalhes)];
-
-    /*
-     * De onde veio o alcance, quando ele não é o da ficha da arma: um "2m"
-     * numa arma de 1m parece defeito sem isso.
-     */
-    if (alcance.mudou) {
-      partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Efeitos.AlcanceAplicado", {
-        nomes: esc(alcance.nomes.join(", ")),
-        antes: textoDeAlcance(alcance.base),
-        depois: textoDeAlcance(alcance)
-      })}</p>`);
-    }
-
-    if (mira.pede) {
-      partes.push(htmlBotaoMira({
-        atorUuid: actor.uuid,
-        itemUuid: this.uuid,
-        distancia: mira.distancia ?? "",
-        limite: mira.limite,
-        alcance: alcance.menor,
-        motivo: motivoDaMira(mira)
-      }));
-    }
-
-    // Cada entrada de dano rola separado, com seu próprio tipo — o menu do
-    // chat precisa disso pra descontar a defesa certa de cada parcela.
-    const danos = [];
-    for (const dano of sys.danos ?? []) {
-      if (!dano.formula?.trim()) continue;
-      const dados = semForNoDano(actor, this.getRollData());
-      const roll = await new Roll(prepararFormula(dano.formula, dados), dados).evaluate();
-      rolls.push(roll);
-      danos.push({ tipo: dano.tipo, total: roll.total, formula: dano.formula });
-      const tipo = game.i18n.localize(PYRO.tiposDano[dano.tipo]?.label ?? dano.tipo ?? "");
-      partes.push(`<p class="pyro-linha-dano dano-${dano.tipo}">${tipo}</p>`, await roll.render());
-    }
-
-    /*
-     * O abatido zera a Força no dano, e o card diz isso: um "2d8 + 0" sem
-     * explicação parece defeito, e não a condição fazendo efeito.
-     */
-    if (danos.length && regraMental(actor, "semForNoDano")) {
-      partes.push(`<p class="pyro-nota">${game.i18n.localize("PYRO.Mental.SemForNoDano")}</p>`);
-    }
-
-    // Bônus de efeito ("Maestria com Katana: 2d6") entram como parcelas extras.
-    const bonus = await this.#bonusDeDanoHTML(sys.danos?.[0]?.tipo);
-    partes.push(...bonus.partes);
-    danos.push(...bonus.danos);
-    rolls.push(...bonus.rolls);
-
-    if (municao) {
-      partes.push(`<p class="pyro-nota">${game.i18n.format("PYRO.Municao.Usou", { nome: esc(municao.name) })}</p>`);
-      // Munição com fórmula (ex.: Flechas de Raio) rola o dano adicional.
-      if (municao.system.formula) {
-        const dadosMun = semForNoDano(actor, this.getRollData());
-        const extra = await new Roll(prepararFormula(municao.system.formula, dadosMun), dadosMun).evaluate();
-        rolls.push(extra);
-        danos.push({ tipo: municao.system.tipoDano, total: extra.total, formula: municao.system.formula });
-        const tipoMun = game.i18n.localize(PYRO.tiposDano[municao.system.tipoDano]?.label ?? "");
-        partes.push(`<p><strong>${esc(municao.name)}</strong> — ${game.i18n.localize("PYRO.Municao.DanoExtra")}${tipoMun ? ` (${tipoMun})` : ""}</p>`, await extra.render());
-      }
-    }
-
-    // Multiplicadores de dano dos efeitos (Pugilista ×1,25 por nível) mexem
-    // no total que os botões de aplicar usam; a nota explica o número novo.
-    for (const nota of aplicarMultDeDano(danos, multiplicadoresDeDano(actor, this))) {
-      partes.push(`<p class="pyro-nota">${nota}</p>`);
-    }
-
-    partes.push(htmlEfeitosDeUso(this));
-
-    return ChatMessage.create({
-      speaker,
-      content: `<div class="pyro-chat">${partes.join("")}</div>`,
-      rolls,
-      // O menu do chat usa estas flags: dano separado por tipo e o recurso
-      // que o dano mental desta arma drena.
-      flags: flagsDoSistema({ danos, cura: 0, recursoMental: sys.recursoMental }),
-      // Arma sem fórmula de dano nenhuma não rola nada, e o som de dado num
-      // card sem dado é ruído.
-      ...(rolls.length ? { sound: CONFIG.sounds.dice } : {})
-    });
-  }
-
 
   async #consumir() {
     if (this.actor && !this.actor.podeAgir()) return;

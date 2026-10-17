@@ -384,6 +384,11 @@ export class CriaturaData extends foundry.abstract.TypeDataModel {
     this.temTecnicas = this.parent.items.some(i =>
       i.type === "tecnica" || (i.type === "habilidade" && i.system.ehPostura)
     );
+    // O selo de vocação física vem de técnica própria ou postura. As básicas
+    // todo mundo tem, e com elas a ficha de um mago viraria ficha de lutador.
+    this.vocacaoFisica = this.parent.items.some(i =>
+      (i.type === "tecnica" && !i.system.basica) || (i.type === "habilidade" && i.system.ehPostura)
+    );
 
     // Sentidos espirituais, um por tipo, das habilidades que os concedem
     // (a regra e os porquês vivem em sentidosDoAtor).

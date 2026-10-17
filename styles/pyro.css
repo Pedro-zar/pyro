@@ -809,6 +809,25 @@
 .pyro .conjurador-rodape input[type=text] { flex: 1; min-width: 8rem; }
 .pyro .conjurador-rodape .botao-principal { margin-left: auto; }
 
+/*
+ * Executor de técnica de reação: os campos da esquiva ou do bloqueio em cima,
+ * num painel, porque o dano que chega é a primeira coisa a escrever.
+ */
+.pyro .executor-reacao {
+  display: flex; flex-direction: column; gap: var(--pyro-e-2);
+  padding: var(--pyro-e-3);
+  background: var(--pyro-painel); border: 1px solid var(--pyro-borda);
+  border-radius: var(--pyro-r-md);
+}
+.pyro .executor-reacao-campos {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--pyro-e-2) var(--pyro-e-3); align-items: start;
+}
+.pyro .executor-reacao-campos > .hint,
+.pyro .executor-reacao-campos > .pyro-dano-recebido { grid-column: 1 / -1; }
+.pyro .executor-reacao-campos .hint { margin: 0; }
+.pyro .executor-reacao .form-group label { color: var(--pyro-texto-2); }
+
 /* ---------- Ficha de item --------------------------------------------------- */
 
 .pyro.item .window-content { gap: var(--pyro-e-2); }

@@ -168,6 +168,7 @@ export function textoDoPagamento(n, tipo, modo) {
 export async function fazerAcaoDoGuia(actor, chave) {
   const cfg = PYRO.acoesDoGuia[chave];
   if (!actor || !cfg) return;
+  if (cfg.basica) return actor.usarTecnicaBasica(cfg.basica);
   if (cfg.metodo) return actor[cfg.metodo]?.();
   if (!actor.podeAgir()) return;
 

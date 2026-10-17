@@ -17,7 +17,8 @@ import {
 import { htmlBotaoSobrecarga, htmlBotaoMira, conferirMira, motivoDaMira } from "./teste.mjs";
 import { flagsDoSistema } from "./sistema.mjs";
 import { htmlClasseDaRolagem, flagsDaClasse } from "./progressao.mjs";
-import { semForNoDano, acoesComConfusao, barradoPorMental } from "./condicoes.mjs";
+import { semForNoDano, acoesComConfusao, barradoPorMental, regraMental } from "./condicoes.mjs";
+import { lerDanoRecebido } from "./reacao.mjs";
 import { dadosDaAreaNoCard, htmlBotaoArea } from "./area.mjs";
 
 const loc = (k, d) => (d ? game.i18n.format(k, d) : game.i18n.localize(k));
@@ -38,6 +39,20 @@ export const temEspecificidade = sys => !!PYRO.acoesBaseTecnica[sys?.acaoBase]?.
 
 /** A reação que a técnica abre ("esquiva", "bloqueio"), ou null quando ela é de ação. */
 export const reacaoDaTecnica = sys => PYRO.acoesBaseTecnica[sys?.acaoBase]?.reacao || null;
+
+/**
+ * Piso do Esforço por traço. Na técnica própria é 1, como a Intenção das
+ * magias: um traço com Esforço 0 não rende nada, e a técnica que sai com
+ * todos zerados não faz coisa alguma. Na básica o 0 é o golpe ou a reação
+ * comum, sem estamina, e é o uso de todo turno.
+ */
+export const esforcoMinimo = sys => (sys?.basica ? 0 : 1);
+
+/** Munições que o ator ainda tem, para a arma que pede uma. */
+export function municoesDoAtor(actor) {
+  return actor?.items?.filter(i =>
+    i.type === "consumivel" && i.system.municao && i.system.quantidade > 0) ?? [];
+}
 
 /**
  * Ações da arma que a técnica usa como base, ou null quando não há uma.
@@ -105,7 +120,8 @@ export function pontosDaTecnica(sys) {
   const espec = temEspecificidade(sys)
     ? (PYRO.especificidades[sys?.especificidade]?.pontos ?? 0) : 0;
   const ranque = Math.max(1, Number(sys?.ranque) || 1);
-  const nivel = Math.max(1, Number(sys?.progresso?.nivel) || 1);
+  // A técnica básica nasce no nível 0, e o 0 conta como está.
+  const nivel = Math.max(0, Number(sys?.progresso?.nivel ?? 1) || 0);
   const dasAcoes = ajusteDeAcoes(sys);
   const dosOnus = (sys?.onus ?? [])
     .reduce((total, chave) => total + (PYRO.onusTecnica[chave]?.pontos ?? 0), 0);
@@ -599,8 +615,9 @@ export function resumoDaTecnica(actor, item, calc, ataque) {
     dano,
     // A Potência já está no dano; repetir "0,25 x dados de dano" ao lado dele
     // seria a mesma informação duas vezes.
+    // Traço com Esforço 0 (só na técnica básica) não entra nesta execução.
     caracteristicas: calc.linhas
-      .filter(l => l.cfg.regra !== "danoMult")
+      .filter(l => l.cfg.regra !== "danoMult" && l.esforco > 0)
       .map(l => ({
         nome: loc(l.cfg.label ?? l.chave),
         texto: textoDoTraco(l),
@@ -640,13 +657,19 @@ export function condicoesDosTracos(calc) {
 
 /**
  * Executa a técnica: cobra a estamina, testa o excesso de Esforço, rola o
- * ataque quando a ação base tem um, e publica o card.
+ * ataque quando a ação base tem um, publica o card e, na técnica de reação,
+ * rola a reação com o que o Executor já perguntou.
  *
  * @param {object} escolhas
  * @param {Record<string, number>} escolhas.esforcos Esforço por chave de traço.
  * @param {string} [escolhas.ataqueId] ataque escolhido, quando a base ataca.
+ * @param {string} [escolhas.municaoId] munição, quando a arma escolhida pede uma.
+ * @param {object} [escolhas.respostas] campos da reação no Executor (dano
+ *   recebido, bônus, vantagens, cobertura, Força de Vontade).
  */
-export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null } = {}) {
+export async function usarTecnica(actor, item, {
+  esforcos = {}, ataqueId = null, municaoId = null, respostas = null
+} = {}) {
   // Também aqui, e não só na abertura do executor: a janela pode estar aberta
   // desde antes de a mochila ficar pesada demais, ou de a guarda cair.
   if (actor && !actor.podeAgir()) return;
@@ -657,14 +680,27 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   // A reação vem logo depois do card, e quem não pode reagir não pode pagar
   // por uma técnica que termina numa reação barrada.
   if (actor && reacao && barradoPorMental(actor, "semReacoes")) return;
+  const minimo = esforcoMinimo(sys);
   const usados = tracosDaTecnica(sys)
-    // Esforço mínimo 1, como a Intenção das magias: um traço só entra na
-    // execução fazendo alguma coisa.
-    .map(t => ({ ...t, esforco: Math.max(1, Math.round(Number(esforcos[t.chave]) || 0)) }));
+    .map(t => ({ ...t, esforco: Math.max(minimo, Math.round(Number(esforcos[t.chave]) || 0)) }));
 
   const ataque = base?.ataca && ataqueId
     ? ataquesDaTecnica(actor, sys, item).find(a => a.id === ataqueId) ?? null
     : null;
+
+  /*
+   * O que precisa estar escolhido é conferido antes de qualquer cobrança: a
+   * munição da arma que dispara, e o dano que chega na reação. Sem isso a
+   * técnica sairia paga e não teria o que rolar.
+   */
+  let municao = null;
+  if (ataque?.item?.system.usaMunicao) {
+    municao = municoesDoAtor(actor).find(m => m.id === municaoId) ?? null;
+    if (!municao) return ui.notifications.warn(game.i18n.localize("PYRO.Avisos.SemMunicao"));
+  }
+  if (reacao && !lerDanoRecebido(respostas, actor.system.defesas?.totais)) {
+    return ui.notifications.warn(loc("PYRO.Reacao.SemDano"));
+  }
   const calc = calcularEsforco(actor, usados, [item, ataque?.item]);
 
   /* --- Custos: estamina do Esforço, e os PV do ônus que os pede ----------- */
@@ -687,6 +723,9 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   const pago = await actor.pagarCustos({ estamina: calc.estamina });
   if (!pago) return;
   const gasto = await actor.gastarAcoes(acoes, { tipo });
+  if (!gasto.ok) return;
+  // Munição some ao disparar, acertando ou errando.
+  if (municao) await municao.update({ "system.quantidade": municao.system.quantidade - 1 });
   if (cobraPv) {
     const pv = actor.system.recursos.pv;
     await actor.update({ "system.recursos.pv.value": Math.max(0, pv.value - calc.somaEsforcos) });
@@ -766,8 +805,11 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     partes.push(`<p class="pyro-postura-variacao"><strong>${esc(postura.name)}:</strong> ${esc(variacao.texto)}</p>`);
   }
 
-  if (calc.linhas.length) {
-    partes.push(`<ul class="pyro-tracos">${calc.linhas.map(l => `<li${l.alem ? ` class="alem-limite"` : ""}>
+  // Traço em Esforço 0 não foi usado: listá-lo diria que a técnica fez o
+  // que não fez.
+  const usadas = calc.linhas.filter(l => l.esforco > 0);
+  if (usadas.length) {
+    partes.push(`<ul class="pyro-tracos">${usadas.map(l => `<li${l.alem ? ` class="alem-limite"` : ""}>
       <strong>${loc(l.cfg.label ?? l.chave)}</strong>
       <span class="pyro-traco-meta">${loc("PYRO.Tecnica.Grau")} ${l.grau} ·
         ${loc("PYRO.Tecnica.Esforco")} ${l.esforco} ·
@@ -816,6 +858,25 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
         formula: bonus.formula
       });
       partes.push(`<p class="pyro-linha-dano">${esc(bonus.nome)}</p>`, await roll.render());
+    }
+    // O abatido zera a Força no dano; sem a nota, "2d8 + 0" parece defeito.
+    if (danos.length && regraMental(actor, "semForNoDano")) {
+      partes.push(`<p class="pyro-nota">${loc("PYRO.Mental.SemForNoDano")}</p>`);
+    }
+    if (municao) {
+      partes.push(`<p class="pyro-nota">${loc("PYRO.Municao.Usou", { nome: esc(municao.name) })}</p>`);
+      // Munição com fórmula (Flechas de Raio) rola o dano dela, que entra
+      // nos multiplicadores junto com o resto do golpe.
+      if (municao.system.formula) {
+        const dados = semForNoDano(actor, item.getRollData());
+        const extra = await new Roll(prepararFormula(municao.system.formula, dados), dados).evaluate();
+        rolls.push(extra);
+        const tipoMun = municao.system.tipoDano;
+        danos.push({ tipo: tipoMun, total: extra.total, formula: municao.system.formula });
+        const rotulo = tipoMun ? ` (${loc(PYRO.tiposDano[tipoMun]?.label ?? tipoMun)})` : "";
+        partes.push(`<p class="pyro-linha-dano dano-${tipoMun}">${esc(municao.name)} · ${
+          loc("PYRO.Municao.DanoExtra")}${rotulo}</p>`, await extra.render());
+      }
     }
     /*
      * A Potência e os multiplicadores de efeito entram na MESMA aplicação,
@@ -906,6 +967,8 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
     rolls,
     flags: flagsDoSistema({
       danos, cura: 0, efeitosRegra, variaveis,
+      // O recurso que o dano mental da arma drena, como no ataque comum.
+      ...(ataque?.item?.system.recursoMental ? { recursoMental: ataque.item.system.recursoMental } : {}),
       ...(area ? { area } : {}),
       ...flagsDaClasse(classe, item)
     }),
@@ -913,14 +976,16 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
   });
 
   /*
-   * A técnica de reação é a própria esquiva ou o próprio bloqueio: a janela
-   * da reação abre em seguida, já paga aqui e com o multiplicador dos traços.
-   * Sem await, para o Executor fechar enquanto o jogador preenche o dano.
+   * A técnica de reação é a própria esquiva ou o próprio bloqueio: a rolagem
+   * sai em seguida, já paga aqui, com o multiplicador dos traços e com o que
+   * o Executor perguntou. Não há segunda janela para fechar no meio.
    */
   if (reacao) {
-    const opcoes = { tecnica: { nome: item.name, fator: multiplicadorDeReacao(calc, reacao) } };
-    if (reacao === "esquiva") actor.rolarEsquiva(opcoes);
-    else actor.rolarBloqueio(opcoes);
+    const opcoes = {
+      tecnica: { nome: item.name, fator: multiplicadorDeReacao(calc, reacao) },
+      respostas
+    };
+    await (reacao === "esquiva" ? actor.rolarEsquiva(opcoes) : actor.rolarBloqueio(opcoes));
   }
   return mensagem;
 }
@@ -929,10 +994,10 @@ export async function usarTecnica(actor, item, { esforcos = {}, ataqueId = null 
  * Abre o Executor da técnica. Fica aqui, e não na ficha, porque o "usar" do
  * item precisa chegar ao mesmo lugar que o botão da lista.
  */
-export async function executarTecnica(actor, item) {
+export async function executarTecnica(actor, item, { ataqueId = null } = {}) {
   if (actor && !actor.podeAgir()) return;
   if (actor && !posturaPermite(actor, item.system)) return;
   if (actor && reacaoDaTecnica(item.system) && barradoPorMental(actor, "semReacoes")) return;
   const { ExecutorApp } = await import("./apps/executor.mjs");
-  return new ExecutorApp({ actor, item }).render(true);
+  return new ExecutorApp({ actor, item, ataqueId }).render(true);
 }

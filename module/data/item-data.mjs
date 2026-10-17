@@ -464,6 +464,15 @@ export class TecnicaData extends BaseItemData {
       ranque: num(1, { min: 1, max: 9 }),
       acaoBase: str("atacar", { choices: Object.keys(PYRO.acoesBaseTecnica) }),
       /*
+       * Qual técnica básica esta é (ver PYRO.tecnicasBasicas), ou vazio na
+       * técnica montada pelo jogador. É o campo que trava a técnica na ficha:
+       * sem exclusão, sem traço novo, sem trocar a base.
+       *
+       * Sem `choices`: com elas o Foundry passa a recusar o texto vazio, e
+       * toda técnica que não é básica ficava inválida e sumia da ficha.
+       */
+      basica: str(""),
+      /*
        * Custo próprio em ações. O que diferir das ações da arma escolhida vira
        * ponto de criação (ver PYRO.pontosDeAcoes); o teto é o turno inteiro,
        * senão uma técnica de oito ações mostraria pontos que a tabela não dá.

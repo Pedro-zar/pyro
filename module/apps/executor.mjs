@@ -8,31 +8,37 @@
 import { PYRO } from "../config.mjs";
 import {
   tracosDaTecnica, calcularEsforco, ataquesDaTecnica, usarTecnica, textoDoTraco, textoDaCondicao,
-  resumoDaTecnica, numeroDoTraco, posturaAtivaVale, posturaExigida, acoesDaExecucao
+  resumoDaTecnica, numeroDoTraco, posturaAtivaVale, posturaExigida, acoesDaExecucao,
+  esforcoMinimo, reacaoDaTecnica, municoesDoAtor
 } from "../tecnica.mjs";
 import { ajustesDeCusto, custoAjustado, textoDeAlcance } from "../efeitos.mjs";
 import { acoesComConfusao, regraMental } from "../condicoes.mjs";
+import { camposDaReacao, ligarCamposDeDano } from "../reacao.mjs";
 import { pintarTema } from "../tema.mjs";
 import { caminho } from "../sistema.mjs";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
-/**
- * Piso do Esforço, igual ao da Intenção nas magias: um traço com Esforço 0 não
- * rende nada, e a técnica que sai com todos zerados não faz coisa alguma.
- */
-const ESFORCO_MINIMO = 1;
+/** Partes que mudam com o Esforço, a arma e a munição. A da reação não entra. */
+const PARTES_DO_ESFORCO = ["form", "rodape"];
 
 export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
-  constructor({ actor, item, ...options } = {}) {
+  /**
+   * @param {string} [options.ataqueId] arma que abre escolhida (o clique na
+   *   arma abre o Atacar já com ela).
+   */
+  constructor({ actor, item, ataqueId = null, ...options } = {}) {
     super(options);
     this.actor = actor;
     this.item = item;
+    /** Piso do Esforço desta técnica: 0 na básica, 1 nas outras. */
+    this.minimo = esforcoMinimo(item.system);
     /** Esforço por chave de traço, escolhido nesta execução. */
     this.esforcos = Object.fromEntries(
-      tracosDaTecnica(item.system).map(t => [t.chave, ESFORCO_MINIMO])
+      tracosDaTecnica(item.system).map(t => [t.chave, this.minimo])
     );
-    this.ataqueId = null;
+    this.ataqueId = ataqueId;
+    this.municaoId = null;
   }
 
   get title() {
@@ -53,15 +59,29 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
   };
 
+  /*
+   * Três partes, para o Esforço poder redesenhar a janela sem apagar o que o
+   * jogador já escreveu na reação: o dano que chega, os bônus e a Força de
+   * Vontade ficam numa parte que só desenha na abertura.
+   */
   static PARTS = {
-    form: { template: caminho("templates/apps/executor.hbs") }
+    reacao: { template: caminho("templates/apps/executor-reacao.hbs") },
+    form: { template: caminho("templates/apps/executor.hbs") },
+    rodape: { template: caminho("templates/apps/executor-rodape.hbs") }
   };
+
+  /** A parte da reação só existe na técnica de reação. */
+  _configureRenderParts(options) {
+    const partes = super._configureRenderParts(options);
+    if (!reacaoDaTecnica(this.item.system)) delete partes.reacao;
+    return partes;
+  }
 
   /* ---------------------------------------------------------------------- */
 
   #usados() {
     return tracosDaTecnica(this.item.system)
-      .map(t => ({ ...t, esforco: Math.max(ESFORCO_MINIMO, this.esforcos[t.chave] ?? 0) }));
+      .map(t => ({ ...t, esforco: Math.max(this.minimo, this.esforcos[t.chave] ?? 0) }));
   }
 
   /**
@@ -136,13 +156,24 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     }
     const ataque = ataques.find(a => a.id === this.ataqueId) ?? null;
 
+    /* --- Munição: a arma que dispara escolhe o que gasta, aqui mesmo ------- */
+    const pedeMunicao = !!ataque?.item?.system.usaMunicao;
+    const municoes = pedeMunicao ? municoesDoAtor(this.actor) : [];
+    if (pedeMunicao && !municoes.some(m => m.id === this.municaoId)) {
+      this.municaoId = municoes[0]?.id ?? null;
+    }
+    const semMunicao = pedeMunicao && !municoes.length;
+
+    /* --- Reação: os campos da janela de esquiva ou bloqueio, aqui dentro --- */
+    const reacao = reacaoDaTecnica(sys);
+
     const usados = this.#usados();
     // A arma entra na conta junto da técnica: efeitos de custo presos a ela
     // valem aqui, e a janela precisa mostrar a mesma estamina que usarTecnica
     // vai cobrar.
     const calc = calcularEsforco(this.actor, usados, [this.item, ataque?.item]);
-    // Todo traço entra na conta, porque o Esforço mínimo é 1: cada linha da
-    // janela tem a sua em calc.
+    // Todo traço entra na conta, mesmo o que está em Esforço 0 numa básica:
+    // cada linha da janela tem a sua em calc.
     const fichas = calc.linhas.map(l => ({
       chave: l.chave,
       nome: loc(l.cfg.label ?? l.chave),
@@ -166,7 +197,7 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     const semAtaque = !!base?.ataca && !ataques.length;
     // A guarda pode cair com a janela aberta: o botão desliga junto.
     const foraDePostura = !posturaAtivaVale(this.actor, sys);
-    this._podeExecutar = !semAtaque && !faltaEstamina && !foraDePostura;
+    this._podeExecutar = !semAtaque && !semMunicao && !faltaEstamina && !foraDePostura;
 
     Object.assign(context, {
       actor: this.actor,
@@ -182,7 +213,15 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
       pedeAtaque: !!base?.ataca,
       semAtaque,
       ataques: ataques.map(a => ({ id: a.id, nome: a.nome, ativo: a.id === this.ataqueId })),
+      pedeMunicao,
+      semMunicao,
+      municoes: municoes.map(m => ({
+        id: m.id, nome: `${m.name} (x${m.system.quantidade})`, ativo: m.id === this.municaoId
+      })),
       condicao: textoDaCondicao(sys),
+      reacao,
+      reacaoTitulo: reacao ? loc(reacao === "esquiva" ? "PYRO.Esquivar" : "PYRO.Bloquear") : "",
+      camposReacao: reacao ? camposDaReacao(this.actor, reacao) : "",
 
       estaminaAtual: estamina.value,
       estaminaMax: estamina.max,
@@ -226,34 +265,35 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
 
   /* ---------------------------------------------------------------------- */
 
-  /** Guarda o ataque escolhido antes de re-renderizar por causa do Esforço. */
+  /** Guarda a arma e a munição escolhidas antes de redesenhar a janela. */
   #capturarCampos() {
     const escolhido = this.element?.querySelector("[name=ataque]")?.value;
     if (escolhido) this.ataqueId = escolhido;
+    const municao = this.element?.querySelector("[name=municao]")?.value;
+    if (municao) this.municaoId = municao;
+  }
+
+  #redesenhar() {
+    this.#capturarCampos();
+    return this.render({ parts: PARTES_DO_ESFORCO });
   }
 
   static #subirEsforco(event, target) {
-    this.#capturarCampos();
     const chave = target.dataset.chave;
-    this.esforcos[chave] = Math.max(ESFORCO_MINIMO, this.esforcos[chave] ?? 0) + 1;
-    this.render();
+    this.esforcos[chave] = Math.max(this.minimo, this.esforcos[chave] ?? 0) + 1;
+    this.#redesenhar();
   }
 
-  /*
-   * O piso é 1, como a Intenção das magias: um traço sem Esforço não rende
-   * nada, e deixar zerar dava uma execução que não fazia coisa nenhuma.
-   */
+  // O piso é o da técnica (ver esforcoMinimo): 1 nas próprias, 0 nas básicas.
   static #descerEsforco(event, target) {
-    this.#capturarCampos();
     const chave = target.dataset.chave;
-    this.esforcos[chave] = Math.max(ESFORCO_MINIMO, (this.esforcos[chave] ?? 0) - 1);
-    this.render();
+    this.esforcos[chave] = Math.max(this.minimo, (this.esforcos[chave] ?? 0) - 1);
+    this.#redesenhar();
   }
 
   static #zerarEsforcos() {
-    this.#capturarCampos();
-    for (const chave of Object.keys(this.esforcos)) this.esforcos[chave] = ESFORCO_MINIMO;
-    this.render();
+    for (const chave of Object.keys(this.esforcos)) this.esforcos[chave] = this.minimo;
+    this.#redesenhar();
   }
 
   _onRender(context, options) {
@@ -261,9 +301,18 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
     pintarTema(this.element, this.actor);
     const botao = this.element.querySelector("button[type=submit]");
     if (botao) botao.disabled = !this._podeExecutar;
+    // Trocar a arma muda o dano da prévia e a munição que ela pede.
+    if (options.parts?.includes("form")) {
+      for (const campo of this.element.querySelectorAll("[name=ataque], [name=municao]")) {
+        campo.addEventListener("change", () => this.#redesenhar());
+      }
+    }
+    // Uma vez por desenho da parte da reação, senão cada clique no "+"
+    // criaria tantas linhas de dano quantas vezes o Esforço mudou.
+    if (options.parts?.includes("reacao")) ligarCamposDeDano(this.element);
   }
 
-  static async #aoExecutar(event, form, formData) {
+  static async #aoExecutar(_event, _form, formData) {
     this.#capturarCampos();
     if (!this._podeExecutar) return;
     /*
@@ -273,7 +322,9 @@ export class ExecutorApp extends HandlebarsApplicationMixin(ApplicationV2) {
      */
     const feito = await usarTecnica(this.actor, this.item, {
       esforcos: this.esforcos,
-      ataqueId: this.ataqueId
+      ataqueId: this.ataqueId,
+      municaoId: this.municaoId,
+      respostas: reacaoDaTecnica(this.item.system) ? formData.object : null
     });
     if (feito) this.close();
   }

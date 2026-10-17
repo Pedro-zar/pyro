@@ -73,6 +73,20 @@
         {{/each}}
       </select>
     </label>
+    {{!-- A arma que dispara gasta munição, e a escolha mora aqui: a técnica
+          não abre uma segunda janela no meio da execução. --}}
+    {{#if semMunicao}}
+    <p class="pyro-aviso"><i class="fa-solid fa-triangle-exclamation"></i>
+      {{localize "PYRO.Avisos.SemMunicao"}}</p>
+    {{else if pedeMunicao}}
+    <label class="campo largo"><span class="rotulo">{{localize "PYRO.Executor.Municao"}}</span>
+      <select name="municao">
+        {{#each municoes as |m|}}
+        <option value="{{m.id}}" {{#if m.ativo}}selected{{/if}}>{{m.nome}}</option>
+        {{/each}}
+      </select>
+    </label>
+    {{/if}}
     {{/if}}
   </section>
   {{/if}}
@@ -116,11 +130,6 @@
     </div>
   </section>
 
-  <footer class="conjurador-rodape">
-    <button type="submit" class="botao-principal" {{#unless podeExecutar}}disabled{{/unless}}>
-      <i class="fa-solid fa-hand-fist"></i> {{localize "PYRO.Executor.Executar"}}
-    </button>
-  </footer>
 </div>
 
 {{> "pyro.previa"}}

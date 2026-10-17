@@ -23,6 +23,7 @@ import { registrarRelogio } from "./tempo.mjs";
 import { registrarEconomia } from "./economia.mjs";
 import { registrarPercepcao } from "./percepcao.mjs";
 import { registrarRegioes } from "./regioes.mjs";
+import { registrarTecnicasBasicas } from "./tecnicas-basicas.mjs";
 import { SYSTEM_ID, flagsDe, formasAtivas, caminho } from "./sistema.mjs";
 
 Hooks.once("init", () => {
@@ -98,6 +99,7 @@ Hooks.once("init", () => {
   // Cada turno do combate vale 6 segundos para todos em cena (SRD §1).
   registrarRelogio();
   registrarEconomia();
+  registrarTecnicasBasicas();
 
   // Fontes do sistema, também disponíveis nos editores de texto.
   CONFIG.fontDefinitions["PyroDisplay"] = {
